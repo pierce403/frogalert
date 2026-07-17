@@ -8,22 +8,22 @@ documents instead of vendoring code whose license or revision might diverge.
 - Firmware and hardware documentation:
   <https://github.com/fossasia/badgemagic-firmware>
 - Badge BLE protocol (`FEE0/FEE1`, legacy packet format):
-  <https://github.com/fossasia/badgemagic-firmware/blob/main/BadgeBLE.md>
+  <https://github.com/fossasia/badgemagic-firmware/blob/master/BadgeBLE.md>
 - BadgeMagic app: <https://github.com/fossasia/badgemagic-app>
 - CH58x Rust HAL and BLE examples: <https://github.com/ch32-rs/ch58x-hal>
 - WCH ISP flasher: <https://github.com/ch32-rs/wchisp>
 
-The FOSSASIA firmware is GPL-3.0. FrogAlert has not copied its implementation;
-the planned Rust ports must either be independently implemented from hardware
-facts/protocol documentation or FrogAlert must be relicensed compatibly before
-GPL code is incorporated.
+The current FOSSASIA firmware is Apache-2.0. Preserve its copyright and NOTICE
+requirements when incorporating code, and distinguish copied implementation
+from independently implemented hardware/protocol behavior. The `wchisp` tool is
+GPL-2.0-only and has a separate license boundary; see `docs/THIRD_PARTY.md`.
 
 ## Detection seeds
 
 Unagi currently seeds name rules for `Flipper`, `Axon Body`, `TASER`,
 `Ray-Ban`, and `Ray Ban`:
 
-<https://github.com/deanpierce/unagi>
+<https://github.com/pierce403/unagi>
 
 OUI-Spy's published database provides these initial prefixes:
 
@@ -41,4 +41,3 @@ so those prefixes are excluded from FrogAlert's BLE rules.
 OUI matches are hints, not identity proof. Vendors can share modules, BLE
 addresses can be randomized, and a detected device is not proof of a person or
 agency being present.
-

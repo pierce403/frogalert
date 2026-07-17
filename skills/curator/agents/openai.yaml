@@ -1,0 +1,4 @@
+interface:
+  display_name: "Curator"
+  short_description: "Maintain FrogAlert repo-local skills"
+  default_prompt: "Use $curator to decide whether a FrogAlert lesson belongs in AGENTS.md, memory, or a reusable skill."

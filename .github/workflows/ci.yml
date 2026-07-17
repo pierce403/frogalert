@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Rust format
+        run: cargo fmt --all -- --check
+      - name: Rust lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Rust tests
+        run: cargo test --workspace
+      - name: Browser protocol and site tests
+        run: node --test tests/*.test.mjs
+      - name: Whitespace check
+        run: |
+          if git grep -nI -E '[[:blank:]]+$' -- .; then
+            echo "Tracked files contain trailing whitespace" >&2
+            exit 1
+          fi

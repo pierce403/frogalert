@@ -25,11 +25,14 @@ fn parse_address(input: &str) -> Option<[u8; 6]> {
     for byte in &mut address {
         *byte = u8::from_str_radix(parts.next()?, 16).ok()?;
     }
-    if parts.next().is_some() { None } else { Some(address) }
+    if parts.next().is_some() {
+        None
+    } else {
+        Some(address)
+    }
 }
 
 fn usage() -> ! {
     eprintln!("usage: frogalert-simulator AA:BB:CC:DD:EE:FF [advertised-name]");
     std::process::exit(2)
 }
-

@@ -1,6 +1,7 @@
 /target/
 /firmware/target/
+/tmp/
 *.bin
 *.elf
 .DS_Store
-
+!/firmware/releases/*.bin

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Maintain Web Flasher"
+  short_description: "Safely maintain browser badge flashing"
+  default_prompt: "Use $maintain-web-flasher to change and verify the FrogAlert WebUSB flashing flow."

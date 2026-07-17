@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Badge Firmware"
+  short_description: "Build and verify CH582M firmware"
+  default_prompt: "Use $build-badge-firmware to build and validate a FrogAlert firmware artifact safely."

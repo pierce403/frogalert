@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+node --test tests/*.test.mjs
+
+if command -v xmllint >/dev/null 2>&1; then
+  xmllint --html --noout index.html
+else
+  echo "note: xmllint not installed; site structure tests still ran" >&2
+fi
+
+codex_root="${CODEX_HOME:-$HOME/.codex}"
+validator="$codex_root/skills/.system/skill-creator/scripts/quick_validate.py"
+if [[ -f "$validator" ]]; then
+  for skill in skills/*; do
+    python3 "$validator" "$skill"
+  done
+else
+  echo "note: Codex skill validator not installed; Node contract tests still check skill frontmatter" >&2
+fi
+
+git diff --check
+git diff --cached --check

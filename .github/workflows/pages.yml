@@ -1,0 +1,38 @@
+name: Deploy static site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Assemble static artifact
+        run: |
+          mkdir -p _site/firmware/releases
+          cp index.html CNAME .nojekyll _site/
+          cp -R site _site/
+          cp firmware/releases/manifest.json _site/firmware/releases/
+          find firmware/releases -maxdepth 1 -type f -name '*.bin' -exec cp {} _site/firmware/releases/ \;
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
