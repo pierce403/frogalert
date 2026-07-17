@@ -1,0 +1,4 @@
+[workspace]
+members = ["crates/frogalert-core", "tools/simulator"]
+resolver = "2"
+

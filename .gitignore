@@ -1,0 +1,6 @@
+/target/
+/firmware/target/
+*.bin
+*.elf
+.DS_Store
+
