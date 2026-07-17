@@ -217,12 +217,12 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Static GitHub Pages deployment | **PLANNED** | Pages workflow succeeds from `main` | Workflow included in repo. |
-| Custom domain `frogalert.org` | **PLANNED** | DNS and Pages domain check pass | `CNAME` included; external DNS still required. |
-| HTTPS enforced | **PLANNED** | Public request redirects to HTTPS | Required for WebUSB/Web Bluetooth. |
-| Correct MIME types for modules/JSON/bin | **PLANNED** | Public network inspection | `.bin` should be octet-stream. |
-| Deployment smoke test | **PLANNED** | Public page and manifest load | API existence alone is insufficient. |
-| Cache policy for firmware manifests | **PLANNED** | New release appears without stale shell | Avoid service-worker complexity initially. |
+| Static GitHub Pages deployment | **SHIPPED** | Pages run `29583539847` succeeded from `main` | Publishes a minimal static artifact. |
+| Custom domain `frogalert.org` | **SHIPPED** | DNS resolves to GitHub Pages and the live page returns 200 | Pages custom-domain setting is authoritative; workflow `CNAME` is only a repo record. |
+| HTTPS enforced | **SHIPPED** | HTTP returns 301 to HTTPS; GitHub certificate approved | Secure context confirmed in a live browser. |
+| Correct MIME types for modules/JSON/bin | **PROTOTYPE** | Live JS is `application/javascript`; manifest is `application/json` | No `.bin` exists to inspect yet. |
+| Deployment smoke test | **SHIPPED** | Live heading, safety gate, empty-release status, module execution, and zero console errors verified | Tested at <https://frogalert.org/>. |
+| Cache policy for firmware manifests | **PROTOTYPE** | App requests `no-store`; Pages currently advertises a 10-minute CDN maximum | Test a real manifest promotion before first release. |
 
 ## Security, privacy, and abuse boundaries
 

@@ -9,6 +9,9 @@
 - Confirmed WCH factory flashing is USB ISP, not BLE.
 - Added a static project site, guarded browser device flows, project operating
   docs, repo-local skills, and an extensive readiness tracker.
+- Deployed commit `0e12869` with passing CI and GitHub Pages workflows.
+- Attached `frogalert.org`, waited for certificate approval, enforced HTTPS,
+  and verified the live page plus firmware manifest in a real browser.
 
 ## Important limitation
 
