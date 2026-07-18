@@ -20,9 +20,10 @@ not evidence that a badge is safe to flash.
 4. Preserve the BadgeMagic compatibility contract: advertised identity,
    `FEE0/FEE1`, 16-byte legacy chunks, uploaded framebuffer, and normal nametag
    behavior outside brief disconnected scan windows.
-5. Build with a pinned Rust toolchain and `riscv32imac-unknown-none-elf`. Record
-   the exact toolchain, HAL revision, linker configuration, binary size, and
-   source commit.
+5. Build with the pinned toolchain and atomic-free
+   `riscv32imc-unknown-none-elf` target through the repo scripts. QingKe V4 must
+   not receive AMO/LR/SC instructions. Record the exact toolchain, HAL revision,
+   linker configuration, binary size, and source commit.
 6. Run host tests first, then embedded build checks, then hardware smoke checks.
 7. Never perform the first irreversible flash without explicit human approval.
 8. For a release, produce a `.bin`, SHA-256 checksum, release manifest, source
@@ -33,6 +34,9 @@ not evidence that a badge is safe to flash.
 
 - opened PCB and readable `CH582M` package marking;
 - exactly 44 LED columns and known hardware revision;
+- a separate record of the physical PCB marking/photos and selected firmware
+  profile;
+- confirmed populated 32.768 kHz LSE before running the BLE count image;
 - ISP enumerates as `4348:55e0` or `1a86:55e0`;
 - stable USB power and a tested bootloader-entry procedure;
 - owner understands that the read-protected OEM image cannot be backed up.

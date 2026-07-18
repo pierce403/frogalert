@@ -38,6 +38,11 @@ The public site is a dependency-free static application. It separates:
 ## Source map
 
 - `crates/frogalert-core/` — tested, allocation-free detection logic
+- `firmware/frogalert-display/` — shared exact-Rev1 charlieplex driver
+- `firmware/frogalert-pixel-walk/` — single-pixel physical bring-up firmware
+- `firmware/frogalert-count/` — hardware-gated BLE count lab firmware
+- `firmware/vendor/ch58x-hal/` — pinned HAL `611954e` with documented local
+  patches in `FROGALERT-VENDORING.md`
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
 - `tests/` — browser-protocol and static-site tests
@@ -52,10 +57,16 @@ The public site is a dependency-free static application. It separates:
 - Target only a badge whose opened PCB is confirmed as CH582M with an 11×44
   matrix and recorded exact PCB revision. `LSLED` naming and enclosure
   appearance are not proof.
-- The OEM firmware is read-protected and cannot be backed up. A first flash is
-  irreversible unless the owner already has a recoverable image.
-- Browser flashing must identify chip id `0x82`, family/type `0x16`, and bind
-  the selected artifact to the entered PCB revision before any write.
+- The OEM firmware is read-protected, unavailable, and cannot be backed up. A
+  first flash is irreversible unless the owner already has a recoverable image.
+- The bundled FOSSASIA v0.1 image is an open BadgeMagic-compatible substitute,
+  not a factory reset. It is restricted to `HARDWARE_REV1` and remains
+  hardware-unverified by FrogAlert; preparation may work, but the public site
+  must not arm destructive use until its manifest verification flag is backed
+  by a recorded physical smoke test.
+- Browser flashing must identify chip id `0x82`, family/type `0x16`, record the
+  observed physical PCB marking separately, and bind the selected artifact to
+  the entered firmware profile before any write.
 - The first destructive step must reset CH58x protection/configuration with
   command `0xA8` and require an exact `0xA7` readback before erase.
 - Never erase or write on connect. Require a user-selected firmware file,
@@ -63,7 +74,8 @@ The public site is a dependency-free static application. It separates:
 - Bind an active flash to the captured USB device and prohibit reconnecting a
   replacement device until that session exits.
 - Always verify the programmed bytes before reporting success.
-- Do not collect, persist, or transmit scanned device identifiers.
+- Do not log, persist, or transmit scanned device identifiers. Retain only the
+  ephemeral per-window addresses needed for deduplication, then zero them.
 - Treat BLE OUI matches as hints only, and never use OUIs for randomized/local
   addresses.
 
@@ -81,6 +93,8 @@ Individual checks:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+./scripts/build-display-bringup HARDWARE_REV1 --check
+./scripts/build-count-firmware HARDWARE_REV1 --check
 node --test tests/*.test.mjs
 xmllint --html --noout index.html
 git diff --check
@@ -98,6 +112,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 ## Coding conventions
 
 - Keep `frogalert-core` `no_std`, allocation-free, and independent of the HAL.
+- Target QingKe V4 with `riscv32imc-unknown-none-elf`. Do not enable
+  `unsafe-trust-wch-atomics`; every firmware build must pass the AMO/LR/SC
+  instruction audit.
 - Keep protocol encoders pure and unit-tested separately from WebUSB transport.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
@@ -118,8 +135,27 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 
 ## Known issues and boundaries
 
-- There is not yet a flashable FrogAlert firmware image.
-- The Rust display driver and BadgeMagic GATT service are not yet implemented.
+- The safe first display artifact is `frogalert-pixel-walk`: it selects exactly
+  one logical pixel, advances left-to-right every 750 ms, reports `(x, y)` at
+  115200 baud on UART1/PA9, uses 5 mA GPIO drive, and initializes neither BLE
+  nor LSE. It remains hardware-unverified and is not flash-approved.
+- The count prototype emits build evidence only under `./tmp/`; it is not a
+  release and has not booted on a physical badge.
+- Its passive three-second window counts up to 64 unique advertiser addresses
+  in ephemeral RAM, then displays the approximate result for seven seconds.
+- The shared Rust Rev1 display driver and renderer are implemented at
+  build/host-test layers. Pixel mapping, orientation, flicker, current draw,
+  and radio/display coexistence still require a physical pixel-walk test.
+- The count lab firmware does not implement the BadgeMagic GATT service.
+- The vendored HAL is upstream `611954e` plus four recorded source patches: PAC
+  `0.4` to `0.3`, raw BLE-heap pointer formation, Embassy-only GPIO async
+  gating, and the missing synchronous SysTick nanosecond delay. Its BLE stack
+  is WCH's precompiled `LIBCH58xBLE.a`, not an all-Rust radio stack.
+- Confirm the badge has the assumed 32.768 kHz crystal before running BLE. The
+  HAL config and WCH stack currently select an external LSE.
+- Do not port the display map from FOSSASIA firmware head `eb6e9da`; it has
+  duplicate I/K entries. Use the clean `aa890e9` mapping as the research
+  reference. Rev2's T net remains unresolved between PB6 and PB23.
 - Browser ISP code follows the documented behavior of `ch32-rs/wchisp` and
   remains experimental until exercised on physical hardware.
 - WebUSB and Web Bluetooth support varies by browser and operating system.

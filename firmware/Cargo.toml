@@ -1,0 +1,10 @@
+[workspace]
+members = ["frogalert-count", "frogalert-display", "frogalert-pixel-walk"]
+exclude = ["vendor/ch58x-hal"]
+resolver = "2"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1

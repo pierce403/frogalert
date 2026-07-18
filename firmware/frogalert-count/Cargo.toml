@@ -1,0 +1,21 @@
+[package]
+name = "frogalert-count-firmware"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Hardware-gated CH582M passive BLE count prototype"
+publish = false
+
+[features]
+default = []
+hardware-rev1 = []
+
+[dependencies]
+ch58x-hal = { path = "../vendor/ch58x-hal" }
+critical-section = "1.2.0"
+embassy-executor = { version = "=0.7.0", features = ["nightly", "arch-riscv32", "executor-thread"] }
+embassy-time = "=0.4.0"
+frogalert-core = { path = "../../crates/frogalert-core" }
+frogalert-display = { path = "../frogalert-display" }
+qingke-rt = { version = "=0.5.0", features = ["highcode"] }
+qingke = "=0.5.0"

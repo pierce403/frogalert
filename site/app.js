@@ -18,9 +18,16 @@ import {
   resetConfigPacket,
   sha256Hex,
   validateFirmware,
+  validateRecoveryDescriptor,
   validateReleaseDescriptor,
   xorChunk,
 } from "./wchisp-protocol.js";
+import {
+  canEnableFlash,
+  canProgramArtifact,
+  nextArtifactGeneration,
+  revisionInputTransition,
+} from "./flasher-state.js";
 
 const BADGE_SERVICE = 0xfee0;
 const BADGE_CHARACTERISTIC = 0xfee1;
@@ -37,6 +44,7 @@ const state = {
   bluetoothDevice: null,
   artifactGeneration: 0,
   activeFlashDevice: null,
+  recoveryImages: [],
   releaseSummary: { message: "Loading release manifest…", tone: "neutral" },
 };
 
@@ -53,9 +61,19 @@ const elements = {
   bootloaderVersion: $("#bootloader-version"),
   uidStatus: $("#uid-status"),
   firmwareInput: $("#firmware-file"),
+  pcbMarking: $("#pcb-marking"),
   pcbRevision: $("#pcb-revision"),
   releaseSelect: $("#release-select"),
   releaseStatus: $("#release-status"),
+  recoveryButton: $("#recovery-prepare"),
+  recoveryBoardConfirmation: $("#recovery-board-confirmation"),
+  recoveryStatus: $("#recovery-status"),
+  recoveryVersion: $("#recovery-version"),
+  recoveryTarget: $("#recovery-target"),
+  recoverySource: $("#recovery-source"),
+  recoverySize: $("#recovery-size"),
+  recoveryHash: $("#recovery-hash"),
+  recoveryVerification: $("#recovery-verification"),
   firmwareName: $("#firmware-name"),
   firmwareSize: $("#firmware-size"),
   firmwareHash: $("#firmware-hash"),
@@ -292,20 +310,106 @@ function selectedRevision() {
   return elements.pcbRevision.value.trim();
 }
 
+function hasBoardRecord() {
+  return elements.pcbMarking.value.trim().length > 0;
+}
+
+function recoveryDescriptor() {
+  return state.recoveryImages[0] || null;
+}
+
+function renderRecoveryDescriptor(recovery) {
+  const releaseLink = document.createElement("a");
+  releaseLink.href = recovery.upstream.release_url;
+  releaseLink.target = "_blank";
+  releaseLink.rel = "noopener noreferrer";
+  releaseLink.textContent = `${recovery.label} ${recovery.version} · ${recovery.upstream.license}`;
+  elements.recoveryVersion.replaceChildren(releaseLink);
+  elements.recoveryTarget.textContent = `${recovery.hardware_revisions[0]} · CH582M · 11×44 · Micro-USB`;
+  const sourceLink = document.createElement("a");
+  sourceLink.href = recovery.upstream.source_url;
+  sourceLink.target = "_blank";
+  sourceLink.rel = "noopener noreferrer";
+  sourceLink.textContent = recovery.upstream.source_commit.slice(0, 12);
+  elements.recoverySource.replaceChildren(sourceLink);
+  elements.recoverySize.textContent = `${recovery.bytes.toLocaleString()} bytes`;
+  elements.recoveryHash.textContent = recovery.sha256;
+  elements.recoveryVerification.textContent = "hardware-unverified by FrogAlert";
+}
+
+function updateRecoveryButton() {
+  const recovery = recoveryDescriptor();
+  const revision = selectedRevision();
+  const matches = Boolean(recovery && revision === recovery.hardware_revisions[0]);
+  const boardConfirmed = elements.recoveryBoardConfirmation.checked;
+  elements.recoveryButton.disabled = state.flashing || !matches || !boardConfirmed;
+  if (!recovery) {
+    setStatus(elements.recoveryStatus, "No reviewed open BadgeMagic recovery descriptor is available.", "warning");
+  } else if (!revision) {
+    setStatus(
+      elements.recoveryStatus,
+      "Enter HARDWARE_REV1 exactly after inspecting the opened Micro-USB board. Preparation remains disabled.",
+      "neutral",
+    );
+  } else if (!matches) {
+    setStatus(
+      elements.recoveryStatus,
+      `No reviewed open BadgeMagic image is available for ${revision}. Unknown boards, HARDWARE_REV2, and HARDWARE_REV3 remain disabled.`,
+      "warning",
+    );
+  } else if (!boardConfirmed) {
+    setStatus(
+      elements.recoveryStatus,
+      "Compare the opened board with the linked FOSSASIA reference photos and check the hardware confirmation before preparing this image.",
+      "warning",
+    );
+  } else if (state.firmware?.recoveryId === recovery.id) {
+    setStatus(
+      elements.recoveryStatus,
+      `${recovery.label} ${recovery.version} is prepared and hash-verified locally for inspection. Nothing has been written, and browser programming stays locked until a physical HARDWARE_REV1 smoke test passes.`,
+      "warning",
+    );
+  } else {
+    setStatus(
+      elements.recoveryStatus,
+      `${recovery.label} ${recovery.version} can be prepared and inspected for HARDWARE_REV1. This only loads bytes; browser programming stays locked until a physical HARDWARE_REV1 smoke test passes.`,
+      "warning",
+    );
+  }
+}
+
 function revisionMatchesArtifact() {
   const revision = selectedRevision();
   return Boolean(revision && state.firmware?.hardwareRevisions?.includes(revision));
 }
 
+function recoveryArtifactConfirmationComplete() {
+  return (
+    state.firmware?.artifactKind !== "open-badgemagic-recovery" ||
+    elements.recoveryBoardConfirmation.checked
+  );
+}
+
+function artifactProgrammingAllowed() {
+  return canProgramArtifact({
+    isBundledRecovery: state.firmware?.artifactKind === "open-badgemagic-recovery",
+    hardwareVerifiedByFrogalert: state.firmware?.hardwareVerifiedByFrogalert,
+  });
+}
+
 function updateFlashButton() {
-  elements.flashButton.disabled =
-    state.flashing ||
-    !state.usbDevice ||
-    !state.chip ||
-    !state.config ||
-    !state.firmware ||
-    !revisionMatchesArtifact() ||
-    !confirmationsComplete();
+  elements.flashButton.disabled = !canEnableFlash({
+    flashing: state.flashing,
+    hasUsbDevice: Boolean(state.usbDevice),
+    hasChipIdentity: Boolean(state.chip),
+    hasConfig: Boolean(state.config),
+    hasFirmware: Boolean(state.firmware),
+    hasBoardRecord: hasBoardRecord(),
+    artifactMatchesRevision: revisionMatchesArtifact(),
+    confirmationsComplete: confirmationsComplete(),
+    artifactConfirmationComplete: recoveryArtifactConfirmationComplete(),
+    artifactProgrammingAllowed: artifactProgrammingAllowed(),
+  });
 }
 
 function clearFirmware() {
@@ -315,10 +419,22 @@ function clearFirmware() {
   elements.firmwareSize.textContent = "—";
   elements.firmwareHash.textContent = "—";
   elements.firmwareRevision.textContent = "—";
+  updateProgress(0, "Not armed");
   updateFlashButton();
+  updateRecoveryButton();
 }
 
-async function setFirmware(bytes, name, source, { expectedHash = null, generation, hardwareRevisions } = {}) {
+function beginArtifactPreparation() {
+  state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
+  return state.artifactGeneration;
+}
+
+async function setFirmware(
+  bytes,
+  name,
+  source,
+  { expectedHash = null, generation, hardwareRevisions, metadata = {} } = {},
+) {
   const raw = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const validated = validateFirmware(raw, name);
   const hash = await sha256Hex(raw);
@@ -326,7 +442,15 @@ async function setFirmware(bytes, name, source, { expectedHash = null, generatio
   if (expectedHash && hash.toLowerCase() !== expectedHash.toLowerCase()) {
     throw new Error("firmware SHA-256 does not match its release manifest");
   }
-  state.firmware = { name, source, raw, hash, hardwareRevisions: [...hardwareRevisions], ...validated };
+  state.firmware = {
+    name,
+    source,
+    raw,
+    hash,
+    hardwareRevisions: [...hardwareRevisions],
+    ...validated,
+    ...metadata,
+  };
   elements.firmwareName.textContent = name;
   elements.firmwareSize.textContent = `${raw.byteLength.toLocaleString()} bytes (${validated.padded.byteLength.toLocaleString()} padded)`;
   elements.firmwareHash.textContent = hash;
@@ -341,7 +465,7 @@ async function chooseLocalFirmware(event) {
   const file = event.target.files?.[0];
   if (!file) return;
   const revision = selectedRevision();
-  const generation = ++state.artifactGeneration;
+  const generation = beginArtifactPreparation();
   elements.releaseSelect.value = "";
   restoreReleaseSummary();
   clearFirmware();
@@ -362,35 +486,112 @@ async function chooseLocalFirmware(event) {
   }
 }
 
+async function prepareOpenBadgeMagicFirmware() {
+  if (state.flashing || !elements.recoveryBoardConfirmation.checked) {
+    updateRecoveryButton();
+    return;
+  }
+  const recovery = recoveryDescriptor();
+  const generation = beginArtifactPreparation();
+  elements.firmwareInput.value = "";
+  elements.releaseSelect.value = "";
+  clearFirmware();
+  try {
+    validateRecoveryDescriptor(recovery, selectedRevision());
+    elements.recoveryButton.disabled = true;
+    setStatus(
+      elements.recoveryStatus,
+      "Loading the same-origin FOSSASIA v0.1 bytes for local size and SHA-256 verification…",
+      "working",
+    );
+    const artifactUrl = new URL(
+      `./firmware/releases/${encodeURIComponent(recovery.file)}`,
+      window.location.href,
+    );
+    const response = await fetch(artifactUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`open BadgeMagic firmware returned HTTP ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength !== recovery.bytes) {
+      throw new Error("open BadgeMagic firmware byte length does not match the reviewed descriptor");
+    }
+    const loaded = await setFirmware(
+      bytes,
+      recovery.file,
+      `${recovery.label} ${recovery.version} from FOSSASIA`,
+      {
+        expectedHash: recovery.sha256,
+        generation,
+        hardwareRevisions: recovery.hardware_revisions,
+        metadata: {
+          artifactKind: recovery.kind,
+          recoveryId: recovery.id,
+          hardwareVerifiedByFrogalert: recovery.hardware_verified_by_frogalert,
+        },
+      },
+    );
+    if (!loaded) return;
+    log(
+      "Prepared the open BadgeMagic replacement for inspection. No USB command was sent, and browser programming remains locked until a physical HARDWARE_REV1 smoke test passes.",
+      "warning",
+    );
+    updateRecoveryButton();
+  } catch (error) {
+    if (generation !== state.artifactGeneration) return;
+    clearFirmware();
+    setStatus(elements.recoveryStatus, `Open BadgeMagic image not prepared: ${error.message}`, "bad");
+    log(`Open BadgeMagic image rejected before any device write: ${error.message}`, "error");
+    elements.recoveryButton.disabled =
+      state.flashing ||
+      !elements.recoveryBoardConfirmation.checked ||
+      selectedRevision() !== recovery?.hardware_revisions?.[0];
+  }
+}
+
 async function loadReleaseManifest() {
   try {
     const response = await fetch("./firmware/releases/manifest.json", { cache: "no-store" });
     if (!response.ok) throw new Error(`manifest returned HTTP ${response.status}`);
     const manifest = await response.json();
-    if (manifest.schema_version !== 1 || !Array.isArray(manifest.releases)) {
+    if (
+      manifest.schema_version !== 2 ||
+      !Array.isArray(manifest.releases) ||
+      !Array.isArray(manifest.recovery_images)
+    ) {
       throw new Error("manifest schema is not supported");
     }
     const releases = manifest.releases.filter((release) => release.hardware_verified === true);
     if (releases.length === 0) {
       setReleaseSummary("No hardware-verified FrogAlert firmware has been released yet. Developer BIN files can be selected locally.", "warning");
-      return;
+    } else {
+      for (const release of releases) {
+        const option = document.createElement("option");
+        option.value = JSON.stringify(release);
+        option.textContent = `${release.version} · ${release.target}`;
+        elements.releaseSelect.append(option);
+      }
+      elements.releaseSelect.disabled = state.flashing;
+      setReleaseSummary(`${releases.length} hardware-verified release${releases.length === 1 ? "" : "s"} available.`, "good");
     }
-    for (const release of releases) {
-      const option = document.createElement("option");
-      option.value = JSON.stringify(release);
-      option.textContent = `${release.version} · ${release.target}`;
-      elements.releaseSelect.append(option);
+
+    if (manifest.recovery_images.length !== 1) {
+      throw new Error("manifest must contain exactly one reviewed open BadgeMagic recovery image");
     }
-    elements.releaseSelect.disabled = state.flashing;
-    setReleaseSummary(`${releases.length} hardware-verified release${releases.length === 1 ? "" : "s"} available.`, "good");
+    const recovery = manifest.recovery_images[0];
+    validateRecoveryDescriptor(recovery, "HARDWARE_REV1");
+    state.recoveryImages = [recovery];
+    renderRecoveryDescriptor(recovery);
+    updateRecoveryButton();
   } catch (error) {
+    state.recoveryImages = [];
     setReleaseSummary(`Release list unavailable: ${error.message}`, "bad");
+    setStatus(elements.recoveryStatus, `Open BadgeMagic descriptor unavailable: ${error.message}`, "bad");
+    elements.recoveryButton.disabled = true;
   }
 }
 
 async function chooseRelease(event) {
   if (state.flashing) return;
-  const generation = ++state.artifactGeneration;
+  const generation = beginArtifactPreparation();
   elements.firmwareInput.value = "";
   clearFirmware();
   if (!event.target.value) {
@@ -473,9 +674,21 @@ async function beginKeySession(key, expectedDevice) {
 }
 
 async function flashFirmware() {
-  if (elements.flashButton.disabled || !state.firmware || !state.config) return;
+  if (
+    elements.flashButton.disabled ||
+    !state.firmware ||
+    !state.config ||
+    !artifactProgrammingAllowed()
+  ) {
+    updateFlashButton();
+    return;
+  }
+  const artifactDescription =
+    state.firmware.artifactKind === "open-badgemagic-recovery"
+      ? "the FOSSASIA open BadgeMagic replacement (not the original OEM image)"
+      : state.firmware.name;
   const confirmed = window.confirm(
-    `Final check: reset CH58x protection/configuration, erase the current firmware, and program ${state.firmware.name} for PCB revision ${selectedRevision()}? The OEM image cannot be backed up or restored automatically.`,
+    `Final check: reset CH58x protection/configuration, erase the current firmware, and program ${artifactDescription} for PCB revision ${selectedRevision()}? The OEM image is unavailable and unrecoverable.`,
   );
   if (!confirmed) {
     log("Final flash confirmation declined; nothing changed.");
@@ -488,7 +701,14 @@ async function flashFirmware() {
   updateFlashButton();
   elements.usbButton.disabled = true;
   elements.firmwareInput.disabled = true;
+  elements.pcbMarking.disabled = true;
+  elements.pcbRevision.disabled = true;
+  elements.recoveryBoardConfirmation.disabled = true;
+  elements.confirmations.forEach((input) => {
+    input.disabled = true;
+  });
   elements.releaseSelect.disabled = true;
+  elements.recoveryButton.disabled = true;
   const { padded, eraseSectors } = state.firmware;
   const key = deriveXorKey(state.config.uid);
   const chunks = Math.ceil(padded.byteLength / PROGRAM_CHUNK_BYTES);
@@ -557,17 +777,34 @@ async function flashFirmware() {
     );
     await closeUsb();
   } catch (error) {
-    if (error?.name === "TimeoutError") await closeUsb();
+    await closeUsb();
+    if (state.firmware?.artifactKind === "open-badgemagic-recovery") {
+      elements.recoveryBoardConfirmation.checked = false;
+    }
     updateProgress(elements.progress.value, "Stopped — follow recovery instructions below");
-    setStatus(elements.usbStatus, `Flash stopped: ${error.message}`, "bad");
-    log(`FLASH STOPPED: ${error.message}. Keep this page open, re-enter ISP mode, reconnect, and retry the same verified artifact.`, "error");
+    setStatus(
+      elements.usbStatus,
+      `Flash stopped: ${error.message}. Reconnect for fresh read-only identification before retrying.`,
+      "bad",
+    );
+    log(
+      `FLASH STOPPED: ${error.message}. Keep this page open, re-enter ISP mode, reconnect, pass read-only identification, and accept every acknowledgement again before retrying the same verified artifact.`,
+      "error",
+    );
   } finally {
     state.activeFlashDevice = null;
     state.flashing = false;
     elements.firmwareInput.disabled = false;
+    elements.pcbMarking.disabled = false;
+    elements.pcbRevision.disabled = false;
+    elements.recoveryBoardConfirmation.disabled = false;
+    elements.confirmations.forEach((input) => {
+      input.disabled = false;
+    });
     elements.releaseSelect.disabled = elements.releaseSelect.options.length <= 1;
     elements.usbButton.disabled = !("usb" in navigator) || Boolean(state.usbDevice);
     updateFlashButton();
+    updateRecoveryButton();
   }
 }
 
@@ -575,11 +812,37 @@ function bindEvents() {
   elements.bluetoothButton.addEventListener("click", connectBluetooth);
   elements.usbButton.addEventListener("click", connectUsb);
   elements.firmwareInput.addEventListener("change", chooseLocalFirmware);
-  elements.pcbRevision.addEventListener("input", () => {
+  elements.pcbMarking.addEventListener("input", () => {
+    state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
     resetConfirmations();
+    if (state.firmware) {
+      clearFirmware();
+      log("Cleared the prepared artifact because the opened-board record changed.", "warning");
+    }
     updateFlashButton();
   });
+  elements.pcbRevision.addEventListener("input", () => {
+    elements.recoveryBoardConfirmation.checked = false;
+    const transition = revisionInputTransition({
+      artifactGeneration: state.artifactGeneration,
+      isRecoveryArtifact: state.firmware?.artifactKind === "open-badgemagic-recovery",
+      artifactMatchesRevision: revisionMatchesArtifact(),
+    });
+    state.artifactGeneration = transition.artifactGeneration;
+    resetConfirmations();
+    if (transition.clearFirmware) {
+      clearFirmware();
+      log("Cleared the prepared open BadgeMagic image because the exact PCB revision changed.", "warning");
+    }
+    updateFlashButton();
+    updateRecoveryButton();
+  });
   elements.releaseSelect.addEventListener("change", chooseRelease);
+  elements.recoveryButton.addEventListener("click", prepareOpenBadgeMagicFirmware);
+  elements.recoveryBoardConfirmation.addEventListener("change", () => {
+    updateRecoveryButton();
+    updateFlashButton();
+  });
   elements.confirmations.forEach((input) => input.addEventListener("change", updateFlashButton));
   elements.flashButton.addEventListener("click", flashFirmware);
   if ("usb" in navigator) {

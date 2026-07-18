@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+revision="${1:-}"
+mode="${2:-}"
+
+if [[ "$#" -gt 2 || "$revision" != "HARDWARE_REV1" ]]; then
+  echo "usage: ./scripts/build-display-bringup HARDWARE_REV1 [--check]" >&2
+  echo "Refusing a generic build: verify the opened PCB before choosing a revision." >&2
+  exit 2
+fi
+if [[ -n "$mode" && "$mode" != "--check" ]]; then
+  echo "usage: ./scripts/build-display-bringup HARDWARE_REV1 [--check]" >&2
+  exit 2
+fi
+
+cd "$repo_root/firmware"
+env -u CARGO_TARGET_DIR \
+  -u RUSTFLAGS \
+  -u CARGO_ENCODED_RUSTFLAGS \
+  -u CARGO_BUILD_RUSTFLAGS \
+  -u CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUSTFLAGS \
+  cargo +nightly-2026-07-17 fmt --package frogalert-display --package frogalert-pixel-walk -- --check
+build_dir="$repo_root/tmp/build/frogalert-pixel-walk"
+env -u CARGO_TARGET_DIR \
+  -u RUSTFLAGS \
+  -u CARGO_ENCODED_RUSTFLAGS \
+  -u CARGO_BUILD_RUSTFLAGS \
+  -u CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUSTFLAGS \
+  cargo +nightly-2026-07-17 build \
+  --locked \
+  --target riscv32imc-unknown-none-elf \
+  --target-dir "$build_dir" \
+  --package frogalert-pixel-walk \
+  --bin frogalert-pixel-walk \
+  --release \
+  --features hardware-rev1
+
+elf="$build_dir/riscv32imc-unknown-none-elf/release/frogalert-pixel-walk"
+output_dir="$repo_root/tmp/firmware"
+mkdir -p "$output_dir"
+host="$(rustc +nightly-2026-07-17 -vV | sed -n 's/^host: //p')"
+sysroot="$(rustc +nightly-2026-07-17 --print sysroot)"
+llvm_bin="$sysroot/lib/rustlib/$host/bin"
+disassembly="$output_dir/frogalert-pixel-walk-HARDWARE_REV1.disassembly.txt"
+elf_header="$("$llvm_bin/llvm-readobj" --file-headers "$elf")"
+elf_attributes="$("$llvm_bin/llvm-readobj" --arch-specific "$elf")"
+if ! grep -Eq '^Format: elf32-.*riscv$' <<<"$elf_header" ||
+  ! grep -Eq '^[[:space:]]*Machine: EM_RISCV' <<<"$elf_header"; then
+  echo "refusing artifact: expected an ELF32 RISC-V image" >&2
+  exit 1
+fi
+arch_attribute="$(sed -n 's/^[[:space:]]*Value: \(rv32[^[:space:]]*\)$/\1/p' <<<"$elf_attributes" | head -n 1)"
+if [[ -z "$arch_attribute" ]] ||
+  ! grep -Eq 'rv32i' <<<"$arch_attribute" ||
+  ! grep -Eq '_m[0-9]' <<<"$arch_attribute" ||
+  ! grep -Eq '_c[0-9]' <<<"$arch_attribute" ||
+  grep -Eq '_a[0-9]' <<<"$arch_attribute"; then
+  echo "refusing artifact: expected atomic-free RISC-V IMC attributes" >&2
+  echo "${arch_attribute:-missing RISC-V arch attribute}" >&2
+  exit 1
+fi
+"$llvm_bin/llvm-objdump" -d --mattr=+a "$elf" >"$disassembly"
+if grep -Eiq '(^|[[:space:]])(amo|lr\.|sc\.)' "$disassembly"; then
+  echo "refusing artifact: QingKe-unsafe atomic instruction found" >&2
+  exit 1
+fi
+"$llvm_bin/llvm-size" "$elf"
+echo "RISC-V attributes: $arch_attribute"
+echo "instruction audit passed: no AMO/LR/SC operations"
+if [[ "$mode" == "--check" ]]; then
+  echo "embedded display bring-up check passed: $elf"
+  echo "HARDWARE UNVERIFIED: this check does not authorize flashing"
+  exit 0
+fi
+
+bin="$output_dir/frogalert-pixel-walk-HARDWARE_REV1.bin"
+"$llvm_bin/llvm-objcopy" -O binary "$elf" "$bin"
+sha256sum "$bin"
+wc -c "$bin"
+echo "UNVERIFIED PIXEL-WALK BUILD ONLY: do not flash without the physical gates in docs/HARDWARE.md"

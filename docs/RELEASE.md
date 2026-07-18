@@ -29,10 +29,17 @@ Do not publish a firmware entry until all of these exist:
 - official BadgeMagic app upload before and after an alert/scan cycle;
 - release notes with irreversible first-flash warning and CLI fallback.
 
+The current `firmware/frogalert-count/` observer/count/display prototype does
+not satisfy this gate. It builds and passes a static QingKe instruction audit,
+but it has not run on a positively identified physical badge, does not expose
+the BadgeMagic GATT service, and is not approved for either local or browser
+flashing.
+
 ## Manifest entry
 
-The manifest is `firmware/releases/manifest.json`. A future release entry has
-this shape:
+The manifest is `firmware/releases/manifest.json`. Schema v2 separates
+FrogAlert firmware in `releases` from attributed third-party substitutes in
+`recovery_images`. A future FrogAlert release entry has this shape:
 
 ```json
 {
@@ -52,10 +59,49 @@ this shape:
 The site must reject unknown targets, false `hardware_verified`, invalid hashes,
 oversize images, and unsupported hardware revisions.
 
+The current `releases` array is empty. The one `recovery_images` entry is
+FOSSASIA's official open BadgeMagic firmware v0.1 substitute, constrained to
+exact `HARDWARE_REV1` and recorded as
+`hardware_verified_by_frogalert: false`. It is not a FrogAlert release and it is
+not the original OEM firmware.
+
+## Temporary lab-build evidence
+
+The revision-gated build commands are:
+
+```sh
+./scripts/build-display-bringup HARDWARE_REV1 --check
+./scripts/build-display-bringup HARDWARE_REV1
+./scripts/build-count-firmware HARDWARE_REV1 --check
+./scripts/build-count-firmware HARDWARE_REV1
+```
+
+The two non-check commands print the current ignored BIN's byte length and
+SHA-256. Those values are local, temporary, hardware-unverified build evidence
+only. They change with source or toolchain changes, must not be copied into the
+public manifest, and must not be treated as release or flash authorization.
+
 ## Rollback and recovery
 
-There is no automatic OEM rollback because the original image is read-protected
-and cannot be dumped. A failed FrogAlert update should be recoverable only by
-re-entering WCH ISP and reflashing the last known-good open firmware. Keep the
-last known-good release available and test that path before calling any release
-stable.
+There is no factory/OEM rollback. The original image is read-protected,
+unavailable, cannot be dumped, and therefore cannot be restored after the first
+replacement.
+
+For an exactly identified FOSSASIA Micro-USB `HARDWARE_REV1` board, the website
+may prepare FOSSASIA's published open BadgeMagic v0.1 firmware as a substitute:
+
+- file: `badgemagic-open-v0.1-hardware-rev1.bin`;
+- length: `155672` bytes;
+- SHA-256: `7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9`;
+- FrogAlert hardware verification: false.
+
+Preparing that image is non-destructive. While its hardware-verification flag
+is false, it cannot reach the separate final program action. Unknown revisions,
+`HARDWARE_REV2`, and `HARDWARE_REV3` have no approved substitute. After
+FrogAlert releases exist, a failed update should be recoverable by re-entering
+WCH ISP and reflashing a
+physically tested last-known-good open image. That retry must itself be tested
+before any FrogAlert release is called stable.
+
+A physical Rev1 recovery smoke must pass before changing that flag and enabling
+the path.

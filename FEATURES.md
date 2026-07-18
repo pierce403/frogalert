@@ -1,6 +1,6 @@
 # FrogAlert feature and readiness tracker
 
-Last reviewed: 2026-07-17
+Last reviewed: 2026-07-18
 
 This is the source of truth for requirements, implementation status, acceptance
 evidence, and release gates. Update it in the same change that alters a feature.
@@ -28,6 +28,11 @@ badge. It remains a user-programmable nametag and periodically performs a short,
 passive BLE scan. When a conservative local rule matches, it temporarily shows
 `COP DETECTED` or `HAX DETECTED`, then restores the user's nametag content.
 
+The current [`frogalert-count` firmware](firmware/frogalert-count/src/main.rs) is
+an observer-only bring-up prototype, not that complete product. It scans and
+renders a nearby-device count, but does not yet advertise the BadgeMagic GATT
+service or preserve a user nametag.
+
 ### Product invariants
 
 | Requirement | Status | Acceptance evidence | Notes |
@@ -45,7 +50,7 @@ passive BLE scan. When a conservative local rule matches, it temporarily shows
 | --- | --- | --- | --- |
 | Target WCH CH582M QFN48 | **BLOCKED** for hardware | Open badge and photograph readable package marking | Physical badge needed. |
 | Exactly 11×44 LEDs | **BLOCKED** for hardware | Count rows/columns and record revision | Similar 11×55 products are incompatible. |
-| Identify board revision and pin mapping | **PLANNED** | Photos plus display/button/USB smoke tests | Upstream contains multiple revision conditionals. |
+| Identify board revision and pin mapping | **BLOCKED** for physical proof | Photos plus pixel-walk, display/button, and USB smoke tests | An exact `HARDWARE_REV1` software profile exists; its pins and orientation have not been proven on this badge, and Rev2/Rev3 remain unresolved. |
 | Factory ISP boot entry with KEY2 | **BLOCKED** | Enumerates as `4348:55e0` or `1a86:55e0` | Physical badge needed. |
 | Long-press KEY2 entry after open firmware | **PLANNED** | Power-cycle and long-press test | Preserve upstream recovery affordance. |
 | Battery-safe scan schedule | **PLANNED** | Current draw and runtime measurements | Default proposal: 57 s normal + 3 s scan. |
@@ -55,23 +60,25 @@ passive BLE scan. When a conservative local rule matches, it temporarily shows
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Rust for embedded application logic | **PLANNED** | CH582 firmware crate builds and boots | `ch58x-hal` proves feasibility but app firmware is not present. |
-| `riscv32imac-unknown-none-elf` target | **PLANNED** | Pinned toolchain CI build | HAL examples currently need nightly features. |
-| Pin Rust and HAL revisions | **PLANNED** | Committed toolchain file and locked git revision | Do before first firmware artifact. |
-| Linker/runtime configuration | **PLANNED** | ELF map and boot smoke | Must preserve WCH BLE library memory requirements. |
+| Rust for embedded application logic | **PROTOTYPE** | The exact-revision [`pixel-walk`](firmware/frogalert-pixel-walk/src/main.rs) and [`frogalert-count`](firmware/frogalert-count/src/main.rs) binaries build and link | Neither has booted on physical hardware; the count image has no BadgeMagic GATT service. |
+| `riscv32imc-unknown-none-elf` target | **PROTOTYPE** | Exact-revision release link plus disassembly audit passes | Atomic-free IMC is intentional for QingKe V4; the build rejects AMO/LR/SC instructions. |
+| Pin Rust and HAL revisions | **PROTOTYPE** | [`rust-toolchain.toml`](firmware/rust-toolchain.toml), firmware lockfile, and local HAL source are present and locked | Pinned nightly and dependency set build; upstream HAL warnings remain and hardware behavior is unverified. |
+| Linker/runtime configuration | **PROTOTYPE** | Both embedded scripts pin the toolchain/target/bin, build into `tmp/`, validate ELF32 RISC-V IMC attributes, and audit decoded A-extension opcodes | Build proof is not boot proof; WCH BLE memory layout and runtime behavior still need hardware validation. |
 | Reproducible release build | **PLANNED** | Two clean builds produce matching `.bin` SHA-256 | Record host/toolchain metadata. |
 | Firmware size limit | **PLANNED** | CI rejects image beyond CH582 code flash | CH582 definition reports 448 KiB. |
-| Panic/fault behavior | **PLANNED** | Visible safe fallback and recovery test | Never leave the matrix driven incorrectly. |
+| Panic/fault behavior | **PROTOTYPE** | Panic paths disable TMR0, release display pins, and enter WFI; the count build also attempts UART output | Never leave the matrix driven incorrectly; force and observe this path on hardware. |
 | Version embedded in firmware | **PLANNED** | Readable via Device Information and release manifest | Include source commit. |
 
 ## Display and nametag behavior
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Rust 11×44 charlieplexed display driver | **PLANNED** | All pixels and rows pass visual test | Port hardware facts; preserve upstream attribution. |
-| Hardware revision pin maps | **PLANNED** | Test each supported revision | Never guess revision-specific pins. |
-| Stable refresh without flicker | **PLANNED** | Camera/visual check during BLE activity | Refresh timing must coexist with WCH BLE processing. |
-| Text rendering for alert phrases | **PLANNED** | Both phrases readable across the matrix | Scrolling is likely required. |
+| Rust 11×44 charlieplexed display driver | **PROTOTYPE** for `HARDWARE_REV1` | The shared [`frogalert-display`](firmware/frogalert-display/src/lib.rs) crate links into both lab binaries and floats controlled lines before polarity changes | Software implementation follows the attributed upstream map; no pixel has been observed on physical hardware. |
+| Safe single-pixel bring-up image | **PROTOTYPE** | [`build-display-bringup`](scripts/build-display-bringup) links and audits a row-major walk with one logical pixel, 750 ms steps, UART coordinates, 5 mA drive, and no BLE/LSE initialization | This is the first physical display gate, not a release; exact position, polarity, brightness, and current remain unverified. |
+| Hardware revision pin maps and orientation | **BLOCKED** for physical proof | Exact-board pixel walk proves every row, column, direction, and first-pair swap | `HARDWARE_REV1` is encoded, but its PCB identity, exact pins, orientation, and timing are not badge-verified; never guess a revision. |
+| Stable refresh without flicker | **BLOCKED** for physical proof | Camera/visual check first in pixel-walk, then during BLE activity | A 4 kHz timer with a 250 us drive/release cadence yields about 91 full pair scans per second in source, but panel behavior and BLE coexistence have not been observed. |
+| Hardware-independent 5×7 text rendering | **SHIPPED** at host layer | `cargo test --workspace` covers scrolling alert text and clipping | [`display.rs`](crates/frogalert-core/src/display.rs) solves rasterization; phrase readability on the panel remains blocked by display bring-up. |
+| Nearby-device count rendering | **SHIPPED** at host layer | Centered count, saturation `+`, bounds, and simulator output are tested | The embedded prototype uses the same renderer; no physical panel evidence yet. |
 | User framebuffer storage | **PLANNED** | Upload survives alert and reboot | Define data-flash ownership/versioning. |
 | Temporary alert overlay | **PLANNED** | Alert displays, then exact prior content resumes | Do not persist overlay as nametag content. |
 | Alert cooldown/deduplication | **PLANNED** | Repeated advertisements do not strobe indefinitely | Define per-rule and global cooldowns. |
@@ -103,9 +110,10 @@ passive BLE scan. When a conservative local rule matches, it temporarily shows
 | Axon `00:25:DF` seed | **SHIPPED** at core layer | Test and OUI-Spy provenance | Hint, not identity proof. |
 | Flock `B4:1E:52` seed | **SHIPPED** at core layer | Rule and OUI-Spy provenance | Must confirm it appears in BLE field data. |
 | Unagi name seeds | **SHIPPED** at core layer | Flipper, Axon Body, TASER, Ray-Ban variants | Mirrored from current Unagi defaults. |
-| Parse BLE advertisement fields | **PLANNED** | Golden advertisement tests | Handle malformed lengths without panic. |
-| Observer scan for about 3 seconds | **PLANNED** | Hardware scan sees known test beacon | Passive scan; active scan off initially. |
-| Peripheral/observer role switching | **BLOCKED** | Repeated 24-hour hardware run | WCH BLE stack behavior must be proven. |
+| Parse BLE advertisement fields | **SHIPPED** at host layer | Complete/shortened-name and malformed-length tests pass | [`advertisement.rs`](crates/frogalert-core/src/advertisement.rs) is allocation-free; controller report integration remains pending. |
+| Count distinct advertisers ephemerally | **SHIPPED** at host layer | Duplicate, saturation, and clear-window tests pass | [`scan.rs`](crates/frogalert-core/src/scan.rs) uses fixed capacity and zeroes each completed window rather than retaining a history. |
+| Observer scan for about 3 seconds | **PROTOTYPE** | Exact-board firmware links with a 3-second passive observer window | [`frogalert-count`](firmware/frogalert-count/src/main.rs) counts report addresses and shows the result for seven seconds; no radio or badge test yet. |
+| Peripheral/observer role switching | **BLOCKED** | Repeated 24-hour hardware run | The lab build is observer-only and deliberately lacks BadgeMagic GATT; WCH role switching must still be designed and proven. |
 | Do not scan while app connected | **PLANNED** | Connection suppresses scheduled scan | Resume schedule after disconnect. |
 | Restore peripheral advertising | **PLANNED** | App rediscovers after every scan window | Failure must recover automatically. |
 | Configurable scan interval | **DEFERRED** | App/site settings design | Ship a safe fixed cadence first. |
@@ -116,14 +124,14 @@ passive BLE scan. When a conservative local rule matches, it temporarily shows
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| One verification entry point | **SHIPPED** | `./scripts/verify` runs local contract | Includes Rust, JS, HTML, skill, and whitespace checks. |
-| Host Rust tests | **SHIPPED** | `cargo test --workspace` | No network or badge required. |
-| Host scan simulator | **SHIPPED** | Documented Axon/Flipper examples | Useful before embedded integration. |
+| One verification entry point | **SHIPPED** | `./scripts/verify` runs local contract | Includes host Rust, both embedded link/instruction audits, JS, HTML, skill, and whitespace checks. |
+| Host Rust tests | **SHIPPED** | `cargo test --workspace`: 17 tests | Includes classification, AD parsing, ephemeral distinct-address counting, 11×44 count rendering, and alert text windows. |
+| Host scan/display simulator | **SHIPPED** | Axon/Flipper classification plus `--count NUMBER [--saturated]` preview | Useful before embedded integration; terminal pixels do not prove panel orientation. |
 | Rust formatting and clippy | **SHIPPED** | Included in verify and CI | Warnings are errors. |
 | JavaScript protocol tests | **PROTOTYPE** | Node packet/validation tests | Hardware transcript fixtures still needed. |
 | Static site preview | **SHIPPED** | `./scripts/serve-site` | Serves repository root on localhost. |
 | HTML sanity check | **SHIPPED** | `xmllint --html --noout index.html` | Accessibility still needs browser review. |
-| Firmware bootstrap helper | **PLANNED** | Checks/installs pinned embedded target and tools | Do not pin until firmware crate lands. |
+| Exact-revision firmware build helpers | **PROTOTYPE** | The [pixel-walk](scripts/build-display-bringup) and [count](scripts/build-count-firmware) scripts link only their named binary and audit the exact ELF | Both refuse a generic board build, scrub target/Rust flag overrides, reject non-IMC or AMO/LR/SC output, and keep emitted artifacts under ignored `tmp/`. |
 | Local `wchisp` fallback | **PLANNED** docs | Verified `wchisp info/flash` on badge | Physical badge needed. |
 | Linux udev guidance | **PLANNED** docs | Tested rule on supported distro | Include both accepted vendor ids. |
 | Windows WinUSB guidance | **PLANNED** docs | Tested clean-machine flow | May require Zadig/INF. |
@@ -133,14 +141,15 @@ passive BLE scan. When a conservative local rule matches, it temporarily shows
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Versioned raw `.bin` | **BLOCKED** | Hardware-tested firmware build | Website intentionally has no bundled image today. |
+| Versioned FrogAlert raw `.bin` | **BLOCKED** | Hardware-tested firmware build | No FrogAlert image is listed as a release or offered for one-click installation. |
 | ELF with symbols | **PLANNED** | Attached to GitHub release | For debugging, not browser users. |
-| SHA-256 checksum | **PLANNED** | Manifest and release asset agree | Browser recomputes locally. |
-| Machine-readable manifest | **PROTOTYPE** | Schema tracked with no current release | Include target, revision, size, hash, commit, version. |
+| FrogAlert release SHA-256 checksum | **PLANNED** | Manifest and release asset agree | Browser recomputes locally; the separate upstream recovery image is already pinned by hash. |
+| Machine-readable manifest | **PROTOTYPE** | Schema v2 keeps empty FrogAlert `releases` separate from `recovery_images` | Includes exact target, revision, size, hash, provenance, and hardware-verification status. |
+| Official open BadgeMagic v0.1 recovery image | **PROTOTYPE** for exact `HARDWARE_REV1` | The [155,672-byte artifact](firmware/releases/badgemagic-open-v0.1-hardware-rev1.bin) and SHA-256 match the [pinned manifest entry](firmware/releases/manifest.json) | This is FOSSASIA's open Micro-USB replacement, not factory/OEM firmware. Preparation is available, but destructive use stays locked while FrogAlert hardware verification is false. |
 | Build provenance | **PLANNED** | Toolchain/HAL/source recorded | Prefer reproducible CI artifact. |
 | Firmware signing | **DEFERRED** | Threat model and key custody design | Hash/provenance first; do not invent security theater. |
 | Hardware compatibility matrix | **PLANNED** | Tested revision table | Default-deny unknown revisions. |
-| Release rollback/recovery doc | **PLANNED** | Deliberate failed-flash test | OEM rollback is impossible without an image. |
+| Release rollback/recovery documentation | **PROTOTYPE** | [`WEB_FLASHING.md`](docs/WEB_FLASHING.md) separates the open replacement from unavailable OEM bytes | Browser preparation is documented; destructive recovery and failed-flash handling remain hardware-unverified. |
 | GitHub release automation | **PLANNED** | Tag creates draft with verified assets | Never auto-promote untested firmware. |
 
 ## Static website
@@ -155,6 +164,7 @@ passive BLE scan. When a conservative local rule matches, it temporarily shows
 | Accessible status announcements | **SHIPPED** | ARIA live status/log | Perform screen-reader pass before stable launch. |
 | No analytics or telemetry | **SHIPPED** | Static source inspection | Device data never leaves browser. |
 | Link to source and feature tracker | **SHIPPED** | Public navigation | Keep GitHub URLs current. |
+| Open BadgeMagic recovery explanation | **PROTOTYPE** | Local browser smoke confirms exact-Rev1 refusal/preparation states, pinned metadata, and a locked destructive button | Physical-device usability and live deployment review remain pending. |
 | Social preview image | **PLANNED** | Real link-unfurl smoke | Do not ship generic placeholder art. |
 
 ## Browser BadgeMagic connection
@@ -183,7 +193,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Require CH582M/11×44 confirmation | **SHIPPED** in UI | Explicit hardware safety checkboxes | Human confirmation cannot be automated. |
 | Bind artifact to entered PCB revision | **PROTOTYPE** | Release descriptor and local selection enforce an exact value | Physical label/revision catalog pending. |
 | Local `.bin` file selection | **PROTOTYPE** | File never uploads; hash and bound revision shown locally | Developer path remains unverified. |
-| Same-origin release manifest | **PROTOTYPE** | Empty manifest schema present | No release exists yet. |
+| Same-origin release manifest | **PROTOTYPE** | Schema v2 exposes no FrogAlert releases and one exact-revision open recovery descriptor | Recovery provenance and hardware-unverified status are validated separately from release readiness. |
 | Firmware size and padded-limit validation | **PROTOTYPE** | Unit-tested pure validation | Confirm exact release image layout. |
 | SHA-256 calculation | **PROTOTYPE** | Web Crypto digest displayed | Manifest comparison pending release. |
 | No erase on connect | **SHIPPED** invariant | Separate gated flash action | Regression-test UI state. |
@@ -198,7 +208,8 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Reset after verified success | **PROTOTYPE** | Sent-vs-acknowledged reset states are distinct | Disconnect may hide the response. |
 | Recovery UX after failure | **PROTOTYPE** | Log retains retry instructions | Deliberate interruption test pending. |
 | Browser state-machine integration tests | **PLANNED** | Fake WebUSB covers disconnect, delayed manifest, timeout, and artifact races | Pure packet tests exist today. |
-| Released firmware one-click selection | **BLOCKED** | Requires first hardware-tested release | Local file mode is available for developers. |
+| Open BadgeMagic recovery preparation | **PROTOTYPE** | Node tests pin v0.1 bytes, SHA-256, source provenance, `HARDWARE_REV1`, and hardware-unverified status | [`site/app.js`](site/app.js) only fetches and verifies locally; the false hardware-verification flag blocks destructive arming until a physical Rev1 smoke passes. |
+| Released FrogAlert firmware one-click selection | **BLOCKED** | Requires first hardware-tested FrogAlert release | Local developer BIN and open-recovery preparation do not satisfy this gate. |
 | Stable browser flashing | **BLOCKED** | Full matrix across Chrome/Edge and two desktop OSes | Requires physical badge and release artifact. |
 
 ## Browser and operating-system support target
@@ -220,8 +231,8 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Static GitHub Pages deployment | **SHIPPED** | Pages run `29583539847` succeeded from `main` | Publishes a minimal static artifact. |
 | Custom domain `frogalert.org` | **SHIPPED** | DNS resolves to GitHub Pages and the live page returns 200 | Pages custom-domain setting is authoritative; workflow `CNAME` is only a repo record. |
 | HTTPS enforced | **SHIPPED** | HTTP returns 301 to HTTPS; GitHub certificate approved | Secure context confirmed in a live browser. |
-| Correct MIME types for modules/JSON/bin | **PROTOTYPE** | Live JS is `application/javascript`; manifest is `application/json` | No `.bin` exists to inspect yet. |
-| Deployment smoke test | **SHIPPED** | Live heading, safety gate, empty-release status, module execution, and zero console errors verified | Tested at <https://frogalert.org/>. |
+| Correct MIME types for modules/JSON/bin | **PROTOTYPE** | Live JS is `application/javascript`; manifest is `application/json` | Inspect the bundled recovery `.bin` after the current site changes deploy. |
+| Deployment smoke test | **SHIPPED** for the prior site | Live heading, safety gate, empty-release status, module execution, and zero console errors verified | Re-run at <https://frogalert.org/> after the recovery UI and artifact deploy. |
 | Cache policy for firmware manifests | **PROTOTYPE** | App requests `no-store`; Pages currently advertises a 10-minute CDN maximum | Test a real manifest promotion before first release. |
 
 ## Security, privacy, and abuse boundaries
@@ -234,7 +245,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Exact target identity gate | **PROTOTYPE** | Protocol rejects non-CH582 | PCB/display still require human confirmation. |
 | Verified-before-success | **PROTOTYPE** | State machine never marks success before verify | Hardware fault-injection pending. |
 | Conservative detection language | **SHIPPED** | Site/docs say signal/hint, not proof | Keep alert jokes distinct from factual claims. |
-| No active interrogation by default | **PLANNED** firmware | Passive observer configuration | Active scan remains off. |
+| No active interrogation by default | **PROTOTYPE** firmware | Count lab build requests passive observer discovery | Active scan remains off; verify controller behavior over the air. |
 | No Wi-Fi scanning | **REJECTED** | Hardware/product boundary | Not supported by CH582M. |
 
 ## Documentation and project operations
@@ -246,8 +257,8 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Memory index and shelves | **SHIPPED** | `MEMORY.md` + `agent-memory/` | Public-safe content only. |
 | Skill catalog | **SHIPPED** | `SKILLS.md` + three validated skills | Keep library small. |
 | Extensive readiness tracker | **SHIPPED** | This file | Preserve status/evidence distinction. |
-| Development guide | **SHIPPED** | `docs/DEVELOPMENT.md` | Firmware-specific bootstrap pending crate. |
-| Browser flashing guide | **SHIPPED** | `docs/WEB_FLASHING.md` | Hardware commands labeled unverified where needed. |
+| Development guide | **SHIPPED** | `docs/DEVELOPMENT.md` | Covers host work, pinned exact-revision firmware builds, atomic audit, temporary artifacts, and physical bring-up gates. |
+| Browser flashing guide | **SHIPPED** | `docs/WEB_FLASHING.md` | Separates open BadgeMagic replacement from unavailable OEM bytes; hardware commands remain labeled unverified. |
 | Protocol guide | **SHIPPED** | `docs/PROTOCOL.md` | Includes BadgeMagic and ISP separation. |
 | Release guide | **SHIPPED** | `docs/RELEASE.md` | Blocks untested firmware promotion. |
 | Upstream attribution | **SHIPPED** | `docs/UPSTREAM.md` | Re-check licenses at release time. |
@@ -257,19 +268,30 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 
 ### M0 — Research and host logic
 
-- **SHIPPED:** hardware/protocol research, Rust feasibility, detection core,
-  tests, simulator, repository, and safety documentation.
+- **SHIPPED:** hardware/protocol research, detection/classification core,
+  allocation-free AD parsing, ephemeral distinct-address counting, 11×44 text
+  and count rendering, simulator previews, tests, repository, and safety docs.
 
 ### M1 — Static site and experimental browser transport
 
 - **PROTOTYPE:** public project experience, Web Bluetooth compatibility probe,
-  guarded WebUSB protocol, release manifest schema, CI, and Pages workflow.
-- Exit gate: deployed HTTPS site verified; no claim of hardware success.
+  guarded WebUSB protocol, schema-v2 manifest, and an exact-Rev1 open
+  BadgeMagic v0.1 recovery-preparation UI.
+- **SHIPPED infrastructure:** CI, Pages, custom domain, and HTTPS for the prior
+  site revision; the new recovery UI/artifact still needs a live smoke test.
+- Exit gate: current HTTPS site verified; no claim of hardware success or OEM
+  factory restoration.
 
 ### M2 — Display bring-up
 
-- **PLANNED:** Rust runtime, charlieplex driver, fonts, fixed nametag, alert
-  overlay, button recovery, and binary artifact on a confirmed badge.
+- **PROTOTYPE software:** pinned atomic-free IMC Rust runtime, exact
+  `HARDWARE_REV1` charlieplex driver, single-pixel no-BLE/LSE walk, 5×7
+  renderer, count display, observer loop, and panic pin release all build and
+  link.
+- **BLOCKED on hardware:** exact PCB identity/pin proof, pixel orientation,
+  refresh/flicker, BLE coexistence, boot, and recovery have not been observed.
+- **PLANNED product work:** fixed/persistent nametag, alert overlay, buttons,
+  and a hardware-tested FrogAlert binary.
 - Exit gate: repeatable display and recovery smoke with recorded board revision.
 
 ### M3 — BadgeMagic compatibility
@@ -280,14 +302,23 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 
 ### M4 — BLE detection integration
 
-- **PLANNED:** passive observer windows, advertisement parser, role recovery,
-  alert cooldown, and battery measurements.
+- **SHIPPED at host layer:** safe advertisement-name parsing and fixed-capacity,
+  per-window unique-address counting.
+- **PROTOTYPE software:** the exact-Rev1 lab firmware schedules passive
+  three-second observer windows and renders the count, but has never run on a
+  radio or panel.
+- **BLOCKED/PLANNED:** BadgeMagic peripheral/observer role recovery, controller
+  address-type/name integration, alert cooldown, and battery measurements.
 - Exit gate: 24-hour run with app reconnect, no lost content, and measured power.
 
 ### M5 — Tested release and browser flash
 
-- **BLOCKED:** release artifact, manifest, checksums, hardware matrix, full
-  WebUSB program/verify/recovery tests, and one-click selection.
+- **PROTOTYPE recovery preparation:** FOSSASIA's official open BadgeMagic v0.1
+  image is bundled with exact Rev1, size, SHA-256, source, and license metadata;
+  it is not OEM firmware and is not hardware-verified by FrogAlert.
+- **BLOCKED:** hardware-tested FrogAlert release artifact, compatibility
+  matrix, full WebUSB program/verify/recovery tests, and one-click FrogAlert
+  selection.
 - Exit gate: two supported desktop OSes and a documented CLI fallback.
 
 ## Explicit non-goals for the first release

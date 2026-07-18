@@ -13,6 +13,25 @@ export const CH582_FLASH_BYTES = 448 * 1024;
 export const SECTOR_BYTES = 1024;
 export const PROGRAM_CHUNK_BYTES = 56;
 export const CH58X_CONFIG_MASK = 0x07;
+export const OPEN_BADGEMAGIC_RECOVERY = Object.freeze({
+  id: "fossasia-badgemagic-v0.1-hardware-rev1",
+  kind: "open-badgemagic-recovery",
+  label: "FOSSASIA open BadgeMagic firmware",
+  version: "v0.1",
+  target: "ch582m-badgemagic-11x44",
+  hardwareRevision: "HARDWARE_REV1",
+  file: "badgemagic-open-v0.1-hardware-rev1.bin",
+  bytes: 155_672,
+  sha256: "7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9",
+  repository: "https://github.com/fossasia/badgemagic-firmware",
+  releaseUrl: "https://github.com/fossasia/badgemagic-firmware/releases/tag/v0.1",
+  artifactUrl:
+    "https://github.com/fossasia/badgemagic-firmware/releases/download/v0.1/badgemagic-ch582.bin",
+  sourceCommit: "68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8",
+  sourceUrl:
+    "https://github.com/fossasia/badgemagic-firmware/commit/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8",
+  license: "Apache-2.0",
+});
 export const CH58X_RESET_CONFIG = Uint8Array.of(
   0xff, 0xff, 0xff, 0xff,
   0xff, 0xff, 0xff, 0xff,
@@ -249,6 +268,57 @@ export function validateReleaseDescriptor(release, pcbRevision) {
   }
   if (typeof release.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(release.sha256)) {
     throw new Error("release SHA-256 is invalid");
+  }
+  return true;
+}
+
+export function validateRecoveryDescriptor(recovery, pcbRevision) {
+  if (!recovery || typeof recovery !== "object") {
+    throw new Error("open BadgeMagic recovery descriptor is missing");
+  }
+  if (
+    recovery.id !== OPEN_BADGEMAGIC_RECOVERY.id ||
+    recovery.kind !== OPEN_BADGEMAGIC_RECOVERY.kind ||
+    recovery.label !== OPEN_BADGEMAGIC_RECOVERY.label ||
+    recovery.version !== OPEN_BADGEMAGIC_RECOVERY.version ||
+    recovery.target !== OPEN_BADGEMAGIC_RECOVERY.target
+  ) {
+    throw new Error("recovery descriptor is not the reviewed FOSSASIA v0.1 image");
+  }
+  if (recovery.hardware_verified_by_frogalert !== false) {
+    throw new Error("recovery descriptor must preserve FrogAlert's hardware-unverified status");
+  }
+  if (
+    !Array.isArray(recovery.hardware_revisions) ||
+    recovery.hardware_revisions.length !== 1 ||
+    recovery.hardware_revisions[0] !== OPEN_BADGEMAGIC_RECOVERY.hardwareRevision
+  ) {
+    throw new Error("recovery descriptor must target HARDWARE_REV1 only");
+  }
+  const revision = String(pcbRevision || "").trim();
+  if (revision !== OPEN_BADGEMAGIC_RECOVERY.hardwareRevision) {
+    throw new Error(
+      `open BadgeMagic v0.1 supports ${OPEN_BADGEMAGIC_RECOVERY.hardwareRevision}, not ${revision || "(not entered)"}`,
+    );
+  }
+  if (
+    recovery.file !== OPEN_BADGEMAGIC_RECOVERY.file ||
+    recovery.bytes !== OPEN_BADGEMAGIC_RECOVERY.bytes ||
+    recovery.sha256 !== OPEN_BADGEMAGIC_RECOVERY.sha256
+  ) {
+    throw new Error("recovery artifact metadata does not match the reviewed FOSSASIA v0.1 bytes");
+  }
+  const upstream = recovery.upstream;
+  if (
+    !upstream ||
+    upstream.repository !== OPEN_BADGEMAGIC_RECOVERY.repository ||
+    upstream.release_url !== OPEN_BADGEMAGIC_RECOVERY.releaseUrl ||
+    upstream.artifact_url !== OPEN_BADGEMAGIC_RECOVERY.artifactUrl ||
+    upstream.source_commit !== OPEN_BADGEMAGIC_RECOVERY.sourceCommit ||
+    upstream.source_url !== OPEN_BADGEMAGIC_RECOVERY.sourceUrl ||
+    upstream.license !== OPEN_BADGEMAGIC_RECOVERY.license
+  ) {
+    throw new Error("recovery provenance does not match the reviewed FOSSASIA source and release");
   }
   return true;
 }

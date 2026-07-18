@@ -13,12 +13,19 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 ## Current state
 
 - Rust `no_std` detection core: tested
-- host observation simulator: tested
+- host observation/count simulator: tested
+- CH582M single-pixel display bring-up: builds for `HARDWARE_REV1`, not
+  hardware-tested or approved to flash
+- CH582M passive BLE count/display prototype: builds for `HARDWARE_REV1`, not
+  hardware-tested or approved to flash
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
-- embedded display/BLE firmware: not implemented
-- downloadable firmware release: none yet
+- full BadgeMagic-compatible FrogAlert firmware: not implemented
+- downloadable FrogAlert firmware release: none yet
+- official FOSSASIA open v0.1 substitute: available only for exact
+  `HARDWARE_REV1`; preparation works, but destructive browser programming stays
+  locked until FrogAlert completes a physical Rev1 smoke test
 
 See [FEATURES.md](FEATURES.md) for the authoritative requirement-by-requirement
 status and acceptance evidence.
@@ -33,10 +40,13 @@ verify all of the following:
 - exact PCB revision or board identifier recorded from the opened board
 - WCH factory ISP can be entered and identified read-only
 
-The factory firmware is read-protected and cannot be backed up. Replacing it is
-an irreversible first-install decision. Similar-looking badges can use different
-controllers or matrix sizes and may be permanently damaged by incompatible
-firmware. Read [docs/HARDWARE.md](docs/HARDWARE.md) before device work.
+The OEM firmware is read-protected, unavailable, and unrecoverable. There is no
+factory/OEM restore image. FOSSASIA publishes an open BadgeMagic-compatible v0.1
+substitute for its Micro-USB `HARDWARE_REV1` target, but that is not the
+original firmware and FrogAlert has not hardware-tested it. Similar-looking
+badges can use different controllers or matrix sizes and may be permanently
+damaged by an incompatible image. Read
+[docs/HARDWARE.md](docs/HARDWARE.md) before device work.
 
 ## Try the detection logic
 
@@ -44,14 +54,54 @@ firmware. Read [docs/HARDWARE.md](docs/HARDWARE.md) before device work.
 cargo test --workspace
 cargo run -p frogalert-simulator -- "00:25:DF:12:34:56" "Axon Body 4"
 cargo run -p frogalert-simulator -- "C2:00:00:00:00:01" "Flipper Zero"
+cargo run -p frogalert-simulator -- --count 23
 ```
 
-Expected simulator output:
+Expected classifier output; count mode then prints an 11×44 text framebuffer:
 
 ```text
 COP DETECTED (Axon OUI)
 HAX DETECTED (Flipper name)
+nearby BLE devices: 23
 ```
+
+The count mode renders the same compact numeric framebuffer used by the
+embedded prototype, without touching hardware.
+
+## Build the safe display bring-up
+
+The first physical Rust image is a separate pixel walk with no BLE or external
+LSE initialization. It keeps one logical pixel selected, moves left-to-right
+through all 44×11 positions every 750 ms, reports coordinates on UART1/PA9, and
+uses the display GPIO's lower 5 mA drive setting.
+
+```sh
+./scripts/build-display-bringup HARDWARE_REV1 --check
+./scripts/build-display-bringup HARDWARE_REV1
+```
+
+The second command creates only ignored local evidence under `tmp/`. It is
+still an irreversible, hardware-unverified image—not permission to flash. Read
+the opened-board and first-write gates in [docs/HARDWARE.md](docs/HARDWARE.md).
+
+## Build the hardware-gated count prototype
+
+The current Rust prototype passively observes BLE advertisements, counts unique
+addresses during a short scan, and renders the count on the revision-1 11×44
+matrix. It is an observer-only lab image: it does not expose the BadgeMagic GATT
+service and is neither a release nor flash-approved.
+
+From the repository root, first run the link/instruction audit or generate the
+temporary raw BIN explicitly for the opened `HARDWARE_REV1` target:
+
+```sh
+./scripts/build-count-firmware HARDWARE_REV1 --check
+./scripts/build-count-firmware HARDWARE_REV1
+```
+
+The non-check command prints the temporary BIN's current size and SHA-256. The
+ignored output is hardware-unverified evidence only; it is not a release
+checksum, and the website must not offer that BIN.
 
 ## Run the website locally
 
@@ -68,9 +118,13 @@ JavaScript. It provides two distinct device surfaces:
   exact CH582 target before enabling a separately confirmed erase/program/verify
   flow.
 
-The release manifest is intentionally empty until a firmware image has passed
-physical badge testing. Developers can select a local raw BIN for experimental
-work, with explicit hardware and irreversibility gates.
+The manifest's FrogAlert `releases` list remains empty until a FrogAlert image
+passes physical badge testing. Its separate `recovery_images` list contains the
+official FOSSASIA open v0.1 substitute for exact `HARDWARE_REV1`; preparing it
+does not write, it remains labeled hardware-unverified and write-disabled, and
+it is never described as a factory restore. Developers can also select a local
+raw BIN for experimental work, with explicit hardware and irreversibility
+gates.
 
 ## Verify everything currently available
 
@@ -85,11 +139,25 @@ checks. A passing local suite does not replace a physical badge test.
 ## Repository map
 
 - [`crates/frogalert-core/`](crates/frogalert-core/) — allocation-free matching
+- [`firmware/frogalert-display/`](firmware/frogalert-display/) — shared exact-
+  Rev1 matrix driver
+- [`firmware/frogalert-pixel-walk/`](firmware/frogalert-pixel-walk/) — minimal
+  no-BLE/LSE single-pixel bring-up
+- [`firmware/frogalert-count/`](firmware/frogalert-count/) — board-gated Rust
+  observer/count/display prototype; not a released image
+- [`firmware/vendor/ch58x-hal/`](firmware/vendor/ch58x-hal/) — pinned,
+  provenance-documented HAL subset used by the prototype
 - [`tools/simulator/`](tools/simulator/) — desktop observation simulator
+- [`scripts/build-count-firmware`](scripts/build-count-firmware) — exact-revision
+  cross-build, disassembly audit, and temporary BIN extraction
+- [`scripts/build-display-bringup`](scripts/build-display-bringup) — minimal
+  exact-Rev1 pixel-walk build and instruction audit
 - [`site/`](site/) — static website and browser device implementation
 - [`tests/`](tests/) — protocol and site contract tests
 - [`firmware/releases/manifest.json`](firmware/releases/manifest.json) — public
-  hardware-verified release index (currently empty)
+  FrogAlert release index plus separately labeled upstream open recovery image
+- [`docs/HARDWARE.md`](docs/HARDWARE.md) — target identity, irreversible OEM
+  boundary, and open substitute constraints
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — local tools and future embedded
   toolchain
 - [`docs/WEB_FLASHING.md`](docs/WEB_FLASHING.md) — browser/OS/safety architecture

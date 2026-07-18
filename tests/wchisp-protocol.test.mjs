@@ -5,6 +5,7 @@ import {
   CH582_FLASH_BYTES,
   CH58X_RESET_CONFIG,
   COMMAND,
+  OPEN_BADGEMAGIC_RECOVERY,
   dataPacket,
   deriveXorKey,
   erasePacket,
@@ -20,6 +21,7 @@ import {
   resetConfigPacket,
   sha256Hex,
   validateFirmware,
+  validateRecoveryDescriptor,
   validateReleaseDescriptor,
   xorChunk,
 } from "../site/wchisp-protocol.js";
@@ -105,6 +107,54 @@ test("release descriptors bind artifacts to an exact verified PCB revision", () 
   assert.throws(
     () => validateReleaseDescriptor({ ...release, file: "../unsafe.bin" }, "rev-a"),
     /safe raw BIN/,
+  );
+});
+
+test("open BadgeMagic recovery descriptor is pinned to official v0.1 HARDWARE_REV1 bytes", () => {
+  const recovery = {
+    id: OPEN_BADGEMAGIC_RECOVERY.id,
+    kind: OPEN_BADGEMAGIC_RECOVERY.kind,
+    label: OPEN_BADGEMAGIC_RECOVERY.label,
+    version: OPEN_BADGEMAGIC_RECOVERY.version,
+    target: OPEN_BADGEMAGIC_RECOVERY.target,
+    hardware_revisions: [OPEN_BADGEMAGIC_RECOVERY.hardwareRevision],
+    hardware_verified_by_frogalert: false,
+    file: OPEN_BADGEMAGIC_RECOVERY.file,
+    bytes: OPEN_BADGEMAGIC_RECOVERY.bytes,
+    sha256: OPEN_BADGEMAGIC_RECOVERY.sha256,
+    upstream: {
+      repository: OPEN_BADGEMAGIC_RECOVERY.repository,
+      release_url: OPEN_BADGEMAGIC_RECOVERY.releaseUrl,
+      artifact_url: OPEN_BADGEMAGIC_RECOVERY.artifactUrl,
+      source_commit: OPEN_BADGEMAGIC_RECOVERY.sourceCommit,
+      source_url: OPEN_BADGEMAGIC_RECOVERY.sourceUrl,
+      license: OPEN_BADGEMAGIC_RECOVERY.license,
+    },
+  };
+
+  assert.equal(validateRecoveryDescriptor(recovery, "HARDWARE_REV1"), true);
+  for (const revision of ["", "HARDWARE_REV2", "HARDWARE_REV3", "unknown"]) {
+    assert.throws(() => validateRecoveryDescriptor(recovery, revision), /supports HARDWARE_REV1/);
+  }
+  assert.throws(
+    () => validateRecoveryDescriptor({ ...recovery, sha256: "0".repeat(64) }, "HARDWARE_REV1"),
+    /artifact metadata/,
+  );
+  assert.throws(
+    () =>
+      validateRecoveryDescriptor(
+        { ...recovery, upstream: { ...recovery.upstream, source_commit: "0".repeat(40) } },
+        "HARDWARE_REV1",
+      ),
+    /provenance/,
+  );
+  assert.throws(
+    () =>
+      validateRecoveryDescriptor(
+        { ...recovery, hardware_verified_by_frogalert: true },
+        "HARDWARE_REV1",
+      ),
+    /hardware-unverified/,
   );
 });
 

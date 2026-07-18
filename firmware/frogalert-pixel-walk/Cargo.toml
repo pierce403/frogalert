@@ -1,0 +1,18 @@
+[package]
+name = "frogalert-pixel-walk"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Exact-Rev1 single-pixel BadgeMagic display bring-up"
+publish = false
+
+[features]
+default = []
+hardware-rev1 = []
+
+[dependencies]
+ch58x-hal = { path = "../vendor/ch58x-hal", default-features = false }
+critical-section = "1.2.0"
+frogalert-display = { path = "../frogalert-display" }
+qingke = "=0.5.0"
+qingke-rt = { version = "=0.5.0", features = ["highcode"] }

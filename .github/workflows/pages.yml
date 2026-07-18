@@ -1,9 +1,10 @@
 name: Deploy static site
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,20 +17,21 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/configure-pages@v5
-      - name: Assemble static artifact
-        run: |
-          mkdir -p _site/firmware/releases
-          cp index.html CNAME .nojekyll _site/
-          cp -R site _site/
-          cp firmware/releases/manifest.json _site/firmware/releases/
-          find firmware/releases -maxdepth 1 -type f -name '*.bin' -exec cp {} _site/firmware/releases/ \;
+      - name: Assemble and validate static artifact
+        run: node scripts/assemble-site.mjs _site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

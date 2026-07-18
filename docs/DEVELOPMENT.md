@@ -1,8 +1,8 @@
 # Local development
 
 FrogAlert has three development layers: host Rust logic, a static browser app,
-and (planned) embedded CH582M firmware. Work from the repository root and use
-repo-local `./tmp/` for scratch output.
+and experimental embedded CH582M firmware. Work from the repository root and
+use repo-local `./tmp/` for scratch output.
 
 ## Host prerequisites
 
@@ -46,24 +46,120 @@ node --test tests/*.test.mjs
 These tests verify packet shapes and safety validation. They do not prove that
 the WCH ROM bootloader, an OS driver, or a real badge accepts the flow.
 
-## Embedded Rust toolchain (planned)
+## Embedded Rust prototypes
 
-The current workspace intentionally has no firmware crate, toolchain pin, or
-release binary. Add them together when the display bring-up begins; do not pin
-an arbitrary nightly just to make the repository look complete.
+The `firmware/` workspace contains two compile-verified, hardware-unverified
+binaries: a minimal single-pixel display walk and a passive BLE count image.
+They are lab builds, not firmware releases and not yet safe to flash. Neither
+has produced light on a physically verified BadgeMagic PCB, and the count image
+has not received a real advertisement.
 
-Expected components are:
+The embedded build contract is pinned to:
 
-- Rust nightly pinned by exact date once required features are known;
-- target `riscv32imac-unknown-none-elf`;
-- a pinned revision of <https://github.com/ch32-rs/ch58x-hal>;
-- `llvm-objcopy` or equivalent to extract a raw `.bin` from the ELF;
-- <https://github.com/ch32-rs/wchisp> for local USB ISP probing/flashing;
-- linker/runtime configuration compatible with WCH's precompiled BLE library.
+- Rust `nightly-2026-07-17`;
+- target `riscv32imc-unknown-none-elf`;
+- `rustfmt` and `llvm-tools-preview`;
+- a build-relevant vendored subset of `ch58x-hal` commit
+  `611954e40cc4a562f0c4756ab4c0a935af6158df`;
+- four recorded HAL patches: replacing the unavailable `ch58x` `0.4.0`
+  dependency with published `0.3.0`; forming the writable BLE heap pointer
+  without an aliasing shared reference to `static mut`; gating async GPIO
+  machinery behind the `embassy` feature; and adding the missing synchronous
+  SysTick `delay_ns` implementation.
 
-The future build sequence must produce both an ELF (symbols/debugging) and raw
-BIN (browser/CLI flashing), reject images beyond the CH582 code-flash boundary,
-and record the toolchain, source commit, HAL revision, size, and SHA-256.
+The `imc` target is intentional even though the CH582M advertises the RISC-V
+atomic extension. QingKe V4 atomic read/modify/write operations are not trusted.
+The build therefore uses critical sections for callback/interrupt shared state,
+and the build script rejects an ELF containing AMO, LR, or SC instructions.
+Never change this target to `riscv32imac-unknown-none-elf` or enable
+`unsafe-trust-wch-atomics` merely to make a build pass.
+
+Install the exact toolchain if rustup has not already done so:
+
+```sh
+rustup toolchain install nightly-2026-07-17 \
+  --profile minimal \
+  --component rustfmt \
+  --component llvm-tools-preview \
+  --target riscv32imc-unknown-none-elf
+```
+
+Both build helpers explicitly select that toolchain and target, use the locked
+firmware dependency graph, ignore environment target-directory/Rust-flag
+overrides, and select only the intended binary. They validate the exact final
+ELF as 32-bit RISC-V IMC, disassemble with A-extension decoding enabled, and
+reject AMO, LR, or SC instructions. Build products stay under ignored `tmp/`.
+
+### Safe display bring-up
+
+Run the minimal display check before the BLE count image:
+
+```sh
+./scripts/build-display-bringup HARDWARE_REV1 --check
+```
+
+Create a temporary pixel-walk BIN only after the opened board passes the Rev1
+identity gate and the owner explicitly accepts the irreversible first flash:
+
+```sh
+./scripts/build-display-bringup HARDWARE_REV1
+```
+
+The image keeps exactly one logical framebuffer bit set. It advances from
+`(0, 0)` left-to-right across 44 columns, then down through 11 rows, every
+750 ms. UART1/PA9 reports each coordinate at 115200 baud. The display pins use
+the lower 5 mA drive setting and a 250 us drive/release cadence. The build does
+not enable the HAL BLE feature, initialize Embassy, or select the external LSE.
+
+Its temporary paths are:
+
+- ELF:
+  `tmp/build/frogalert-pixel-walk/riscv32imc-unknown-none-elf/release/frogalert-pixel-walk`
+- audited disassembly:
+  `tmp/firmware/frogalert-pixel-walk-HARDWARE_REV1.disassembly.txt`
+- optional raw image:
+  `tmp/firmware/frogalert-pixel-walk-HARDWARE_REV1.bin`
+
+### Passive BLE count prototype
+
+Run a formatting, cross-link, size, and instruction-audit check without
+creating a raw BIN:
+
+```sh
+./scripts/build-count-firmware HARDWARE_REV1 --check
+```
+
+Create a local lab BIN only after selecting the explicit revision gate:
+
+```sh
+./scripts/build-count-firmware HARDWARE_REV1
+```
+
+The build keeps generated material out of release directories:
+
+- ELF:
+  `tmp/build/frogalert-count/riscv32imc-unknown-none-elf/release/frogalert-count-firmware`
+- audited disassembly:
+  `tmp/firmware/frogalert-count-HARDWARE_REV1.disassembly.txt`
+- raw lab image: `tmp/firmware/frogalert-count-HARDWARE_REV1.bin`
+
+The non-check build also prints the BIN's SHA-256 and exact byte count. These
+`tmp/` outputs are not release artifacts and must not be added to the website
+manifest. A release still requires the provenance and physical evidence in
+[RELEASE.md](RELEASE.md).
+
+The current lab loop passively scans the LE 1M PHY for three seconds, counts
+distinct advertiser addresses in a fixed 64-entry table, shows the result for
+seven seconds, and repeats. A saturated window renders `64+`. The table is
+zeroed after each window; no address is logged, persisted, or transmitted.
+Because BLE addresses can be randomized, the result is an approximate count of
+advertisers seen, not a count of people or physical devices.
+
+This lab firmware is observer-only. It does not advertise the BadgeMagic
+`FEE0/FEE1` service and cannot be configured by the BadgeMagic app. The exact
+PCB matrix mapping and orientation, the availability of the external 32.768 kHz
+LSE assumed by the BLE setup, radio reception, display refresh, and current draw
+all remain physical-hardware questions.
 
 ## Physical development gate
 

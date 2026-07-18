@@ -1,0 +1,10 @@
+[package]
+name = "frogalert-display"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Hardware-gated BadgeMagic Rev1 display driver"
+publish = false
+
+[dependencies]
+ch58x-hal = { path = "../vendor/ch58x-hal", default-features = false }

@@ -25,6 +25,16 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Rust tests
         run: cargo test --workspace
+      - name: Install pinned embedded Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-07-17
+          targets: riscv32imc-unknown-none-elf
+          components: rustfmt, llvm-tools-preview
+      - name: Embedded Rust link and instruction audits
+        run: |
+          ./scripts/build-display-bringup HARDWARE_REV1 --check
+          ./scripts/build-count-firmware HARDWARE_REV1 --check
       - name: Browser protocol and site tests
         run: node --test tests/*.test.mjs
       - name: Whitespace check

@@ -687,7 +687,8 @@ td {
 }
 
 .device-facts,
-.artifact-facts {
+.artifact-facts,
+.recovery-facts {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
@@ -696,7 +697,8 @@ td {
 }
 
 .device-facts div,
-.artifact-facts div {
+.artifact-facts div,
+.recovery-facts div {
   min-width: 0;
   padding: 0.8rem;
   background: #0b1912;
@@ -721,7 +723,9 @@ dd {
 }
 
 #firmware-hash,
-#firmware-revision {
+#firmware-revision,
+#recovery-hash,
+#recovery-source {
   overflow: visible;
   overflow-wrap: anywhere;
   text-overflow: clip;
@@ -791,6 +795,67 @@ input[type="file"] {
   margin-top: 1.5rem;
   border-bottom: 1px solid var(--line-dark);
   padding-bottom: 1.5rem;
+}
+
+.open-recovery {
+  margin-top: 1.5rem;
+  border: 1px solid rgba(96, 231, 218, 0.32);
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  background: rgba(96, 231, 218, 0.045);
+}
+
+.open-recovery-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.open-recovery h4 {
+  margin: 0;
+  color: var(--cream);
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+}
+
+.open-recovery > p:not(.device-status) {
+  max-width: 78ch;
+  color: var(--muted-dark);
+  font-size: 0.84rem;
+}
+
+.open-recovery .recovery-warning {
+  border-left: 3px solid var(--cyan);
+  padding: 0.75rem 0.9rem;
+  background: rgba(96, 231, 218, 0.065);
+}
+
+.recovery-identity {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  align-items: start;
+  gap: 0.7rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(255, 176, 123, 0.35);
+  padding: 0.9rem;
+  background: rgba(255, 176, 123, 0.055);
+  color: #d5ddd7;
+  font-size: 0.84rem;
+}
+
+.recovery-identity input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  accent-color: var(--cyan);
+}
+
+.recovery-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recovery-facts dd,
+.recovery-facts a {
+  color: var(--cyan);
 }
 
 .divider-label {
@@ -1029,6 +1094,7 @@ footer p {
 
   .section-heading,
   .console-header,
+  .open-recovery-heading,
   footer {
     align-items: flex-start;
     flex-direction: column;
@@ -1040,7 +1106,8 @@ footer p {
   }
 
   .device-facts,
-  .artifact-facts {
+  .artifact-facts,
+  .recovery-facts {
     grid-template-columns: 1fr;
   }
 

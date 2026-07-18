@@ -1,4 +1,4 @@
-.PHONY: test verify serve
+.PHONY: display-bringup-check firmware-check serve test verify
 
 test:
 	cargo test --workspace
@@ -6,6 +6,13 @@ test:
 
 verify:
 	./scripts/verify
+
+firmware-check:
+	./scripts/build-display-bringup HARDWARE_REV1 --check
+	./scripts/build-count-firmware HARDWARE_REV1 --check
+
+display-bringup-check:
+	./scripts/build-display-bringup HARDWARE_REV1 --check
 
 serve:
 	./scripts/serve-site

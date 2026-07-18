@@ -128,11 +128,11 @@
             <p>Read-only target identification, local BIN validation, program/verify sequencing, and explicit safety gates.</p>
             <code class="command">node --test tests/*.test.mjs</code>
           </article>
-          <article class="evidence-card planned">
-            <p class="evidence-state">PLANNED / BADGE</p>
-            <h3>Embedded firmware</h3>
-            <p>Display driver, BadgeMagic GATT, observer scheduling, alert overlay, and physical power/recovery testing.</p>
-            <code class="command">no release binary yet</code>
+          <article class="evidence-card prototype">
+            <p class="evidence-state">PROTOTYPE / BADGE</p>
+            <h3>BLE count lab build</h3>
+            <p>Atomic-free CH582 observer, approximate advertiser count, numeric framebuffer, and Rev1 matrix driver. Cross-linked, never badge-tested.</p>
+            <code class="command">./scripts/build-count-firmware HARDWARE_REV1 --check</code>
           </article>
         </div>
 
@@ -196,10 +196,40 @@
           </div>
 
           <div class="field-group revision-gate">
-            <label for="pcb-revision">Exact PCB revision / board identifier</label>
-            <input id="pcb-revision" type="text" maxlength="64" autocomplete="off" placeholder="Read it from the opened PCB">
-            <p class="field-help">Required. A release must list this exact value; a developer BIN is bound to the value present when selected.</p>
+            <label for="pcb-marking">Opened-board record</label>
+            <input id="pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Copy visible PCB markings, or record that none are printed">
+            <p class="field-help">Required before a destructive action and kept only in this page. Copy the physical silkscreen/revision exactly; if none is visible, say so and retain front/back photos. This record does not itself prove compatibility.</p>
           </div>
+
+          <div class="field-group revision-gate">
+            <label for="pcb-revision">Firmware hardware profile</label>
+            <input id="pcb-revision" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="Enter only after opening and identifying the board">
+            <p class="field-help"><code>HARDWARE_REV1</code> is an upstream build-profile token, not a value printed on the PCB. USB identification only proves the MCU family; it cannot identify the display wiring. Unknown boards, <code>HARDWARE_REV2</code>, and <code>HARDWARE_REV3</code> stay disabled.</p>
+          </div>
+
+          <section class="open-recovery" aria-labelledby="open-recovery-title">
+            <div class="open-recovery-heading">
+              <div>
+                <p class="terminal-label">OPTIONAL OPEN-FIRMWARE ROLLBACK</p>
+                <h4 id="open-recovery-title">Install open BadgeMagic firmware</h4>
+              </div>
+              <span class="experimental-label">NOT HARDWARE-VERIFIED BY FROGALERT</span>
+            </div>
+            <p>The original OEM image is unavailable and unrecoverable. This does not restore the badge's original firmware; it prepares FOSSASIA's open BadgeMagic-compatible replacement for the exact Micro-USB <code>HARDWARE_REV1</code> board only.</p>
+            <p class="recovery-warning"><strong>Preparation is non-destructive:</strong> the button below only loads and locally verifies the same-origin artifact. It does not connect, reset configuration, erase, or write. The separate red program button has additional target-identification and confirmation gates.</p>
+            <p class="recovery-warning"><strong>Programming is not enabled for this bundled image:</strong> its bytes can be prepared and inspected, but the red browser-programming action stays locked until FrogAlert records a physical <code>HARDWARE_REV1</code> smoke test. The developer BIN chooser below remains the explicit experimental path for qualified hardware work.</p>
+            <label class="recovery-identity"><input id="recovery-board-confirmation" type="checkbox"> I opened the badge, read <strong>CH582M</strong>, counted exactly <strong>44 columns</strong>, confirmed the <strong>Micro-USB</strong> layout, and compared both sides with FOSSASIA's <a href="https://github.com/fossasia/badgemagic-firmware/blob/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8/CH582.md#hardware-details" target="_blank" rel="noopener noreferrer">reference photos</a>.</label>
+            <button id="recovery-prepare" class="button button-secondary" type="button" disabled>Prepare open BadgeMagic firmware</button>
+            <p id="recovery-status" class="device-status" role="status" aria-live="polite">Loading the reviewed upstream recovery descriptor…</p>
+            <dl class="recovery-facts">
+              <div><dt>Upstream</dt><dd id="recovery-version">—</dd></div>
+              <div><dt>Exact target</dt><dd id="recovery-target">—</dd></div>
+              <div><dt>Source commit</dt><dd id="recovery-source">—</dd></div>
+              <div><dt>Artifact size</dt><dd id="recovery-size">—</dd></div>
+              <div><dt>SHA-256</dt><dd id="recovery-hash">—</dd></div>
+              <div><dt>FrogAlert evidence</dt><dd id="recovery-verification">hardware-unverified</dd></div>
+            </dl>
+          </section>
 
           <div class="artifact-grid">
             <div class="field-group">
@@ -220,7 +250,7 @@
           <dl class="artifact-facts">
             <div><dt>File</dt><dd id="firmware-name">not loaded</dd></div>
             <div><dt>Size</dt><dd id="firmware-size">—</dd></div>
-            <div><dt>PCB revision(s)</dt><dd id="firmware-revision">—</dd></div>
+            <div><dt>Firmware profile(s)</dt><dd id="firmware-revision">—</dd></div>
             <div><dt>SHA-256</dt><dd id="firmware-hash">—</dd></div>
           </dl>
 
@@ -228,9 +258,9 @@
             <legend>All confirmations are required before the Flash button unlocks</legend>
             <label><input class="flash-confirmation" type="checkbox"> I opened this badge and read <strong>CH582M</strong> on the MCU.</label>
             <label><input class="flash-confirmation" type="checkbox"> I confirmed the display is exactly <strong>11×44</strong>, not a similar clone.</label>
-            <label><input class="flash-confirmation" type="checkbox"> I confirmed this image supports the exact PCB revision entered above.</label>
+            <label><input class="flash-confirmation" type="checkbox"> I confirmed this image supports the hardware profile above and the physically recorded board.</label>
             <label><input class="flash-confirmation" type="checkbox"> I understand the first write resets CH58x protection/configuration and is followed by readback before erase.</label>
-            <label><input class="flash-confirmation" type="checkbox"> I understand the OEM firmware is read-protected, cannot be backed up here, and stable USB power is required.</label>
+            <label><input class="flash-confirmation" type="checkbox"> I understand the OEM firmware is unavailable and unrecoverable, and stable USB power is required.</label>
           </fieldset>
 
           <div class="flash-action-row">
