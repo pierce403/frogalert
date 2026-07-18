@@ -44,6 +44,18 @@ The BINs remain under `./tmp/firmware/`; they are not releases and are not
 approved for flashing. No physical badge boot, pixel, BLE, current, or recovery
 test has been performed.
 
+## Published verification
+
+- Commit `a379ce9` passed CI run `29647632766`.
+- The CI-gated Pages run `29647659416` deployed that exact commit.
+- A live browser smoke at <https://frogalert.org/> prepared and locally verified
+  the reviewed Rev1 artifact while the destructive action remained locked.
+- The hosted recovery image returned `application/octet-stream`, measured
+  155,672 bytes, and matched SHA-256
+  `7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9`.
+- No site console errors appeared. The only warning came from the development
+  Electron shell rather than FrogAlert.
+
 ## Durable lessons
 
 The pinned HAL needed explicit local patches for its unavailable PAC version,

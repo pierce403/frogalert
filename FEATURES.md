@@ -164,7 +164,7 @@ service or preserve a user nametag.
 | Accessible status announcements | **SHIPPED** | ARIA live status/log | Perform screen-reader pass before stable launch. |
 | No analytics or telemetry | **SHIPPED** | Static source inspection | Device data never leaves browser. |
 | Link to source and feature tracker | **SHIPPED** | Public navigation | Keep GitHub URLs current. |
-| Open BadgeMagic recovery explanation | **PROTOTYPE** | Local browser smoke confirms exact-Rev1 refusal/preparation states, pinned metadata, and a locked destructive button | Physical-device usability and live deployment review remain pending. |
+| Open BadgeMagic recovery explanation | **PROTOTYPE** | Local and live browser smokes confirm exact-Rev1 refusal/preparation states, pinned metadata, hash verification, and a locked destructive button | Physical-device usability remains pending. |
 | Social preview image | **PLANNED** | Real link-unfurl smoke | Do not ship generic placeholder art. |
 
 ## Browser BadgeMagic connection
@@ -228,11 +228,11 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Static GitHub Pages deployment | **SHIPPED** | Pages run `29583539847` succeeded from `main` | Publishes a minimal static artifact. |
+| Static GitHub Pages deployment | **SHIPPED** | CI run `29647632766` passed and gated Pages run `29647659416` deployed exact commit `a379ce9` from `main` | Publishes the assembled static artifact only after CI succeeds. |
 | Custom domain `frogalert.org` | **SHIPPED** | DNS resolves to GitHub Pages and the live page returns 200 | Pages custom-domain setting is authoritative; workflow `CNAME` is only a repo record. |
 | HTTPS enforced | **SHIPPED** | HTTP returns 301 to HTTPS; GitHub certificate approved | Secure context confirmed in a live browser. |
-| Correct MIME types for modules/JSON/bin | **PROTOTYPE** | Live JS is `application/javascript`; manifest is `application/json` | Inspect the bundled recovery `.bin` after the current site changes deploy. |
-| Deployment smoke test | **SHIPPED** for the prior site | Live heading, safety gate, empty-release status, module execution, and zero console errors verified | Re-run at <https://frogalert.org/> after the recovery UI and artifact deploy. |
+| Correct MIME types for modules/JSON/bin | **SHIPPED** | Live JS is `application/javascript`, manifest is `application/json`, and the recovery BIN is `application/octet-stream` | Re-check when hosting or artifact paths change. |
+| Deployment smoke test | **SHIPPED** | Live recovery preparation at <https://frogalert.org/> verified the pinned 155,672-byte SHA-256, kept the destructive button locked, and produced no app console errors | Electron's development-shell CSP warning is outside the site. |
 | Cache policy for firmware manifests | **PROTOTYPE** | App requests `no-store`; Pages currently advertises a 10-minute CDN maximum | Test a real manifest promotion before first release. |
 
 ## Security, privacy, and abuse boundaries
@@ -277,8 +277,8 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 - **PROTOTYPE:** public project experience, Web Bluetooth compatibility probe,
   guarded WebUSB protocol, schema-v2 manifest, and an exact-Rev1 open
   BadgeMagic v0.1 recovery-preparation UI.
-- **SHIPPED infrastructure:** CI, Pages, custom domain, and HTTPS for the prior
-  site revision; the new recovery UI/artifact still needs a live smoke test.
+- **SHIPPED infrastructure:** CI, exact-successful-commit Pages deployment,
+  custom domain, HTTPS, and live recovery-artifact/browser smoke testing.
 - Exit gate: current HTTPS site verified; no claim of hardware success or OEM
   factory restoration.
 
