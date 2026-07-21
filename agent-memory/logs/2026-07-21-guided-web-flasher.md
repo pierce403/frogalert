@@ -99,3 +99,15 @@ software path, not a production-ready hardware promise.
   guide controls occupy space. A flash-page-local `[hidden]` invariant now
   survives a cached base stylesheet, and the mobile overview collapses to a
   compact five-step progress row so the active action stays in the viewport.
+
+### Published KEY2-guide verification
+
+- Commit `ef98cab` passed CI run `29878494652`; the CI-gated Pages run
+  `29878541767` deployed that exact commit.
+- Live <https://frogalert.org/flash/> exposed the guided and expert chooser
+  paths, kept USB permission unrequested through all five physical steps,
+  focused the final explicit chooser, kept hidden controls out of layout, and
+  showed the advisory countdown without sending any device command.
+- The live 390×844 pass had no horizontal overflow or page error. No physical
+  badge was attached, so ISP enumeration and the Identify/Read Config
+  transcript remain hardware gates.
