@@ -9,6 +9,7 @@ const readBytes = (path) => readFile(new URL(path, root));
 
 test("landing page exposes the project and guarded device flow", async () => {
   const html = await read("index.html");
+  const app = await read("site/app.js");
   for (const required of [
     "FrogAlert",
     "id=\"flash-lab\"",
@@ -19,8 +20,6 @@ test("landing page exposes the project and guarded device flow", async () => {
     "id=\"pcb-revision\"",
     "id=\"recovery-prepare\"",
     "id=\"recovery-board-confirmation\"",
-    "id=\"flash-button\"",
-    "class=\"flash-confirmation\"",
     "site/app.js",
     "site/styles.css",
   ]) {
@@ -30,7 +29,6 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Web Bluetooth cannot install firmware/i);
   assert.match(html, /id="bluetooth-connect"[^>]+disabled/);
   assert.match(html, /id="usb-connect"[^>]+disabled/);
-  assert.match(html, /resets CH58x protection\/configuration/i);
   assert.match(html, /Install open BadgeMagic firmware/);
   assert.match(html, /Prepare open BadgeMagic firmware/);
   assert.match(html, /PROTOTYPE \/ BADGE/);
@@ -38,11 +36,54 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
   assert.match(html, /does not connect, reset configuration, erase, or write/i);
   assert.match(html, /Programming is not enabled for this bundled image/i);
-  assert.match(html, /developer BIN chooser below remains the explicit experimental path/i);
+  assert.match(html, /developer BIN chooser below remains an inspection path/i);
+  assert.match(html, /All destructive work is restricted to the dedicated guided flow/i);
   assert.match(html, /compar(?:e|ed) both sides.*reference photos/i);
   assert.match(html, /USB identification only proves the MCU family/i);
   assert.doesNotMatch(html, /factory reset/i);
   assert.match(html, /id="recovery-prepare"[^>]+disabled/);
+  assert.match(html, /data-flash-mode="inspect"/);
+  assert.match(html, /Content-Security-Policy/);
+  assert.match(html, /name="referrer"/);
+  assert.doesNotMatch(html, /id="flash-button"/);
+  assert.doesNotMatch(html, /class="flash-confirmation"/);
+  assert.match(app, /const destructivePage = document\.body\.dataset\.flashMode === "program"/);
+  assert.match(app, /return destructivePage && elements\.flashPhrase\?\.value\.trim\(\) === "ERASE THIS BADGE"/);
+  assert.match(app, /if \(destructivePage && elements\.flashButton\)/);
+});
+
+test("dedicated flash route exposes guided mobile and recovery workflow", async () => {
+  const html = await read("flash/index.html");
+  for (const required of [
+    "site/app.js",
+    "site/flash.css",
+    "id=\"capability-status\"",
+    "id=\"bluetooth-connect\"",
+    "id=\"usb-connect\"",
+    "id=\"usb-disconnect\"",
+    "id=\"runtime-firmware\"",
+    "id=\"current-firmware-status\"",
+    "id=\"board-detection-status\"",
+    "id=\"firmware-file\"",
+    "id=\"recovery-prepare\"",
+    "id=\"flash-button\"",
+    "id=\"flash-phrase\"",
+    "class=\"flash-confirmation\"",
+    "id=\"flash-log\"",
+  ]) {
+    assert.ok(html.includes(required), `flash/index.html should include ${required}`);
+  }
+  assert.match(html, /Android.*USB OTG/is);
+  assert.match(html, /iPhone.*WebUSB/is);
+  assert.match(html, /Disconnect the battery.*KEY2.*Connect.*USB/is);
+  assert.match(html, /current (?:application )?firmware.*(?:unknown|cannot|not)/is);
+  assert.match(html, /PCB revision.*cannot.*detect/is);
+  assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
+  assert.match(html, /No erase or write on connect/i);
+  assert.doesNotMatch(html, /factory reset/i);
+  assert.match(html, /data-flash-mode="program"/);
+  assert.match(html, /Content-Security-Policy/);
+  assert.match(html, /name="referrer"/);
 });
 
 test("Pages deploy waits for successful CI and publishes only manifest-listed artifacts", async () => {
@@ -57,6 +98,7 @@ test("Pages deploy waits for successful CI and publishes only manifest-listed ar
   assert.doesNotMatch(workflow, /find firmware\/releases/);
   assert.match(assembler, /refusing to publish unlisted firmware artifact/);
   assert.match(assembler, /firmware artifact does not match manifest/);
+  assert.match(assembler, /join\(repositoryRoot, "flash"\)/);
 });
 
 test("release manifest separates unreleased FrogAlert builds from pinned open recovery", async () => {

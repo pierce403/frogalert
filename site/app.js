@@ -1,26 +1,17 @@
 import {
   COMMAND,
-  PROGRAM_CHUNK_BYTES,
   WCH_USB_FILTERS,
-  dataPacket,
-  deriveXorKey,
-  erasePacket,
   formatBootloaderVersion,
   identifyPacket,
-  isResetConfig,
   ispEndPacket,
-  ispKeyPacket,
   parseConfig,
-  parseConfigRegisters,
   parseIdentity,
   parseResponse,
   readConfigPacket,
-  resetConfigPacket,
   sha256Hex,
   validateFirmware,
   validateRecoveryDescriptor,
   validateReleaseDescriptor,
-  xorChunk,
 } from "./wchisp-protocol.js";
 import {
   canEnableFlash,
@@ -28,10 +19,26 @@ import {
   nextArtifactGeneration,
   revisionInputTransition,
 } from "./flasher-state.js";
+import { programAndVerifyFirmware } from "./flash-session.js";
+import {
+  BADGE_CHARACTERISTIC,
+  BADGE_SERVICE,
+  DEVICE_INFORMATION_SERVICE,
+  FIRMWARE_REVISION_CHARACTERISTIC,
+  MANUFACTURER_NAME_CHARACTERISTIC,
+  MODEL_NUMBER_CHARACTERISTIC,
+  NEXT_GEN_SERVICE,
+  browserCapabilityReport,
+  configurationSummary,
+  decodeGattText,
+  firmwareArtifactUrl,
+  firmwareManifestUrl,
+  isMobileNavigator,
+  protectedFirmwareExplanation,
+  usbDescriptorSummary,
+  validateWchUsbConfiguration,
+} from "./flash-support.js";
 
-const BADGE_SERVICE = 0xfee0;
-const BADGE_CHARACTERISTIC = 0xfee1;
-const NEXT_GEN_SERVICE = 0xf055;
 const USB_ENDPOINT = 2;
 const USB_READ_BYTES = 64;
 
@@ -46,10 +53,13 @@ const state = {
   activeFlashDevice: null,
   recoveryImages: [],
   releaseSummary: { message: "Loading release manifest…", tone: "neutral" },
+  wakeLock: null,
+  activeStage: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+const destructivePage = document.body.dataset.flashMode === "program";
 
 const elements = {
   capability: $("#capability-status"),
@@ -84,6 +94,45 @@ const elements = {
   progressLabel: $("#progress-label"),
   log: $("#flash-log"),
   matrix: $("#led-matrix"),
+  platformStatus: $("#platform-status"),
+  phoneGuidance: $("#phone-guidance"),
+  runtimeDeviceName: $("#runtime-device-name"),
+  runtimeProfile: $("#runtime-profile"),
+  runtimeFirmware: $("#runtime-firmware"),
+  runtimeManufacturer: $("#runtime-manufacturer"),
+  runtimeModel: $("#runtime-model"),
+  usbId: $("#usb-id"),
+  usbProduct: $("#usb-product"),
+  usbManufacturer: $("#usb-manufacturer"),
+  usbVersion: $("#usb-version"),
+  usbConfigState: $("#usb-config-state"),
+  currentFirmwareStatus: $("#current-firmware-status"),
+  boardDetectionStatus: $("#board-detection-status"),
+  usbDisconnectButton: $("#usb-disconnect"),
+  authorizedUsbStatus: $("#authorized-usb-status"),
+  wakeLockStatus: $("#wake-lock-status"),
+  secureContextStatus: $("#secure-context-status"),
+  webUsbSupportStatus: $("#webusb-support-status"),
+  webBluetoothSupportStatus: $("#webbluetooth-support-status"),
+  usbPermissionStatus: $("#usb-permission-status"),
+  chipIdentity: $("#chip-identity"),
+  badgeGattStatus: $("#badge-gatt-status"),
+  pcbMarkingStatus: $("#pcb-marking-status"),
+  matrixStatus: $("#matrix-status"),
+  selectedProfileStatus: $("#selected-profile-status"),
+  firmwareProvenance: $("#firmware-provenance"),
+  firmwareVerification: $("#firmware-verification"),
+  flashPhrase: $("#flash-phrase"),
+  armedStatus: $("#armed-status"),
+  copyLogButton: $("#copy-log"),
+  stages: {
+    identify: $("#stage-identify"),
+    config: $("#stage-config"),
+    erase: $("#stage-erase"),
+    program: $("#stage-program"),
+    verify: $("#stage-verify"),
+    reset: $("#stage-reset"),
+  },
 };
 
 const FONT = {
@@ -151,6 +200,7 @@ function log(message, tone = "info") {
   entry.textContent = `${timestamp} — ${message}`;
   elements.log.append(entry);
   elements.log.scrollTop = elements.log.scrollHeight;
+  if (elements.copyLogButton) elements.copyLogButton.disabled = false;
 }
 
 function setReleaseSummary(message, tone) {
@@ -163,8 +213,27 @@ function restoreReleaseSummary() {
 }
 
 function updateProgress(value, label) {
-  elements.progress.value = value;
-  elements.progressLabel.textContent = label;
+  if (elements.progress) elements.progress.value = value;
+  if (elements.progressLabel) elements.progressLabel.textContent = label;
+}
+
+function setStage(name, stageState) {
+  const element = elements.stages[name];
+  if (!element) return;
+  if (stageState) element.dataset.state = stageState;
+  else delete element.dataset.state;
+  state.activeStage = stageState === "active" ? name : state.activeStage === name ? null : state.activeStage;
+}
+
+function resetStages() {
+  state.activeStage = null;
+  Object.values(elements.stages).forEach((element) => {
+    if (element) delete element.dataset.state;
+  });
+}
+
+function failActiveStage() {
+  if (state.activeStage) setStage(state.activeStage, "failed");
 }
 
 function isTrustworthyContext() {
@@ -175,8 +244,48 @@ function updateCapabilities() {
   const secure = isTrustworthyContext();
   const usb = "usb" in navigator;
   const bluetooth = "bluetooth" in navigator;
-  const summary = [secure ? "secure context" : "HTTPS required", usb ? "WebUSB ready" : "no WebUSB", bluetooth ? "Web Bluetooth ready" : "no Web Bluetooth"];
+  const mobile = isMobileNavigator(navigator);
+  const report = browserCapabilityReport({
+    secureContext: secure,
+    hasWebUsb: usb,
+    hasWebBluetooth: bluetooth,
+    mobile,
+    userAgent: navigator.userAgent,
+  });
+  const summary = [secure ? "secure context" : "HTTPS required", usb ? "WebUSB API ready" : "no WebUSB", bluetooth ? "Web Bluetooth ready" : "no Web Bluetooth"];
   setStatus(elements.capability, summary.join(" · "), secure && usb ? "good" : "warning");
+  setStatus(
+    elements.secureContextStatus,
+    secure ? "HTTPS / trustworthy context" : "Blocked — HTTPS required",
+    secure ? "good" : "bad",
+  );
+  setStatus(
+    elements.webUsbSupportStatus,
+    usb ? "WebUSB API available" : "Unavailable in this browser",
+    usb ? "good" : "warning",
+  );
+  setStatus(
+    elements.webBluetoothSupportStatus,
+    bluetooth ? "Web Bluetooth API available" : "Unavailable in this browser",
+    bluetooth ? "good" : "warning",
+  );
+  setStatus(
+    elements.usbPermissionStatus,
+    usb ? "Not requested — press Connect when ready" : "Unavailable without WebUSB",
+    usb ? "neutral" : "warning",
+  );
+  setStatus(
+    elements.platformStatus,
+    `${mobile ? "mobile" : "desktop"} browser · ${report.canFlash ? "WebUSB API eligible; device access not yet confirmed" : "browser flashing unavailable"}`,
+    report.canFlash ? "good" : "warning",
+  );
+  setStatus(elements.phoneGuidance, report.phoneGuidance, report.canFlash ? "good" : "warning");
+  setStatus(elements.currentFirmwareStatus, protectedFirmwareExplanation(), "warning");
+  setStatus(
+    elements.boardDetectionStatus,
+    "Not detectable over USB or Bluetooth. Open the enclosure and record the physical PCB markings, CH582M package, 11×44 matrix, port layout, and LSE crystal.",
+    "warning",
+  );
   elements.usbButton.disabled = !secure || !usb;
   elements.bluetoothButton.disabled = !secure || !bluetooth;
   if (!secure) {
@@ -188,6 +297,40 @@ function updateCapabilities() {
   if (secure && !bluetooth) {
     setStatus(elements.bluetoothStatus, "Web Bluetooth is unavailable in this browser. The official BadgeMagic app remains the fallback.", "warning");
   }
+  refreshAuthorizedUsbStatus();
+}
+
+async function refreshAuthorizedUsbStatus() {
+  if (!("usb" in navigator) || !isTrustworthyContext()) {
+    setStatus(elements.authorizedUsbStatus, "No WebUSB access in this browser.", "warning");
+    return;
+  }
+  try {
+    const devices = await navigator.usb.getDevices();
+    const wchDevices = devices.filter((device) =>
+      WCH_USB_FILTERS.some(
+        (filter) => device.vendorId === filter.vendorId && device.productId === filter.productId,
+      ),
+    );
+    setStatus(
+      elements.authorizedUsbStatus,
+      wchDevices.length === 0
+        ? "No previously authorized WCH bootloader is visible. Permission is requested only after you press Connect."
+        : `${wchDevices.length} previously authorized WCH bootloader${wchDevices.length === 1 ? " is" : "s are"} attached. Press Connect to identify read-only.`,
+      wchDevices.length === 0 ? "neutral" : "good",
+    );
+  } catch (error) {
+    setStatus(elements.authorizedUsbStatus, `Authorized-device check failed: ${error.message}`, "warning");
+  }
+}
+
+async function readOptionalGattText(service, characteristicId) {
+  try {
+    const characteristic = await service.getCharacteristic(characteristicId);
+    return decodeGattText(await characteristic.readValue());
+  } catch {
+    return null;
+  }
 }
 
 async function connectBluetooth() {
@@ -195,6 +338,7 @@ async function connectBluetooth() {
   try {
     elements.bluetoothButton.disabled = true;
     setStatus(elements.bluetoothStatus, "Choose a running BadgeMagic-compatible badge…", "working");
+    if (elements.badgeGattStatus) elements.badgeGattStatus.textContent = "Probe in progress";
     device = await navigator.bluetooth.requestDevice({
       filters: [{ services: [BADGE_SERVICE] }],
       optionalServices: [NEXT_GEN_SERVICE, 0x180a],
@@ -202,9 +346,41 @@ async function connectBluetooth() {
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(BADGE_SERVICE);
     await service.getCharacteristic(BADGE_CHARACTERISTIC);
-    setStatus(elements.bluetoothStatus, `${device.name || "Badge"} exposes FEE0/FEE1. Probe passed and the page disconnected; no content was changed.`, "good");
+    let firmwareVersion = null;
+    let manufacturer = null;
+    let model = null;
+    try {
+      const deviceInformation = await server.getPrimaryService(DEVICE_INFORMATION_SERVICE);
+      [firmwareVersion, manufacturer, model] = await Promise.all([
+        readOptionalGattText(deviceInformation, FIRMWARE_REVISION_CHARACTERISTIC),
+        readOptionalGattText(deviceInformation, MANUFACTURER_NAME_CHARACTERISTIC),
+        readOptionalGattText(deviceInformation, MODEL_NUMBER_CHARACTERISTIC),
+      ]);
+    } catch {
+      // Legacy BadgeMagic firmware commonly omits the Device Information service.
+    }
+    if (elements.runtimeDeviceName) elements.runtimeDeviceName.textContent = device.name || "name not reported";
+    if (elements.runtimeProfile) elements.runtimeProfile.textContent = "FEE0 service + FEE1 characteristic detected";
+    if (elements.badgeGattStatus) elements.badgeGattStatus.textContent = "FEE0/FEE1 detected";
+    if (elements.runtimeFirmware) {
+      elements.runtimeFirmware.textContent = firmwareVersion || "not exposed by this running firmware";
+    }
+    if (elements.runtimeManufacturer) elements.runtimeManufacturer.textContent = manufacturer || "not exposed";
+    if (elements.runtimeModel) elements.runtimeModel.textContent = model || "not exposed";
+    setStatus(
+      elements.bluetoothStatus,
+      `${device.name || "Badge"} exposes FEE0/FEE1. ${
+        firmwareVersion
+          ? `Device Information reports firmware ${firmwareVersion}.`
+          : "No trustworthy firmware version was exposed."
+      } Probe passed and the page disconnected; no content was changed.`,
+      "good",
+    );
   } catch (error) {
     const cancelled = error?.name === "NotFoundError";
+    if (elements.badgeGattStatus) {
+      elements.badgeGattStatus.textContent = cancelled ? "Not probed" : "FEE0/FEE1 not confirmed";
+    }
     setStatus(elements.bluetoothStatus, cancelled ? "No badge selected." : `Badge probe failed: ${error.message}`, cancelled ? "neutral" : "bad");
   } finally {
     if (device?.gatt?.connected) device.gatt.disconnect();
@@ -242,6 +418,7 @@ async function connectUsb() {
   try {
     resetConfirmations();
     elements.usbButton.disabled = true;
+    setStatus(elements.usbPermissionStatus, "Device chooser requested by your action.", "working");
     setStatus(elements.usbStatus, "Choose the WCH ISP device—not the running nametag…", "working");
     log("Requesting permission for a WCH USB ISP bootloader.");
     const device = await navigator.usb.requestDevice({ filters: WCH_USB_FILTERS });
@@ -251,20 +428,47 @@ async function connectUsb() {
     if (device.configuration?.configurationValue !== 1) {
       throw new Error("bootloader did not select USB configuration 1");
     }
+    validateWchUsbConfiguration(device.configuration);
     await device.claimInterface(0);
 
     const identity = parseIdentity(await usbTransfer(identifyPacket()));
-    const config = parseConfig(await usbTransfer(readConfigPacket()));
+    const configPayload = await usbTransfer(readConfigPacket());
+    let config;
+    try {
+      config = parseConfig(configPayload);
+    } finally {
+      configPayload.fill(0);
+    }
     state.chip = identity;
     state.config = config;
+    const descriptor = usbDescriptorSummary(device);
+    const configSummary = configurationSummary(config.registers);
     elements.chipName.textContent = `${identity.name} [0x8216]`;
     elements.bootloaderVersion.textContent = formatBootloaderVersion(config.bootloaderVersion);
     elements.uidStatus.textContent = "checksum valid · value kept private";
+    if (elements.usbId) elements.usbId.textContent = descriptor.vidPid;
+    if (elements.usbProduct) elements.usbProduct.textContent = descriptor.product;
+    if (elements.usbManufacturer) elements.usbManufacturer.textContent = descriptor.manufacturer;
+    if (elements.usbVersion) elements.usbVersion.textContent = descriptor.deviceVersion;
+    if (elements.usbConfigState) elements.usbConfigState.textContent = configSummary.label;
+    if (elements.chipIdentity) elements.chipIdentity.textContent = "0x82 / 0x16";
+    if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = false;
+    resetStages();
+    setStage("identify", "complete");
+    setStatus(elements.usbPermissionStatus, "Permission granted to this captured WCH device.", "good");
     setStatus(elements.usbStatus, "CH582 bootloader identified. No erase or write command has been sent.", "good");
-    log("Read-only target gate passed: CH582, family 0x16, UID checksum valid.", "success");
+    log(
+      `Read-only target gate passed: CH582, family 0x16, bootloader ${formatBootloaderVersion(config.bootloaderVersion)}, UID checksum valid; application firmware remains unreadable.`,
+      "success",
+    );
   } catch (error) {
     await closeUsb();
     const cancelled = error?.name === "NotFoundError";
+    setStatus(
+      elements.usbPermissionStatus,
+      cancelled ? "Device chooser cancelled." : `USB permission/open failed: ${error.message}`,
+      cancelled ? "neutral" : "bad",
+    );
     setStatus(elements.usbStatus, cancelled ? "No bootloader selected. Nothing changed." : `Bootloader probe failed: ${error.message}`, cancelled ? "neutral" : "bad");
     log(cancelled ? "Device selection cancelled; nothing changed." : `Probe stopped safely: ${error.message}`, cancelled ? "info" : "error");
   } finally {
@@ -275,13 +479,23 @@ async function connectUsb() {
 
 async function closeUsb() {
   const device = state.usbDevice;
+  const config = state.config;
   state.usbDevice = null;
   state.chip = null;
   state.config = null;
+  config?.uid?.fill(0);
+  config?.registers?.fill(0);
   resetConfirmations();
   elements.chipName.textContent = "not connected";
   elements.bootloaderVersion.textContent = "—";
   elements.uidStatus.textContent = "—";
+  if (elements.chipIdentity) elements.chipIdentity.textContent = "—";
+  if (elements.usbId) elements.usbId.textContent = "not connected";
+  if (elements.usbProduct) elements.usbProduct.textContent = "—";
+  if (elements.usbManufacturer) elements.usbManufacturer.textContent = "—";
+  if (elements.usbVersion) elements.usbVersion.textContent = "—";
+  if (elements.usbConfigState) elements.usbConfigState.textContent = "—";
+  if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = true;
   if (device?.opened) {
     try {
       await device.releaseInterface(0);
@@ -294,16 +508,47 @@ async function closeUsb() {
       // Closing an already disconnected bootloader is harmless.
     }
   }
+  refreshAuthorizedUsbStatus();
+}
+
+async function disconnectUsbByUser() {
+  if (state.flashing) return;
+  await closeUsb();
+  setStatus(elements.usbStatus, "Bootloader connection closed without changing firmware.", "neutral");
+  log("Closed the read-only bootloader connection; nothing was erased or written.");
+  elements.usbButton.disabled = !("usb" in navigator);
+  updateFlashButton();
+}
+
+async function copyRedactedLog() {
+  if (!elements.copyLogButton) return;
+  try {
+    const text = [...elements.log.children]
+      .map((entry) => entry.textContent)
+      .join("\n");
+    await navigator.clipboard.writeText(text);
+    elements.copyLogButton.textContent = "Copied redacted log";
+    window.setTimeout(() => {
+      elements.copyLogButton.textContent = "Copy redacted log";
+    }, 1600);
+  } catch (error) {
+    log(`Could not copy the redacted session log: ${error.message}`, "error");
+  }
 }
 
 function confirmationsComplete() {
   return elements.confirmations.every((input) => input.checked);
 }
 
+function typedPhraseComplete() {
+  return destructivePage && elements.flashPhrase?.value.trim() === "ERASE THIS BADGE";
+}
+
 function resetConfirmations() {
   elements.confirmations.forEach((input) => {
     input.checked = false;
   });
+  if (elements.flashPhrase) elements.flashPhrase.value = "";
 }
 
 function selectedRevision() {
@@ -398,7 +643,7 @@ function artifactProgrammingAllowed() {
 }
 
 function updateFlashButton() {
-  elements.flashButton.disabled = !canEnableFlash({
+  const enabled = canEnableFlash({
     flashing: state.flashing,
     hasUsbDevice: Boolean(state.usbDevice),
     hasChipIdentity: Boolean(state.chip),
@@ -409,7 +654,29 @@ function updateFlashButton() {
     confirmationsComplete: confirmationsComplete(),
     artifactConfirmationComplete: recoveryArtifactConfirmationComplete(),
     artifactProgrammingAllowed: artifactProgrammingAllowed(),
+    typedPhraseComplete: typedPhraseComplete(),
   });
+  if (elements.flashButton) elements.flashButton.disabled = !enabled;
+  setStatus(
+    elements.armedStatus,
+    enabled
+      ? "Armed for the captured device and exact selected artifact. Final confirmation still required."
+      : "Not armed — complete device identification, artifact binding, physical checks, and the exact phrase.",
+    enabled ? "warning" : "neutral",
+  );
+  if (elements.pcbMarkingStatus) {
+    elements.pcbMarkingStatus.textContent = hasBoardRecord()
+      ? "Recorded locally for this session"
+      : "Not recorded";
+  }
+  if (elements.selectedProfileStatus) {
+    elements.selectedProfileStatus.textContent = selectedRevision() || "Not selected";
+  }
+  if (elements.matrixStatus) {
+    elements.matrixStatus.textContent = elements.confirmations[1]?.checked
+      ? "User confirmed exactly 11×44"
+      : "Not confirmed";
+  }
 }
 
 function clearFirmware() {
@@ -419,6 +686,8 @@ function clearFirmware() {
   elements.firmwareSize.textContent = "—";
   elements.firmwareHash.textContent = "—";
   elements.firmwareRevision.textContent = "—";
+  if (elements.firmwareProvenance) elements.firmwareProvenance.textContent = "—";
+  if (elements.firmwareVerification) elements.firmwareVerification.textContent = "—";
   updateProgress(0, "Not armed");
   updateFlashButton();
   updateRecoveryButton();
@@ -455,6 +724,15 @@ async function setFirmware(
   elements.firmwareSize.textContent = `${raw.byteLength.toLocaleString()} bytes (${validated.padded.byteLength.toLocaleString()} padded)`;
   elements.firmwareHash.textContent = hash;
   elements.firmwareRevision.textContent = hardwareRevisions.join(", ");
+  if (elements.firmwareProvenance) {
+    elements.firmwareProvenance.textContent =
+      metadata.provenance || (source === "local file" ? "Local file selected by user" : source);
+  }
+  if (elements.firmwareVerification) {
+    elements.firmwareVerification.textContent =
+      metadata.hardwareEvidence ||
+      (source === "local file" ? "No release or hardware evidence supplied" : "Not reported");
+  }
   log(`Loaded ${name} from ${source}; SHA-256 calculated locally.`);
   updateFlashButton();
   return true;
@@ -504,10 +782,7 @@ async function prepareOpenBadgeMagicFirmware() {
       "Loading the same-origin FOSSASIA v0.1 bytes for local size and SHA-256 verification…",
       "working",
     );
-    const artifactUrl = new URL(
-      `./firmware/releases/${encodeURIComponent(recovery.file)}`,
-      window.location.href,
-    );
+    const artifactUrl = firmwareArtifactUrl(recovery.file, import.meta.url);
     const response = await fetch(artifactUrl, { cache: "no-store" });
     if (!response.ok) throw new Error(`open BadgeMagic firmware returned HTTP ${response.status}`);
     const bytes = new Uint8Array(await response.arrayBuffer());
@@ -526,6 +801,8 @@ async function prepareOpenBadgeMagicFirmware() {
           artifactKind: recovery.kind,
           recoveryId: recovery.id,
           hardwareVerifiedByFrogalert: recovery.hardware_verified_by_frogalert,
+          provenance: `FOSSASIA ${recovery.version} · source ${recovery.upstream.source_commit.slice(0, 12)}`,
+          hardwareEvidence: "Hardware-unverified by FrogAlert; destructive use locked",
         },
       },
     );
@@ -549,7 +826,7 @@ async function prepareOpenBadgeMagicFirmware() {
 
 async function loadReleaseManifest() {
   try {
-    const response = await fetch("./firmware/releases/manifest.json", { cache: "no-store" });
+    const response = await fetch(firmwareManifestUrl(import.meta.url), { cache: "no-store" });
     if (!response.ok) throw new Error(`manifest returned HTTP ${response.status}`);
     const manifest = await response.json();
     if (
@@ -601,7 +878,7 @@ async function chooseRelease(event) {
   try {
     const release = JSON.parse(event.target.value);
     validateReleaseDescriptor(release, selectedRevision());
-    const artifactUrl = new URL(`./firmware/releases/${encodeURIComponent(release.file)}`, window.location.href);
+    const artifactUrl = firmwareArtifactUrl(release.file, import.meta.url);
     const response = await fetch(artifactUrl, { cache: "no-store" });
     if (!response.ok) throw new Error(`firmware returned HTTP ${response.status}`);
     const bytes = new Uint8Array(await response.arrayBuffer());
@@ -610,6 +887,10 @@ async function chooseRelease(event) {
       expectedHash: release.sha256,
       generation,
       hardwareRevisions: release.hardware_revisions,
+      metadata: {
+        provenance: `FrogAlert release ${release.version} · source ${release.source_commit || "not reported"}`,
+        hardwareEvidence: "Manifest marks this exact release hardware-verified",
+      },
     });
     if (!loaded) return;
     setStatus(elements.releaseStatus, `Loaded ${release.version} for PCB revision ${selectedRevision()}.`, "good");
@@ -627,6 +908,40 @@ function randomByte() {
 }
 
 const delay = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function acquireWakeLock() {
+  if (!("wakeLock" in navigator)) {
+    setStatus(
+      elements.wakeLockStatus,
+      "Screen wake lock is unavailable. Keep this page visible and prevent the phone or computer from sleeping during a flash.",
+      "warning",
+    );
+    return;
+  }
+  try {
+    state.wakeLock = await navigator.wakeLock.request("screen");
+    setStatus(elements.wakeLockStatus, "Screen wake lock active for this flash session.", "good");
+  } catch (error) {
+    setStatus(
+      elements.wakeLockStatus,
+      `Screen wake lock was not granted: ${error.message}. Keep this page visible and the device awake.`,
+      "warning",
+    );
+  }
+}
+
+async function releaseWakeLock() {
+  const lock = state.wakeLock;
+  state.wakeLock = null;
+  if (lock) {
+    try {
+      await lock.release();
+    } catch {
+      // A browser may release the lock automatically when the page is hidden.
+    }
+  }
+  setStatus(elements.wakeLockStatus, "Wake lock inactive.", "neutral");
+}
 
 async function withTimeout(promise, milliseconds, operation) {
   let timer;
@@ -665,14 +980,6 @@ async function sendReset(expectedDevice) {
   }
 }
 
-async function beginKeySession(key, expectedDevice) {
-  const response = await usbTransfer(ispKeyPacket(), expectedDevice);
-  const checksum = key.reduce((sum, byte) => (sum + byte) & 0xff, 0);
-  if (response[0] !== checksum) {
-    throw new Error("bootloader ISP key checksum did not match");
-  }
-}
-
 async function flashFirmware() {
   if (
     elements.flashButton.disabled ||
@@ -687,8 +994,21 @@ async function flashFirmware() {
     state.firmware.artifactKind === "open-badgemagic-recovery"
       ? "the FOSSASIA open BadgeMagic replacement (not the original OEM image)"
       : state.firmware.name;
+  const finalSummary = [
+    "FINAL DESTRUCTIVE CHECK",
+    "",
+    `Target: CH582 [0x82 / 0x16], bootloader ${formatBootloaderVersion(state.config.bootloaderVersion)}`,
+    `Physical PCB record: ${elements.pcbMarking.value.trim()}`,
+    `Firmware profile: ${selectedRevision()}`,
+    `Artifact: ${artifactDescription}`,
+    `Image: ${state.firmware.raw.byteLength.toLocaleString()} bytes (${state.firmware.padded.byteLength.toLocaleString()} padded)`,
+    `SHA-256: ${state.firmware.hash}`,
+    `Erase plan: ${state.firmware.eraseSectors} × 1 KiB sectors after exact config reset/readback`,
+    "",
+    "The current application firmware is unknown. The OEM image is unavailable and cannot be backed up or restored. Continue only if every line matches the opened badge.",
+  ].join("\n");
   const confirmed = window.confirm(
-    `Final check: reset CH58x protection/configuration, erase the current firmware, and program ${artifactDescription} for PCB revision ${selectedRevision()}? The OEM image is unavailable and unrecoverable.`,
+    finalSummary,
   );
   if (!confirmed) {
     log("Final flash confirmation declined; nothing changed.");
@@ -707,61 +1027,81 @@ async function flashFirmware() {
   elements.confirmations.forEach((input) => {
     input.disabled = true;
   });
+  if (elements.flashPhrase) elements.flashPhrase.disabled = true;
   elements.releaseSelect.disabled = true;
   elements.recoveryButton.disabled = true;
+  if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = true;
   const { padded, eraseSectors } = state.firmware;
-  const key = deriveXorKey(state.config.uid);
-  const chunks = Math.ceil(padded.byteLength / PROGRAM_CHUNK_BYTES);
+  await acquireWakeLock();
 
   try {
-    updateProgress(1, "Resetting CH58x protection/configuration…");
-    log("DESTRUCTIVE STEP: resetting CH58x protection and configuration to the reviewed defaults.", "warning");
-    await usbTransfer(resetConfigPacket(), flashDevice);
-    const resetRegisters = parseConfigRegisters(await usbTransfer(readConfigPacket(0x07), flashDevice));
-    if (!isResetConfig(resetRegisters)) {
-      throw new Error("CH58x configuration reset did not match readback");
-    }
-    log("Configuration reset readback matched before erase.", "success");
-
-    updateProgress(3, "Erasing code flash…");
-    log(`DESTRUCTIVE STEP: erasing ${eraseSectors} code-flash sectors.`, "warning");
-    await usbTransfer(erasePacket(eraseSectors), flashDevice);
-    await delay(1000);
-
-    updateProgress(8, "Starting encrypted program session…");
-    await beginKeySession(key, flashDevice);
-    for (let index = 0; index < chunks; index += 1) {
-      const address = index * PROGRAM_CHUNK_BYTES;
-      const chunk = padded.slice(address, address + PROGRAM_CHUNK_BYTES);
-      await usbTransfer(
-        dataPacket(COMMAND.PROGRAM, address, randomByte(), xorChunk(chunk, key)),
-        flashDevice,
-      );
-      updateProgress(8 + Math.round(((index + 1) / chunks) * 48), `Programming ${index + 1} / ${chunks}…`);
-    }
-    await usbTransfer(
-      dataPacket(COMMAND.PROGRAM, padded.byteLength, randomByte(), new Uint8Array()),
-      flashDevice,
-    );
-    log(`Programmed ${padded.byteLength.toLocaleString()} padded bytes; beginning independent ISP comparison.`);
-    await delay(500);
-
-    updateProgress(58, "Starting verify session…");
-    await beginKeySession(key, flashDevice);
-    for (let index = 0; index < chunks; index += 1) {
-      const address = index * PROGRAM_CHUNK_BYTES;
-      const chunk = padded.slice(address, address + PROGRAM_CHUNK_BYTES);
-      const response = await usbTransfer(
-        dataPacket(COMMAND.VERIFY, address, randomByte(), xorChunk(chunk, key)),
-        flashDevice,
-      );
-      if (response[0] !== 0x00) throw new Error(`verify mismatch at address 0x${address.toString(16)}`);
-      updateProgress(58 + Math.round(((index + 1) / chunks) * 41), `Verifying ${index + 1} / ${chunks}…`);
-    }
-
-    updateProgress(100, "Verified. Resetting badge…");
-    log("All programmed chunks passed the bootloader verify command.", "success");
-    const resetAcknowledged = await sendReset(flashDevice);
+    const { resetAcknowledged } = await programAndVerifyFirmware({
+      padded,
+      eraseSectors,
+      uid: state.config.uid,
+      transfer: (packet) => usbTransfer(packet, flashDevice),
+      reset: () => sendReset(flashDevice),
+      randomByte,
+      wait: delay,
+      onEvent(event) {
+        switch (event.phase) {
+          case "config-reset":
+            setStage("identify", "complete");
+            setStage("config", "active");
+            updateProgress(1, "Resetting CH58x protection/configuration…");
+            log(
+              "DESTRUCTIVE STEP: resetting CH58x protection and configuration to the reviewed defaults.",
+              "warning",
+            );
+            break;
+          case "config-verified":
+            setStage("config", "complete");
+            log("Configuration reset readback matched before erase.", "success");
+            break;
+          case "erase":
+            setStage("erase", "active");
+            updateProgress(3, "Erasing code flash…");
+            log(`DESTRUCTIVE STEP: erasing ${event.eraseSectors} code-flash sectors.`, "warning");
+            break;
+          case "program-key":
+            setStage("erase", "complete");
+            setStage("program", "active");
+            updateProgress(8, "Starting encrypted program session…");
+            break;
+          case "program":
+            updateProgress(
+              8 + Math.round((event.index / event.chunks) * 48),
+              `Programming ${event.index} / ${event.chunks}…`,
+            );
+            break;
+          case "program-finalized":
+            log(
+              `Programmed ${padded.byteLength.toLocaleString()} padded bytes; beginning independent ISP comparison.`,
+            );
+            break;
+          case "verify-key":
+            setStage("program", "complete");
+            setStage("verify", "active");
+            updateProgress(58, "Starting verify session…");
+            break;
+          case "verify":
+            updateProgress(
+              58 + Math.round((event.index / event.chunks) * 41),
+              `Verifying ${event.index} / ${event.chunks}…`,
+            );
+            break;
+          case "verified":
+            setStage("verify", "complete");
+            setStage("reset", "active");
+            updateProgress(100, "Verified. Resetting badge…");
+            log("All programmed chunks passed the bootloader verify command.", "success");
+            break;
+          case "complete":
+            setStage("reset", "complete");
+            break;
+        }
+      },
+    });
     setStatus(
       elements.usbStatus,
       resetAcknowledged
@@ -777,23 +1117,29 @@ async function flashFirmware() {
     );
     await closeUsb();
   } catch (error) {
+    failActiveStage();
     await closeUsb();
     if (state.firmware?.artifactKind === "open-badgemagic-recovery") {
       elements.recoveryBoardConfirmation.checked = false;
     }
     updateProgress(elements.progress.value, "Stopped — follow recovery instructions below");
+    const uncertainty =
+      error?.name === "TimeoutError"
+        ? " The timed-out USB command may still have reached the bootloader, so the badge state is unknown until a complete fresh identify, program, and verify cycle succeeds."
+        : "";
     setStatus(
       elements.usbStatus,
-      `Flash stopped: ${error.message}. Reconnect for fresh read-only identification before retrying.`,
+      `Flash stopped: ${error.message}.${uncertainty} Reconnect for fresh read-only identification before retrying.`,
       "bad",
     );
     log(
-      `FLASH STOPPED: ${error.message}. Keep this page open, re-enter ISP mode, reconnect, pass read-only identification, and accept every acknowledgement again before retrying the same verified artifact.`,
+      `FLASH STOPPED: ${error.message}.${uncertainty} Keep this page open, re-enter ISP mode, reconnect, pass read-only identification, and accept every acknowledgement again before retrying the same verified artifact.`,
       "error",
     );
   } finally {
     state.activeFlashDevice = null;
     state.flashing = false;
+    await releaseWakeLock();
     elements.firmwareInput.disabled = false;
     elements.pcbMarking.disabled = false;
     elements.pcbRevision.disabled = false;
@@ -801,10 +1147,54 @@ async function flashFirmware() {
     elements.confirmations.forEach((input) => {
       input.disabled = false;
     });
+    if (elements.flashPhrase) elements.flashPhrase.disabled = false;
     elements.releaseSelect.disabled = elements.releaseSelect.options.length <= 1;
     elements.usbButton.disabled = !("usb" in navigator) || Boolean(state.usbDevice);
+    if (elements.usbDisconnectButton) {
+      elements.usbDisconnectButton.disabled = !state.usbDevice;
+    }
     updateFlashButton();
     updateRecoveryButton();
+  }
+}
+
+async function startFlash() {
+  if (!destructivePage) {
+    setStatus(
+      elements.usbStatus,
+      "This landing-page lab is read-only. Open the full flash tool for the guarded destructive workflow.",
+      "warning",
+    );
+    return;
+  }
+  if (!navigator.locks?.request) {
+    log(
+      "This browser does not expose the Web Locks API. Close other FrogAlert tabs before continuing.",
+      "warning",
+    );
+    await flashFirmware();
+    return;
+  }
+  try {
+    await navigator.locks.request(
+      "frogalert-ch582-flash",
+      { mode: "exclusive", ifAvailable: true },
+      async (lock) => {
+        if (!lock) {
+          setStatus(
+            elements.usbStatus,
+            "Another FrogAlert tab holds the flashing lock. Close it or wait for its operation to finish.",
+            "bad",
+          );
+          log("Flash did not start because another tab holds the exclusive hardware lock.", "error");
+          return;
+        }
+        await flashFirmware();
+      },
+    );
+  } catch (error) {
+    setStatus(elements.usbStatus, `Could not acquire the browser flashing lock: ${error.message}`, "bad");
+    log(`Flash did not start: browser lock failed (${error.message}).`, "error");
   }
 }
 
@@ -844,8 +1234,34 @@ function bindEvents() {
     updateFlashButton();
   });
   elements.confirmations.forEach((input) => input.addEventListener("change", updateFlashButton));
-  elements.flashButton.addEventListener("click", flashFirmware);
+  elements.flashPhrase?.addEventListener("input", updateFlashButton);
+  if (destructivePage && elements.flashButton) {
+    elements.flashButton.addEventListener("click", startFlash);
+  }
+  elements.usbDisconnectButton?.addEventListener("click", disconnectUsbByUser);
+  elements.copyLogButton?.addEventListener("click", copyRedactedLog);
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.flashing) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   if ("usb" in navigator) {
+    navigator.usb.addEventListener("connect", (event) => {
+      if (
+        !WCH_USB_FILTERS.some(
+          (filter) =>
+            event.device.vendorId === filter.vendorId &&
+            event.device.productId === filter.productId,
+        )
+      ) {
+        return;
+      }
+      setStatus(
+        elements.authorizedUsbStatus,
+        "A WCH ISP bootloader was attached. Press Connect to request permission and identify it read-only.",
+        "good",
+      );
+    });
     navigator.usb.addEventListener("disconnect", async (event) => {
       if (event.device !== state.usbDevice) return;
       await closeUsb();

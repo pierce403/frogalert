@@ -59,6 +59,7 @@ for (const name of ["index.html", "CNAME", ".nojekyll"]) {
   await cp(join(repositoryRoot, name), join(outputRoot, name));
 }
 await cp(join(repositoryRoot, "site"), join(outputRoot, "site"), { recursive: true });
+await cp(join(repositoryRoot, "flash"), join(outputRoot, "flash"), { recursive: true });
 await writeFile(join(outputRoot, "firmware", "releases", "manifest.json"), manifestBytes);
 for (const name of listedFiles) {
   await cp(join(releaseRoot, name), join(outputRoot, "firmware", "releases", name));

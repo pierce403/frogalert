@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="FrogAlert is an experimental Rust firmware project intended to turn a BadgeMagic LED nametag into a passive, local BLE signal alert badge.">
     <meta name="theme-color" content="#10271d">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta property="og:type" content="website">
     <meta property="og:title" content="FrogAlert — the nametag that watches back">
     <meta property="og:description" content="An open Rust firmware experiment for a normal LED nametag plus short passive BLE scans and explainable local alerts.">
@@ -15,7 +17,7 @@
     <link rel="stylesheet" href="./site/styles.css">
     <script type="module" src="./site/app.js"></script>
   </head>
-  <body>
+  <body data-flash-mode="inspect">
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="site-header">
@@ -26,7 +28,7 @@
       <nav aria-label="Primary navigation">
         <a href="#concept">Concept</a>
         <a href="#status">Build status</a>
-        <a href="#flash-lab">Flash lab</a>
+        <a href="./flash/">Flash tool</a>
         <a href="https://github.com/pierce403/frogalert">Source</a>
       </nav>
     </header>
@@ -40,7 +42,7 @@
             FrogAlert keeps doing the useful thing—showing your name—then briefly listens for nearby Bluetooth signals and flashes a local warning when an explainable rule matches.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#flash-lab">Open flash lab</a>
+            <a class="button button-primary" href="./flash/">Open guided flash tool</a>
             <a class="button button-secondary" href="https://github.com/pierce403/frogalert/blob/main/FEATURES.md">Read the full tracker</a>
           </div>
           <ul class="status-strip" aria-label="Current project status">
@@ -153,8 +155,9 @@
       <section class="flash-section" id="flash-lab" aria-labelledby="flash-title">
         <div class="flash-intro">
           <p class="section-kicker">Experimental hardware lab</p>
-          <h2 id="flash-title">Connect normally with Bluetooth. Replace firmware with USB.</h2>
-          <p>Web Bluetooth cannot install firmware on this badge. It can verify the normal BadgeMagic GATT service. Firmware replacement happens through the CH582 factory USB ISP bootloader.</p>
+          <h2 id="flash-title">Inspect here. Use the guarded tool for any write.</h2>
+          <p>Web Bluetooth cannot install firmware. This landing-page lab can verify the normal BadgeMagic GATT service, identify a CH582 bootloader read-only, and inspect firmware artifacts. It cannot reset configuration, erase, or program. All destructive work is restricted to the dedicated guided flow.</p>
+          <p><a class="button button-primary" href="./flash/">Use the full mobile-first flasher and recovery guide</a></p>
           <div id="capability-status" class="capability-pill" role="status">Checking browser capabilities…</div>
           <noscript><p class="device-status" data-tone="bad">JavaScript is required for browser hardware access. The project documentation remains available without it.</p></noscript>
         </div>
@@ -190,7 +193,7 @@
           <div class="console-header">
             <div>
               <p class="terminal-label">FROGALERT / WEBUSB FLASH CONSOLE</p>
-              <h3>Artifact + irreversible-write gate</h3>
+              <h3>Read-only artifact inspection</h3>
             </div>
             <span class="experimental-label">EXPERIMENTAL · UNTESTED ON HARDWARE</span>
           </div>
@@ -198,7 +201,7 @@
           <div class="field-group revision-gate">
             <label for="pcb-marking">Opened-board record</label>
             <input id="pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Copy visible PCB markings, or record that none are printed">
-            <p class="field-help">Required before a destructive action and kept only in this page. Copy the physical silkscreen/revision exactly; if none is visible, say so and retain front/back photos. This record does not itself prove compatibility.</p>
+            <p class="field-help">Kept only in this page. Copy the physical silkscreen/revision exactly; if none is visible, say so and retain front/back photos. This record does not itself prove compatibility.</p>
           </div>
 
           <div class="field-group revision-gate">
@@ -216,8 +219,8 @@
               <span class="experimental-label">NOT HARDWARE-VERIFIED BY FROGALERT</span>
             </div>
             <p>The original OEM image is unavailable and unrecoverable. This does not restore the badge's original firmware; it prepares FOSSASIA's open BadgeMagic-compatible replacement for the exact Micro-USB <code>HARDWARE_REV1</code> board only.</p>
-            <p class="recovery-warning"><strong>Preparation is non-destructive:</strong> the button below only loads and locally verifies the same-origin artifact. It does not connect, reset configuration, erase, or write. The separate red program button has additional target-identification and confirmation gates.</p>
-            <p class="recovery-warning"><strong>Programming is not enabled for this bundled image:</strong> its bytes can be prepared and inspected, but the red browser-programming action stays locked until FrogAlert records a physical <code>HARDWARE_REV1</code> smoke test. The developer BIN chooser below remains the explicit experimental path for qualified hardware work.</p>
+            <p class="recovery-warning"><strong>Preparation is non-destructive:</strong> the button below only loads and locally verifies the same-origin artifact. It does not connect, reset configuration, erase, or write. Programming exists only in the separately guarded <a href="./flash/">full flash tool</a>.</p>
+            <p class="recovery-warning"><strong>Programming is not enabled for this bundled image:</strong> its bytes can be prepared and inspected, but every browser-programming action stays locked until FrogAlert records a physical <code>HARDWARE_REV1</code> smoke test. The developer BIN chooser below remains an inspection path here and an explicit experimental path for qualified hardware work in the full tool.</p>
             <label class="recovery-identity"><input id="recovery-board-confirmation" type="checkbox"> I opened the badge, read <strong>CH582M</strong>, counted exactly <strong>44 columns</strong>, confirmed the <strong>Micro-USB</strong> layout, and compared both sides with FOSSASIA's <a href="https://github.com/fossasia/badgemagic-firmware/blob/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8/CH582.md#hardware-details" target="_blank" rel="noopener noreferrer">reference photos</a>.</label>
             <button id="recovery-prepare" class="button button-secondary" type="button" disabled>Prepare open BadgeMagic firmware</button>
             <p id="recovery-status" class="device-status" role="status" aria-live="polite">Loading the reviewed upstream recovery descriptor…</p>
@@ -254,29 +257,12 @@
             <div><dt>SHA-256</dt><dd id="firmware-hash">—</dd></div>
           </dl>
 
-          <fieldset class="safety-gate">
-            <legend>All confirmations are required before the Flash button unlocks</legend>
-            <label><input class="flash-confirmation" type="checkbox"> I opened this badge and read <strong>CH582M</strong> on the MCU.</label>
-            <label><input class="flash-confirmation" type="checkbox"> I confirmed the display is exactly <strong>11×44</strong>, not a similar clone.</label>
-            <label><input class="flash-confirmation" type="checkbox"> I confirmed this image supports the hardware profile above and the physically recorded board.</label>
-            <label><input class="flash-confirmation" type="checkbox"> I understand the first write resets CH58x protection/configuration and is followed by readback before erase.</label>
-            <label><input class="flash-confirmation" type="checkbox"> I understand the OEM firmware is unavailable and unrecoverable, and stable USB power is required.</label>
-          </fieldset>
-
-          <div class="flash-action-row">
-            <button id="flash-button" class="button button-danger" type="button" disabled>Reset config, erase, program + verify</button>
-            <div class="progress-wrap">
-              <label id="progress-label" for="flash-progress">Not armed</label>
-              <progress id="flash-progress" max="100" value="0">0%</progress>
-            </div>
-          </div>
-
           <ol id="flash-log" class="flash-log" aria-live="polite" aria-label="Flash operation log">
             <li>Session ready. No device access has been requested.</li>
           </ol>
 
           <aside class="recovery-note">
-            <strong>If a write stops:</strong> keep the selected BIN, disconnect power, re-enter ISP with KEY2, reconnect, and retry. Do not report success until every chunk passes the bootloader verify command. The <a href="https://github.com/ch32-rs/wchisp">wchisp CLI</a> is the fallback.
+            <strong>Need recovery after an interrupted write?</strong> Open the <a href="./flash/">guided KEY2 recovery flow</a>. Keep the selected BIN, and never report success until every chunk passes bootloader verification. The <a href="https://github.com/ch32-rs/wchisp">wchisp CLI</a> remains the bench fallback.
           </aside>
         </div>
       </section>

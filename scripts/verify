@@ -13,7 +13,7 @@ node --test tests/*.test.mjs
 node scripts/assemble-site.mjs tmp/site-build
 
 if command -v xmllint >/dev/null 2>&1; then
-  xmllint --html --noout index.html
+  xmllint --html --noout index.html flash/index.html
 else
   echo "note: xmllint not installed; site structure tests still ran" >&2
 fi

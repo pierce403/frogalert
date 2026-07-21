@@ -1,6 +1,6 @@
 # FrogAlert feature and readiness tracker
 
-Last reviewed: 2026-07-18
+Last reviewed: 2026-07-21
 
 This is the source of truth for requirements, implementation status, acceptance
 evidence, and release gates. Update it in the same change that alters a feature.
@@ -186,15 +186,20 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | --- | --- | --- | --- |
 | Secure-context requirement | **SHIPPED** | UI blocks non-local insecure origins | Public site must use HTTPS. |
 | WebUSB capability detection | **SHIPPED** | UI reports unsupported browsers | Firefox/Safari currently unsupported. |
+| Dedicated mobile-first `/flash/` workflow | **SHIPPED** at static UI/test layer | Separate preflight, facts table, KEY2 recovery, artifact, consent, progress, and redacted-log surfaces pass structure tests | Hardware access remains experimental. |
+| Single destructive browser surface | **SHIPPED** invariant | Landing program controls are absent and fail the program-page mode gate; only `/flash/` carries the exact typed consent | Both routes carry same-origin CSP/referrer policies. |
 | Explicit permission request | **PROTOTYPE** | User-click `requestDevice()` path | Physical device test pending. |
 | Filter WCH ISP ids | **PROTOTYPE** | `4348/1a86:55e0` filters and tests | VID/PID alone is not sufficient. |
-| Claim config 1/interface 0 | **PROTOTYPE** | Transport implementation | OS driver binding may block claims. |
+| Validate config 1/interface 0/bulk endpoint 2 | **PROTOTYPE** | Pure descriptor tests plus transport gate | OS driver binding may block claims. |
 | Read-only CH582 identity gate | **PROTOTYPE** | Rejects chip id other than `0x82/0x16` | Physical transcript needed. |
+| Detect bootloader/configuration facts without identifiers | **PROTOTYPE** | UI reports bootloader, UID integrity, and conservative configuration summary while omitting serial/raw UID | Physical transcript needed; application version and PCB are unavailable. |
+| Optional running-firmware metadata probe | **PROTOTYPE** | Sanitized Device Information `2A26/2A29/2A24` reads are optional after `FEE0/FEE1` discovery | Self-reported text is not proof of installed bytes. |
+| Arbitrary current-firmware detection | **REJECTED** as impossible through ISP | UI and docs explicitly keep it unknown unless an application self-reports | Protected application bytes cannot be read; no guessing by BLE/USB name. |
 | Require CH582M/11×44 confirmation | **SHIPPED** in UI | Explicit hardware safety checkboxes | Human confirmation cannot be automated. |
 | Bind artifact to entered PCB revision | **PROTOTYPE** | Release descriptor and local selection enforce an exact value | Physical label/revision catalog pending. |
 | Local `.bin` file selection | **PROTOTYPE** | File never uploads; hash and bound revision shown locally | Developer path remains unverified. |
 | Same-origin release manifest | **PROTOTYPE** | Schema v2 exposes no FrogAlert releases and one exact-revision open recovery descriptor | Recovery provenance and hardware-unverified status are validated separately from release readiness. |
-| Firmware size and padded-limit validation | **PROTOTYPE** | Unit-tested pure validation | Confirm exact release image layout. |
+| Firmware plausibility, size, and padded-limit validation | **PROTOTYPE** | Unit tests reject tiny, uniform, wrong-extension, and oversized images and derive an exact aligned erase plan | Confirm exact release image layout. |
 | SHA-256 calculation | **PROTOTYPE** | Web Crypto digest displayed | Manifest comparison pending release. |
 | No erase on connect | **SHIPPED** invariant | Separate gated flash action | Regression-test UI state. |
 | CH58x protection/config reset + readback | **PROTOTYPE** | `0xA8` encoder and exact `0xA7` readback tests | Must match a physical stock badge transcript. |
@@ -204,10 +209,14 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Required final empty write | **PROTOTYPE** | Implemented in flash sequence | Physical test pending. |
 | Bootloader verify every chunk | **PROTOTYPE** | Verify sequence and mismatch handling | This is compare, not readback backup. |
 | Bounded USB operations | **PROTOTYPE** | Transport timeouts force explicit recovery | Physical slow-path timings pending. |
+| Timeout uncertainty handling | **SHIPPED** in UI | Timed-out command is reported as potentially completed and badge state unknown | Requires a fresh full identify/program/verify cycle. |
 | Single-device flash session | **PROTOTYPE** | Every destructive transfer checks the captured device identity; reconnect stays locked until exit | Add fake-device disconnect/reconnect regression tests. |
+| Cross-tab destructive lock | **PROTOTYPE** | Exclusive Web Lock when supported; explicit close-other-tabs warning otherwise | Multi-tab browser test pending. |
+| Screen wake lock during writes | **PROTOTYPE** | Requested only for active flash and released on every exit | Android physical flash/power test pending. |
 | Reset after verified success | **PROTOTYPE** | Sent-vs-acknowledged reset states are distinct | Disconnect may hide the response. |
-| Recovery UX after failure | **PROTOTYPE** | Log retains retry instructions | Deliberate interruption test pending. |
-| Browser state-machine integration tests | **PLANNED** | Fake WebUSB covers disconnect, delayed manifest, timeout, and artifact races | Pure packet tests exist today. |
+| Recovery UX after failure | **PROTOTYPE** | Dedicated KEY2 button-by-button path, no-enumeration boundary, and retry log | Deliberate interruption test pending. |
+| Destructive-session integration tests | **PROTOTYPE** | Fake transport covers exact reset/readback-before-erase order, 56-byte program/finalize/verify, mismatches, invalid plans, and UI callback isolation | It does not replace fake WebUSB DOM/device-event coverage. |
+| Browser state-machine integration tests | **PLANNED** | Fake WebUSB covers disconnect, delayed manifest, timeout, and artifact races | Transport-independent full-session tests exist today. |
 | Open BadgeMagic recovery preparation | **PROTOTYPE** | Node tests pin v0.1 bytes, SHA-256, source provenance, `HARDWARE_REV1`, and hardware-unverified status | [`site/app.js`](site/app.js) only fetches and verifies locally; the false hardware-verification flag blocks destructive arming until a physical Rev1 smoke passes. |
 | Released FrogAlert firmware one-click selection | **BLOCKED** | Requires first hardware-tested FrogAlert release | Local developer BIN and open-recovery preparation do not satisfy this gate. |
 | Stable browser flashing | **BLOCKED** | Full matrix across Chrome/Edge and two desktop OSes | Requires physical badge and release artifact. |
@@ -219,7 +228,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Chrome desktop, Linux | **PLANNED** | udev + identify/program/verify/reset test |
 | Chromium Edge, Windows | **PLANNED** | WinUSB driver setup + full flash test |
 | Chrome desktop, macOS | **PLANNED** | Full flash test without driver conflict |
-| Chrome Android + USB OTG | **DEFERRED** | Power and full flash/recovery test |
+| Chrome Android + USB OTG | **PROTOTYPE** UI / **BLOCKED** physical support | USB-host phone, data OTG adapter, permission, wake lock, power, full flash, interruption, and recovery test |
 | ChromeOS | **DEFERRED** | Full flash/recovery test |
 | Firefox | **REJECTED** currently | No WebUSB implementation |
 | Safari/iOS | **REJECTED** currently | No WebUSB implementation |
@@ -242,6 +251,9 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | No telemetry | **SHIPPED** | Static source has no collection endpoint | Hosting access logs are outside app behavior. |
 | No remote firmware upload | **SHIPPED** | Files processed through browser APIs only | Explain this in UI. |
 | Explicit destructive consent | **SHIPPED** in UI | Hardware, irreversibility, and power checks | Final physical usability test pending. |
+| Exact typed and native final confirmation | **SHIPPED** in UI | `ERASE THIS BADGE` plus final target/profile/name/size/hash/erase summary | Physical usability test pending. |
+| Redacted device/session reporting | **SHIPPED** at code/test layer | USB serial/raw UID omitted; UID copy is zeroed on close; copied log contains only summarized facts | Inspect physical browser descriptors before stable promotion. |
+| Static flasher CSP/referrer policy | **SHIPPED** | `/flash/` restricts executable, style, fetch, object, base, and form sources to same origin | Re-check browser console on deployment. |
 | Exact target identity gate | **PROTOTYPE** | Protocol rejects non-CH582 | PCB/display still require human confirmation. |
 | Verified-before-success | **PROTOTYPE** | State machine never marks success before verify | Hardware fault-injection pending. |
 | Conservative detection language | **SHIPPED** | Site/docs say signal/hint, not proof | Keep alert jokes distinct from factual claims. |

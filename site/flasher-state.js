@@ -37,6 +37,7 @@ export function canEnableFlash({
   confirmationsComplete = false,
   artifactConfirmationComplete = true,
   artifactProgrammingAllowed = true,
+  typedPhraseComplete = true,
 } = {}) {
   return (
     !flashing &&
@@ -48,6 +49,7 @@ export function canEnableFlash({
     artifactMatchesRevision &&
     confirmationsComplete &&
     artifactConfirmationComplete &&
-    artifactProgrammingAllowed
+    artifactProgrammingAllowed &&
+    typedPhraseComplete
   );
 }

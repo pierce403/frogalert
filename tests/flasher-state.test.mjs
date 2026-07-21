@@ -74,6 +74,11 @@ test("flash gating requires fresh device identity, configuration, and acknowledg
     "hardware-unverified bundled recovery artifact",
   );
   assert.equal(
+    canEnableFlash({ ...ready, typedPhraseComplete: false }),
+    false,
+    "dedicated-page typed destructive phrase",
+  );
+  assert.equal(
     canEnableFlash(ready),
     true,
     "generic artifacts are unaffected when no extra confirmation is required",

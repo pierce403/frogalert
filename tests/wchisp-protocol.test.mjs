@@ -86,11 +86,15 @@ test("erase and data packets use little-endian fields", () => {
 });
 
 test("firmware validation pads and reserves the extra erase sector", () => {
-  const result = validateFirmware(new Uint8Array(1025), "frogalert.bin");
+  const firmware = new Uint8Array(1025).map((_, index) => index);
+  const result = validateFirmware(firmware, "frogalert.bin");
   assert.equal(result.padded.byteLength, 2048);
   assert.equal(result.eraseSectors, 8);
-  assert.throws(() => validateFirmware(new Uint8Array(448 * 1024), "too-big.bin"), /exceeds/);
+  const tooBig = new Uint8Array(448 * 1024).map((_, index) => index);
+  assert.throws(() => validateFirmware(tooBig, "too-big.bin"), /exceeds/);
   assert.throws(() => validateFirmware(new Uint8Array(1), "firmware.hex"), /raw .bin/);
+  assert.throws(() => validateFirmware(Uint8Array.of(1, 2, 3), "tiny.bin"), /implausibly short/);
+  assert.throws(() => validateFirmware(new Uint8Array(1024).fill(0xff), "blank.bin"), /one repeated byte/);
 });
 
 test("release descriptors bind artifacts to an exact verified PCB revision", () => {

@@ -12,6 +12,7 @@ export const EXPECTED_DEVICE_TYPE = 0x16;
 export const CH582_FLASH_BYTES = 448 * 1024;
 export const SECTOR_BYTES = 1024;
 export const PROGRAM_CHUNK_BYTES = 56;
+export const MIN_FIRMWARE_BYTES = 256;
 export const CH58X_CONFIG_MASK = 0x07;
 export const OPEN_BADGEMAGIC_RECOVERY = Object.freeze({
   id: "fossasia-badgemagic-v0.1-hardware-rev1",
@@ -239,6 +240,12 @@ export function validateFirmware(raw, filename = "firmware.bin") {
   }
   if (!filename.toLowerCase().endsWith(".bin")) {
     throw new Error("the browser flasher accepts raw .bin firmware images only");
+  }
+  if (raw.byteLength < MIN_FIRMWARE_BYTES) {
+    throw new Error(`firmware is implausibly short (minimum ${MIN_FIRMWARE_BYTES} bytes)`);
+  }
+  if (raw.every((byte) => byte === raw[0])) {
+    throw new Error("firmware contains only one repeated byte and would not be bootable");
   }
   const padded = padFirmware(raw);
   // Match wchisp's conservative erase plan, which includes one extra sector.

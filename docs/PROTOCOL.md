@@ -19,6 +19,13 @@ is a temporary overlay, not a replacement frame.
 
 See upstream `BadgeBLE.md` for the complete field layout.
 
+The `/flash/` read-only probe may also request the standard Device Information
+service (`0x180A`) and read optional firmware revision (`0x2A26`), manufacturer
+name (`0x2A29`), and model number (`0x2A24`) text. Those strings are
+self-reported application metadata. They are sanitized and length-limited for
+display, and are not proof of the bytes installed in code flash. Many legacy
+badges expose none of them.
+
 ## WCH USB ISP transport
 
 Known factory-bootloader USB ids:
@@ -33,6 +40,10 @@ Transport contract:
 - bulk OUT address `0x02` (WebUSB endpoint number 2);
 - bulk IN address `0x82` (WebUSB endpoint number 2);
 - maximum transfer packet: 64 bytes.
+
+The browser validates that configuration/interface/alternate/endpoint shape
+before issuing Identify. It never exposes the USB serial number in its facts or
+session log.
 
 The shared USB id is not a target identity. The browser must send Identify and
 accept only a payload beginning with chip id `0x82`, device type `0x16`.
@@ -62,7 +73,10 @@ key byte also includes the chip id. The bootloader requires a final empty
 Program packet after all data chunks.
 
 Firmware is padded with zeroes to a 1 KiB boundary. The page rejects any input
-whose erase plan would exceed the CH582 448 KiB code-flash definition.
+whose erase plan would exceed the CH582 448 KiB code-flash definition. It also
+rejects implausibly short and single-repeated-byte local images before USB
+access. The destructive session independently revalidates the aligned length
+and exact erase-sector count so a UI bug cannot change the plan.
 
 Before erase, the page writes the reviewed CH58x defaults for the `0x07`
 configuration group and requires an exact readback. This mirrors the required
@@ -72,8 +86,18 @@ the first destructive operation and is separately disclosed in the UI.
 ## Implementation boundary
 
 `site/wchisp-protocol.js` contains deterministic packet and validation helpers.
-`site/app.js` owns WebUSB permission, transport, progress, safety confirmations,
-and failure recovery. Pure helpers are tested in Node; physical acceptance
-requires captured request/response fixtures and a confirmed badge.
+`site/flash-session.js` owns the transport-independent destructive order and
+zeroes its derived key on every exit. `site/app.js` owns WebUSB permission,
+captured-device binding, timeouts, progress, safety confirmations, and failure
+recovery. Node tests run a complete fake reset/readback/erase/program/finalize/
+verify/reset session plus configuration and verify failures. Physical
+acceptance still requires captured request/response fixtures and a confirmed
+badge; a timeout is treated as an unknown hardware state, not a known failure
+before or after the command.
+
+The ISP can reveal the bootloader version and validate its UID, but it cannot
+read protected application bytes or determine an arbitrary current firmware
+version. Exact PCB revision, matrix mapping, and component population also
+remain outside the protocol.
 
 Primary reference implementation: <https://github.com/ch32-rs/wchisp>.

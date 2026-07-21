@@ -50,7 +50,8 @@ The public site is a dependency-free static application. It separates:
 - `skills/` — focused repo-local procedures
 - `agent-memory/` — dated technical notes and work logs
 - `FEATURES.md` — authoritative requirements and readiness tracker
-- `index.html` — public landing page and browser flashing surface
+- `index.html` — public landing page and read-only browser inspection lab
+- `flash/index.html` — dedicated mobile-first flashing and KEY2 recovery surface
 
 ## Safety invariants
 
@@ -71,6 +72,8 @@ The public site is a dependency-free static application. It separates:
   command `0xA8` and require an exact `0xA7` readback before erase.
 - Never erase or write on connect. Require a user-selected firmware file,
   explicit confirmations, and a separate final action.
+- Keep every destructive browser action restricted to `/flash/`; the landing
+  lab may inspect a badge or artifact but contains no program control.
 - Bind an active flash to the captured USB device and prohibit reconnecting a
   replacement device until that session exits.
 - Always verify the programmed bytes before reporting success.
@@ -158,6 +161,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   reference. Rev2's T net remains unresolved between PB6 and PB23.
 - Browser ISP code follows the documented behavior of `ch32-rs/wchisp` and
   remains experimental until exercised on physical hardware.
+- Android Chrome may expose WebUSB through a data-capable USB OTG connection;
+  iPhone/iPad browsers do not. The Android path remains hardware-unverified.
+- ISP can identify CH582, bootloader/configuration facts, and UID integrity. It
+  cannot identify arbitrary installed firmware, PCB revision, matrix wiring,
+  or board health. Optional Bluetooth Device Information strings are
+  self-reported hints, not flash-content proof.
 - WebUSB and Web Bluetooth support varies by browser and operating system.
 - USB permission or driver binding can block WebUSB even when the browser API
   exists; do not describe that as a firmware failure.

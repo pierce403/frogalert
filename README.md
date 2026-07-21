@@ -8,6 +8,8 @@ and temporarily showing an explainable local alert such as `COP DETECTED` or
 
 Project site: **<https://frogalert.org>**
 
+Guided browser flasher and recovery instructions: **<https://frogalert.org/flash/>**
+
 Source and issues: **<https://github.com/pierce403/frogalert>**
 
 ## Current state
@@ -110,13 +112,18 @@ checksum, and the website must not offer that BIN.
 ```
 
 Open <http://127.0.0.1:4173>. The site is dependency-free static HTML, CSS, and
-JavaScript. It provides two distinct device surfaces:
+JavaScript. Open <http://127.0.0.1:4173/flash/> for the full phone-first guided
+flasher and recovery flow. It provides two distinct device surfaces:
 
 - **Web Bluetooth** verifies the running badge's BadgeMagic `FEE0/FEE1` GATT
   path. That is normal nametag communication, not firmware flashing.
 - **WebUSB** communicates with the WCH factory ISP bootloader. It identifies the
   exact CH582 target before enabling a separately confirmed erase/program/verify
   flow.
+
+The landing-page lab permits only inspection and artifact preparation. Its
+legacy program controls are absent, and the controller also requires explicit
+program-page mode; all destructive browser actions exist only on `/flash/`.
 
 The manifest's FrogAlert `releases` list remains empty until a FrogAlert image
 passes physical badge testing. Its separate `recovery_images` list contains the
@@ -153,6 +160,8 @@ checks. A passing local suite does not replace a physical badge test.
 - [`scripts/build-display-bringup`](scripts/build-display-bringup) — minimal
   exact-Rev1 pixel-walk build and instruction audit
 - [`site/`](site/) — static website and browser device implementation
+- [`flash/index.html`](flash/index.html) — dedicated guided WebUSB flashing and
+  KEY2 recovery surface
 - [`tests/`](tests/) — protocol and site contract tests
 - [`firmware/releases/manifest.json`](firmware/releases/manifest.json) — public
   FrogAlert release index plus separately labeled upstream open recovery image

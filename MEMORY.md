@@ -25,6 +25,9 @@ on chat context or filenames alone.
   — initial Rust core, project site, operating docs, and flashing architecture.
 - [`2026-07-18-recovery-and-count-prototype.md`](agent-memory/logs/2026-07-18-recovery-and-count-prototype.md)
   — pinned recovery image, Rust count firmware, and verification results.
+- [`2026-07-21-guided-web-flasher.md`](agent-memory/logs/2026-07-21-guided-web-flasher.md)
+  — dedicated mobile WebUSB flow, capability limits, recovery UX, destructive
+  session tests, and local browser verification.
 
 ## People
 
