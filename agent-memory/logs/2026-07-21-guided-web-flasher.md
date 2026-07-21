@@ -58,3 +58,16 @@ USB identify/config transcript, erase/program/verify timing, display boot,
 BadgeMagic upload, interruption recovery, Android OTG power stability, or a
 hardware-safe FrogAlert release. The website is a complete guided experimental
 software path, not a production-ready hardware promise.
+
+## Published verification
+
+- Commit `d35656f` passed CI run `29873151751`.
+- The CI-gated Pages run `29873200005` deployed that exact commit.
+- Live <https://frogalert.org/> had no program button or destructive
+  confirmations and linked to the full tool.
+- Live <https://frogalert.org/flash/> exposed eight confirmations plus the
+  exact typed phrase, reported WebUSB as API-eligible rather than device-proven,
+  had no document-level horizontal overflow, and produced no app errors.
+- Live preparation loaded the 155,672-byte pinned recovery image, reproduced
+  SHA-256 `7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9`,
+  labeled it hardware-unverified, and kept the destructive button disabled.
