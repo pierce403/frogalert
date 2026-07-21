@@ -28,5 +28,13 @@
   attach stable USB while holding, release after the single pixel, then connect
   promptly. Keep the revision-specific C3 shorting method out of routine web
   instructions.
+- Keep that physical handoff beside the chooser as an explicit state machine.
+  The approximately ten-second indicator is advisory; countdown expiry and USB
+  attach events must not invoke `requestDevice()`. Only the final user tap may
+  open the chooser, and its first transcript remains Identify plus Read Config.
+- FOSSASIA documents a KEY2 long press only after its own open firmware is
+  installed. For OEM, unknown, blank, or broken application firmware, use the
+  battery-disconnected cold-entry sequence and do not infer failure from an
+  empty chooser before checking the data cable, port, OTG mode, and OS driver.
 - The upstream `wchisp` project is GPL-2.0-only. Preserve attribution and review
   license boundaries before copying or materially porting implementation code.

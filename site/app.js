@@ -21,6 +21,16 @@ import {
 } from "./flasher-state.js";
 import { programAndVerifyFirmware } from "./flash-session.js";
 import {
+  ISP_ENTRY_PHASE,
+  ISP_ENTRY_SEQUENCE,
+  beginIspDeviceRequest,
+  canRequestIspDevice,
+  finishIspDeviceRequest,
+  ispEntryCountdown,
+  nextIspEntryPhase,
+  previousIspEntryPhase,
+} from "./isp-entry-guide.js";
+import {
   BADGE_CHARACTERISTIC,
   BADGE_SERVICE,
   DEVICE_INFORMATION_SERVICE,
@@ -55,6 +65,10 @@ const state = {
   releaseSummary: { message: "Loading release manifest…", tone: "neutral" },
   wakeLock: null,
   activeStage: null,
+  usbRequestPending: false,
+  ispEntryPhase: ISP_ENTRY_PHASE.CLOSED,
+  ispEntryCountdownStartedAt: null,
+  ispEntryCountdownTimer: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -67,6 +81,17 @@ const elements = {
   bluetoothStatus: $("#bluetooth-status"),
   usbButton: $("#usb-connect"),
   usbStatus: $("#usb-status"),
+  ispGuideStart: $("#isp-guide-start"),
+  ispGuide: $("#isp-entry-guide"),
+  ispGuideTitle: $("#isp-guide-title"),
+  ispGuideInstruction: $("#isp-guide-instruction"),
+  ispGuideStep: $("#isp-guide-step"),
+  ispGuideCountdown: $("#isp-guide-countdown"),
+  ispGuideBack: $("#isp-guide-back"),
+  ispGuideNext: $("#isp-guide-next"),
+  ispGuideConnect: $("#isp-guide-connect"),
+  ispGuideRetry: $("#isp-guide-retry"),
+  ispGuideCancel: $("#isp-guide-cancel"),
   chipName: $("#chip-name"),
   bootloaderVersion: $("#bootloader-version"),
   uidStatus: $("#uid-status"),
@@ -134,6 +159,53 @@ const elements = {
     reset: $("#stage-reset"),
   },
 };
+
+const ISP_ENTRY_COPY = Object.freeze({
+  [ISP_ENTRY_PHASE.POWER_OFF]: {
+    title: "Step 1 of 5: Remove all power",
+    instruction: "Disconnect the battery. Unplug USB and remove every other power source.",
+    status: "No device chooser has opened. Nothing has changed.",
+    next: "Badge is fully unplugged",
+  },
+  [ISP_ENTRY_PHASE.HOLD_KEY2]: {
+    title: "Step 2 of 5: Hold KEY2",
+    instruction: "Press and keep holding KEY2—the physical button nearest the USB connector.",
+    status: "Keep KEY2 held while you move to the next step.",
+    next: "I am holding KEY2",
+  },
+  [ISP_ENTRY_PHASE.CONNECT_WHILE_HELD]: {
+    title: "Step 3 of 5: Connect data USB",
+    instruction: "Keep holding KEY2 while you plug in a known data-capable USB cable. On a phone, use a data-capable USB OTG adapter.",
+    status: "The browser still has not requested a device or sent a command.",
+    next: "USB connected; KEY2 still held",
+  },
+  [ISP_ENTRY_PHASE.WAIT_FOR_PIXEL]: {
+    title: "Step 4 of 5: Watch the panel",
+    instruction: "Keep holding KEY2 until one pixel lights near the middle of the panel. Then release KEY2.",
+    status: "Do not continue until you see the single-pixel ISP signal.",
+    next: "I see one pixel and released KEY2",
+  },
+  [ISP_ENTRY_PHASE.CONNECT_WINDOW]: {
+    title: "Step 5 of 5: Open the chooser",
+    instruction: "Choose the WCH ISP device now. This first connection performs only Identify and Read Config.",
+    status: "Only your explicit chooser tap can request the USB device. No erase or write is armed.",
+  },
+  [ISP_ENTRY_PHASE.CHOOSER]: {
+    title: "Browser chooser opened",
+    instruction: "Select the WCH ISP device. If nothing appears, cancel, unplug USB, and repeat the KEY2 sequence.",
+    status: "The chooser was opened by your tap; no firmware-changing command has been sent.",
+  },
+  [ISP_ENTRY_PHASE.IDENTIFIED]: {
+    title: "CH582 identified read-only",
+    instruction: "The badge reported chip 0x82 / family 0x16 and returned its configuration. Continue only after checking the exact physical board.",
+    status: "No configuration reset, erase, program, or verify command was sent.",
+  },
+  [ISP_ENTRY_PHASE.RETRY]: {
+    title: "No active bootloader was identified",
+    instruction: "Unplug USB and repeat the KEY2 sequence. If it still does not appear, try a known data cable, direct port, or data-capable phone OTG adapter.",
+    status: "Nothing was changed. A missing chooser device does not prove the firmware is broken.",
+  },
+});
 
 const FONT = {
   A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
@@ -240,6 +312,192 @@ function isTrustworthyContext() {
   return window.isSecureContext || ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
 }
 
+function canUseWebUsbChooser() {
+  return isTrustworthyContext() && "usb" in navigator;
+}
+
+function stopIspEntryCountdown() {
+  if (state.ispEntryCountdownTimer !== null) {
+    window.clearInterval(state.ispEntryCountdownTimer);
+    state.ispEntryCountdownTimer = null;
+  }
+  state.ispEntryCountdownStartedAt = null;
+}
+
+function updateIspEntryCountdown() {
+  if (
+    !elements.ispGuideCountdown ||
+    state.ispEntryCountdownStartedAt === null ||
+    state.ispEntryPhase !== ISP_ENTRY_PHASE.CONNECT_WINDOW
+  ) {
+    return;
+  }
+  const countdown = ispEntryCountdown(state.ispEntryCountdownStartedAt, performance.now());
+  elements.ispGuideCountdown.textContent = countdown.expired
+    ? "The approximately ten-second window may have expired. The chooser remains read-only, or unplug USB and start again."
+    : `Try to open the chooser within about ten seconds: ${countdown.remainingSeconds} s`;
+  if (countdown.expired && state.ispEntryCountdownTimer !== null) {
+    window.clearInterval(state.ispEntryCountdownTimer);
+    state.ispEntryCountdownTimer = null;
+  }
+}
+
+function startIspEntryCountdown() {
+  stopIspEntryCountdown();
+  state.ispEntryCountdownStartedAt = performance.now();
+  updateIspEntryCountdown();
+  state.ispEntryCountdownTimer = window.setInterval(updateIspEntryCountdown, 250);
+}
+
+function renderIspEntryGuide() {
+  if (!elements.ispGuide || !elements.ispGuideStart) return;
+  const phase = state.ispEntryPhase;
+  const isOpen = phase !== ISP_ENTRY_PHASE.CLOSED;
+  elements.ispGuide.hidden = !isOpen;
+  elements.ispGuide.dataset.state = phase;
+  elements.ispGuideStart.setAttribute("aria-expanded", String(isOpen));
+  elements.ispGuideStart.disabled =
+    state.flashing || state.usbRequestPending || Boolean(state.usbDevice);
+  if (!isOpen) return;
+
+  const copy = ISP_ENTRY_COPY[phase];
+  if (!copy) throw new Error(`missing ISP entry guide copy for ${phase}`);
+  elements.ispGuideTitle.textContent = copy.title;
+  elements.ispGuideInstruction.textContent = copy.instruction;
+  setStatus(
+    elements.ispGuideStep,
+    copy.status,
+    phase === ISP_ENTRY_PHASE.IDENTIFIED
+      ? "good"
+      : phase === ISP_ENTRY_PHASE.RETRY
+        ? "warning"
+        : "neutral",
+  );
+  if (phase === ISP_ENTRY_PHASE.CONNECT_WINDOW && !canUseWebUsbChooser()) {
+    setStatus(
+      elements.ispGuideStep,
+      "This browser cannot open WebUSB here. Nothing changed; use current desktop Chrome/Edge or the documented wchisp CLI fallback.",
+      "warning",
+    );
+  }
+
+  const highlightPhase = ISP_ENTRY_SEQUENCE.includes(phase)
+    ? phase
+    : [ISP_ENTRY_PHASE.CHOOSER, ISP_ENTRY_PHASE.IDENTIFIED].includes(phase)
+      ? ISP_ENTRY_PHASE.CONNECT_WINDOW
+      : null;
+  elements.ispGuide.querySelectorAll("[data-guide-phase]").forEach((item) => {
+    if (item.dataset.guidePhase === highlightPhase) item.setAttribute("aria-current", "step");
+    else item.removeAttribute("aria-current");
+  });
+
+  const physicalStep = ISP_ENTRY_SEQUENCE.includes(phase) && phase !== ISP_ENTRY_PHASE.CLOSED;
+  const canAdvance = physicalStep && phase !== ISP_ENTRY_PHASE.CONNECT_WINDOW;
+  elements.ispGuideBack.hidden =
+    !physicalStep || phase === ISP_ENTRY_PHASE.POWER_OFF;
+  elements.ispGuideBack.disabled = state.flashing || state.usbRequestPending;
+  elements.ispGuideNext.hidden = !canAdvance;
+  elements.ispGuideNext.disabled = state.flashing || state.usbRequestPending;
+  if (canAdvance) elements.ispGuideNext.textContent = copy.next;
+
+  const chooserStep = [ISP_ENTRY_PHASE.CONNECT_WINDOW, ISP_ENTRY_PHASE.CHOOSER].includes(phase);
+  elements.ispGuideConnect.hidden = !chooserStep;
+  elements.ispGuideConnect.disabled =
+    state.flashing ||
+    state.usbRequestPending ||
+    !canUseWebUsbChooser() ||
+    !canRequestIspDevice(phase) ||
+    Boolean(state.usbDevice);
+  elements.ispGuideRetry.hidden = phase !== ISP_ENTRY_PHASE.RETRY;
+  elements.ispGuideRetry.disabled = state.flashing || state.usbRequestPending;
+  elements.ispGuideCancel.disabled = state.flashing || state.usbRequestPending;
+  elements.ispGuideCountdown.hidden = phase !== ISP_ENTRY_PHASE.CONNECT_WINDOW;
+}
+
+function setIspEntryPhase(phase, { focus = false } = {}) {
+  if (phase !== ISP_ENTRY_PHASE.CONNECT_WINDOW) stopIspEntryCountdown();
+  state.ispEntryPhase = phase;
+  renderIspEntryGuide();
+  if (focus && !elements.ispGuide.hidden) elements.ispGuide.focus();
+}
+
+function focusIspEntryPhaseControl(phase) {
+  if (!elements.ispGuide) return;
+  let target = null;
+  if (
+    [
+      ISP_ENTRY_PHASE.POWER_OFF,
+      ISP_ENTRY_PHASE.HOLD_KEY2,
+      ISP_ENTRY_PHASE.CONNECT_WHILE_HELD,
+      ISP_ENTRY_PHASE.WAIT_FOR_PIXEL,
+    ].includes(phase)
+  ) {
+    target = elements.ispGuideNext;
+  } else if (phase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
+    target = elements.ispGuideConnect;
+  } else if (phase === ISP_ENTRY_PHASE.RETRY) {
+    target = elements.ispGuideRetry;
+  } else if (phase === ISP_ENTRY_PHASE.IDENTIFIED) {
+    target = elements.ispGuideCancel;
+  }
+  if (target && !target.hidden && !target.disabled) target.focus();
+  else elements.ispGuide.focus();
+}
+
+function openIspEntryGuide() {
+  if (state.flashing) return;
+  setIspEntryPhase(nextIspEntryPhase(ISP_ENTRY_PHASE.CLOSED), { focus: true });
+}
+
+function advanceIspEntryGuide() {
+  if (state.flashing) return;
+  const nextPhase = nextIspEntryPhase(state.ispEntryPhase);
+  if (nextPhase === state.ispEntryPhase) return;
+  state.ispEntryPhase = nextPhase;
+  renderIspEntryGuide();
+  if (nextPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) startIspEntryCountdown();
+  focusIspEntryPhaseControl(nextPhase);
+}
+
+function retreatIspEntryGuide() {
+  if (state.flashing) return;
+  const previousPhase = previousIspEntryPhase(state.ispEntryPhase);
+  setIspEntryPhase(previousPhase);
+  focusIspEntryPhaseControl(previousPhase);
+}
+
+function retryIspEntryGuide() {
+  if (state.flashing) return;
+  setIspEntryPhase(ISP_ENTRY_PHASE.POWER_OFF);
+  focusIspEntryPhaseControl(ISP_ENTRY_PHASE.POWER_OFF);
+}
+
+function closeIspEntryGuide() {
+  if (state.flashing) return;
+  setIspEntryPhase(ISP_ENTRY_PHASE.CLOSED);
+  const target = [
+    elements.ispGuideStart,
+    elements.usbDisconnectButton,
+    elements.usbButton,
+  ].find((candidate) => candidate && !candidate.hidden && !candidate.disabled);
+  target?.focus();
+}
+
+function beginGuidedUsbConnection() {
+  if (
+    state.flashing ||
+    state.usbRequestPending ||
+    !canUseWebUsbChooser() ||
+    !canRequestIspDevice(state.ispEntryPhase)
+  ) {
+    return;
+  }
+  state.ispEntryPhase = beginIspDeviceRequest(state.ispEntryPhase);
+  stopIspEntryCountdown();
+  renderIspEntryGuide();
+  void connectUsb({ guided: true });
+}
+
 function updateCapabilities() {
   const secure = isTrustworthyContext();
   const usb = "usb" in navigator;
@@ -271,7 +529,7 @@ function updateCapabilities() {
   );
   setStatus(
     elements.usbPermissionStatus,
-    usb ? "Not requested — press Connect when ready" : "Unavailable without WebUSB",
+    usb ? "Not requested — use a chooser button when ready" : "Unavailable without WebUSB",
     usb ? "neutral" : "warning",
   );
   setStatus(
@@ -297,6 +555,7 @@ function updateCapabilities() {
   if (secure && !bluetooth) {
     setStatus(elements.bluetoothStatus, "Web Bluetooth is unavailable in this browser. The official BadgeMagic app remains the fallback.", "warning");
   }
+  renderIspEntryGuide();
   refreshAuthorizedUsbStatus();
 }
 
@@ -315,8 +574,8 @@ async function refreshAuthorizedUsbStatus() {
     setStatus(
       elements.authorizedUsbStatus,
       wchDevices.length === 0
-        ? "No previously authorized WCH bootloader is visible. Permission is requested only after you press Connect."
-        : `${wchDevices.length} previously authorized WCH bootloader${wchDevices.length === 1 ? " is" : "s are"} attached. Press Connect to identify read-only.`,
+        ? "No previously authorized WCH bootloader is visible. Permission is requested only after an explicit chooser tap."
+        : `${wchDevices.length} previously authorized WCH bootloader${wchDevices.length === 1 ? " is" : "s are"} attached. Use a chooser button to identify it read-only.`,
       wchDevices.length === 0 ? "neutral" : "good",
     );
   } catch (error) {
@@ -413,8 +672,17 @@ async function usbTransfer(packet, expectedDevice = null) {
   return parseResponse(dataViewBytes(received.data), packet[0]);
 }
 
-async function connectUsb() {
-  if (state.flashing) return;
+async function connectUsb(options = {}) {
+  if (state.flashing || state.usbRequestPending) return;
+  state.usbRequestPending = true;
+  renderIspEntryGuide();
+  const guided = options?.guided === true;
+  const guideTracking = guided || state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED;
+  if (!guided && state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
+    state.ispEntryPhase = beginIspDeviceRequest(state.ispEntryPhase);
+    stopIspEntryCountdown();
+    renderIspEntryGuide();
+  }
   try {
     resetConfirmations();
     elements.usbButton.disabled = true;
@@ -457,6 +725,10 @@ async function connectUsb() {
     setStage("identify", "complete");
     setStatus(elements.usbPermissionStatus, "Permission granted to this captured WCH device.", "good");
     setStatus(elements.usbStatus, "CH582 bootloader identified. No erase or write command has been sent.", "good");
+    if (guideTracking) {
+      const identifiedPhase = finishIspDeviceRequest({ identified: true });
+      setIspEntryPhase(identifiedPhase);
+    }
     log(
       `Read-only target gate passed: CH582, family 0x16, bootloader ${formatBootloaderVersion(config.bootloaderVersion)}, UID checksum valid; application firmware remains unreadable.`,
       "success",
@@ -464,15 +736,33 @@ async function connectUsb() {
   } catch (error) {
     await closeUsb();
     const cancelled = error?.name === "NotFoundError";
+    if (guideTracking) {
+      const retryPhase = finishIspDeviceRequest({ identified: false });
+      setIspEntryPhase(retryPhase);
+    }
     setStatus(
       elements.usbPermissionStatus,
       cancelled ? "Device chooser cancelled." : `USB permission/open failed: ${error.message}`,
       cancelled ? "neutral" : "bad",
     );
-    setStatus(elements.usbStatus, cancelled ? "No bootloader selected. Nothing changed." : `Bootloader probe failed: ${error.message}`, cancelled ? "neutral" : "bad");
+    setStatus(
+      elements.usbStatus,
+      cancelled
+        ? "No bootloader selected. Nothing changed. If the single pixel went out, unplug USB and repeat the KEY2 guide."
+        : `Bootloader probe failed: ${error.message}. Unplug USB and repeat the KEY2 guide with a known data cable or direct port.`,
+      cancelled ? "neutral" : "bad",
+    );
     log(cancelled ? "Device selection cancelled; nothing changed." : `Probe stopped safely: ${error.message}`, cancelled ? "info" : "error");
   } finally {
-    elements.usbButton.disabled = !("usb" in navigator) || Boolean(state.usbDevice);
+    state.usbRequestPending = false;
+    elements.usbButton.disabled = !canUseWebUsbChooser() || Boolean(state.usbDevice);
+    renderIspEntryGuide();
+    if (
+      guideTracking &&
+      [ISP_ENTRY_PHASE.IDENTIFIED, ISP_ENTRY_PHASE.RETRY].includes(state.ispEntryPhase)
+    ) {
+      focusIspEntryPhaseControl(state.ispEntryPhase);
+    }
     updateFlashButton();
   }
 }
@@ -516,7 +806,10 @@ async function disconnectUsbByUser() {
   await closeUsb();
   setStatus(elements.usbStatus, "Bootloader connection closed without changing firmware.", "neutral");
   log("Closed the read-only bootloader connection; nothing was erased or written.");
-  elements.usbButton.disabled = !("usb" in navigator);
+  elements.usbButton.disabled = !canUseWebUsbChooser();
+  if (state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED) {
+    setIspEntryPhase(ISP_ENTRY_PHASE.CLOSED);
+  }
   updateFlashButton();
 }
 
@@ -1020,6 +1313,7 @@ async function flashFirmware() {
   state.activeFlashDevice = flashDevice;
   updateFlashButton();
   elements.usbButton.disabled = true;
+  renderIspEntryGuide();
   elements.firmwareInput.disabled = true;
   elements.pcbMarking.disabled = true;
   elements.pcbRevision.disabled = true;
@@ -1149,12 +1443,13 @@ async function flashFirmware() {
     });
     if (elements.flashPhrase) elements.flashPhrase.disabled = false;
     elements.releaseSelect.disabled = elements.releaseSelect.options.length <= 1;
-    elements.usbButton.disabled = !("usb" in navigator) || Boolean(state.usbDevice);
+    elements.usbButton.disabled = !canUseWebUsbChooser() || Boolean(state.usbDevice);
     if (elements.usbDisconnectButton) {
       elements.usbDisconnectButton.disabled = !state.usbDevice;
     }
     updateFlashButton();
     updateRecoveryButton();
+    renderIspEntryGuide();
   }
 }
 
@@ -1201,6 +1496,12 @@ async function startFlash() {
 function bindEvents() {
   elements.bluetoothButton.addEventListener("click", connectBluetooth);
   elements.usbButton.addEventListener("click", connectUsb);
+  elements.ispGuideStart?.addEventListener("click", openIspEntryGuide);
+  elements.ispGuideBack?.addEventListener("click", retreatIspEntryGuide);
+  elements.ispGuideNext?.addEventListener("click", advanceIspEntryGuide);
+  elements.ispGuideConnect?.addEventListener("click", beginGuidedUsbConnection);
+  elements.ispGuideRetry?.addEventListener("click", retryIspEntryGuide);
+  elements.ispGuideCancel?.addEventListener("click", closeIspEntryGuide);
   elements.firmwareInput.addEventListener("change", chooseLocalFirmware);
   elements.pcbMarking.addEventListener("input", () => {
     state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
@@ -1258,9 +1559,16 @@ function bindEvents() {
       }
       setStatus(
         elements.authorizedUsbStatus,
-        "A WCH ISP bootloader was attached. Press Connect to request permission and identify it read-only.",
+        "A WCH ISP bootloader was attached. Tap a chooser button to request permission and identify it read-only.",
         "good",
       );
+      if (state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
+        setStatus(
+          elements.ispGuideStep,
+          "A matching WCH USB device was attached. Tap the chooser button yourself to identify it read-only.",
+          "good",
+        );
+      }
     });
     navigator.usb.addEventListener("disconnect", async (event) => {
       if (event.device !== state.usbDevice) return;
@@ -1278,7 +1586,10 @@ function bindEvents() {
       }
       setStatus(elements.usbStatus, "Bootloader disconnected. Re-enter ISP mode to reconnect.", "neutral");
       log("USB bootloader disconnected.");
-      elements.usbButton.disabled = false;
+      elements.usbButton.disabled = !canUseWebUsbChooser();
+      if (state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED) {
+        setIspEntryPhase(ISP_ENTRY_PHASE.RETRY);
+      }
       updateFlashButton();
     });
   }

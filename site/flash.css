@@ -8,6 +8,10 @@
     var(--forest-950);
 }
 
+.flash-page [hidden] {
+  display: none !important;
+}
+
 .flash-page code {
   overflow-wrap: anywhere;
   color: var(--frog-bright);
@@ -263,6 +267,119 @@
 
 .mode-card p:not(.device-status) {
   color: var(--muted-dark);
+}
+
+.isp-entry-summary {
+  margin: 1rem 0;
+  border-left: 3px solid var(--orange);
+  padding: 0.8rem 0.9rem;
+  background: rgba(255, 122, 61, 0.065);
+}
+
+.mode-card .isp-entry-summary p {
+  margin: 0;
+  color: #c3cec6;
+  font-size: 0.8rem;
+}
+
+.mode-card .isp-entry-summary p + p {
+  margin-top: 0.65rem;
+  color: var(--muted-dark);
+  font-size: 0.74rem;
+}
+
+.isp-entry-guide {
+  scroll-margin-top: 1rem;
+  margin-top: 1rem;
+  border: 1px solid rgba(255, 176, 123, 0.42);
+  padding: clamp(0.9rem, 3vw, 1.2rem);
+  background:
+    linear-gradient(135deg, rgba(255, 122, 61, 0.09), transparent 55%),
+    #07130d;
+}
+
+.isp-entry-guide:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
+}
+
+.isp-entry-guide h4 {
+  margin: 0.35rem 0 0.85rem;
+  color: var(--cream);
+  font-size: 1rem;
+}
+
+.isp-guide-overview {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  list-style: none;
+}
+
+.isp-guide-overview li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+  border: 1px solid rgba(242, 238, 223, 0.1);
+  padding: 0.55rem;
+  opacity: 0.48;
+}
+
+.isp-guide-overview li[aria-current="step"] {
+  border-color: var(--orange);
+  background: rgba(255, 122, 61, 0.08);
+  opacity: 1;
+}
+
+.isp-guide-overview li > span {
+  display: grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: #ffb07b;
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  font-weight: 900;
+}
+
+.mode-card .isp-guide-overview p {
+  margin: 0;
+  color: #b7c5bb;
+  font-size: 0.75rem;
+}
+
+#isp-guide-instruction {
+  margin: 0;
+  color: var(--cream);
+  font-size: 0.85rem;
+}
+
+.isp-guide-countdown {
+  display: block;
+  margin: 0.7rem 0;
+  border: 1px solid rgba(216, 255, 128, 0.35);
+  padding: 0.7rem;
+  background: rgba(216, 255, 128, 0.06);
+  color: var(--frog-bright);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.isp-guide-actions {
+  margin-top: 0.8rem;
+}
+
+.isp-entry-guide[data-state="identified"] {
+  border-color: var(--frog-bright);
+}
+
+.isp-entry-guide[data-state="retry"] {
+  border-color: var(--red);
 }
 
 .source-badge {
@@ -779,6 +896,20 @@
   .flash-main .button,
   .artifact-option .button {
     width: 100%;
+  }
+
+  .isp-guide-overview {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .isp-guide-overview li {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 0.42rem 0.2rem;
+  }
+
+  .isp-guide-overview li p {
+    display: none;
   }
 
   .flash-page footer {

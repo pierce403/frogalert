@@ -71,3 +71,31 @@ software path, not a production-ready hardware promise.
 - Live preparation loaded the 155,672-byte pinned recovery image, reproduced
   SHA-256 `7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9`,
   labeled it hardware-unverified, and kept the destructive button disabled.
+
+## Follow-up: point-of-action KEY2 guide
+
+- Confirmed from pinned FOSSASIA sources that stock/unknown firmware uses a
+  cold-entry sequence, not a multi-button combo: disconnect the battery, hold
+  KEY2 nearest USB while connecting data USB, release after one mid-panel pixel
+  lights, and select the bootloader within approximately ten seconds.
+- Added an inline five-step state machine beside the chooser with Back, retry,
+  cancel, an advisory countdown, an expert direct-connect path, and explicit
+  read-only outcome copy. Only a final user click invokes WebUSB; countdown and
+  USB attach events only update text.
+- Kept the upstream post-install long-press behavior clearly scoped to
+  FOSSASIA open firmware, and retained the safer cold-entry sequence for OEM,
+  unknown, blank, or broken application firmware.
+- Added pure transition/countdown tests and static safety assertions. Physical
+  KEY2 labeling, the ten-second window, USB enumeration, Android OTG use, and
+  the Identify/Read Config transcript remain unverified until a badge is
+  attached.
+- The complete `./scripts/verify` contract passed with 17 Rust core tests, both
+  embedded instruction audits, and 39 Node tests. A 390×844 local browser pass
+  walked every physical step, observed the 10-to-expired advisory timer, kept
+  USB permission at “not requested” until the final action, logged no device
+  command, handed keyboard focus from the guide to Next and then the explicit
+  chooser, produced no page error, and had zero horizontal overflow.
+- The first phone visual pass exposed stale base-CSS behavior that made hidden
+  guide controls occupy space. A flash-page-local `[hidden]` invariant now
+  survives a cached base stylesheet, and the mobile overview collapses to a
+  compact five-step progress row so the active action stays in the viewport.

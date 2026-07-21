@@ -146,11 +146,39 @@
             </div>
             <h3>WCH ISP bootloader via USB</h3>
             <p>Choose the USB bootloader, not the running Bluetooth badge. The first connection identifies chip <code>0x82</code>, family <code>0x16</code>, and configuration without erasing or programming.</p>
+            <div class="isp-entry-summary">
+              <p><strong>No multi-button combo:</strong> for an OEM, unknown, blank, or broken badge, hold <strong>KEY2—the physical button nearest the USB connector—while connecting USB</strong>. Turning the display off is not enough; the battery must be disconnected for the cold-entry sequence.</p>
+              <p>Already running FOSSASIA open BadgeMagic firmware? Upstream also documents a long press of KEY2. If you are unsure what is installed, use the guided cold-entry sequence.</p>
+            </div>
             <div class="button-row">
-              <button id="usb-connect" class="button button-primary" type="button" disabled>Connect + identify CH582</button>
+              <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Guide me into flash mode</button>
+              <button id="usb-connect" class="button button-secondary" type="button" disabled>One pixel is lit — choose CH582 now</button>
               <button id="usb-disconnect" class="button button-secondary" type="button" disabled>End USB session</button>
             </div>
-            <p id="usb-status" class="device-status" role="status" aria-live="polite">Waiting for browser support.</p>
+
+            <section id="isp-entry-guide" class="isp-entry-guide" hidden tabindex="-1" role="region" aria-labelledby="isp-guide-title" data-state="closed">
+              <p class="terminal-label">KEY2 BOOTLOADER GUIDE · NO ERASE OR WRITE</p>
+              <h4 id="isp-guide-title">Step 1 of 5: Remove all power</h4>
+              <ol class="isp-guide-overview" aria-label="Bootloader entry sequence">
+                <li data-guide-phase="power-off" aria-current="step"><span>1</span><p><strong>Disconnect the battery.</strong> Unplug USB and every other power source.</p></li>
+                <li data-guide-phase="hold-key2"><span>2</span><p><strong>Hold KEY2,</strong> the button nearest the USB connector.</p></li>
+                <li data-guide-phase="connect-while-held"><span>3</span><p><strong>Keep holding KEY2</strong> while connecting a known data-capable USB cable or phone OTG adapter.</p></li>
+                <li data-guide-phase="wait-for-pixel"><span>4</span><p><strong>Wait for one illuminated pixel,</strong> then release KEY2.</p></li>
+                <li data-guide-phase="connect-window"><span>5</span><p><strong>Open the chooser promptly.</strong> ISP remains available for approximately ten seconds.</p></li>
+              </ol>
+              <p id="isp-guide-instruction">Disconnect the battery. Unplug USB and remove every other power source.</p>
+              <p id="isp-guide-step" class="device-status" role="status" aria-live="polite" aria-atomic="true">No device chooser has opened. Nothing has changed.</p>
+              <output id="isp-guide-countdown" class="isp-guide-countdown" role="timer" aria-live="off" hidden></output>
+              <div class="button-row isp-guide-actions">
+                <button id="isp-guide-back" class="button button-secondary" type="button" disabled>Back</button>
+                <button id="isp-guide-next" class="button button-primary" type="button">Badge is fully unplugged</button>
+                <button id="isp-guide-connect" class="button button-primary" type="button" hidden disabled>Choose WCH bootloader now</button>
+                <button id="isp-guide-retry" class="button button-secondary" type="button" hidden>Start KEY2 steps again</button>
+                <button id="isp-guide-cancel" class="button button-secondary" type="button">Close guide</button>
+              </div>
+            </section>
+
+            <p id="usb-status" class="device-status" role="status" aria-live="polite">Use the KEY2 guide, then choose the badge while its single pixel is lit. Identification is read-only.</p>
           </article>
         </div>
 
@@ -297,7 +325,7 @@
               <li><span>1</span><p><strong>Disconnect the battery.</strong> Unplug USB and remove the badge from other power.</p></li>
               <li><span>2</span><p><strong>Press and keep holding KEY2,</strong> the button nearest the USB connector.</p></li>
               <li><span>3</span><p><strong>Connect USB while KEY2 is still held.</strong> On a phone, use a data-capable OTG adapter and keep the connection stable.</p></li>
-              <li><span>4</span><p><strong>Watch for a single illuminated pixel,</strong> then release KEY2 and immediately use <em>Connect + identify CH582</em>. The bootloader window is short.</p></li>
+              <li><span>4</span><p><strong>Watch for a single illuminated pixel,</strong> then release KEY2 and immediately use <em>One pixel is lit — choose CH582 now</em>. The bootloader window is short.</p></li>
               <li><span>5</span><p><strong>Accept only a read-only CH582 result.</strong> If the chooser shows nothing, unplug and repeat from step 1.</p></li>
             </ol>
           </div>
@@ -311,7 +339,7 @@
               </div>
               <div>
                 <dt>Badge is blank, frozen, or a flash was interrupted</dt>
-                <dd>Use the KEY2 sequence, then <strong>Connect + identify CH582</strong>.</dd>
+                <dd>Use the KEY2 sequence, then <strong>One pixel is lit — choose CH582 now</strong>.</dd>
               </div>
               <div>
                 <dt>CH582 is identified</dt>

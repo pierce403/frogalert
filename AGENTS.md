@@ -45,6 +45,7 @@ The public site is a dependency-free static application. It separates:
   patches in `FROGALERT-VENDORING.md`
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
+- `site/isp-entry-guide.js` — pure KEY2 guide transitions and advisory timer
 - `tests/` — browser-protocol and static-site tests
 - `docs/` — hardware, protocol, development, flashing, and release contracts
 - `skills/` — focused repo-local procedures
@@ -72,6 +73,10 @@ The public site is a dependency-free static application. It separates:
   command `0xA8` and require an exact `0xA7` readback before erase.
 - Never erase or write on connect. Require a user-selected firmware file,
   explicit confirmations, and a separate final action.
+- Keep the OEM/unknown KEY2 cold-entry guide adjacent to the WebUSB chooser:
+  battery disconnected, hold the button nearest USB while connecting, release
+  after one pixel lights, then choose promptly. Timers and USB attach events
+  must never call `requestDevice()`; only an explicit final user action may.
 - Keep every destructive browser action restricted to `/flash/`; the landing
   lab may inspect a badge or artifact but contains no program control.
 - Bind an active flash to the captured USB device and prohibit reconnecting a
@@ -161,6 +166,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   reference. Rev2's T net remains unresolved between PB6 and PB23.
 - Browser ISP code follows the documented behavior of `ch32-rs/wchisp` and
   remains experimental until exercised on physical hardware.
+- FOSSASIA documents long-press KEY2 entry only after its open firmware is
+  installed. Do not claim that behavior for an unknown or unverified FrogAlert
+  build; use the battery-disconnected cold-entry recovery path instead.
 - Android Chrome may expose WebUSB through a data-capable USB OTG connection;
   iPhone/iPad browsers do not. The Android path remains hardware-unverified.
 - ISP can identify CH582, bootloader/configuration facts, and UID integrity. It

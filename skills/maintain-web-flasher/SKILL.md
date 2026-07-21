@@ -16,6 +16,9 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
    keep permission prompts and WebUSB transport in `site/app.js`.
 3. On connect, filter only WCH ISP ids, claim interface 0, and identify the
    exact CH582/type `0x16` before enabling destructive actions.
+   Keep the KEY2 cold-entry steps beside the chooser. A timer or USB attach
+   event may update guidance but must never open `requestDevice()`; only the
+   user's explicit final chooser action may do that.
 4. Never write on connect. Require a local/release firmware image bound to the
    entered PCB revision, size and SHA-256 display, all explicit safety
    confirmations, and a final click.

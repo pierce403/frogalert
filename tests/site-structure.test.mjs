@@ -54,6 +54,8 @@ test("landing page exposes the project and guarded device flow", async () => {
 
 test("dedicated flash route exposes guided mobile and recovery workflow", async () => {
   const html = await read("flash/index.html");
+  const app = await read("site/app.js");
+  const flashCss = await read("site/flash.css");
   for (const required of [
     "site/app.js",
     "site/flash.css",
@@ -61,6 +63,17 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     "id=\"bluetooth-connect\"",
     "id=\"usb-connect\"",
     "id=\"usb-disconnect\"",
+    "id=\"isp-guide-start\"",
+    "id=\"isp-entry-guide\"",
+    "id=\"isp-guide-title\"",
+    "id=\"isp-guide-instruction\"",
+    "id=\"isp-guide-step\"",
+    "id=\"isp-guide-countdown\"",
+    "id=\"isp-guide-back\"",
+    "id=\"isp-guide-next\"",
+    "id=\"isp-guide-connect\"",
+    "id=\"isp-guide-retry\"",
+    "id=\"isp-guide-cancel\"",
     "id=\"runtime-firmware\"",
     "id=\"current-firmware-status\"",
     "id=\"board-detection-status\"",
@@ -76,6 +89,27 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /Android.*USB OTG/is);
   assert.match(html, /iPhone.*WebUSB/is);
   assert.match(html, /Disconnect the battery.*KEY2.*Connect.*USB/is);
+  assert.match(html, /No multi-button combo/i);
+  assert.match(html, /KEY2[^<]*(?:physical )?button nearest the USB connector/i);
+  assert.match(html, /Disconnect the battery.*Unplug USB/is);
+  assert.match(html, /holding KEY2.*while connecting.*data-capable USB/is);
+  assert.match(html, /one illuminated pixel.*release KEY2/is);
+  assert.match(html, /approximately ten seconds/i);
+  assert.match(html, /id="isp-guide-connect"[^>]+type="button"[^>]+hidden[^>]+disabled/);
+  assert.match(`${html}\n${app}`, /Identify and Read Config/i);
+  assert.ok(
+    html.indexOf('id="isp-entry-guide"') < html.indexOf('id="usb-status"'),
+    "the KEY2 guide must stay beside the chooser and before its live status",
+  );
+  assert.match(app, /ispGuideConnect\?\.addEventListener\("click", beginGuidedUsbConnection\)/);
+  assert.match(app, /void connectUsb\(\{ guided: true \}\)/);
+  assert.match(app, /function focusIspEntryPhaseControl\(phase\)/);
+  assert.match(app, /focusIspEntryPhaseControl\(nextPhase\)/);
+  assert.match(app, /\[ISP_ENTRY_PHASE\.IDENTIFIED, ISP_ENTRY_PHASE\.RETRY\]\.includes\(state\.ispEntryPhase\)/);
+  assert.match(app, /focusIspEntryPhaseControl\(state\.ispEntryPhase\)/);
+  assert.doesNotMatch(app, /set(?:Timeout|Interval)\([^)]*requestDevice/s);
+  assert.match(flashCss, /\.flash-page \[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
+  assert.match(flashCss, /\.isp-guide-overview\s*\{\s*grid-template-columns:\s*repeat\(5,/s);
   assert.match(html, /current (?:application )?firmware.*(?:unknown|cannot|not)/is);
   assert.match(html, /PCB revision.*cannot.*detect/is);
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);

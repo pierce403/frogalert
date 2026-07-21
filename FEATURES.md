@@ -187,8 +187,9 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Secure-context requirement | **SHIPPED** | UI blocks non-local insecure origins | Public site must use HTTPS. |
 | WebUSB capability detection | **SHIPPED** | UI reports unsupported browsers | Firefox/Safari currently unsupported. |
 | Dedicated mobile-first `/flash/` workflow | **SHIPPED** at static UI/test layer | Separate preflight, facts table, KEY2 recovery, artifact, consent, progress, and redacted-log surfaces pass structure tests | Hardware access remains experimental. |
+| Point-of-action KEY2 entry guide | **SHIPPED** at UI/state-test layer | Inline five-step cold-entry flow, back/retry states, single-pixel acknowledgement, and advisory ten-second countdown sit beside the chooser | Physical button labeling, ISP timing, Android one-hand use, and enumeration still require a badge. |
 | Single destructive browser surface | **SHIPPED** invariant | Landing program controls are absent and fail the program-page mode gate; only `/flash/` carries the exact typed consent | Both routes carry same-origin CSP/referrer policies. |
-| Explicit permission request | **PROTOTYPE** | User-click `requestDevice()` path | Physical device test pending. |
+| Explicit permission request | **PROTOTYPE** | Direct or guided final user click is the only `requestDevice()` path; timers and USB attach events never open the chooser | Physical device test pending. |
 | Filter WCH ISP ids | **PROTOTYPE** | `4348/1a86:55e0` filters and tests | VID/PID alone is not sufficient. |
 | Validate config 1/interface 0/bulk endpoint 2 | **PROTOTYPE** | Pure descriptor tests plus transport gate | OS driver binding may block claims. |
 | Read-only CH582 identity gate | **PROTOTYPE** | Rejects chip id other than `0x82/0x16` | Physical transcript needed. |
@@ -214,7 +215,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Cross-tab destructive lock | **PROTOTYPE** | Exclusive Web Lock when supported; explicit close-other-tabs warning otherwise | Multi-tab browser test pending. |
 | Screen wake lock during writes | **PROTOTYPE** | Requested only for active flash and released on every exit | Android physical flash/power test pending. |
 | Reset after verified success | **PROTOTYPE** | Sent-vs-acknowledged reset states are distinct | Disconnect may hide the response. |
-| Recovery UX after failure | **PROTOTYPE** | Dedicated KEY2 button-by-button path, no-enumeration boundary, and retry log | Deliberate interruption test pending. |
+| Recovery UX after failure | **PROTOTYPE** | Point-of-action KEY2 wizard plus durable recovery reference, no-enumeration boundary, and retry log | Deliberate interruption test pending. |
 | Destructive-session integration tests | **PROTOTYPE** | Fake transport covers exact reset/readback-before-erase order, 56-byte program/finalize/verify, mismatches, invalid plans, and UI callback isolation | It does not replace fake WebUSB DOM/device-event coverage. |
 | Browser state-machine integration tests | **PLANNED** | Fake WebUSB covers disconnect, delayed manifest, timeout, and artifact races | Transport-independent full-session tests exist today. |
 | Open BadgeMagic recovery preparation | **PROTOTYPE** | Node tests pin v0.1 bytes, SHA-256, source provenance, `HARDWARE_REV1`, and hardware-unverified status | [`site/app.js`](site/app.js) only fetches and verifies locally; the false hardware-verification flag blocks destructive arming until a physical Rev1 smoke passes. |

@@ -55,6 +55,19 @@ usually still reach the ROM bootloader with KEY2. If no USB bootloader
 enumerates after retrying with stable power and a known data cable, a website
 cannot repair that lower-level hardware or bootloader failure.
 
+`/flash/` keeps this sequence beside the USB chooser in a five-step, one-hand
+guide. The countdown begins only after the user confirms the single-pixel
+signal and is advisory: expiry never opens a chooser, runs a command, or turns
+the read-only connection into a write. Only the final explicit tap may call
+`navigator.usb.requestDevice()`. USB attach events may update the visible
+status, but must never synthesize that tap or skip a physical step.
+
+Upstream FOSSASIA firmware also documents a long press of KEY2 after its open
+firmware has already been installed. FrogAlert must label that as an upstream
+open-firmware behavior, not as evidence about unknown OEM firmware or an
+unverified FrogAlert build. The battery-disconnected cold-entry sequence is the
+recovery path when the installed application is unknown, blank, or broken.
+
 ## What the browser can identify
 
 After the user explicitly selects the bootloader, `/flash/` can validate:
