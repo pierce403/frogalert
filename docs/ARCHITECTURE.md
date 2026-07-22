@@ -33,17 +33,30 @@ The old `frogalert-pixel-walk` and `frogalert-count` standalone runtime images
 are retained only as source/forensic history and must not be flashed. Both link
 the defective external-vector layout.
 
-The lowest-risk next test image is a **C-only compatibility canary** derived from
+The lowest-risk first derived test image remains a **C-only compatibility canary** derived from
 the exact FOSSASIA USB-C shell. It changes only self-identifying metadata, not
 display, USB, BLE, button, or recovery behavior. After its complete physical
 smoke passes, an **ABI-only Rust canary** links a tiny Rust static library and
-calls a version function without changing radio or panel behavior. Only then
-does the project add synthetic classifier calls, passive scanning, a nearby
-device count, and finally alert overlays.
+calls a version function without changing radio or panel behavior.
+
+A later **C-only passive-survey candidate** is now implemented so the radio
+experiment is reviewable and reproducible before its turn in that sequence. It
+does not supersede the canary gates. It initializes WCH Central beside the
+existing Peripheral role using WCH's official combined-role pattern, but only
+starts passive discovery while the app is disconnected and the normal nametag
+is idle. It temporarily stops advertising, scans for three seconds, displays
+only an aggregate `BT 00` to `BT 64+` result for five seconds, restores the
+nametag and prior advertising state, and waits about 57 seconds. A five-second
+watchdog cancels a stuck discovery. The fixed address table is explicitly
+zeroed, and the code never establishes a central connection.
 
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
+The survey candidate builds as 198,988 bytes at SHA-256
+`38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`
+with 9,924 bytes of measured stack/runtime headroom. It is likewise private and
+hardware-unverified.
 
 Each stage must retain USB `0416:5020` HID+CDC enumeration, BadgeMagic app
 uploads, ordinary buttons, the visible KEY2 dot cue, and ISP enumeration as
@@ -89,25 +102,27 @@ scan work instead stays inside the FOSSASIA C BLE/TMOS shell, which already
 selects and calibrates the CH582 internal low-speed oscillator; role switching
 and radio behavior still require physical validation.
 
-## Target combined firmware
+## Survey candidate and target combined firmware
 
-The conservative combined firmware will switch roles rather than attempt
-simultaneous scanning and advertising:
+The survey candidate initializes both WCH roles but never scans and advertises
+at the same time. Its conservative radio schedule is:
 
 ```text
 Peripheral/nametag (about 57 s)
   -> only if no app connection is active
 Observer/passive scan (3 s)
   -> classify public address OUI + advertised local name
-Alert display (about 5 s, if matched)
+Count display (about 5 s)
   -> restore the user's framebuffer
 Peripheral/nametag
 ```
 
-If WCH's library cannot reinitialize roles without a reset, the fallback is a
-short scheduled reboot into observer mode with retained framebuffer/config in
-data flash, followed by a reboot back into peripheral mode. That costs power
-and creates a short app-discovery gap, but keeps the behaviors isolated.
+The remaining hardware question is whether this combined-role initialization
+and advertising pause behave reliably on the badge's WCH stack. If they do
+not, the fallback is a short scheduled reboot into observer mode with retained
+framebuffer/config in data flash, followed by a reboot back into peripheral
+mode. That costs power and creates a short app-discovery gap, but keeps the
+behaviors isolated.
 
 ## Compatibility contract
 
@@ -121,8 +136,8 @@ The BadgeMagic app's legacy path expects:
 
 FrogAlert must store and render that content unchanged. Detection alerts are a
 temporary overlay; they must never overwrite the uploaded nametag payload.
-This contract describes the target combined firmware and is not implemented by
-the current observer-only count lab build.
+This contract is inherited by the survey candidate but still needs app and
+power-cycle regression evidence on hardware.
 
 ## Detection policy
 
@@ -148,8 +163,9 @@ small and explainable:
    acceptance test.
 4. Call the Rust classifier with synthetic advertisements while preserving the
    normal nametag path.
-5. Add a short passive scan window while disconnected, first showing only the
-   approximate count and clearing ephemeral addresses afterward.
+5. Hardware-test the existing private passive-survey candidate while
+   disconnected, first showing only the approximate count and proving that
+   ephemeral addresses are cleared afterward.
 6. Add temporary `COP DETECTED` / `HAX DETECTED` overlays and restore the
    uploaded nametag framebuffer unchanged.
 7. Prove observer/peripheral role switching and the target roughly 60-second

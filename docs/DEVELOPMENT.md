@@ -72,12 +72,23 @@ Build the first derived compatibility canary:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ```
 
+Build the later private passive-survey candidate:
+
+```sh
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+```
+
 The canary adds one retained C metadata string and owns no functions or
-hardware. Both lanes use `USBC_VERSION=1`, validate pinned archive/tool hashes
+hardware. The survey lane keeps the same shell, uses WCH's combined
+central/peripheral role pattern, and adds only a disconnected three-second
+passive scan plus a five-second aggregate-count overlay. It never initiates a
+connection, zeroes its fixed address table, restores prior advertising state,
+and cancels a stuck scan after five seconds. All lanes use `USBC_VERSION=1`, validate pinned archive/tool hashes
 and critical sources, audit required runtime symbols and linked instructions,
-and keep everything under ignored `tmp/fossasia-usbc/`. The baseline must match
-the known-good 177,704-byte image exactly. Neither command flashes, publishes,
-or authorizes a physical test.
+keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
+ignored `tmp/fossasia-usbc/`. The baseline must match the known-good
+177,704-byte image exactly. No build command flashes, publishes, or authorizes
+a physical test.
 
 Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already
 populated verified cache. See `firmware/fossasia-usbc/upstream-lock.json` for

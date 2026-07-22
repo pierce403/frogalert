@@ -39,8 +39,8 @@ The public site is a dependency-free static application. It separates:
 ## Source map
 
 - `crates/frogalert-core/` — tested, allocation-free detection logic
-- `firmware/fossasia-usbc/` — pinned known-good USB-C hardware shell and
-  metadata-only compatibility canary
+- `firmware/fossasia-usbc/` — pinned known-good USB-C hardware shell,
+  metadata-only compatibility canary, and private passive-survey candidate
 - `firmware/frogalert-display/` — quarantined standalone Rust display research
 - `firmware/frogalert-pixel-walk/` — failed image retained for vector forensics
 - `firmware/frogalert-count/` — quarantined wrapper around reusable count logic
@@ -49,7 +49,7 @@ The public site is a dependency-free static application. It separates:
 - `firmware/vendor/ch58x-hal/` — pinned HAL `611954e` with documented local
   patches in `FROGALERT-VENDORING.md`
 - `firmware/quarantine.json` — permanent failed-artifact SHA denylist
-- `scripts/build-fossasia-usbc` — pinned baseline/metadata-canary build path
+- `scripts/build-fossasia-usbc` — pinned baseline/canary/survey build path
 - `scripts/audit-ch58x-vectors.mjs` — post-link standalone Rust regression gate
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
@@ -147,6 +147,7 @@ host verification:
 ```bash
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
 Preview the site locally:
@@ -166,8 +167,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   vectors, interrupts, clocks, USB, BLE setup, or display scanning. Never use
   `unsafe-trust-wch-atomics`; every final image must pass the AMO/LR/SC audit.
 - Reconstruct the final BIN from the audited ELF with the pinned `objcopy` and
-  require byte identity with the Make-produced BIN. Lock both baseline and
-  canary size/SHA-256 values; marker strings alone are not an image audit.
+  require byte identity with the Make-produced BIN. Lock baseline, canary, and
+  survey size/SHA-256 values; marker strings alone are not an image audit.
 - Keep protocol encoders pure and unit-tested separately from WebUSB transport.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
@@ -209,6 +210,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   unique advertiser addresses in ephemeral RAM, then displays the approximate
   result for seven seconds. That firmware is quarantined and does not implement
   the BadgeMagic GATT service.
+- The private FOSSASIA-shell survey candidate is a locked 198,988-byte BIN at
+  SHA-256 `38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`.
+  It uses passive three-second WCH Central discovery only while disconnected,
+  caps and zeroes 64 addresses, restores prior advertising, shows `BT 00` to
+  `BT 64+` for five seconds, cancels a stuck scan after five seconds, and
+  leaves 9,924 bytes of measured stack/runtime headroom. It preserves audited
+  FOSSASIA USB/BLE/display/KEY2 symbols but remains hardware-unverified,
+  private under `tmp/`, and not flash-approved or published.
 - The quarantined Rust display driver encodes both Micro-USB `HARDWARE_REV1`
   and the candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation,
   flicker, current draw, and radio/display coexistence still require a physical

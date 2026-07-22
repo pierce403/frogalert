@@ -7,6 +7,13 @@ cd "$repo_root"
 ./scripts/run-rust-toolchain stable cargo fmt --all -- --check
 ./scripts/run-rust-toolchain stable cargo clippy --workspace --all-targets -- -D warnings
 ./scripts/run-rust-toolchain stable cargo test --workspace
+mkdir -p tmp/c-tests
+cc -std=c11 -Wall -Wextra -Werror \
+  -Ifirmware/fossasia-usbc \
+  firmware/fossasia-usbc/frogalert-survey-core.c \
+  tests/fossasia-survey-core.c \
+  -o tmp/c-tests/fossasia-survey-core
+tmp/c-tests/fossasia-survey-core
 firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
 (
   cd firmware

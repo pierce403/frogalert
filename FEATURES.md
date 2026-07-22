@@ -42,11 +42,11 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 
 | Requirement | Status | Acceptance evidence | Notes |
 | --- | --- | --- | --- |
-| Normal operation remains useful as a nametag | **PLANNED** | Badge displays uploaded content before and after scan/alert cycles | Alert overlays must not overwrite user data. |
-| Compatible with the BadgeMagic app legacy upload path | **PLANNED** | Real Android/iOS upload through `FEE0/FEE1` succeeds | App compatibility is a hardware acceptance test. |
-| Detection is passive and local | **SHIPPED** at core layer | `frogalert-core` has no network/storage path | Firmware integration still pending. |
+| Normal operation remains useful as a nametag | **PROTOTYPE** in survey source, **BLOCKED** for hardware | Count overlay reloads the inherited normal FOSSASIA mode; survey is gated on normal/non-streaming state | Prove exact uploaded content survives repeated windows and power cycles. |
+| Compatible with the BadgeMagic app legacy upload path | **AVAILABLE** in inherited shell, **BLOCKED** for survey regression | Survey keeps FOSSASIA `FEE0/FEE1` code and skips connected states | A real Android/iOS upload before, during, and after survey scheduling is required. |
+| Detection is passive and local | **SHIPPED** at core layer, **PROTOTYPE** in survey build | Survey calls passive WCH discovery and has no network/storage path | Controller results currently feed only the aggregate counter, not Rust classification. |
 | Alert rules are explainable | **SHIPPED** at core layer | Each match returns kind and static label | Future configurable rules must retain provenance. |
-| No device-tracking log | **SHIPPED** by design | No persistence API in detection core or site | Debug builds must not add raw observation retention by default. |
+| No device-tracking log | **SHIPPED** by design, **PROTOTYPE** in survey build | Fixed address RAM is explicitly zeroed; source tests reject address logging | Physical observation cannot prove zeroing, so retain source and disassembly audits. |
 | Alerts do not assert identity as fact | **SHIPPED** in docs | Hardware and source docs describe OUIs as hints | Site copy must preserve this caveat. |
 
 ## Supported hardware
@@ -59,7 +59,7 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | ROM ISP bench entry | **VERIFIED** by CLI/kernel evidence on USB-C hardware | Holding KEY2 while momentarily bridging both ends of `C3` enumerated `4348:55e0` twice on the photographed `B1144C_250901` | KEY2+`RESET` did not work. The successful C3 rail-collapse method is hazardous bench recovery, not routine web guidance; battery-disconnected entry remains untested. |
 | FOSSASIA USB-C open-firmware boot | **VERIFIED** at application/descriptor layer | Linux enumerated `0416:5020` with manufacturer `FOSSASIA WAS HERE`, product `LED Badge Magic`, serial `BM1144-C fw: v0.1`, HID, CDC ACM, and `/dev/ttyACM0`; the downloaded file exactly matches upstream USB-C development artifact blob `18bffdb` | The local BIN is 177,704 bytes, SHA-256 `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`, source `9ce885d`. The missing `wchisp` transcript prevents proving that those exact bytes were the ones programmed. |
 | Pinned FOSSASIA USB-C long-press KEY2 recovery | **VERIFIED** on the USB-C badge | From the running `9ce885d` development image, a KEY2-only long press displayed the dot cue and entered ISP without RESET or C3 | The image self-reports `BM1144-C fw: v0.1` but is not the Micro-USB v0.1 release asset. Exact elapsed timing and a fresh kernel transcript were not captured; this proves the application recovery affordance, not FrogAlert firmware. |
-| FrogAlert long-press KEY2 recovery | **BLOCKED** after failed Rust hardware smoke | The first USB-C Rust image did not enumerate ISP when KEY2 was held; the working FOSSASIA USB-C application still does | Replacement firmware must retain FOSSASIA's proven TMOS KEY2 task and pass recovery before publication. The CH582 mask ROM remains the bootloader. |
+| FrogAlert long-press KEY2 recovery | **PROTOTYPE** at survey build layer, **BLOCKED** for hardware | The survey ELF retains the same KEY2/reset-jump and live vector symbols; the first standalone Rust image did not | Prove the visible dot and `4348:55e0`/`1a86:55e0` enumeration on the exact survey hash. The CH582 mask ROM remains the bootloader. |
 | Battery-safe scan schedule | **PLANNED** | Current draw and runtime measurements | Default proposal: 57 s normal + 3 s scan. |
 | Unsupported hardware refusal | **PROTOTYPE** on web | Browser refuses non-CH582/type `0x16` | Matrix/revision cannot be detected over USB; human gate remains. |
 
@@ -69,12 +69,13 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | --- | --- | --- | --- |
 | Pinned FOSSASIA USB-C hardware shell | **SHIPPED** at build layer | Exact `9ce885d` source and MRS V1.92 reproduce the known-good 177,704-byte BIN at SHA-256 `2049eb58…f670a2` | C owns startup, vectors, clocks, USB, BLE/TMOS, display, buttons, and KEY2 recovery. Physical evidence applies to the upstream image, not future derivatives. |
 | C-only compatibility canary | **SHIPPED** as local build evidence, **BLOCKED** for hardware | 177,788-byte canary SHA-256 `6591f55f…03e87` retains all runtime audits and adds only an inert identity string | Stays under ignored `tmp/`; must pass program/verify, USB, app, buttons, KEY2 recovery, known-good reflash, and power cycle before publication. |
+| FOSSASIA-shell passive survey candidate | **PROTOTYPE** at local build layer, **BLOCKED** for hardware | Locked 198,988-byte BIN SHA-256 `38be81f1…b0df2`; passive start/cancel symbols, live vectors, retained USB/BLE/display/KEY2 symbols, no AMO/LR/SC, ELF/BIN identity, and 9,924 bytes RAM headroom pass | Private `tmp/` artifact only. Three-second window, 64-address cap, five-second overlay/watchdog, disconnected/idle gate, advertising restoration, and explicit RAM zeroing still need physical proof. |
 | Rust for embedded application logic | **IN PROGRESS**, restricted to portable logic | The allocation-free core and host tests remain reusable | The standalone Rust runtime image booted blank. Replacement images will keep FOSSASIA's C startup/hardware shell and expose only narrow C ABI calls into Rust logic. |
 | Atomic-free Rust archive | **IN PROGRESS** | Final linked image contains no AMO/LR/SC instructions and passes the FOSSASIA linker | Rust is a static library only; current Rust object attributes may need compatibility work with the pinned MRS linker. Do not replace the known-good final linker to make the archive fit. |
 | Pin Rust and HAL revisions | **PROTOTYPE** | [`rust-toolchain.toml`](firmware/rust-toolchain.toml), firmware lockfile, and local HAL source are present and locked | Pinned nightly and dependency set build; upstream HAL warnings remain and hardware behavior is unverified. |
 | Linker/runtime configuration | **FAILED** for standalone Rust; FOSSASIA replacement **IN PROGRESS** | Linked ELF proves Timer 0 vector 16 contained `DefaultInterruptHandler` because PAC 0.3 put `__EXTERNAL_INTERRUPTS` in flash instead of the runtime's RAM vector section | Replacement images inherit FOSSASIA startup/linker/runtime unchanged; a post-link vector audit now guards any future runtime work. |
-| Reproducible release build | **PROTOTYPE** for baseline/canary | Independent clean baseline builds reproduce `2049eb58…f670a2`; canary builds reproduce `6591f55f…03e87` | A release build still needs a source commit, clean CI receipt, and physical evidence. |
-| Firmware size limit | **PLANNED** | CI rejects image beyond CH582 code flash | CH582 definition reports 448 KiB. |
+| Reproducible release build | **PROTOTYPE** for baseline/canary/survey | Independent clean baseline builds reproduce `2049eb58…f670a2`; canary builds reproduce `6591f55f…03e87`; survey builds reproduce `38be81f1…b0df2` | A release build still needs a source commit, clean CI receipt, and physical evidence. |
+| Firmware size limit | **SHIPPED** at build layer | Binary audit rejects images over 448 KiB; survey is 198,988 bytes | Keep the exact limit in the pinned profile and release checks. |
 | Panic/fault behavior | **PLANNED** for Rust ABI | Rust uses abort semantics and returns only through validated primitive C calls | The FOSSASIA shell owns hardware recovery; force and observe faults before adding radio behavior. |
 | Version embedded in firmware | **PLANNED** | Readable via Device Information and release manifest | Include source commit. |
 
@@ -87,11 +88,11 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Hardware revision pin maps and orientation | **BLOCKED** for physical proof | Exact-board pixel walk proves every row, column, direction, first-pair swap, and recovery path | Both candidate maps are encoded, but neither has completed FrogAlert pixel-walk evidence; never substitute generic `BM1144-C` or upstream Rev2/Rev3 naming for `B1144C_250901_USB_C`. |
 | Stable refresh without flicker | **VERIFIED** for upstream shell, **BLOCKED** after FrogAlert changes | Working FOSSASIA image visibly renders the user's nametag | Repeat visual/current checks for every derived canary and during later scan windows. |
 | Hardware-independent 5×7 text rendering | **SHIPPED** at host layer | `cargo test --workspace` covers scrolling alert text and clipping | [`display.rs`](crates/frogalert-core/src/display.rs) solves rasterization; phrase readability on the panel remains blocked by display bring-up. |
-| Nearby-device count rendering | **SHIPPED** at host layer | Centered count, saturation `+`, bounds, and simulator output are tested | The embedded prototype uses the same renderer; no physical panel evidence yet. |
+| Nearby-device count rendering | **SHIPPED** at host layer, **PROTOTYPE** in survey build | Rust host renderer tests count/saturation; FOSSASIA-shell C overlay emits `BT 00` through `BT 64+` | The C overlay deliberately uses the proven upstream framebuffer API; physical readability remains unverified. |
 | User framebuffer storage | **PLANNED** | Upload survives alert and reboot | Define data-flash ownership/versioning. |
 | Temporary alert overlay | **PLANNED** | Alert displays, then exact prior content resumes | Do not persist overlay as nametag content. |
 | Alert cooldown/deduplication | **PLANNED** | Repeated advertisements do not strobe indefinitely | Define per-rule and global cooldowns. |
-| Button behavior preserved | **PLANNED** | Short/long press regression checklist | Include bootloader entry. |
+| Button behavior preserved | **PROTOTYPE** at build layer, **BLOCKED** for hardware | Survey injection does not replace FOSSASIA button or KEY2 task symbols | Run KEY1, short KEY2, and long KEY2 dot-to-ISP checks on the exact hash. |
 | Brightness and power controls | **PLANNED** | Next-gen/app settings survive alerts | Follow existing BadgeMagic behavior where possible. |
 
 ## BadgeMagic compatibility
@@ -103,7 +104,7 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Legacy write characteristic `0xFEE1` | **AVAILABLE in pinned FOSSASIA shell**, FrogAlert canary pending | Exact source includes 16-byte writable characteristic | Repeat official-app upload on every canary. |
 | Parse `wang\0\0` frame header | **AVAILABLE in pinned FOSSASIA shell**, hardening planned | Preserve upstream parser and add golden/malformed packet tests before modifying it | Reject malformed/incomplete frames safely. |
 | Eight bitmap slots and modes | **AVAILABLE in pinned FOSSASIA shell**, regression pending | Preserve upstream data path | Capture app-generated fixtures and confirm power-cycle behavior. |
-| Preserve upload across scan windows | **PLANNED** | Upload before/after scan succeeds | Never enter observer mode while connected. |
+| Preserve upload across scan windows | **PROTOTYPE** in source, **BLOCKED** for hardware | Survey checks connection/streaming state twice and does not modify persisted badge content | Upload before/after a scan and race connection attempts against the schedule. |
 | Device Information version | **PLANNED** | `0x180A/0x2A26` read succeeds | Include FrogAlert version. |
 | Next-gen `F055/F056/F057` | **DEFERRED** | Separate acceptance plan | Legacy compatibility is the first milestone. |
 | BLE firmware OTA | **REJECTED** for MVP | Architecture decision | Upstream says BLE update is deactivated; ISP remains authoritative. |
@@ -121,10 +122,10 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Unagi name seeds | **SHIPPED** at core layer | Flipper, Axon Body, TASER, Ray-Ban variants | Mirrored from current Unagi defaults. |
 | Parse BLE advertisement fields | **SHIPPED** at host layer | Complete/shortened-name and malformed-length tests pass | [`advertisement.rs`](crates/frogalert-core/src/advertisement.rs) is allocation-free; controller report integration remains pending. |
 | Count distinct advertisers ephemerally | **SHIPPED** at host layer | Duplicate, saturation, and clear-window tests pass | [`scan.rs`](crates/frogalert-core/src/scan.rs) uses fixed capacity and zeroes each completed window rather than retaining a history. |
-| Observer scan for about 3 seconds | **QUARANTINED** in old wrapper, replacement **PLANNED** | Host-side counter works; the old embedded image shares the failed vector layout | Integrate scanning inside the FOSSASIA BLE/TMOS shell only after the C and Rust ABI canaries pass. |
-| Peripheral/observer role switching | **BLOCKED** | Repeated 24-hour hardware run | The lab build is observer-only and deliberately lacks BadgeMagic GATT; WCH role switching must still be designed and proven. |
-| Do not scan while app connected | **PLANNED** | Connection suppresses scheduled scan | Resume schedule after disconnect. |
-| Restore peripheral advertising | **PLANNED** | App rediscovers after every scan window | Failure must recover automatically. |
+| Observer scan for about 3 seconds | **PROTOTYPE** in FOSSASIA shell, **BLOCKED** for hardware | Private survey build calls passive `GAPRole_CentralStartDiscovery(..., FALSE, FALSE)` with a three-second WCH duration and five-second cancel watchdog | The old standalone Rust image remains quarantined. Prove real scan completion, repeat cadence, current draw, and radio/display coexistence. |
+| Peripheral/observer role switching | **PROTOTYPE** in source, **BLOCKED** for hardware | WCH Central and Peripheral roles initialize together; advertising is paused before discovery rather than scanning concurrently | Repeated 24-hour run and app reconnect are required. |
+| Do not scan while app connected | **PROTOTYPE** in source, **BLOCKED** for hardware | Both survey preparation and start re-check the peripheral connection plus idle/streaming display state | Prove a connection race cannot interrupt uploads. |
+| Restore peripheral advertising | **PROTOTYPE** in source, **BLOCKED** for hardware | Prior advertising state is captured and restored on success, start failure, or watchdog timeout | App must rediscover after every scan window and every injected failure. |
 | Configurable scan interval | **DEFERRED** | App/site settings design | Ship a safe fixed cadence first. |
 | Full OUI database on badge | **REJECTED** | Architecture decision | Too broad, stale, and misleading for a small BLE detector. |
 | Wi-Fi promiscuous Flock signatures | **REJECTED** | Hardware capability decision | CH582M has BLE, not 802.11. |
@@ -140,7 +141,7 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | JavaScript protocol tests | **PROTOTYPE** | Node packet/validation tests | Hardware transcript fixtures still needed. |
 | Static site preview | **SHIPPED** | `./scripts/serve-site` | Serves repository root on localhost. |
 | HTML sanity check | **SHIPPED** | `xmllint --html --noout index.html` | Accessibility still needs browser review. |
-| Pinned FOSSASIA USB-C build helper | **SHIPPED** at local build layer | Exact source/toolchain/tree hashes, `USBC_VERSION=1`, byte-identical baseline, locked canary, ELF-to-BIN identity, runtime/USB/vector/symbol/instruction audits, and ignored `tmp/` output | First run downloads about 345 MB. It never flashes, publishes, or authorizes a test. |
+| Pinned FOSSASIA USB-C build helper | **SHIPPED** at local build layer | Exact source/toolchain/tree hashes, `USBC_VERSION=1`, byte-identical baseline, locked canary/survey, ELF-to-BIN identity, runtime/USB/vector/symbol/instruction/RAM audits, fail-closed artifact cleanup, and ignored `tmp/` output | First run downloads about 345 MB. It never flashes, publishes, or authorizes a test. |
 | Local `wchisp` fallback | **PLANNED** docs | Verified `wchisp info/flash` on badge | Physical badge needed. |
 | Linux udev guidance | **PLANNED** docs | Tested rule on supported distro | Include both accepted vendor ids. |
 | Windows WinUSB guidance | **PLANNED** docs | Tested clean-machine flow | May require Zadig/INF. |
@@ -332,8 +333,11 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
   per-window unique-address counting.
 - **QUARANTINED software:** the old standalone Rust observer/count image shares
   the failed external-vector layout and must not be flashed.
-- **BLOCKED/PLANNED:** FOSSASIA-shell scan scheduling, BadgeMagic
-  peripheral/observer role recovery, controller address-type/name integration,
+- **PROTOTYPE at build layer / BLOCKED for hardware:** the private
+  FOSSASIA-shell survey candidate schedules disconnected passive scans, shows
+  aggregate counts, restores advertising, zeroes addresses, and cancels a
+  stuck scan. Its exact BIN is locked but is not published or flash-approved.
+- **PLANNED:** controller address-type/name integration, Rust ABI policy,
   alert cooldown, and battery measurements.
 - Exit gate: 24-hour run with app reconnect, no lost content, and measured power.
 

@@ -63,10 +63,12 @@ end-user guidance.
    and confirm the Micro-USB layout. For the photographed USB-C board, record
    physical marking `B1144C_250901` and select only
    `B1144C_250901_USB_C`. Port shape by itself is not proof.
-5. Do not run the USB-C BLE count image. Pinned FOSSASIA USB-C source disables
+5. Do not run the historical standalone Rust count image. Pinned FOSSASIA USB-C source disables
    external 32 kHz selection, powers/calibrates internal LSI, and a later
    upstream commit explicitly says the board cannot use LSE. The quarantined
-   Rust count image and its HAL BLE initializer select external LSE.
+   Rust count image and its HAL BLE initializer select external LSE. The newer
+   private survey candidate instead inherits FOSSASIA's internal-LSI setup, but
+   remains a separate hardware-unverified bench image.
 6. Record the exact software profile only after all those checks. Build-profile
    tokens are not values discovered over USB, and chip identification cannot
    prove the PCB layout or matrix wiring.
@@ -155,6 +157,17 @@ That identity is build evidence only: it remains under ignored `tmp/` and is
 not approved for public or end-user flashing. Its only permitted next use is an
 explicitly authorized, one-badge bench smoke by a qualified operator; that
 initial program/verify action begins the checklist below and must be captured.
+
+A later private survey candidate is also reproducibly built under
+`tmp/fossasia-usbc/build/survey/`. It is 198,988 bytes with SHA-256
+`38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`.
+It retains the audited FOSSASIA reset/vector, USB, BLE, display, BadgeMagic, and
+KEY2 symbols; leaves 9,924 bytes between static RAM and the stack top; performs
+only a bounded three-second passive discovery; skips connected/streaming
+states; and has a five-second cancellation watchdog. Those are build
+properties, not evidence that the badge tolerates repeated surveys. The image
+does not replace the metadata canary as the lower-risk first derived smoke and
+must not be published before the full checklist passes.
 
 Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 

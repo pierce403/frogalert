@@ -8,12 +8,24 @@ check_mode="${3:-}"
 
 if [[ "$#" -lt 2 || "$#" -gt 3 ]] ||
   [[ "$profile" != "B1144C_250901_USB_C" ]] ||
-  [[ "$build_mode" != "baseline" && "$build_mode" != "canary" ]] ||
+  [[ "$build_mode" != "baseline" && "$build_mode" != "canary" &&
+    "$build_mode" != "survey" ]] ||
   [[ -n "$check_mode" && "$check_mode" != "--check" ]]; then
-  echo "usage: ./scripts/build-fossasia-usbc B1144C_250901_USB_C {baseline|canary} [--check]" >&2
+  echo "usage: ./scripts/build-fossasia-usbc B1144C_250901_USB_C {baseline|canary|survey} [--check]" >&2
   echo "Refusing a generic build: this shell is pinned to the exact USB-C profile." >&2
   exit 2
 fi
+
+build_directory="$repo_root/tmp/fossasia-usbc/build/$build_mode"
+bin="$build_directory/badgemagic-ch582.bin"
+elf_bin="$build_directory/badgemagic-ch582.from-elf.bin"
+audit_complete=0
+cleanup_failed_audit() {
+  if [[ "$audit_complete" != "1" ]]; then
+    rm -f "$bin" "$elf_bin"
+  fi
+}
+trap cleanup_failed_audit EXIT
 
 lock_file="$repo_root/firmware/fossasia-usbc/upstream-lock.json"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" lock
@@ -35,7 +47,6 @@ toolchain_directory="$repo_root/tmp/fossasia-usbc/toolchains/${lock_values[1]}"
 toolchain_prefix="$toolchain_directory/${lock_values[2]}"
 version="${lock_values[3]}"
 version_abbreviation="${lock_values[4]}"
-build_directory="$repo_root/tmp/fossasia-usbc/build/$build_mode"
 
 "$repo_root/scripts/prepare-fossasia-usbc" --with-toolchain
 rm -rf "$build_directory"
@@ -48,6 +59,23 @@ if [[ "$build_mode" == "canary" ]]; then
     "$source_directory/src/frogalert_canary.c"
   makefiles+=(
     -f "$repo_root/firmware/fossasia-usbc/frogalert-canary.mk"
+  )
+elif [[ "$build_mode" == "survey" ]]; then
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-survey.c" \
+    "$source_directory/src/ble/frogalert_survey.c"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-survey.h" \
+    "$source_directory/src/ble/frogalert-survey.h"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-survey-core.c" \
+    "$source_directory/src/ble/frogalert_survey_core.c"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-survey-core.h" \
+    "$source_directory/src/ble/frogalert-survey-core.h"
+  node "$repo_root/scripts/apply-fossasia-survey.mjs" "$source_directory"
+  makefiles+=(
+    -f "$repo_root/firmware/fossasia-usbc/frogalert-survey.mk"
   )
 fi
 
@@ -74,11 +102,9 @@ fi
 )
 
 elf="$build_directory/badgemagic-ch582.elf"
-bin="$build_directory/badgemagic-ch582.bin"
 nm_output="$build_directory/badgemagic-ch582.nm.txt"
 disassembly="$build_directory/badgemagic-ch582.disassembly.txt"
 highcode="$build_directory/badgemagic-ch582.highcode.bin"
-elf_bin="$build_directory/badgemagic-ch582.from-elf.bin"
 nm="${toolchain_prefix}nm"
 objcopy="${toolchain_prefix}objcopy"
 objdump="${toolchain_prefix}objdump"
@@ -99,18 +125,23 @@ fi
 "$objdump" -d "$elf" >"$disassembly"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" symbols "$build_mode" "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" vectors "$highcode" "$nm_output"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" ram "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" disassembly "$disassembly"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" binary "$build_mode" "$bin"
+audit_complete=1
 
 "$size_tool" "$elf"
 sha256sum "$bin"
 wc -c "$bin"
 echo "FOSSASIA runtime audit passed: reset/vector, USB, BLE, display, and KEY2 symbols retained"
 echo "ELF/BIN binding passed: final BIN exactly matches objcopy of the audited ELF"
+echo "RAM gate passed: at least 8192 bytes remain for stack and runtime use"
 if [[ "$build_mode" == "baseline" ]]; then
   echo "baseline gate passed: BIN is byte-identical to the known-good FOSSASIA USB-C image"
-else
+elif [[ "$build_mode" == "canary" ]]; then
   echo "canary gate passed: only the C metadata overlay was requested"
+else
+  echo "survey candidate gate passed: bounded passive scan overlay requested"
 fi
 echo "build evidence: $bin"
 echo "HARDWARE UNVERIFIED: this output is local-only and is not approved for flashing"

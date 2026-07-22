@@ -33,6 +33,21 @@ identity string with no functions or hardware references:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ```
 
+The private survey candidate keeps that same C hardware shell and adds a
+bounded passive counter for the exact USB-C profile:
+
+```bash
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+```
+
+It waits 15 seconds after the WCH central role becomes ready, skips work while
+BadgeMagic is connected or streaming, pauses advertising, scans passively for
+three seconds, and shows `BT 00` through `BT 64+` for five seconds. Later
+windows begin about 57 seconds after the previous result. Addresses exist only
+in a fixed 64-entry RAM table and are explicitly zeroed after success, failure,
+or timeout. A five-second watchdog cancels a stuck scan and restores the prior
+advertising state. The image never initiates a central connection.
+
 The first run downloads about 345 MB of pinned archives. Source, toolchain,
 objects, ELF, map, disassembly, and BIN files stay under ignored
 `tmp/fossasia-usbc/`. Nothing here copies a BIN into `firmware/releases/`,
@@ -56,11 +71,17 @@ then re-hashed before compilation.
 A passing build establishes reproducible source/toolchain provenance, the
 USB-C compile flag, expected runtime symbols, the WCH startup sentinel, the
 absence of linked AMO/LR/SC instructions, expected USB descriptor strings, and
-the presence or absence of the canary marker. It reconstructs a raw BIN from
+the presence or absence of the canary and survey markers. It reconstructs a raw BIN from
 the audited ELF and requires byte identity with the Make-produced BIN. Both
-baseline and canary sizes and SHA-256 values are locked; the baseline also must
+derived sizes and SHA-256 values are locked; the baseline also must
 match the already recovered FOSSASIA image exactly.
 
-It does **not** prove that the canary boots, displays correctly, accepts a
-BadgeMagic upload, enters ISP on KEY2, or recovers after a failed write. Keep
-the canary local until those checks pass on the exact physical badge.
+The survey lane additionally requires its passive-scan/cancel/display symbols
+and at least 8 KiB between static RAM and the stack top. Its current locked BIN
+is 198,988 bytes with SHA-256
+`38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`.
+
+It does **not** prove that a derived image boots, scans, displays correctly,
+accepts a BadgeMagic upload, enters ISP on KEY2, or recovers after a failed
+write. Keep both candidates local until those checks pass on the exact physical
+badge.

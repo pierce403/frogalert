@@ -14,6 +14,15 @@ export const lockPath = path.join(
 );
 export const canaryText =
   "FROGALERT:FOSSASIA-USB-C-BASE:9ce885d682b5c56c3ac7595c09e009a210885221:UNVERIFIED";
+export const surveyText =
+  "FROGALERT:SURVEY-COUNT:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+
+function validateMode(mode) {
+  assert.ok(
+    mode === "baseline" || mode === "canary" || mode === "survey",
+    "invalid build mode",
+  );
+}
 
 export async function loadLock(file = lockPath) {
   const lock = JSON.parse(await readFile(file, "utf8"));
@@ -63,7 +72,27 @@ export function validateLock(lock) {
   assert.match(lock.build.known_good_baseline_sha256, /^[0-9a-f]{64}$/);
   assert.equal(lock.build.known_good_canary_size, 177788);
   assert.match(lock.build.known_good_canary_sha256, /^[0-9a-f]{64}$/);
+  assert.ok(lock.build.known_good_survey_size > 177788);
+  assert.match(lock.build.known_good_survey_sha256, /^[0-9a-f]{64}$/);
+  assert.equal(lock.build.minimum_stack_headroom, 8192);
   assert.ok(lock.build.required_symbols.length >= 8);
+  assert.ok(lock.build.required_survey_symbols.length >= 6);
+  assert.equal(
+    lock.survey_reference.commit,
+    "bd508ad7ceed48377619837051412a651952857f",
+  );
+  assert.equal(
+    lock.survey_reference.combined_role_example,
+    "EVT/EXAM/BLE/CentPeri/APP/centPeri_main.c",
+  );
+  assert.equal(
+    lock.survey_reference.central_scan_example,
+    "EVT/EXAM/BLE/CentPeri/APP/central.c",
+  );
+  assert.equal(
+    lock.survey_reference.ble_heap_config,
+    "EVT/EXAM/BLE/HAL/include/config.h",
+  );
   assert.match(lock.known_good_upstream_elf.bin_commit, /^[0-9a-f]{40}$/);
   assert.equal(
     lock.known_good_upstream_elf.path,
@@ -157,6 +186,7 @@ export async function verifySourceTree(sourceDirectory, lock) {
   assert.match(power, /asm volatile\("j 0x00"\);/);
   assert.match(ble, /R8_CK32K_CONFIG\s*\|=\s*RB_CLK_INT32K_PON/);
   assert.match(ble, /Calibration_LSI\(Level_128\);/);
+  assert.match(ble, /#define BLE_MEMHEAP_SIZE\s+\(1024 \* 6\)/);
   assert.match(startup, /\.word\s+0xF5F9BDA9/);
   assert.match(startup, /\.word\s+TMR0_IRQHandler/);
   assert.match(startup, /\.word\s+USB_IRQHandler/);
@@ -167,7 +197,7 @@ export async function verifySourceTree(sourceDirectory, lock) {
 }
 
 export function verifySymbolTable(nmOutput, mode, lock) {
-  assert.ok(mode === "baseline" || mode === "canary", "invalid build mode");
+  validateMode(mode);
   const symbols = new Set(
     nmOutput
       .split(/\r?\n/)
@@ -183,6 +213,16 @@ export function verifySymbolTable(nmOutput, mode, lock) {
     mode === "canary",
     `canary symbol mismatch for ${mode} build`,
   );
+  assert.equal(
+    symbols.has("frogalert_survey_identity"),
+    mode === "survey",
+    `survey symbol mismatch for ${mode} build`,
+  );
+  if (mode === "survey") {
+    for (const symbol of lock.build.required_survey_symbols) {
+      assert.ok(symbols.has(symbol), `required survey symbol missing: ${symbol}`);
+    }
+  }
 }
 
 function symbolAddresses(nmOutput) {
@@ -192,6 +232,20 @@ function symbolAddresses(nmOutput) {
     if (match) addresses.set(match[2], Number.parseInt(match[1], 16));
   }
   return addresses;
+}
+
+export function verifyRamLayout(nmOutput, lock) {
+  const addresses = symbolAddresses(nmOutput);
+  for (const symbol of ["_ebss", "_eusrstack"]) {
+    assert.ok(addresses.has(symbol), `RAM audit symbol missing: ${symbol}`);
+  }
+  const staticEnd = addresses.get("_ebss");
+  const stackTop = addresses.get("_eusrstack");
+  assert.ok(staticEnd <= stackTop, "static RAM extends past the stack top");
+  assert.ok(
+    stackTop - staticEnd >= lock.build.minimum_stack_headroom,
+    `RAM headroom is below ${lock.build.minimum_stack_headroom} bytes`,
+  );
 }
 
 export function verifyVectorTable(highcode, nmOutput) {
@@ -248,7 +302,7 @@ function contains(haystack, needle) {
 }
 
 export async function verifyBinary(file, mode, lock) {
-  assert.ok(mode === "baseline" || mode === "canary", "invalid build mode");
+  validateMode(mode);
   const image = await readFile(file);
   assert.ok(image.length > 0, "firmware BIN is empty");
   assert.ok(image.length <= 448 * 1024, "firmware BIN exceeds CH582 flash");
@@ -282,18 +336,31 @@ export async function verifyBinary(file, mode, lock) {
     mode === "canary",
     `canary marker mismatch for ${mode} build`,
   );
+  assert.equal(
+    contains(image, Buffer.from(surveyText, "ascii")),
+    mode === "survey",
+    `survey marker mismatch for ${mode} build`,
+  );
 
-  const lockedImage =
-    mode === "baseline"
-      ? {
-          size: lock.build.known_good_baseline_size,
-          sha256: lock.build.known_good_baseline_sha256,
-        }
-      : {
-          size: lock.build.known_good_canary_size,
-          sha256: lock.build.known_good_canary_sha256,
-        };
-  await verifyLockedFile(file, lockedImage, `known-good FOSSASIA USB-C ${mode}`);
+  const lockedImages = {
+    baseline: {
+      size: lock.build.known_good_baseline_size,
+      sha256: lock.build.known_good_baseline_sha256,
+    },
+    canary: {
+      size: lock.build.known_good_canary_size,
+      sha256: lock.build.known_good_canary_sha256,
+    },
+    survey: {
+      size: lock.build.known_good_survey_size,
+      sha256: lock.build.known_good_survey_sha256,
+    },
+  };
+  await verifyLockedFile(
+    file,
+    lockedImages[mode],
+    `locked FOSSASIA USB-C ${mode}`,
+  );
 }
 
 async function main(argv) {
@@ -333,9 +400,14 @@ async function main(argv) {
       );
       break;
     }
+    case "ram": {
+      assert.equal(parameters.length, 1, "ram requires nm output");
+      verifyRamLayout(await readFile(parameters[0], "utf8"), lock);
+      break;
+    }
     default:
       throw new Error(
-        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary MODE BIN|symbols MODE NM|disassembly FILE|vectors HIGHCODE NM}",
+        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary MODE BIN|symbols MODE NM|disassembly FILE|vectors HIGHCODE NM|ram NM}",
       );
   }
 }

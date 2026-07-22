@@ -12,6 +12,7 @@ import {
   verifyBinary,
   verifyDisassembly,
   verifyLockedFile,
+  verifyRamLayout,
   verifySymbolTable,
   verifyVectorTable,
 } from "../scripts/audit-fossasia-usbc.mjs";
@@ -54,6 +55,12 @@ test("FOSSASIA USB-C lock pins source, toolchain, and known-good baseline", asyn
   );
   assert.equal(lock.build.known_good_baseline_size, 177704);
   assert.equal(lock.build.known_good_canary_size, 177788);
+  assert.equal(lock.build.minimum_stack_headroom, 8192);
+  assert.equal(lock.build.known_good_survey_size, 198988);
+  assert.equal(
+    lock.build.known_good_survey_sha256,
+    "38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2",
+  );
   assert.equal(
     lock.build.known_good_canary_sha256,
     "6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87",
@@ -184,6 +191,24 @@ test("symbol and instruction audits fail closed", async () => {
     () => verifySymbolTable(baselineSymbols, "canary", lock),
     /canary symbol mismatch/,
   );
+
+  const surveySymbols = lock.build.required_survey_symbols
+    .map((symbol, index) => `${(index + 0x200).toString(16)} T ${symbol}`)
+    .join("\n");
+  verifySymbolTable(
+    `${baselineSymbols}\n${surveySymbols}\n00000300 R frogalert_survey_identity\n`,
+    "survey",
+    lock,
+  );
+  assert.throws(
+    () =>
+      verifySymbolTable(
+        `${baselineSymbols}\n00000300 R frogalert_survey_identity\n`,
+        "survey",
+        lock,
+      ),
+    /required survey symbol missing/,
+  );
   assert.throws(
     () =>
       verifySymbolTable(
@@ -197,6 +222,26 @@ test("symbol and instruction audits fail closed", async () => {
   assert.throws(
     () => verifyDisassembly("0: 1001202f lr.w zero,(sp)\n"),
     /AMO\/LR\/SC/,
+  );
+});
+
+test("RAM audit reserves stack headroom", async () => {
+  const lock = await loadLock();
+  verifyRamLayout(
+    "2000913c B _ebss\n2000b800 B _eusrstack\n",
+    lock,
+  );
+  assert.throws(
+    () =>
+      verifyRamLayout(
+        "2000a000 B _ebss\n2000b800 B _eusrstack\n",
+        lock,
+      ),
+    /RAM headroom/,
+  );
+  assert.throws(
+    () => verifyRamLayout("2000913c B _ebss\n", lock),
+    /RAM audit symbol missing/,
   );
 });
 
@@ -250,7 +295,7 @@ test("canary BIN audit requires the exact reproducible image, not marker fragmen
     await writeFile(file, evidence);
     await assert.rejects(
       verifyBinary(file, "canary", lock),
-      /known-good FOSSASIA USB-C canary size differs/,
+      /locked FOSSASIA USB-C canary size differs/,
     );
 
     evidence.fill(0, lock.build.startup_sentinel_offset, 24);

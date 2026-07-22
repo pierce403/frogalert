@@ -24,23 +24,29 @@ not evidence that a badge is safe to flash.
 4. Preserve the BadgeMagic compatibility contract: advertised identity,
    `FEE0/FEE1`, 16-byte legacy chunks, uploaded framebuffer, and normal nametag
    behavior outside brief disconnected scan windows.
-5. Build through the repo's pinned FOSSASIA preparation/build scripts. Audit
+5. For a survey candidate, use passive discovery only and never establish a
+   central connection. Gate both preparation and scan start on a disconnected,
+   idle BadgeMagic state; remember and restore prior advertising on every exit;
+   add a bounded cancellation watchdog; keep a fixed address cap; explicitly
+   zero observations; log only aggregates; and enforce at least 8 KiB between
+   static RAM and the stack top.
+6. Build through the repo's pinned FOSSASIA preparation/build scripts. Audit
    the final linked vector targets and reject AMO/LR/SC instructions. Record
    the exact C and Rust toolchains, upstream source/archive hashes, linker
    configuration, binary size, and source commit. Reconstruct the BIN from the
    audited ELF and require byte identity with the Make output plus the locked
    size/SHA. Never treat one copied WCH marker, metadata string, or handler
    symbol as proof that the vector table reaches it.
-6. Run host tests first, then embedded build checks, then hardware smoke checks.
-7. Never perform the first irreversible flash without explicit human approval.
-8. Keep every first-test BIN only under ignored `tmp/`. For a release or public
+7. Run host tests first, then embedded build checks, then hardware smoke checks.
+8. Never perform the first irreversible flash without explicit human approval.
+9. Keep every first-test BIN only under ignored `tmp/`. For a release or public
    lab image, produce a `.bin`, SHA-256 checksum, release manifest, source
    commit, provenance, recovery instructions, and structured hash/source/one-
    profile/one-PCB physical verification record. It must prove application USB,
    display, BadgeMagic upload, KEY1/short-KEY2 behavior, KEY2-only dot-to-ISP
    recovery, and known-good reflash, with a bound dated transcript. A
    quarantined SHA may never be republished.
-9. Update `FEATURES.md` and `agent-memory/logs/` with evidence, not optimism.
+10. Update `FEATURES.md` and `agent-memory/logs/` with evidence, not optimism.
 
 ## Required hardware checks
 
