@@ -26,7 +26,9 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
 - full BadgeMagic-compatible FrogAlert firmware: not implemented
-- downloadable FrogAlert firmware release or hosted lab BIN: none yet
+- downloadable FrogAlert release: none; one exact USB-C pixel-walk lab BIN is
+  hosted for inspection and qualified local testing, with direct programming
+  locked until that exact image passes a physical smoke test
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -144,13 +146,16 @@ legacy program controls are absent, and the controller also requires explicit
 program-page mode; all destructive browser actions exist only on `/flash/`.
 
 The manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and third-party
-`recovery_images` separate. Both FrogAlert collections are currently empty.
-A future hosted lab image may be selected for local size/hash/profile
-inspection, but `hardware_verified: false` is an executable write lock even on
-`/flash/`; hosting never means flash approval. The recovery collection contains
-the official FOSSASIA open v0.1 Micro-USB substitute, likewise write-disabled.
-Developers can still select a local raw BIN for explicit experimental work with
-the ordinary hardware and irreversibility gates.
+`recovery_images` separate. Releases remain empty. The hosted
+`0.1.0-dev.f794974` USB-C pixel walk is bound to profile
+`B1144C_250901_USB_C`, physical marking `B1144C_250901`, source commit
+`f794974`, and its exact size/hash. It may be selected, verified, and downloaded
+from the site, but `hardware_verified: false` is an executable direct-write lock
+even on `/flash/`; hosting never means flash approval. A qualified tester may
+deliberately reselect the downloaded bytes through the separate local developer
+BIN path, which retains all ordinary hardware and irreversibility gates. The
+recovery collection contains the official FOSSASIA open v0.1 Micro-USB
+substitute, likewise write-disabled.
 
 ## Verify everything currently available
 

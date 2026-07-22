@@ -72,10 +72,13 @@ local inspection; that flag must keep it impossible to arm or program even on
 smoke, promote the same exact bytes rather than silently rebuilding them.
 Hosting, downloading, and hash verification are not flash approval.
 
-The current `releases` and `lab_images` arrays are empty; no FrogAlert BIN is
-published by this work. The one `recovery_images` entry is
-FOSSASIA's official open BadgeMagic firmware v0.1 substitute, constrained to
-exact `HARDWARE_REV1` and recorded as
+The current `releases` array is empty. `lab_images` contains one immutable
+display-only USB-C pixel-walk build from source `f794974`, constrained to
+profile `B1144C_250901_USB_C` and physical marking `B1144C_250901`, with
+`hardware_verified: false`. It is published for inspection, download, and a
+deliberate local developer test—not direct manifest-managed programming. The
+one `recovery_images` entry is FOSSASIA's official open BadgeMagic firmware
+v0.1 substitute, constrained to exact `HARDWARE_REV1` and recorded as
 `hardware_verified_by_frogalert: false`. It is not a FrogAlert release and it is
 not the original OEM firmware.
 

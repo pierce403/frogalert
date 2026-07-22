@@ -143,11 +143,11 @@ service or preserve a user nametag.
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Versioned FrogAlert raw `.bin` | **BLOCKED** | Hardware-tested firmware build | No FrogAlert image is listed as a release or offered for one-click installation. |
+| Versioned FrogAlert raw `.bin` | **PROTOTYPE** as hosted lab evidence, **BLOCKED** as a release | The exact USB-C pixel-walk BIN from source `f794974` is immutable, manifest-listed, and startup/hash audited | It is not offered for direct programming while hardware verification is false. No FrogAlert release exists. |
 | ELF with symbols | **PLANNED** | Attached to GitHub release | For debugging, not browser users. |
-| FrogAlert release SHA-256 checksum | **PLANNED** | Manifest and release asset agree | Browser recomputes locally; the separate upstream recovery image is already pinned by hash. |
+| FrogAlert release SHA-256 checksum | **PROTOTYPE** for the hosted lab, **PLANNED** for release | The USB-C pixel-walk manifest and BIN agree on `02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22`; browser and site assembly recompute it | A lab checksum is provenance, not hardware approval. |
 | Machine-readable manifest | **PROTOTYPE** | Separate `releases`, `lab_images`, and `recovery_images` collections prevent readiness categories from collapsing together | Includes exact target, revision, size, hash, provenance, and hardware-verification status. |
-| Hosted FrogAlert lab images | **PROTOTYPE** policy, no image published | Manifest tests require `hardware_verified: false` lab entries to remain selectable only for local inspection and impossible to arm for programming | `lab_images` is intentionally empty until an exact build has size/hash/source metadata. Hosting is not flash approval; physical promotion flips the same artifact's verification state only after recorded evidence. |
+| Hosted FrogAlert lab images | **PROTOTYPE**, one exact USB-C pixel-walk image published | Schema, site assembly, and browser tests bind `0.1.0-dev.f794974` to `B1144C_250901_USB_C`, marking `B1144C_250901`, 5,632 bytes, source `f794974`, and its SHA-256 | `hardware_verified: false` keeps direct programming locked. The site exposes a download for the separate qualified local-BIN test path. Hosting is not flash approval. |
 | Official open BadgeMagic v0.1 recovery image | **PROTOTYPE** for exact `HARDWARE_REV1` | The [155,672-byte artifact](firmware/releases/badgemagic-open-v0.1-hardware-rev1.bin) and SHA-256 match the [pinned manifest entry](firmware/releases/manifest.json) | This is FOSSASIA's open Micro-USB replacement, not factory/OEM firmware. Preparation is available, but destructive use stays locked while FrogAlert hardware verification is false. |
 | Build provenance | **PLANNED** | Toolchain/HAL/source recorded | Prefer reproducible CI artifact. |
 | Firmware signing | **DEFERRED** | Threat model and key custody design | Hash/provenance first; do not invent security theater. |
@@ -202,7 +202,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Require CH582M/11×44 confirmation | **SHIPPED** in UI | Explicit hardware safety checkboxes | Human confirmation cannot be automated. |
 | Bind artifact to entered PCB revision | **PROTOTYPE** | Release descriptor and local selection enforce an exact value | Physical label/revision catalog pending. |
 | Local `.bin` file selection | **PROTOTYPE** | File never uploads; hash and bound revision shown locally | Developer path remains unverified. |
-| Same-origin release manifest | **PROTOTYPE** | Schema v3 separates empty FrogAlert `releases` and `lab_images` collections from one exact-revision open `recovery_images` descriptor | Recovery provenance, unverified lab inspection, and release readiness are validated as distinct states. |
+| Same-origin release manifest | **PROTOTYPE** | Schema v3 separates empty FrogAlert `releases`, one unverified exact-profile `lab_images` descriptor, and one exact-revision open `recovery_images` descriptor | Recovery provenance, unverified lab inspection, and release readiness are validated as distinct states. |
 | Firmware plausibility, size, and padded-limit validation | **PROTOTYPE** | Unit tests reject tiny, uniform, wrong-extension, and oversized images and derive an exact aligned erase plan | Confirm exact release image layout. |
 | SHA-256 calculation | **PROTOTYPE** | Web Crypto digest displayed | Manifest comparison pending release. |
 | No erase on connect | **SHIPPED** invariant | Separate gated flash action | Regression-test UI state. |
@@ -222,7 +222,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Destructive-session integration tests | **PROTOTYPE** | Fake transport covers exact reset/readback-before-erase order, 56-byte program/finalize/verify, mismatches, invalid plans, and UI callback isolation | It does not replace fake WebUSB DOM/device-event coverage. |
 | Browser state-machine integration tests | **PLANNED** | Fake WebUSB covers disconnect, delayed manifest, timeout, and artifact races | Transport-independent full-session tests exist today. |
 | Open BadgeMagic recovery preparation | **PROTOTYPE** | Node tests pin v0.1 bytes, SHA-256, source provenance, `HARDWARE_REV1`, and hardware-unverified status | [`site/app.js`](site/app.js) only fetches and verifies locally; the false hardware-verification flag blocks destructive arming until a physical Rev1 smoke passes. |
-| Hosted lab-image inspection | **PROTOTYPE** policy, empty catalog | A future `lab_images` entry can be fetched, hash-checked, and bound to its exact profile without becoming programmable | Manifest-managed `hardware_verified: false` lab images stay write-disabled even on `/flash/`; the separate user-selected local BIN path remains an explicitly experimental route. |
+| Hosted lab-image inspection | **PROTOTYPE**, one catalog entry | The USB-C pixel walk is fetched, size/hash-checked, and bound to its exact profile and PCB marking without becoming directly programmable; a download link supports qualified local testing | Manifest-managed `hardware_verified: false` images stay write-disabled even on `/flash/`; the separate user-selected local BIN path remains explicitly experimental. |
 | Released FrogAlert firmware one-click selection | **BLOCKED** | Requires first hardware-tested FrogAlert release | Local developer BIN and open-recovery preparation do not satisfy this gate. |
 | Stable browser flashing | **BLOCKED** | Full matrix across Chrome/Edge and two desktop OSes | Requires physical badge and release artifact. |
 
@@ -336,9 +336,10 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 - **PROTOTYPE recovery preparation:** FOSSASIA's official open BadgeMagic v0.1
   image is bundled with exact Rev1, size, SHA-256, source, and license metadata;
   it is not OEM firmware and is not hardware-verified by FrogAlert.
-- **PROTOTYPE lab policy:** hosted, hash-pinned FrogAlert lab images have a
-  separate empty manifest collection and remain non-programmable while their
-  hardware-verification flag is false.
+- **PROTOTYPE lab path:** the exact USB-C pixel-walk image from source
+  `f794974` is hosted and hash-pinned in a separate manifest collection; it
+  remains non-programmable as a manifest artifact while its hardware-
+  verification flag is false.
 - **BLOCKED:** hardware-tested FrogAlert release artifact, compatibility
   matrix, full WebUSB program/verify/recovery tests, and one-click FrogAlert
   selection.

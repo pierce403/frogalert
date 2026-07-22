@@ -145,6 +145,7 @@ test("Pages deploy waits for successful CI and publishes only manifest-listed ar
   assert.doesNotMatch(workflow, /find firmware\/releases/);
   assert.match(assembler, /refusing to publish unlisted firmware artifact/);
   assert.match(assembler, /firmware artifact does not match manifest/);
+  assert.match(assembler, /assertCh58xUserOptionMagic/);
   assert.match(assembler, /manifest\.lab_images/);
   assert.match(assembler, /join\(repositoryRoot, "flash"\)/);
   assert.match(ci, /node scripts\/assemble-site\.mjs tmp\/site-build/);
@@ -154,7 +155,27 @@ test("release manifest separates releases, hosted labs, and pinned open recovery
   const manifest = JSON.parse(await read("firmware/releases/manifest.json"));
   assert.equal(manifest.schema_version, 3);
   assert.deepEqual(manifest.releases, []);
-  assert.deepEqual(manifest.lab_images, []);
+  assert.equal(manifest.lab_images.length, 1);
+  const lab = manifest.lab_images[0];
+  assert.equal(lab.id, "frogalert-pixel-walk-b1144c-250901-usbc-f794974");
+  assert.equal(lab.kind, "frogalert-lab");
+  assert.equal(lab.version, "0.1.0-dev.f794974");
+  assert.deepEqual(lab.hardware_revisions, ["B1144C_250901_USB_C"]);
+  assert.deepEqual(lab.pcb_markings, ["B1144C_250901"]);
+  assert.equal(lab.connector, "usb-c");
+  assert.equal(lab.hardware_verified, false);
+  assert.equal(lab.file, "frogalert-pixel-walk-b1144c-250901-usbc-f794974.bin");
+  assert.equal(lab.bytes, 5632);
+  assert.equal(
+    lab.sha256,
+    "02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22",
+  );
+  assert.equal(lab.source_commit, "f794974584b67f8809f5ab8cb2c52269aab7509b");
+
+  const labArtifact = await readBytes(`firmware/releases/${lab.file}`);
+  assert.equal(labArtifact.byteLength, lab.bytes);
+  assert.equal(createHash("sha256").update(labArtifact).digest("hex"), lab.sha256);
+
   assert.equal(manifest.recovery_images.length, 1);
   const recovery = manifest.recovery_images[0];
   assert.equal(recovery.id, "fossasia-badgemagic-v0.1-hardware-rev1");

@@ -31,6 +31,9 @@ on chat context or filenames alone.
 - [`2026-07-22-usbc-hardware-smoke.md`](agent-memory/logs/2026-07-22-usbc-hardware-smoke.md)
   — physical CH582M confirmation, C3/KEY2 ISP entry, exact FOSSASIA USB-C
   development-artifact provenance, application descriptors, and next gates.
+- [`2026-07-22-recoverable-lab-image.md`](agent-memory/logs/2026-07-22-recoverable-lab-image.md)
+  — shared KEY2 recovery hooks, exact USB-C Rust build, startup-sentinel
+  packaging, hosted unverified lab artifact, and physical promotion gates.
 
 ## People
 

@@ -98,6 +98,8 @@ pixel walk may target `B1144C_250901_USB_C`; USB-C radio builds remain blocked.
 
 Hosted FrogAlert lab images belong in the manifest's separate `lab_images`
 collection. `hardware_verified: false` permits local fetch/hash/profile
-inspection but must remain an executable write lock. No lab BIN is published
-until immutable size/hash/source metadata exists, and hosting never implies
-flash approval.
+inspection but must remain an executable direct-write lock. The first hosted
+entry is the 5,632-byte USB-C pixel walk from source `f794974`, SHA-256
+`02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22`,
+bound to `B1144C_250901_USB_C` and physical marking `B1144C_250901`. It remains
+unverified; hosting and download never imply flash approval.
