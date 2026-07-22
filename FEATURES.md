@@ -54,7 +54,7 @@ service or preserve a user nametag.
 | ROM ISP bench entry | **VERIFIED** by CLI/kernel evidence on USB-C hardware | Holding KEY2 while momentarily bridging both ends of `C3` enumerated `4348:55e0` twice on the photographed `B1144C_250901` | KEY2+`RESET` did not work. The successful C3 rail-collapse method is hazardous bench recovery, not routine web guidance; battery-disconnected entry remains untested. |
 | FOSSASIA USB-C open-firmware boot | **VERIFIED** at application/descriptor layer | Linux enumerated `0416:5020` with manufacturer `FOSSASIA WAS HERE`, product `LED Badge Magic`, serial `BM1144-C fw: v0.1`, HID, CDC ACM, and `/dev/ttyACM0`; the downloaded file exactly matches upstream USB-C development artifact blob `18bffdb` | The local BIN is 177,704 bytes, SHA-256 `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`, source `9ce885d`. The missing `wchisp` transcript prevents proving that those exact bytes were the ones programmed. |
 | FOSSASIA v0.1 long-press KEY2 recovery | **VERIFIED** on the USB-C badge | From the running open image, a KEY2-only long press displayed the dot cue and entered ISP without RESET or C3 | Exact elapsed timing and a fresh kernel transcript were not captured; this proves the application recovery affordance, not FrogAlert firmware. |
-| FrogAlert long-press KEY2 recovery | **PROTOTYPE** in both Rust lab images, mandatory before flash approval | Shared host tests require a continuous 2.2-second hold; each image releases display/peripheral activity before transferring to address zero | Hardware acceptance still requires short presses to avoid ISP and a held KEY2 to enumerate `4348:55e0` after a real program/verify cycle. The CH582 mask ROM remains the bootloader. |
+| FrogAlert long-press KEY2 recovery | **BLOCKED** after failed Rust hardware smoke | The first USB-C Rust image did not enumerate ISP when KEY2 was held; the working FOSSASIA USB-C application still does | Replacement firmware must retain FOSSASIA's proven TMOS KEY2 task and pass recovery before publication. The CH582 mask ROM remains the bootloader. |
 | Battery-safe scan schedule | **PLANNED** | Current draw and runtime measurements | Default proposal: 57 s normal + 3 s scan. |
 | Unsupported hardware refusal | **PROTOTYPE** on web | Browser refuses non-CH582/type `0x16` | Matrix/revision cannot be detected over USB; human gate remains. |
 
@@ -62,10 +62,10 @@ service or preserve a user nametag.
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Rust for embedded application logic | **PROTOTYPE** | The revision-gated [`pixel-walk`](firmware/frogalert-pixel-walk/src/main.rs), [`frogalert-count`](firmware/frogalert-count/src/main.rs), and shared [`frogalert-recovery`](firmware/frogalert-recovery/src/lib.rs) code build and test | Neither application has booted on physical hardware; the count image has no BadgeMagic GATT service. |
+| Rust for embedded application logic | **IN PROGRESS**, restricted to portable logic | The allocation-free core and host tests remain reusable | The standalone Rust runtime image booted blank. Replacement images will keep FOSSASIA's C startup/hardware shell and expose only narrow C ABI calls into Rust logic. |
 | `riscv32imc-unknown-none-elf` target | **PROTOTYPE** | Exact-revision release link plus disassembly audit passes | Atomic-free IMC is intentional for QingKe V4; the build rejects AMO/LR/SC instructions. |
 | Pin Rust and HAL revisions | **PROTOTYPE** | [`rust-toolchain.toml`](firmware/rust-toolchain.toml), firmware lockfile, and local HAL source are present and locked | Pinned nightly and dependency set build; upstream HAL warnings remain and hardware behavior is unverified. |
-| Linker/runtime configuration | **PROTOTYPE** | Both embedded scripts pin the toolchain/target/bin, build into `tmp/`, validate ELF32 RISC-V IMC attributes, audit decoded A-extension opcodes and the `jr zero` recovery trampoline, then finalize and verify WCH sentinel `0xF5F9BDA9` at raw offset `0x14` | The sentinel occupies WCH's reserved core-vector word and restores startup-format parity; it is not proof of ISP entry. Build proof is not boot proof. |
+| Linker/runtime configuration | **FAILED** for the standalone Rust image; replacement **IN PROGRESS** | Hardware produced a blank badge and no KEY2 recovery despite ELF, instruction, trampoline, sentinel, and hash audits | A patched sentinel did not validate the external interrupt vector table or the rest of WCH startup. Replacement images inherit FOSSASIA startup/linker/runtime unchanged. |
 | Reproducible release build | **PLANNED** | Two clean builds produce matching `.bin` SHA-256 | Record host/toolchain metadata. |
 | Firmware size limit | **PLANNED** | CI rejects image beyond CH582 code flash | CH582 definition reports 448 KiB. |
 | Panic/fault behavior | **PROTOTYPE** | Panic paths disable TMR0, release display pins, and enter WFI; the count build also attempts UART output | Never leave the matrix driven incorrectly; force and observe this path on hardware. |
@@ -76,7 +76,7 @@ service or preserve a user nametag.
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
 | Rust 11×44 charlieplexed display driver | **PROTOTYPE** for `HARDWARE_REV1` and `B1144C_250901_USB_C` | The shared [`frogalert-display`](firmware/frogalert-display/src/lib.rs) crate selects one mutually exclusive map and floats controlled lines before polarity changes | Software follows pinned upstream sources; no FrogAlert pixel has been observed on physical hardware. |
-| Safe single-pixel bring-up image | **PROTOTYPE** | [`build-display-bringup`](scripts/build-display-bringup) links and audits a row-major walk with one logical pixel, 750 ms steps, UART coordinates, 5 mA drive, KEY2 recovery, and no BLE/32 kHz initialization | This is the first physical display gate, not a release; exact position, polarity, brightness, recovery, and current remain unverified. |
+| Safe single-pixel bring-up image | **BLOCKED** after failed physical test | The first USB-C Rust BIN produced no moving pixel or other panel output and failed KEY2 recovery | It has been withdrawn. The next smoke image must be a minimal modification of the known-good FOSSASIA USB-C firmware shell. |
 | Hardware revision pin maps and orientation | **BLOCKED** for physical proof | Exact-board pixel walk proves every row, column, direction, first-pair swap, and recovery path | Both candidate maps are encoded, but neither has completed FrogAlert pixel-walk evidence; never substitute generic `BM1144-C` or upstream Rev2/Rev3 naming for `B1144C_250901_USB_C`. |
 | Stable refresh without flicker | **BLOCKED** for physical proof | Camera/visual check first in pixel-walk, then during BLE activity | A 4 kHz timer with a 250 us drive/release cadence yields about 91 full pair scans per second in source, but panel behavior and BLE coexistence have not been observed. |
 | Hardware-independent 5×7 text rendering | **SHIPPED** at host layer | `cargo test --workspace` covers scrolling alert text and clipping | [`display.rs`](crates/frogalert-core/src/display.rs) solves rasterization; phrase readability on the panel remains blocked by display bring-up. |
@@ -143,11 +143,11 @@ service or preserve a user nametag.
 
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
-| Versioned FrogAlert raw `.bin` | **PROTOTYPE** as hosted lab evidence, **BLOCKED** as a release | The exact USB-C pixel-walk BIN from source `f794974` is immutable, manifest-listed, and startup/hash audited | It is not offered for direct programming while hardware verification is false. No FrogAlert release exists. |
+| Versioned FrogAlert raw `.bin` | **BLOCKED** | The former USB-C pixel-walk BIN was withdrawn after blank boot and failed recovery | No FrogAlert BIN is currently published. |
 | ELF with symbols | **PLANNED** | Attached to GitHub release | For debugging, not browser users. |
-| FrogAlert release SHA-256 checksum | **PROTOTYPE** for the hosted lab, **PLANNED** for release | The USB-C pixel-walk manifest and BIN agree on `02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22`; browser and site assembly recompute it | A lab checksum is provenance, not hardware approval. |
+| FrogAlert release SHA-256 checksum | **PLANNED** | The failed pixel-walk hash is retained only in the failure record | A matching checksum proved byte identity, not bootability. |
 | Machine-readable manifest | **PROTOTYPE** | Separate `releases`, `lab_images`, and `recovery_images` collections prevent readiness categories from collapsing together | Includes exact target, revision, size, hash, provenance, and hardware-verification status. |
-| Hosted FrogAlert lab images | **PROTOTYPE**, one exact USB-C pixel-walk image published | Schema, site assembly, and browser tests bind `0.1.0-dev.f794974` to `B1144C_250901_USB_C`, marking `B1144C_250901`, 5,632 bytes, source `f794974`, and its SHA-256 | `hardware_verified: false` keeps direct programming locked. The site exposes a download for the separate qualified local-BIN test path. Hosting is not flash approval. |
+| Hosted FrogAlert lab images | **BLOCKED**, catalog empty | The failed USB-C pixel-walk image was removed from the manifest and public assembly | Future first-test images stay under ignored `tmp/`; public FrogAlert bytes require hash-bound physical boot and recovery evidence. |
 | Official open BadgeMagic v0.1 recovery image | **PROTOTYPE** for exact `HARDWARE_REV1` | The [155,672-byte artifact](firmware/releases/badgemagic-open-v0.1-hardware-rev1.bin) and SHA-256 match the [pinned manifest entry](firmware/releases/manifest.json) | This is FOSSASIA's open Micro-USB replacement, not factory/OEM firmware. Preparation is available, but destructive use stays locked while FrogAlert hardware verification is false. |
 | Build provenance | **PLANNED** | Toolchain/HAL/source recorded | Prefer reproducible CI artifact. |
 | Firmware signing | **DEFERRED** | Threat model and key custody design | Hash/provenance first; do not invent security theater. |
@@ -202,7 +202,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Require CH582M/11×44 confirmation | **SHIPPED** in UI | Explicit hardware safety checkboxes | Human confirmation cannot be automated. |
 | Bind artifact to entered PCB revision | **PROTOTYPE** | Release descriptor and local selection enforce an exact value | Physical label/revision catalog pending. |
 | Local `.bin` file selection | **PROTOTYPE** | File never uploads; hash and bound revision shown locally | Developer path remains unverified. |
-| Same-origin release manifest | **PROTOTYPE** | Schema v3 separates empty FrogAlert `releases`, one unverified exact-profile `lab_images` descriptor, and one exact-revision open `recovery_images` descriptor | Recovery provenance, unverified lab inspection, and release readiness are validated as distinct states. |
+| Same-origin release manifest | **PROTOTYPE** | Schema v3 now has empty FrogAlert `releases` and `lab_images` plus one exact-revision open `recovery_images` descriptor | A stronger publication-evidence and failed-hash quarantine gate is in progress. |
 | Firmware plausibility, size, and padded-limit validation | **PROTOTYPE** | Unit tests reject tiny, uniform, wrong-extension, and oversized images and derive an exact aligned erase plan | Confirm exact release image layout. |
 | SHA-256 calculation | **PROTOTYPE** | Web Crypto digest displayed | Manifest comparison pending release. |
 | No erase on connect | **SHIPPED** invariant | Separate gated flash action | Regression-test UI state. |
@@ -222,7 +222,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Destructive-session integration tests | **PROTOTYPE** | Fake transport covers exact reset/readback-before-erase order, 56-byte program/finalize/verify, mismatches, invalid plans, and UI callback isolation | It does not replace fake WebUSB DOM/device-event coverage. |
 | Browser state-machine integration tests | **PLANNED** | Fake WebUSB covers disconnect, delayed manifest, timeout, and artifact races | Transport-independent full-session tests exist today. |
 | Open BadgeMagic recovery preparation | **PROTOTYPE** | Node tests pin v0.1 bytes, SHA-256, source provenance, `HARDWARE_REV1`, and hardware-unverified status | [`site/app.js`](site/app.js) only fetches and verifies locally; the false hardware-verification flag blocks destructive arming until a physical Rev1 smoke passes. |
-| Hosted lab-image inspection | **PROTOTYPE**, one catalog entry | The USB-C pixel walk is fetched, size/hash-checked, and bound to its exact profile and PCB marking without becoming directly programmable; a download link supports qualified local testing | Manifest-managed `hardware_verified: false` images stay write-disabled even on `/flash/`; the separate user-selected local BIN path remains explicitly experimental. |
+| Hosted lab-image inspection | **BLOCKED**, catalog empty | The failed USB-C pixel walk was removed after physical testing | Do not publish first-test bytes as a downloadable workaround around manifest write locks. |
 | Released FrogAlert firmware one-click selection | **BLOCKED** | Requires first hardware-tested FrogAlert release | Local developer BIN and open-recovery preparation do not satisfy this gate. |
 | Stable browser flashing | **BLOCKED** | Full matrix across Chrome/Edge and two desktop OSes | Requires physical badge and release artifact. |
 
@@ -336,10 +336,8 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 - **PROTOTYPE recovery preparation:** FOSSASIA's official open BadgeMagic v0.1
   image is bundled with exact Rev1, size, SHA-256, source, and license metadata;
   it is not OEM firmware and is not hardware-verified by FrogAlert.
-- **PROTOTYPE lab path:** the exact USB-C pixel-walk image from source
-  `f794974` is hosted and hash-pinned in a separate manifest collection; it
-  remains non-programmable as a manifest artifact while its hardware-
-  verification flag is false.
+- **BLOCKED lab path:** the first USB-C pixel-walk image booted blank, failed
+  KEY2 recovery, and was withdrawn. No FrogAlert BIN is hosted.
 - **BLOCKED:** hardware-tested FrogAlert release artifact, compatibility
   matrix, full WebUSB program/verify/recovery tests, and one-click FrogAlert
   selection.

@@ -168,11 +168,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   nor a 32 kHz radio clock. `HARDWARE_REV1` and the exact
   `B1144C_250901_USB_C` candidate profile build separately. Both remain
   hardware-unverified and are not flash-approved.
-- The site hosts the finalized USB-C pixel-walk image from source `f794974` as
-  lab version `0.1.0-dev.f794974`, bound to profile
-  `B1144C_250901_USB_C` and physical marking `B1144C_250901`. Its manifest flag
-  remains `hardware_verified: false`, so the hosted selector is inspect/download
-  only; qualified first-test use goes through the separate local BIN route.
+- The USB-C pixel-walk image from source `f794974` booted blank and failed its
+  KEY2 recovery acceptance test. It is withdrawn from the manifest and must not
+  be rebuilt, hosted, recommended, or flashed. Preserve its hash only as failed
+  evidence and base replacement firmware on the proven FOSSASIA USB-C runtime.
 - The shared Rust recovery crate and both lab applications now implement a
   2.2-second KEY2 hold followed by peripheral-specific quiescing and a transfer
   to address zero. This is source/build evidence only until short-press and

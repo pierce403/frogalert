@@ -26,9 +26,8 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
 - full BadgeMagic-compatible FrogAlert firmware: not implemented
-- downloadable FrogAlert release: none; one exact USB-C pixel-walk lab BIN is
-  hosted for inspection and qualified local testing, with direct programming
-  locked until that exact image passes a physical smoke test
+- downloadable FrogAlert release or lab BIN: none; the first USB-C pixel-walk
+  image was withdrawn after it booted blank and failed KEY2 recovery
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -146,16 +145,11 @@ legacy program controls are absent, and the controller also requires explicit
 program-page mode; all destructive browser actions exist only on `/flash/`.
 
 The manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and third-party
-`recovery_images` separate. Releases remain empty. The hosted
-`0.1.0-dev.f794974` USB-C pixel walk is bound to profile
-`B1144C_250901_USB_C`, physical marking `B1144C_250901`, source commit
-`f794974`, and its exact size/hash. It may be selected, verified, and downloaded
-from the site, but `hardware_verified: false` is an executable direct-write lock
-even on `/flash/`; hosting never means flash approval. A qualified tester may
-deliberately reselect the downloaded bytes through the separate local developer
-BIN path, which retains all ordinary hardware and irreversibility gates. The
-recovery collection contains the official FOSSASIA open v0.1 Micro-USB
-substitute, likewise write-disabled.
+`recovery_images` separate. Both FrogAlert collections are empty. The former
+USB-C pixel-walk artifact was removed after a physical flash produced no panel
+output and its KEY2 recovery path did not enumerate ISP. The recovery collection
+contains the official FOSSASIA open v0.1 Micro-USB substitute, still
+write-disabled.
 
 ## Verify everything currently available
 

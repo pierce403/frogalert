@@ -206,14 +206,11 @@ open recovery images in separate `releases`, `lab_images`, and
 - same-origin artifact filename and optional GitHub release URL;
 - hardware verification record.
 
-Until a hardware-tested FrogAlert firmware release exists, `releases` remains
-empty. `lab_images` currently contains the exact display-only USB-C pixel-walk
-build from source `f794974`, bound to profile `B1144C_250901_USB_C`, physical
-marking `B1144C_250901`, byte length, and SHA-256. The browser may fetch,
-hash-check, inspect, and download it, but `hardware_verified: false` keeps it
-impossible to arm as a manifest-managed artifact even on `/flash/`. Hosting and
-local inspection are not flash approval. A qualified tester can deliberately
-reselect the downloaded bytes through the separate local developer route.
+Until a hardware-tested FrogAlert firmware release exists, `releases` and
+`lab_images` remain empty. The first display-only USB-C pixel-walk build was
+withdrawn after it booted blank and failed application-provided KEY2 recovery.
+No failed or merely build-audited FrogAlert bytes may remain downloadable from
+the public site.
 
 The reviewed FOSSASIA v0.1 substitute may appear in `recovery_images` while
 retaining `hardware_verified_by_frogalert: false`. The experimental page also
