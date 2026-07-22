@@ -13,9 +13,11 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use frogalert_core::display::FrameBuffer;
 use frogalert_core::scan::ScanCounter;
-use frogalert_display::Rev1Display;
+use frogalert_display::BadgeDisplay;
+use frogalert_recovery::{frogalert_enter_rom_isp, Key2RecoveryHold};
 use hal::ble::ffi::*;
 use hal::ble::gap::*;
+use hal::gpio::{Input, Pull};
 use hal::interrupt::{Interrupt, Priority};
 use hal::peripherals;
 use hal::uart::UartTx;
@@ -29,6 +31,7 @@ const SCAN_RETRY_TICKS: u32 = 1_600; // 1 second
 const MAX_UNIQUE_DEVICES: usize = 64;
 const CONTROLLER_SCAN_RESULTS: usize = MAX_UNIQUE_DEVICES + 1;
 const TIMER_PERIOD_60MHZ: u32 = 15_000; // 250 microseconds
+const KEY2_POLL_TICKS: u32 = 320; // 320 * 0.625 ms = 200 ms
 
 struct SharedState {
     counter: ScanCounter<MAX_UNIQUE_DEVICES>,
@@ -140,6 +143,43 @@ fn init_display_timer() {
     }
 }
 
+fn stop_display_timer() {
+    hal::interrupt::TMR0::disable();
+    let timer = unsafe { &*pac::TMR0::PTR };
+    timer.inter_en().write(|w| unsafe { w.bits(0) });
+    timer.ctrl_mod().write(|w| w.tmr_all_clear().set_bit());
+    timer.int_flag().write(|w| unsafe { w.bits(0x1f) });
+    hal::interrupt::TMR0::unpend();
+}
+
+fn stop_embassy_systick() {
+    let systick = unsafe { &*pac::SYSTICK::PTR };
+    systick
+        .ctlr()
+        .modify(|_, w| w.stie().clear_bit().ste().clear_bit());
+    systick.sr().write(|w| w.cntif().clear_bit());
+    unsafe {
+        let interrupt = qingke_rt::CoreInterrupt::SysTick as u8;
+        qingke::pfic::disable_interrupt(interrupt);
+        qingke::pfic::unpend_interrupt(interrupt);
+    }
+}
+
+fn enter_rom_isp() -> ! {
+    // Ask the observer role to stop before shutting off interrupts. The ROM
+    // startup path will reset the controller; this call only avoids leaving a
+    // scan callback active while the display GPIO is being released.
+    unsafe {
+        let _ = GAPRole_ObserverCancelDiscovery();
+        let _ = RF_Shut();
+    }
+    qingke::register::gintenr::set_disable();
+    stop_display_timer();
+    stop_embassy_systick();
+    BadgeDisplay::release_all();
+    unsafe { frogalert_enter_rom_isp() }
+}
+
 #[qingke_rt::interrupt]
 fn TMR0() {
     let timer = unsafe { &*pac::TMR0::PTR };
@@ -155,9 +195,9 @@ fn TMR0() {
         if phase == 0 {
             let pair = state.display_pair % 22;
             state.display_pair = state.display_pair.wrapping_add(1);
-            Rev1Display::refresh_pair(pair, state.frame.columns());
+            BadgeDisplay::refresh_pair(pair, state.frame.columns());
         } else {
-            Rev1Display::release_all();
+            BadgeDisplay::release_all();
         }
     });
 }
@@ -170,6 +210,7 @@ async fn main(_spawner: Spawner) -> ! {
     let peripherals = hal::init(config);
     hal::embassy::init();
 
+    let key2 = Input::new(peripherals.PB22, Pull::Up);
     let mut uart = UartTx::new(peripherals.UART1, peripherals.PA9, Default::default()).unwrap();
 
     critical_section::with(|cs| {
@@ -209,10 +250,20 @@ async fn main(_spawner: Spawner) -> ! {
         GAPRole_ObserverStartDevice(&CALLBACK).unwrap();
     }
 
+    let mut recovery_hold = Key2RecoveryHold::new();
+    let mut next_key2_tick = unsafe { TMOS_GetSystemClock() }.wrapping_add(KEY2_POLL_TICKS);
     loop {
         Timer::after(Duration::from_micros(300)).await;
         unsafe {
             TMOS_SystemProcess();
+        }
+
+        let now = unsafe { TMOS_GetSystemClock() };
+        if scan_due(now, next_key2_tick) {
+            next_key2_tick = now.wrapping_add(KEY2_POLL_TICKS);
+            if recovery_hold.sample(key2.is_low()) {
+                enter_rom_isp();
+            }
         }
 
         let (report, scan_start_error) = critical_section::with(|cs| {
@@ -263,8 +314,8 @@ async fn main(_spawner: Spawner) -> ! {
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    hal::interrupt::TMR0::disable();
-    Rev1Display::release_all();
+    stop_display_timer();
+    BadgeDisplay::release_all();
     let pa9 = unsafe { peripherals::PA9::steal() };
     let uart1 = unsafe { peripherals::UART1::steal() };
     if let Ok(mut serial) = UartTx::new(uart1, pa9, Default::default()) {

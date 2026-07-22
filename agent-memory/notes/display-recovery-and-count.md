@@ -1,11 +1,41 @@
 # Display, recovery, and BLE count facts
 
+## Physical USB-C badge evidence
+
+A 2026-07-22 macro photo of the opened PCB marked `B1144C_250901` clearly
+shows a WCH `CH582M` in the 48-pin package. This satisfies the MCU-marking gate
+only. It does not establish the USB-C board's charlieplex mapping or make the
+current Micro-USB `HARDWARE_REV1` artifacts compatible. A metal-can component
+is populated at `Y2`, but the photo does not prove its frequency or connection.
+The pouch battery is soldered to PCB tabs and has no user-removable connector;
+the documented cold-entry battery isolation is skilled bench work and remains
+untested on this exact board.
+
+The same physical session established a successful C3/KEY2 ROM-ISP entry as
+`4348:55e0`. After a user-run flash, the badge booted an application whose USB
+descriptors self-report manufacturer `FOSSASIA WAS HERE`, product
+`LED Badge Magic`, and serial `BM1144-C fw: v0.1`; it exposes HID and CDC ACM
+and created `/dev/ttyACM0`. The downloaded file was later recovered as
+`/home/pierce/Downloads/badgemagic-ch582.bin`. It exactly matches FOSSASIA's
+pinned USB-C development blob `18bffdb8f766ddfd818aecf102ac0df284ad1c07`:
+
+- size: 177,704 bytes
+- SHA-256: `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`
+- embedded version: `(C) v0.1-42-g9ce885d`
+- source commit: `9ce885d682b5c56c3ac7595c09e009a210885221`
+
+The retained evidence still lacks the `wchisp` command/program/verify
+transcript, so it cannot prove that those exact local bytes were the ones
+programmed.
+
 ## Recovery is not factory restoration
 
 The manufacturer firmware is read-protected and no official OEM image is
-available. FOSSASIA release v0.1 supplies an open BadgeMagic-compatible image
-for the Micro-USB board, not the original bytes. FrogAlert calls this an open
-firmware substitute and restricts it to exact profile `HARDWARE_REV1`.
+available. FOSSASIA release v0.1 supplies a Micro-USB open
+BadgeMagic-compatible image, not the original bytes. The USB-C `BM1144-C` image
+that booted on the physical badge is a development `bin`-branch artifact rather
+than a v0.1 release asset. FrogAlert's bundled website substitute remains
+restricted to the exact Micro-USB profile `HARDWARE_REV1`.
 
 Pinned artifact facts:
 
@@ -28,10 +58,23 @@ The upstream scan topology uses 23 Charlieplex nets and 22 source phases. The
 clean research reference is FOSSASIA commit `aa890e9`; current head `eb6e9da`
 has duplicate I/K pin entries and must not be ported.
 
-The Rev1 Rust bank driver cross-links, but readable text on a real badge is not
-proved. Run a slow single-pixel walk before trusting orientation, the row-zero
-swap, pin ordering, current, or refresh. Rev2's T net is still disputed as PB6
-versus PB23, so no Rev2 build is offered.
+The Rust bank driver now carries mutually exclusive `HARDWARE_REV1` and
+`B1144C_250901_USB_C` candidates. The USB-C map is pinned to the exact working
+development source: J PB15, K PB14, T PB6; all other display nets match Rev1.
+Do not alias this to generic `BM1144-C`, Rev2, or Rev3. Run a slow single-pixel
+walk before trusting orientation, the row-zero swap, pin ordering, current, or
+refresh.
+
+Both Rust lab applications share a 2.2-second KEY2 hold and address-zero ROM
+transfer implementation. Unit/build evidence is not physical recovery proof;
+each artifact still needs short-press and `4348:55e0` long-press acceptance.
+
+WCH startup compatibility adds a separate packaging invariant. Official WCH
+startup places `0xF5F9BDA9` in the reserved core-vector word at raw image offset
+`0x14`; qingke-rt 0.5.0 leaves that word zero. FrogAlert's build scripts replace
+only zero with that sentinel before hashing and site publication, and reject
+any other value as linker drift. The sentinel is parity with working images,
+not a demonstrated cause of the KEY2 recovery path.
 
 ## Atomic-free BLE prototype
 
@@ -48,5 +91,13 @@ GATT compatibility.
 
 The vendored WCH BLE archive reports V1.90 and has SHA-256
 `9363b1fd04a8d4c33798ac480fd860b4b4cce023053d8e3dfde1a9a3b00d1b72`.
-The HAL currently assumes an external 32.768 kHz LSE; confirm that crystal on
-the target PCB before a radio test.
+The pinned FOSSASIA USB-C source uses calibrated internal LSI, and its later
+upstream history explicitly says the board cannot use LSE. The Rust count image
+and HAL BLE initializer currently select external LSE, so only the display-only
+pixel walk may target `B1144C_250901_USB_C`; USB-C radio builds remain blocked.
+
+Hosted FrogAlert lab images belong in the manifest's separate `lab_images`
+collection. `hardware_verified: false` permits local fetch/hash/profile
+inspection but must remain an executable write lock. No lab BIN is published
+until immutable size/hash/source metadata exists, and hosting never implies
+flash approval.

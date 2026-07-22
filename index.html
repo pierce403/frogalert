@@ -241,6 +241,12 @@
                 <option value="">No release selected</option>
               </select>
               <p id="release-status" class="field-help" role="status">Loading release manifest…</p>
+              <label for="lab-image-select">Hosted experimental build</label>
+              <select id="lab-image-select" disabled>
+                <option value="">No hosted lab image selected</option>
+              </select>
+              <p id="lab-image-status" class="field-help" role="status">Loading inspect-only lab image metadata…</p>
+              <a id="lab-image-download" class="text-link" hidden download>Download selected lab BIN for qualified local testing</a>
             </div>
             <div class="divider-label" aria-hidden="true">OR</div>
             <div class="field-group">

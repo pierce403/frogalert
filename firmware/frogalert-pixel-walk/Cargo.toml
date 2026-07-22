@@ -3,16 +3,18 @@ name = "frogalert-pixel-walk"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "Exact-Rev1 single-pixel BadgeMagic display bring-up"
+description = "Exact-profile single-pixel BadgeMagic display bring-up"
 publish = false
 
 [features]
 default = []
-hardware-rev1 = []
+hardware-rev1 = ["frogalert-display/hardware-rev1"]
+hardware-b1144c-250901-usbc = ["frogalert-display/hardware-b1144c-250901-usbc"]
 
 [dependencies]
 ch58x-hal = { path = "../vendor/ch58x-hal", default-features = false }
 critical-section = "1.2.0"
 frogalert-display = { path = "../frogalert-display" }
+frogalert-recovery = { path = "../frogalert-recovery" }
 qingke = "=0.5.0"
 qingke-rt = { version = "=0.5.0", features = ["highcode"] }

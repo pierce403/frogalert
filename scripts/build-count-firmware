@@ -16,19 +16,20 @@ if [[ -n "$mode" && "$mode" != "--check" ]]; then
 fi
 
 cd "$repo_root/firmware"
+rust_tool="$repo_root/scripts/run-rust-toolchain"
 env -u CARGO_TARGET_DIR \
   -u RUSTFLAGS \
   -u CARGO_ENCODED_RUSTFLAGS \
   -u CARGO_BUILD_RUSTFLAGS \
   -u CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUSTFLAGS \
-  cargo +nightly-2026-07-17 fmt --package frogalert-count-firmware -- --check
+  "$rust_tool" nightly-2026-07-17 cargo fmt --package frogalert-count-firmware --package frogalert-recovery -- --check
 build_dir="$repo_root/tmp/build/frogalert-count"
 env -u CARGO_TARGET_DIR \
   -u RUSTFLAGS \
   -u CARGO_ENCODED_RUSTFLAGS \
   -u CARGO_BUILD_RUSTFLAGS \
   -u CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUSTFLAGS \
-  cargo +nightly-2026-07-17 build \
+  "$rust_tool" nightly-2026-07-17 cargo build \
   --locked \
   --target riscv32imc-unknown-none-elf \
   --target-dir "$build_dir" \
@@ -40,8 +41,8 @@ env -u CARGO_TARGET_DIR \
 elf="$build_dir/riscv32imc-unknown-none-elf/release/frogalert-count-firmware"
 output_dir="$repo_root/tmp/firmware"
 mkdir -p "$output_dir"
-host="$(rustc +nightly-2026-07-17 -vV | sed -n 's/^host: //p')"
-sysroot="$(rustc +nightly-2026-07-17 --print sysroot)"
+host="$("$rust_tool" nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
+sysroot="$("$rust_tool" nightly-2026-07-17 rustc --print sysroot)"
 llvm_bin="$sysroot/lib/rustlib/$host/bin"
 disassembly="$output_dir/frogalert-count-HARDWARE_REV1.disassembly.txt"
 elf_header="$("$llvm_bin/llvm-readobj" --file-headers "$elf")"
@@ -66,16 +67,24 @@ if grep -Eiq '(^|[[:space:]])(amo|lr\.|sc\.)' "$disassembly"; then
   echo "refusing artifact: QingKe-unsafe atomic instruction found" >&2
   exit 1
 fi
+recovery_disassembly="$(sed -n '/<frogalert_enter_rom_isp>:/,/^$/p' "$disassembly")"
+if [[ -z "$recovery_disassembly" ]] ||
+  ! grep -Eq '[[:space:]]jr[[:space:]]+zero([[:space:]]|$)|[[:space:]]jalr[[:space:]]+zero,[[:space:]]*zero,[[:space:]]*0([[:space:]]|$)' <<<"$recovery_disassembly"; then
+  echo "refusing artifact: ROM-ISP recovery trampoline does not end in an absolute zero jump" >&2
+  exit 1
+fi
 "$llvm_bin/llvm-size" "$elf"
 echo "RISC-V attributes: $arch_attribute"
 echo "instruction audit passed: no AMO/LR/SC operations"
+echo "recovery audit passed: KEY2 trampoline jumps to absolute address zero"
+bin="$output_dir/frogalert-count-HARDWARE_REV1.bin"
+"$llvm_bin/llvm-objcopy" -O binary "$elf" "$bin"
+node "$repo_root/scripts/finalize-firmware.mjs" "$bin"
+sha256sum "$bin"
+wc -c "$bin"
 if [[ "$mode" == "--check" ]]; then
   echo "embedded link check passed: $elf"
   exit 0
 fi
 
-bin="$output_dir/frogalert-count-HARDWARE_REV1.bin"
-"$llvm_bin/llvm-objcopy" -O binary "$elf" "$bin"
-sha256sum "$bin"
-wc -c "$bin"
 echo "UNVERIFIED BUILD ONLY: do not flash without the physical gates in docs/HARDWARE.md"

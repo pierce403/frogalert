@@ -20,10 +20,18 @@ export function revisionInputTransition({
 }
 
 export function canProgramArtifact({
-  isBundledRecovery = false,
+  artifactKind = "unknown",
+  hardwareVerified = false,
   hardwareVerifiedByFrogalert = false,
 } = {}) {
-  return !isBundledRecovery || hardwareVerifiedByFrogalert === true;
+  if (artifactKind === "local-developer") return true;
+  if (artifactKind === "open-badgemagic-recovery") {
+    return hardwareVerifiedByFrogalert === true;
+  }
+  if (artifactKind === "frogalert-release" || artifactKind === "frogalert-lab") {
+    return hardwareVerified === true;
+  }
+  return false;
 }
 
 export function canEnableFlash({

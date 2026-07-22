@@ -1,14 +1,19 @@
 #![no_std]
 #![no_main]
 
-#[cfg(not(feature = "hardware-rev1"))]
-compile_error!("select an exact board target with --features hardware-rev1");
+#[cfg(not(any(feature = "hardware-rev1", feature = "hardware-b1144c-250901-usbc")))]
+compile_error!("select an exact board target feature");
+
+#[cfg(all(feature = "hardware-rev1", feature = "hardware-b1144c-250901-usbc"))]
+compile_error!("board target features are mutually exclusive");
 
 use core::cell::RefCell;
 use core::fmt::Write;
 
 use ch58x_hal as hal;
-use frogalert_display::{Rev1Display, COLUMNS, COLUMN_PAIRS, ROWS};
+use frogalert_display::{BadgeDisplay, COLUMNS, COLUMN_PAIRS, ROWS};
+use frogalert_recovery::{frogalert_enter_rom_isp, Key2RecoveryHold, KEY2_POLL_MS};
+use hal::gpio::{Input, Pull};
 use hal::interrupt::{Interrupt, Priority};
 use hal::pac;
 use hal::uart::UartTx;
@@ -17,7 +22,14 @@ type CriticalMutex<T> = critical_section::Mutex<RefCell<T>>;
 
 const TIMER_PERIOD_60MHZ: u32 = 15_000; // 250 microseconds / 4 kHz
 const WALK_INTERVAL_MS: u16 = 750;
+const MAIN_LOOP_MS: u16 = 50;
 const PIXEL_COUNT: usize = COLUMNS * ROWS;
+
+#[cfg(feature = "hardware-rev1")]
+const HARDWARE_PROFILE: &str = "HARDWARE_REV1";
+
+#[cfg(feature = "hardware-b1144c-250901-usbc")]
+const HARDWARE_PROFILE: &str = "B1144C_250901_USB_C";
 
 struct WalkState {
     columns: [u16; COLUMNS],
@@ -77,6 +89,25 @@ fn init_display_timer() {
     }
 }
 
+fn stop_display_timer() {
+    hal::interrupt::TMR0::disable();
+    let timer = unsafe { &*pac::TMR0::PTR };
+    timer.inter_en().write(|w| unsafe { w.bits(0) });
+    timer.ctrl_mod().write(|w| w.tmr_all_clear().set_bit());
+    timer.int_flag().write(|w| unsafe { w.bits(0x1f) });
+    hal::interrupt::TMR0::unpend();
+}
+
+fn enter_rom_isp() -> ! {
+    // No BLE or application USB is active in this image. Mask interrupts, stop
+    // display refresh, and float every charlieplex line before transferring to
+    // address zero.
+    qingke::register::gintenr::set_disable();
+    stop_display_timer();
+    BadgeDisplay::release_all();
+    unsafe { frogalert_enter_rom_isp() }
+}
+
 #[qingke_rt::interrupt]
 fn TMR0() {
     let timer = unsafe { &*pac::TMR0::PTR };
@@ -91,9 +122,9 @@ fn TMR0() {
         if phase == 0 {
             let pair = state.display_pair % COLUMN_PAIRS;
             state.display_pair = state.display_pair.wrapping_add(1);
-            Rev1Display::refresh_pair(pair, &state.columns);
+            BadgeDisplay::refresh_pair(pair, &state.columns);
         } else {
-            Rev1Display::release_all();
+            BadgeDisplay::release_all();
         }
     });
 }
@@ -105,23 +136,40 @@ fn main() -> ! {
     config.clock.use_pll_60mhz();
     let peripherals = hal::init(config);
 
+    let key2 = Input::new(peripherals.PB22, Pull::Up);
     let mut uart = UartTx::new(peripherals.UART1, peripherals.PA9, Default::default()).unwrap();
 
-    Rev1Display::release_all();
+    BadgeDisplay::release_all();
     critical_section::with(|cs| {
         STATE.borrow(cs).borrow_mut().select_first();
     });
     init_display_timer();
 
-    let _ = writeln!(&mut uart, "FrogAlert pixel walk / HARDWARE_REV1");
+    let _ = writeln!(&mut uart, "FrogAlert pixel walk / {HARDWARE_PROFILE}");
     let _ = writeln!(
         &mut uart,
         "single logical pixel; display GPIO drive=5mA; no BLE or LSE"
     );
     let _ = writeln!(&mut uart, "pixel x=00 y=00 index=1/{}", PIXEL_COUNT);
 
+    let mut recovery_hold = Key2RecoveryHold::new();
+    let mut key2_elapsed_ms = 0_u16;
+    let mut walk_elapsed_ms = 0_u16;
     loop {
-        hal::delay_ms(WALK_INTERVAL_MS);
+        hal::delay_ms(MAIN_LOOP_MS);
+        key2_elapsed_ms += MAIN_LOOP_MS;
+        if key2_elapsed_ms >= KEY2_POLL_MS {
+            key2_elapsed_ms = 0;
+            if recovery_hold.sample(key2.is_low()) {
+                enter_rom_isp();
+            }
+        }
+
+        walk_elapsed_ms += MAIN_LOOP_MS;
+        if walk_elapsed_ms < WALK_INTERVAL_MS {
+            continue;
+        }
+        walk_elapsed_ms = 0;
         let (x, y, index) = critical_section::with(|cs| STATE.borrow(cs).borrow_mut().advance());
         let _ = writeln!(
             &mut uart,
@@ -136,8 +184,8 @@ fn main() -> ! {
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
-    hal::interrupt::TMR0::disable();
-    Rev1Display::release_all();
+    stop_display_timer();
+    BadgeDisplay::release_all();
     loop {
         // With the matrix released and Timer0 disabled, sleep instead of
         // turning a fault into a 60 MHz battery drain.

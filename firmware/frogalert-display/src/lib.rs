@@ -5,8 +5,16 @@
 // Hardware behavior and the HARDWARE_REV1 pin map are adapted from FOSSASIA's
 // Apache-2.0 badgemagic-firmware release v0.1 at commit
 // 68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8 and checked against the clean Rev1
-// map at commit aa890e90649f288b02e80002ab82088128bead14. This crate must not be
-// used for a board that has not been positively identified as that revision.
+// map at commit aa890e90649f288b02e80002ab82088128bead14. The USB-C map is pinned
+// to the working USBC_VERSION=1 source commit
+// 9ce885d682b5c56c3ac7595c09e009a210885221 and the photographed
+// B1144C_250901 board. This crate must not be used for an unidentified board.
+
+#[cfg(not(any(feature = "hardware-rev1", feature = "hardware-b1144c-250901-usbc")))]
+compile_error!("select exactly one supported BadgeMagic display profile");
+
+#[cfg(all(feature = "hardware-rev1", feature = "hardware-b1144c-250901-usbc"))]
+compile_error!("BadgeMagic display profiles are mutually exclusive");
 
 use ch58x_hal::pac;
 
@@ -29,7 +37,7 @@ const PB_MASK: u32 = pin(18)
     | pin(4)
     | pin(2)
     | pin(1)
-    | pin(23)
+    | pin(T_PIN)
     | pin(21)
     | pin(20)
     | pin(19);
@@ -86,19 +94,25 @@ const LED_PINS: [LedPin; 23] = [
     LedPin::b(4),
     LedPin::b(2),
     LedPin::b(1),
-    LedPin::b(23),
+    LedPin::b(T_PIN),
     LedPin::b(21),
     LedPin::b(20),
     LedPin::b(19),
 ];
 
+#[cfg(feature = "hardware-rev1")]
+const T_PIN: u8 = 23;
+
+#[cfg(feature = "hardware-b1144c-250901-usbc")]
+const T_PIN: u8 = 6;
+
 const fn pin(number: u8) -> u32 {
     1_u32 << number
 }
 
-pub struct Rev1Display;
+pub struct BadgeDisplay;
 
-impl Rev1Display {
+impl BadgeDisplay {
     pub fn refresh_pair(pair: usize, columns: &[u16; COLUMNS]) {
         let first = pair * 2;
         drive_pair(pair, columns[first], columns[first + 1]);

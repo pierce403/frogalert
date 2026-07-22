@@ -241,6 +241,7 @@ dependencies = [
  "embassy-time",
  "frogalert-core",
  "frogalert-display",
+ "frogalert-recovery",
  "qingke",
  "qingke-rt",
 ]
@@ -259,8 +260,16 @@ dependencies = [
  "ch58x-hal",
  "critical-section",
  "frogalert-display",
+ "frogalert-recovery",
  "qingke",
  "qingke-rt",
+]
+
+[[package]]
+name = "frogalert-recovery"
+version = "0.1.0"
+dependencies = [
+ "qingke",
 ]
 
 [[package]]

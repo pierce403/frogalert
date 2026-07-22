@@ -28,6 +28,15 @@
   attach stable USB while holding, release after the single pixel, then connect
   promptly. Keep the revision-specific C3 shorting method out of routine web
   instructions.
+- A physical USB-C badge marked `B1144C_250901` has a populated switch labeled
+  `RESET`, but holding KEY2 while pressing it caused no USB re-enumeration from
+  the OEM `0416:5020` application device. Treat RESET+KEY2 as disproven for that
+  board unless later electrical tracing establishes a different sequence.
+- On the same board, holding KEY2 while momentarily bridging both terminals of
+  `C3` successfully enumerated the WCH ROM ISP device as `4348:55e0` twice. This
+  is physical CLI/kernel evidence for the rail-collapse entry mechanism, not a
+  browser-flasher smoke test, and its short-circuit risk keeps it out of routine
+  public instructions.
 - Keep that physical handoff beside the chooser as an explicit state machine.
   The approximately ten-second indicator is advisory; countdown expiry and USB
   attach events must not invoke `requestDevice()`. Only the final user tap may

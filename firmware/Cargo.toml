@@ -1,5 +1,10 @@
 [workspace]
-members = ["frogalert-count", "frogalert-display", "frogalert-pixel-walk"]
+members = [
+    "frogalert-count",
+    "frogalert-display",
+    "frogalert-pixel-walk",
+    "frogalert-recovery",
+]
 exclude = ["vendor/ch58x-hal"]
 resolver = "2"
 

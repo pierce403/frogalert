@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+toolchain="${1:-}"
+tool="${2:-}"
+if [[ -z "$toolchain" || -z "$tool" ]]; then
+  echo "usage: ./scripts/run-rust-toolchain TOOLCHAIN TOOL [ARGS...]" >&2
+  exit 2
+fi
+shift 2
+
+rustup_root="${RUSTUP_HOME:-$HOME/.rustup}"
+shopt -s nullglob
+candidates=("$rustup_root/toolchains/$toolchain-"*/bin/"$tool")
+shopt -u nullglob
+
+if [[ "${#candidates[@]}" -eq 1 && -x "${candidates[0]}" ]]; then
+  tool_bin="${candidates[0]}"
+  tool_bin_dir="$(dirname "$tool_bin")"
+  PATH="$tool_bin_dir:$PATH" exec "$tool_bin" "$@"
+fi
+if [[ "${#candidates[@]}" -gt 1 ]]; then
+  echo "refusing ambiguous $toolchain $tool lookup under $rustup_root/toolchains" >&2
+  exit 1
+fi
+
+if command -v rustup >/dev/null 2>&1; then
+  exec rustup run "$toolchain" "$tool" "$@"
+fi
+
+echo "missing Rust toolchain '$toolchain' tool '$tool'" >&2
+exit 1

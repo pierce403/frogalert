@@ -21,6 +21,8 @@ import {
   resetConfigPacket,
   sha256Hex,
   validateFirmware,
+  validateLabDescriptor,
+  validateLabHardwareBinding,
   validateRecoveryDescriptor,
   validateReleaseDescriptor,
   xorChunk,
@@ -112,6 +114,43 @@ test("release descriptors bind artifacts to an exact verified PCB revision", () 
     () => validateReleaseDescriptor({ ...release, file: "../unsafe.bin" }, "rev-a"),
     /safe raw BIN/,
   );
+});
+
+test("hosted lab descriptors require exact profile and physical-board binding", () => {
+  const lab = {
+    id: "frogalert-pixel-walk-b1144c-250901",
+    kind: "frogalert-lab",
+    purpose: "pixel-walk",
+    label: "FrogAlert USB-C pixel walk",
+    version: "0.1.0-dev.1",
+    target: "ch582m-badgemagic-11x44",
+    hardware_revisions: ["B1144C_250901_USB_C"],
+    pcb_markings: ["B1144C_250901"],
+    connector: "usb-c",
+    hardware_verified: false,
+    file: "frogalert-pixel-walk-b1144c-250901.bin",
+    bytes: 4096,
+    sha256: "b".repeat(64),
+    source_commit: "a".repeat(40),
+  };
+
+  assert.equal(validateLabDescriptor(lab), true);
+  assert.equal(
+    validateLabHardwareBinding(lab, "B1144C_250901_USB_C", "B1144C_250901"),
+    true,
+  );
+  assert.throws(
+    () => validateLabHardwareBinding(lab, "HARDWARE_REV1", "B1144C_250901"),
+    /does not support hardware profile/,
+  );
+  assert.throws(
+    () => validateLabHardwareBinding(lab, "B1144C_250901_USB_C", "BM1144-C"),
+    /does not support physical PCB marking/,
+  );
+  assert.throws(() => validateLabDescriptor({ ...lab, hardware_verified: "no" }), /verification status/);
+  assert.throws(() => validateLabDescriptor({ ...lab, connector: "generic-usb" }), /connector/);
+  assert.throws(() => validateLabDescriptor({ ...lab, source_commit: "dirty" }), /source commit/);
+  assert.throws(() => validateLabDescriptor({ ...lab, file: "../unsafe.bin" }), /safe raw BIN/);
 });
 
 test("open BadgeMagic recovery descriptor is pinned to official v0.1 HARDWARE_REV1 bytes", () => {

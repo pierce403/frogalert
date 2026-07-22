@@ -4,10 +4,19 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+./scripts/run-rust-toolchain stable cargo fmt --all -- --check
+./scripts/run-rust-toolchain stable cargo clippy --workspace --all-targets -- -D warnings
+./scripts/run-rust-toolchain stable cargo test --workspace
+firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
+(
+  cd firmware
+  ../scripts/run-rust-toolchain nightly-2026-07-17 cargo test \
+    --locked \
+    --target "$firmware_host" \
+    --package frogalert-recovery
+)
 ./scripts/build-display-bringup HARDWARE_REV1 --check
+./scripts/build-display-bringup B1144C_250901_USB_C --check
 ./scripts/build-count-firmware HARDWARE_REV1 --check
 node --test tests/*.test.mjs
 node scripts/assemble-site.mjs tmp/site-build

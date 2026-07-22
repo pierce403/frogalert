@@ -16,18 +16,25 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 
 - Rust `no_std` detection core: tested
 - host observation/count simulator: tested
-- CH582M single-pixel display bring-up: builds for `HARDWARE_REV1`, not
-  hardware-tested or approved to flash
+- CH582M single-pixel display bring-up: separate `HARDWARE_REV1` and
+  `B1144C_250901_USB_C` builds with KEY2 recovery; neither is hardware-tested
+  or approved to flash
 - CH582M passive BLE count/display prototype: builds for `HARDWARE_REV1`, not
-  hardware-tested or approved to flash
+  hardware-tested or approved to flash; USB-C is blocked by the HAL's external
+  LSE assumption
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
 - full BadgeMagic-compatible FrogAlert firmware: not implemented
-- downloadable FrogAlert firmware release: none yet
+- downloadable FrogAlert firmware release or hosted lab BIN: none yet
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
+- FOSSASIA USB-C development build: the downloaded 177,704-byte BIN is pinned
+  to source `9ce885d` and SHA-256
+  `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`;
+  it boots on the photographed USB-C badge and KEY2-only long press visibly
+  enters ROM ISP with the dot cue
 
 See [FEATURES.md](FEATURES.md) for the authoritative requirement-by-requirement
 status and acceptance evidence.
@@ -45,9 +52,13 @@ verify all of the following:
 The OEM firmware is read-protected, unavailable, and unrecoverable. There is no
 factory/OEM restore image. FOSSASIA publishes an open BadgeMagic-compatible v0.1
 substitute for its Micro-USB `HARDWARE_REV1` target, but that is not the
-original firmware and FrogAlert has not hardware-tested it. Similar-looking
-badges can use different controllers or matrix sizes and may be permanently
-damaged by an incompatible image. Read
+original firmware. A separate FOSSASIA USB-C development image has now booted
+and provided KEY2 long-press recovery on the photographed `B1144C_250901`
+badge, but its generic `BM1144-C` descriptor does not identify a unique pin
+map. FrogAlert therefore uses the exact lab token `B1144C_250901_USB_C`, and
+neither that candidate map nor the bundled Micro-USB image is flash-approved.
+Similar-looking badges can use different controllers or matrix sizes and may
+be permanently damaged by an incompatible image. Read
 [docs/HARDWARE.md](docs/HARDWARE.md) before device work.
 
 ## Try the detection logic
@@ -80,11 +91,16 @@ uses the display GPIO's lower 5 mA drive setting.
 ```sh
 ./scripts/build-display-bringup HARDWARE_REV1 --check
 ./scripts/build-display-bringup HARDWARE_REV1
+./scripts/build-display-bringup B1144C_250901_USB_C --check
+./scripts/build-display-bringup B1144C_250901_USB_C
 ```
 
-The second command creates only ignored local evidence under `tmp/`. It is
-still an irreversible, hardware-unverified image—not permission to flash. Read
-the opened-board and first-write gates in [docs/HARDWARE.md](docs/HARDWARE.md).
+Each command creates only ignored, finalized local evidence under `tmp/` and
+prints its size and SHA-256; `--check` still packages the BIN so the WCH startup
+sentinel can be audited. These images include the application-level KEY2 hold
+and ROM-ISP transfer, but that path has not run on FrogAlert hardware. A
+successful build is still not permission to flash. Read the opened-board and
+first-write gates in [docs/HARDWARE.md](docs/HARDWARE.md).
 
 ## Build the hardware-gated count prototype
 
@@ -101,9 +117,11 @@ temporary raw BIN explicitly for the opened `HARDWARE_REV1` target:
 ./scripts/build-count-firmware HARDWARE_REV1
 ```
 
-The non-check command prints the temporary BIN's current size and SHA-256. The
-ignored output is hardware-unverified evidence only; it is not a release
-checksum, and the website must not offer that BIN.
+Both commands print the temporary BIN's current size and SHA-256. The ignored
+output is hardware-unverified evidence only; it is not a release checksum. Do
+not substitute the USB-C display profile here: the working
+FOSSASIA source uses the internal LSI, while the current Rust BLE/HAL path
+selects external LSE, so no `B1144C_250901_USB_C` count image is offered.
 
 ## Run the website locally
 
@@ -125,13 +143,14 @@ The landing-page lab permits only inspection and artifact preparation. Its
 legacy program controls are absent, and the controller also requires explicit
 program-page mode; all destructive browser actions exist only on `/flash/`.
 
-The manifest's FrogAlert `releases` list remains empty until a FrogAlert image
-passes physical badge testing. Its separate `recovery_images` list contains the
-official FOSSASIA open v0.1 substitute for exact `HARDWARE_REV1`; preparing it
-does not write, it remains labeled hardware-unverified and write-disabled, and
-it is never described as a factory restore. Developers can also select a local
-raw BIN for experimental work, with explicit hardware and irreversibility
-gates.
+The manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and third-party
+`recovery_images` separate. Both FrogAlert collections are currently empty.
+A future hosted lab image may be selected for local size/hash/profile
+inspection, but `hardware_verified: false` is an executable write lock even on
+`/flash/`; hosting never means flash approval. The recovery collection contains
+the official FOSSASIA open v0.1 Micro-USB substitute, likewise write-disabled.
+Developers can still select a local raw BIN for explicit experimental work with
+the ordinary hardware and irreversibility gates.
 
 ## Verify everything currently available
 
@@ -146,25 +165,28 @@ checks. A passing local suite does not replace a physical badge test.
 ## Repository map
 
 - [`crates/frogalert-core/`](crates/frogalert-core/) — allocation-free matching
-- [`firmware/frogalert-display/`](firmware/frogalert-display/) — shared exact-
-  Rev1 matrix driver
+- [`firmware/frogalert-display/`](firmware/frogalert-display/) — shared
+  revision-gated matrix driver
 - [`firmware/frogalert-pixel-walk/`](firmware/frogalert-pixel-walk/) — minimal
-  no-BLE/LSE single-pixel bring-up
+  no-BLE/32-kHz-clock single-pixel bring-up for the two explicit display
+  profiles
 - [`firmware/frogalert-count/`](firmware/frogalert-count/) — board-gated Rust
   observer/count/display prototype; not a released image
+- [`firmware/frogalert-recovery/`](firmware/frogalert-recovery/) — shared KEY2
+  hold and CH582 ROM-ISP transfer logic
 - [`firmware/vendor/ch58x-hal/`](firmware/vendor/ch58x-hal/) — pinned,
   provenance-documented HAL subset used by the prototype
 - [`tools/simulator/`](tools/simulator/) — desktop observation simulator
 - [`scripts/build-count-firmware`](scripts/build-count-firmware) — exact-revision
   cross-build, disassembly audit, and temporary BIN extraction
-- [`scripts/build-display-bringup`](scripts/build-display-bringup) — minimal
-  exact-Rev1 pixel-walk build and instruction audit
+- [`scripts/build-display-bringup`](scripts/build-display-bringup) — explicit
+  Rev1/USB-C pixel-walk build and instruction audit
 - [`site/`](site/) — static website and browser device implementation
 - [`flash/index.html`](flash/index.html) — dedicated guided WebUSB flashing and
   KEY2 recovery surface
 - [`tests/`](tests/) — protocol and site contract tests
 - [`firmware/releases/manifest.json`](firmware/releases/manifest.json) — public
-  FrogAlert release index plus separately labeled upstream open recovery image
+  release, unverified-lab, and separately labeled upstream recovery indexes
 - [`docs/HARDWARE.md`](docs/HARDWARE.md) — target identity, irreversible OEM
   boundary, and open substitute constraints
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — local tools and future embedded
@@ -194,6 +216,17 @@ The repo follows the useful parts of [recurse.bot](https://recurse.bot):
 canonical agent instructions, compact memory and skill indexes, focused
 reusable procedures, evidence-backed feature states, CLI-first verification,
 and dated lessons that survive individual sessions.
+
+## References
+
+- [BadgeMagic project and app documentation](https://badgemagic.fossasia.org/)
+- [FOSSASIA BadgeMagic firmware](https://github.com/fossasia/badgemagic-firmware)
+- [CH582 hardware notes and reference photos](https://github.com/fossasia/badgemagic-firmware/blob/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8/CH582.md)
+- [Pinned FOSSASIA USB-C development artifact](https://github.com/fossasia/badgemagic-firmware/blob/b56cd9495738e8e3170bf723e70b445de936a5d2/usb-c/badgemagic-ch582.bin)
+- [Its embedded source commit `9ce885d`](https://github.com/fossasia/badgemagic-firmware/commit/9ce885d682b5c56c3ac7595c09e009a210885221)
+- [“How to Burn Your LED Badge: Flash & Develop Custom Animation” — Dien-Nhung Nguyen, FOSSASIA Summit 2025](https://www.youtube.com/watch?v=X84YQFNjkmw)
+  — practical teardown and WCH ISP demonstration; treat the shown board-short
+  recovery technique as a hazardous bench method
 
 ## License and upstream work
 

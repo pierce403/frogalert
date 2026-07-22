@@ -38,9 +38,10 @@ The public site is a dependency-free static application. It separates:
 ## Source map
 
 - `crates/frogalert-core/` — tested, allocation-free detection logic
-- `firmware/frogalert-display/` — shared exact-Rev1 charlieplex driver
+- `firmware/frogalert-display/` — shared revision-gated charlieplex driver
 - `firmware/frogalert-pixel-walk/` — single-pixel physical bring-up firmware
 - `firmware/frogalert-count/` — hardware-gated BLE count lab firmware
+- `firmware/frogalert-recovery/` — shared KEY2 hold and ROM-ISP transfer logic
 - `firmware/vendor/ch58x-hal/` — pinned HAL `611954e` with documented local
   patches in `FROGALERT-VENDORING.md`
 - `tools/simulator/` — host-side observation simulator
@@ -82,6 +83,23 @@ The public site is a dependency-free static application. It separates:
 - Bind an active flash to the captured USB device and prohibit reconnecting a
   replacement device until that session exits.
 - Always verify the programmed bytes before reporting success.
+- Hosted lab images are not releases. They belong in a separate `lab_images`
+  manifest collection, may be selected for local size/hash/profile inspection,
+  and must remain write-disabled while `hardware_verified` is false. An empty
+  collection is preferable to publishing a plausible but untested binary.
+- Every FrogAlert image must preserve application-level KEY2 recovery before it
+  is flash-approved. The bootloader remains the CH582 mask-ROM ISP; do not
+  bundle or replace it. Match FOSSASIA v0.1's deliberate hold semantics as the
+  reference: poll KEY2/PB22 every 200 ms, require more than ten held samples
+  (about 2.2 seconds), quiesce application peripherals, and transfer to address
+  zero while KEY2 remains low. Prove the result enumerates `4348:55e0` on the
+  physical target and that short presses do not enter ISP.
+- Every packaged CH58x BIN must contain WCH's startup sentinel `0xF5F9BDA9`
+  in the reserved core-vector word at raw offset `0x14`. The Rust linker emits
+  zero there, so the build scripts must run `scripts/finalize-firmware.mjs`
+  before hashing or publication, and site assembly must reject a missing word.
+  This is WCH startup compatibility parity, not proof that the sentinel itself
+  causes application-to-ISP entry.
 - Do not log, persist, or transmit scanned device identifiers. Retain only the
   ephemeral per-window addresses needed for deduplication, then zero them.
 - Treat BLE OUI matches as hints only, and never use OUIs for randomized/local
@@ -102,6 +120,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ./scripts/build-display-bringup HARDWARE_REV1 --check
+./scripts/build-display-bringup B1144C_250901_USB_C --check
 ./scripts/build-count-firmware HARDWARE_REV1 --check
 node --test tests/*.test.mjs
 xmllint --html --noout index.html
@@ -146,29 +165,63 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - The safe first display artifact is `frogalert-pixel-walk`: it selects exactly
   one logical pixel, advances left-to-right every 750 ms, reports `(x, y)` at
   115200 baud on UART1/PA9, uses 5 mA GPIO drive, and initializes neither BLE
-  nor LSE. It remains hardware-unverified and is not flash-approved.
+  nor a 32 kHz radio clock. `HARDWARE_REV1` and the exact
+  `B1144C_250901_USB_C` candidate profile build separately. Both remain
+  hardware-unverified and are not flash-approved.
+- The shared Rust recovery crate and both lab applications now implement a
+  2.2-second KEY2 hold followed by peripheral-specific quiescing and a transfer
+  to address zero. This is source/build evidence only until short-press and
+  `4348:55e0` long-press behavior are observed on each physical image.
+- Raw Rust packaging patches only the reserved vector word at offset `0x14`
+  from zero to WCH's `0xF5F9BDA9` sentinel, then hashes the finalized bytes.
+  Any other pre-existing value is rejected as linker-layout drift.
 - The count prototype emits build evidence only under `./tmp/`; it is not a
   release and has not booted on a physical badge.
 - Its passive three-second window counts up to 64 unique advertiser addresses
   in ephemeral RAM, then displays the approximate result for seven seconds.
-- The shared Rust Rev1 display driver and renderer are implemented at
-  build/host-test layers. Pixel mapping, orientation, flicker, current draw,
-  and radio/display coexistence still require a physical pixel-walk test.
+- The shared Rust display driver encodes both Micro-USB `HARDWARE_REV1` and the
+  candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation, flicker,
+  current draw, and radio/display coexistence still require a physical
+  pixel-walk test.
 - The count lab firmware does not implement the BadgeMagic GATT service.
 - The vendored HAL is upstream `611954e` plus four recorded source patches: PAC
   `0.4` to `0.3`, raw BLE-heap pointer formation, Embassy-only GPIO async
   gating, and the missing synchronous SysTick nanosecond delay. Its BLE stack
   is WCH's precompiled `LIBCH58xBLE.a`, not an all-Rust radio stack.
-- Confirm the badge has the assumed 32.768 kHz crystal before running BLE. The
-  HAL config and WCH stack currently select an external LSE.
-- Do not port the display map from FOSSASIA firmware head `eb6e9da`; it has
-  duplicate I/K entries. Use the clean `aa890e9` mapping as the research
-  reference. Rev2's T net remains unresolved between PB6 and PB23.
+- A 2026-07-22 macro photo of the USB-C `B1144C_250901` badge confirms a WCH
+  `CH582M` in the expected 48-pin package. The exact downloaded FOSSASIA USB-C
+  development BIN is 177,704 bytes with SHA-256
+  `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`;
+  its embedded source is `9ce885d` and its `USBC_VERSION=1` map differs from
+  Rev1 only at T: PB6 rather than PB23. The missing flash transcript prevents
+  treating that provenance as proof of the exact bytes programmed.
+- That board's pouch battery is soldered to PCB tabs; it has no removable
+  connector. Battery-disconnected cold entry means skilled electrical
+  isolation, not an ordinary unplug step, and remains untested on this board.
+  Never tell a user to pull, cut, or short the cell or imply that opening the
+  case reveals a battery plug.
+- Do not identify this board as `HARDWARE_REV2`, `HARDWARE_REV3`, or merely
+  `BM1144-C`. Those upstream labels do not distinguish the exact working map.
+  Do not port FOSSASIA head `eb6e9da`; it has duplicate I/K entries.
+- FOSSASIA's working USB-C source selects and calibrates the internal LSI; a
+  later upstream change explicitly says the board has no external 32 kHz
+  crystal. The current Rust count image and vendored HAL BLE initializer select
+  external LSE, so `B1144C_250901_USB_C` is display-only until LSI BLE support
+  is implemented and tested.
 - Browser ISP code follows the documented behavior of `ch32-rs/wchisp` and
   remains experimental until exercised on physical hardware.
-- FOSSASIA documents long-press KEY2 entry only after its open firmware is
-  installed. Do not claim that behavior for an unknown or unverified FrogAlert
-  build; use the battery-disconnected cold-entry recovery path instead.
+- On the photographed USB-C `B1144C_250901` badge, holding KEY2 while pressing
+  the populated `RESET` switch did not cause USB re-enumeration. Holding KEY2
+  while momentarily bridging both ends of `C3` did enumerate `4348:55e0` twice;
+  after a user-run flash, the application enumerated as `FOSSASIA WAS HERE`,
+  `LED Badge Magic`, `BM1144-C fw: v0.1`, with HID and CDC ACM interfaces. The
+  C3 rail-collapse method remains hazardous bench recovery and must not become
+  routine web-flasher guidance.
+- FOSSASIA `BM1144-C fw: v0.1` has physically demonstrated KEY2-only long-press
+  ISP entry with a visible dot cue on the photographed USB-C badge. Exact timing
+  and a fresh kernel transcript were not recorded. Do not transfer that claim
+  to unknown firmware or an unverified FrogAlert build; use the cold-entry
+  recovery path when the application hook is absent or broken.
 - Android Chrome may expose WebUSB through a data-capable USB OTG connection;
   iPhone/iPad browsers do not. The Android path remains hardware-unverified.
 - ISP can identify CH582, bootloader/configuration facts, and UID integrity. It

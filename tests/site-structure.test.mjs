@@ -18,6 +18,9 @@ test("landing page exposes the project and guarded device flow", async () => {
     "id=\"firmware-file\"",
     "id=\"pcb-marking\"",
     "id=\"pcb-revision\"",
+    "id=\"lab-image-select\"",
+    "id=\"lab-image-status\"",
+    "id=\"lab-image-download\"",
     "id=\"recovery-prepare\"",
     "id=\"recovery-board-confirmation\"",
     "site/app.js",
@@ -38,6 +41,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Programming is not enabled for this bundled image/i);
   assert.match(html, /developer BIN chooser below remains an inspection path/i);
   assert.match(html, /All destructive work is restricted to the dedicated guided flow/i);
+  assert.match(html, /Hosted experimental build/i);
+  assert.match(html, /Download selected lab BIN for qualified local testing/i);
   assert.match(html, /compar(?:e|ed) both sides.*reference photos/i);
   assert.match(html, /USB identification only proves the MCU family/i);
   assert.doesNotMatch(html, /factory reset/i);
@@ -48,6 +53,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.doesNotMatch(html, /id="flash-button"/);
   assert.doesNotMatch(html, /class="flash-confirmation"/);
   assert.match(app, /const destructivePage = document\.body\.dataset\.flashMode === "program"/);
+  assert.match(app, /artifactKind: "frogalert-lab"/);
+  assert.match(app, /physicalMarkingMatchesArtifact\(\)/);
   assert.match(app, /return destructivePage && elements\.flashPhrase\?\.value\.trim\(\) === "ERASE THIS BADGE"/);
   assert.match(app, /if \(destructivePage && elements\.flashButton\)/);
 });
@@ -78,6 +85,9 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     "id=\"current-firmware-status\"",
     "id=\"board-detection-status\"",
     "id=\"firmware-file\"",
+    "id=\"lab-image-select\"",
+    "id=\"lab-image-status\"",
+    "id=\"lab-image-download\"",
     "id=\"recovery-prepare\"",
     "id=\"flash-button\"",
     "id=\"flash-phrase\"",
@@ -95,6 +105,7 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /holding KEY2.*while connecting.*data-capable USB/is);
   assert.match(html, /one illuminated pixel.*release KEY2/is);
   assert.match(html, /approximately ten seconds/i);
+  assert.match(html, /Download selected lab BIN for qualified local testing/i);
   assert.match(html, /id="isp-guide-connect"[^>]+type="button"[^>]+hidden[^>]+disabled/);
   assert.match(`${html}\n${app}`, /Identify and Read Config/i);
   assert.ok(
@@ -114,6 +125,7 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /PCB revision.*cannot.*detect/is);
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
   assert.match(html, /No erase or write on connect/i);
+  assert.match(html, /Unverified hosted images.*inspection.*cannot arm programming/i);
   assert.doesNotMatch(html, /factory reset/i);
   assert.match(html, /data-flash-mode="program"/);
   assert.match(html, /Content-Security-Policy/);
@@ -122,6 +134,7 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
 
 test("Pages deploy waits for successful CI and publishes only manifest-listed artifacts", async () => {
   const workflow = await read(".github/workflows/pages.yml");
+  const ci = await read(".github/workflows/ci.yml");
   const assembler = await read("scripts/assemble-site.mjs");
   assert.match(workflow, /workflow_run:/);
   assert.match(workflow, /workflows: \[CI\]/);
@@ -132,13 +145,16 @@ test("Pages deploy waits for successful CI and publishes only manifest-listed ar
   assert.doesNotMatch(workflow, /find firmware\/releases/);
   assert.match(assembler, /refusing to publish unlisted firmware artifact/);
   assert.match(assembler, /firmware artifact does not match manifest/);
+  assert.match(assembler, /manifest\.lab_images/);
   assert.match(assembler, /join\(repositoryRoot, "flash"\)/);
+  assert.match(ci, /node scripts\/assemble-site\.mjs tmp\/site-build/);
 });
 
-test("release manifest separates unreleased FrogAlert builds from pinned open recovery", async () => {
+test("release manifest separates releases, hosted labs, and pinned open recovery", async () => {
   const manifest = JSON.parse(await read("firmware/releases/manifest.json"));
-  assert.equal(manifest.schema_version, 2);
+  assert.equal(manifest.schema_version, 3);
   assert.deepEqual(manifest.releases, []);
+  assert.deepEqual(manifest.lab_images, []);
   assert.equal(manifest.recovery_images.length, 1);
   const recovery = manifest.recovery_images[0];
   assert.equal(recovery.id, "fossasia-badgemagic-v0.1-hardware-rev1");

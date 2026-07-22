@@ -1,6 +1,6 @@
 # Upstream research snapshot
 
-Research performed 2026-07-17 and refreshed on 2026-07-18. The project records
+Research performed 2026-07-17 and refreshed on 2026-07-22. The project records
 exact upstream links and only vendors the build-required HAL subset and the
 explicitly attributed recovery artifact.
 
@@ -37,6 +37,22 @@ the 11×44 image, which is why chip identity alone cannot unlock this path:
 
 <https://github.com/fossasia/badgemagic-firmware/issues/59>
 
+FOSSASIA also maintains force-updated development builds on its `bin` branch.
+The USB-C file downloaded during the physical session exactly matches pinned
+blob `18bffdb8f766ddfd818aecf102ac0df284ad1c07` at orphan commit `b56cd949`:
+
+- file: `usb-c/badgemagic-ch582.bin`;
+- size: `177704` bytes;
+- SHA-256: `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`;
+- embedded build/source: `(C) v0.1-42-g9ce885d` /
+  `9ce885d682b5c56c3ac7595c09e009a210885221`.
+
+This is a development artifact, not a v0.1 release asset. Pin the orphan
+commit because the `bin` branch is force-updated:
+
+- <https://github.com/fossasia/badgemagic-firmware/blob/b56cd9495738e8e3170bf723e70b445de936a5d2/usb-c/badgemagic-ch582.bin>
+- <https://github.com/fossasia/badgemagic-firmware/commit/9ce885d682b5c56c3ac7595c09e009a210885221>
+
 ## Rust and display implementation snapshot
 
 The count prototype pins `ch58x-hal` commit
@@ -71,9 +87,23 @@ walk:
 - <https://github.com/fossasia/badgemagic-firmware/blob/aa890e90649f288b02e80002ab82088128bead14/src/leddrv.c>
 - <https://github.com/fossasia/badgemagic-firmware/blob/eb6e9dab4ec3924085e79f596aaca64e347023f5/src/leddrv.c>
 
-The ordinary USB-C revision's T net remains disputed as PB6 versus PB23, so no
-Rev2 target is enabled without a resolved PCB identifier and physical pixel
-test.
+For the exact downloaded USB-C artifact, the clean source map is the same as
+Micro-USB except T is PB6 rather than PB23; J remains PB15 and K PB14. FrogAlert
+names that candidate `B1144C_250901_USB_C` after the observed board marking and
+does not alias it to generic `BM1144-C`, Rev2, or Rev3. The later `eb6e9da`
+revision scheme maps neither Rev2 nor Rev3 exactly to those three pins and also
+contains duplicate I/K initializers. A physical 484-position pixel walk remains
+required before approving the candidate map.
+
+The pinned USB-C FOSSASIA source disables external 32 kHz selection, powers the
+internal LSI, and registers calibration. Upstream commit `4d0521a` later states
+explicitly that the board has no external crystal and cannot use LSE:
+
+<https://github.com/fossasia/badgemagic-firmware/commit/4d0521aa1f285af44bf7e08608860128181da255>
+
+The vendored Rust HAL BLE initializer currently hardcodes external LSE and no
+calibration callback. The exact USB-C profile is therefore display-only until
+an internal-LSI BLE path is implemented and physically tested.
 
 ## Detection seeds
 

@@ -5,45 +5,60 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 revision="${1:-}"
 mode="${2:-}"
 
-if [[ "$#" -gt 2 || "$revision" != "HARDWARE_REV1" ]]; then
-  echo "usage: ./scripts/build-display-bringup HARDWARE_REV1 [--check]" >&2
+if [[ "$#" -gt 2 ]]; then
+  echo "usage: ./scripts/build-display-bringup {HARDWARE_REV1|B1144C_250901_USB_C} [--check]" >&2
   echo "Refusing a generic build: verify the opened PCB before choosing a revision." >&2
   exit 2
 fi
 if [[ -n "$mode" && "$mode" != "--check" ]]; then
-  echo "usage: ./scripts/build-display-bringup HARDWARE_REV1 [--check]" >&2
+  echo "usage: ./scripts/build-display-bringup {HARDWARE_REV1|B1144C_250901_USB_C} [--check]" >&2
   exit 2
 fi
 
+case "$revision" in
+  HARDWARE_REV1)
+    cargo_feature="hardware-rev1"
+    ;;
+  B1144C_250901_USB_C)
+    cargo_feature="hardware-b1144c-250901-usbc"
+    ;;
+  *)
+    echo "usage: ./scripts/build-display-bringup {HARDWARE_REV1|B1144C_250901_USB_C} [--check]" >&2
+    echo "Refusing a generic build: verify the opened PCB before choosing a revision." >&2
+    exit 2
+    ;;
+esac
+
 cd "$repo_root/firmware"
+rust_tool="$repo_root/scripts/run-rust-toolchain"
 env -u CARGO_TARGET_DIR \
   -u RUSTFLAGS \
   -u CARGO_ENCODED_RUSTFLAGS \
   -u CARGO_BUILD_RUSTFLAGS \
   -u CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUSTFLAGS \
-  cargo +nightly-2026-07-17 fmt --package frogalert-display --package frogalert-pixel-walk -- --check
-build_dir="$repo_root/tmp/build/frogalert-pixel-walk"
+  "$rust_tool" nightly-2026-07-17 cargo fmt --package frogalert-display --package frogalert-pixel-walk --package frogalert-recovery -- --check
+build_dir="$repo_root/tmp/build/frogalert-pixel-walk-$revision"
 env -u CARGO_TARGET_DIR \
   -u RUSTFLAGS \
   -u CARGO_ENCODED_RUSTFLAGS \
   -u CARGO_BUILD_RUSTFLAGS \
   -u CARGO_TARGET_RISCV32IMC_UNKNOWN_NONE_ELF_RUSTFLAGS \
-  cargo +nightly-2026-07-17 build \
+  "$rust_tool" nightly-2026-07-17 cargo build \
   --locked \
   --target riscv32imc-unknown-none-elf \
   --target-dir "$build_dir" \
   --package frogalert-pixel-walk \
   --bin frogalert-pixel-walk \
   --release \
-  --features hardware-rev1
+  --features "$cargo_feature"
 
 elf="$build_dir/riscv32imc-unknown-none-elf/release/frogalert-pixel-walk"
 output_dir="$repo_root/tmp/firmware"
 mkdir -p "$output_dir"
-host="$(rustc +nightly-2026-07-17 -vV | sed -n 's/^host: //p')"
-sysroot="$(rustc +nightly-2026-07-17 --print sysroot)"
+host="$("$rust_tool" nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
+sysroot="$("$rust_tool" nightly-2026-07-17 rustc --print sysroot)"
 llvm_bin="$sysroot/lib/rustlib/$host/bin"
-disassembly="$output_dir/frogalert-pixel-walk-HARDWARE_REV1.disassembly.txt"
+disassembly="$output_dir/frogalert-pixel-walk-$revision.disassembly.txt"
 elf_header="$("$llvm_bin/llvm-readobj" --file-headers "$elf")"
 elf_attributes="$("$llvm_bin/llvm-readobj" --arch-specific "$elf")"
 if ! grep -Eq '^Format: elf32-.*riscv$' <<<"$elf_header" ||
@@ -66,17 +81,25 @@ if grep -Eiq '(^|[[:space:]])(amo|lr\.|sc\.)' "$disassembly"; then
   echo "refusing artifact: QingKe-unsafe atomic instruction found" >&2
   exit 1
 fi
+recovery_disassembly="$(sed -n '/<frogalert_enter_rom_isp>:/,/^$/p' "$disassembly")"
+if [[ -z "$recovery_disassembly" ]] ||
+  ! grep -Eq '[[:space:]]jr[[:space:]]+zero([[:space:]]|$)|[[:space:]]jalr[[:space:]]+zero,[[:space:]]*zero,[[:space:]]*0([[:space:]]|$)' <<<"$recovery_disassembly"; then
+  echo "refusing artifact: ROM-ISP recovery trampoline does not end in an absolute zero jump" >&2
+  exit 1
+fi
 "$llvm_bin/llvm-size" "$elf"
 echo "RISC-V attributes: $arch_attribute"
 echo "instruction audit passed: no AMO/LR/SC operations"
+echo "recovery audit passed: KEY2 trampoline jumps to absolute address zero"
+bin="$output_dir/frogalert-pixel-walk-$revision.bin"
+"$llvm_bin/llvm-objcopy" -O binary "$elf" "$bin"
+node "$repo_root/scripts/finalize-firmware.mjs" "$bin"
+sha256sum "$bin"
+wc -c "$bin"
 if [[ "$mode" == "--check" ]]; then
   echo "embedded display bring-up check passed: $elf"
   echo "HARDWARE UNVERIFIED: this check does not authorize flashing"
   exit 0
 fi
 
-bin="$output_dir/frogalert-pixel-walk-HARDWARE_REV1.bin"
-"$llvm_bin/llvm-objcopy" -O binary "$elf" "$bin"
-sha256sum "$bin"
-wc -c "$bin"
 echo "UNVERIFIED PIXEL-WALK BUILD ONLY: do not flash without the physical gates in docs/HARDWARE.md"

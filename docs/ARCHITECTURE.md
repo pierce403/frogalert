@@ -14,16 +14,24 @@ safely while display refresh continues.
 ## Safe display bring-up firmware
 
 `firmware/frogalert-pixel-walk/` is the first physical display gate. It shares
-the exact-Rev1 driver with the count firmware but does not enable the HAL BLE
-feature, initialize Embassy, or select the external LSE. Timer0 refreshes the
+the revision-gated display driver with the count firmware and can be built for
+either `HARDWARE_REV1` or the exact photographed
+`B1144C_250901_USB_C` profile. It does not enable the HAL BLE feature,
+initialize Embassy, or select a 32.768 kHz radio clock. Timer0 refreshes the
 matrix while the foreground advances exactly one logical pixel left-to-right,
 top-to-bottom every 750 ms and writes its `(x, y)` coordinate on UART1/PA9.
 Display GPIO stays at the lower 5 mA drive setting, and all controlled lines
 are floated between phases and on panic.
 
+Both builds also link the shared application-level KEY2 recovery hook. Its
+roughly 2.2-second PB22 hold detector and transfer to the CH582 mask-ROM ISP
+are implemented and host-tested, but neither profile is flash-approved until
+that path has been proven on the corresponding physical badge.
+
 This separation makes matrix polarity/orientation testing independent of the
-radio and low-speed-clock assumptions. It still requires an opened, positively
-identified Rev1 badge and explicit approval for the irreversible first flash.
+radio and low-speed-clock assumptions. It still requires an opened badge whose
+marking and matrix match the selected profile, plus explicit approval for the
+irreversible first flash.
 
 ## Current count lab firmware
 
@@ -53,13 +61,21 @@ ELF and refuses any AMO, LR, or SC instruction. The toolchain, target, vendored
 HAL revision, and four local source patches are documented in
 [DEVELOPMENT.md](DEVELOPMENT.md) and the vendoring note.
 
-The lab build is observer-only: it has no BadgeMagic `FEE0/FEE1` GATT service,
+The lab build is observer-only and currently builds only for
+`HARDWARE_REV1`: it has no BadgeMagic `FEE0/FEE1` GATT service,
 does not advertise as `LED Badge Magic` or `LSLED`, and cannot receive nametag
 content from the BadgeMagic app. Its successful cross-build and instruction
 audit do not verify the provisional PCB pin map, panel orientation or
 brightness, the assumed external 32.768 kHz LSE, radio behavior, or battery
 draw. It must remain labeled unverified until those checks happen on an opened,
 confirmed CH582M 11x44 badge.
+
+The exact `B1144C_250901_USB_C` profile is intentionally unavailable for the
+count image. FOSSASIA's working source for that board selects the CH582 internal
+low-speed oscillator and enables calibration, while the current vendored Rust
+BLE initialization hardcodes an external LSE. Supporting the USB-C profile
+therefore requires an explicit LSI/calibration implementation and physical
+radio validation; it is not a display-pin-only variant.
 
 ## Target combined firmware
 
@@ -115,10 +131,13 @@ small and explainable:
 1. Cross-build the atomic-free single-pixel bring-up and passive observer/count
    images with exact-revision gates and final-ELF instruction audits.
    Implemented in source; physical behavior remains unverified.
-2. Run the no-BLE/LSE pixel walk to validate the exact GPIO matrix map,
-   orientation, first-pair swap, refresh, and panic-safe release.
-3. Validate the external low-speed clock, numeric output, passive reception,
-   and radio/display coexistence on a verified badge.
+2. Run the no-BLE/32-kHz-clock pixel walk to validate each exact GPIO matrix
+   map, orientation, first-pair swap, refresh, panic-safe release, and KEY2 ISP
+   recovery.
+3. Validate the profile-appropriate low-speed clock, numeric output, passive
+   reception, and radio/display coexistence on a verified badge. For
+   `B1144C_250901_USB_C`, implement and validate internal-LSI calibration
+   before enabling the observer/count build.
 4. Render a fixed nametag and alert overlay on that physical badge.
 5. Port the `FEE0/FEE1` GATT service and legacy frame assembler.
 6. Confirm the official app uploads and the original nametag resumes after an

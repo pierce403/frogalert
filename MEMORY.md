@@ -28,6 +28,9 @@ on chat context or filenames alone.
 - [`2026-07-21-guided-web-flasher.md`](agent-memory/logs/2026-07-21-guided-web-flasher.md)
   — dedicated mobile WebUSB flow, capability limits, recovery UX, destructive
   session tests, and local browser verification.
+- [`2026-07-22-usbc-hardware-smoke.md`](agent-memory/logs/2026-07-22-usbc-hardware-smoke.md)
+  — physical CH582M confirmation, C3/KEY2 ISP entry, exact FOSSASIA USB-C
+  development-artifact provenance, application descriptors, and next gates.
 
 ## People
 

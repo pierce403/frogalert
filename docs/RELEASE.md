@@ -35,10 +35,15 @@ but it has not run on a positively identified physical badge, does not expose
 the BadgeMagic GATT service, and is not approved for either local or browser
 flashing.
 
+The USB-C `B1144C_250901_USB_C` target is display-only. Do not publish a count
+or scanning artifact for it until the BLE stack uses and calibrates internal
+LSI instead of the current external-LSE configuration.
+
 ## Manifest entry
 
-The manifest is `firmware/releases/manifest.json`. Schema v2 separates
-FrogAlert firmware in `releases` from attributed third-party substitutes in
+The manifest is `firmware/releases/manifest.json`. It separates physically
+approved FrogAlert firmware in `releases`, hosted but unapproved FrogAlert
+builds in `lab_images`, and attributed third-party substitutes in
 `recovery_images`. A future FrogAlert release entry has this shape:
 
 ```json
@@ -57,9 +62,18 @@ FrogAlert firmware in `releases` from attributed third-party substitutes in
 ```
 
 The site must reject unknown targets, false `hardware_verified`, invalid hashes,
-oversize images, and unsupported hardware revisions.
+oversize images, and unsupported hardware revisions for destructive use.
 
-The current `releases` array is empty. The one `recovery_images` entry is
+A `lab_images` entry carries the same immutable identity fields—file, source
+commit, exact profile, physical-marking requirement, byte length, and SHA-256—
+but starts with `hardware_verified: false`. It may be hosted and selected for
+local inspection; that flag must keep it impossible to arm or program even on
+`/flash/`. After a recorded physical program/verify/display/button/recovery
+smoke, promote the same exact bytes rather than silently rebuilding them.
+Hosting, downloading, and hash verification are not flash approval.
+
+The current `releases` and `lab_images` arrays are empty; no FrogAlert BIN is
+published by this work. The one `recovery_images` entry is
 FOSSASIA's official open BadgeMagic firmware v0.1 substitute, constrained to
 exact `HARDWARE_REV1` and recorded as
 `hardware_verified_by_frogalert: false`. It is not a FrogAlert release and it is
@@ -72,14 +86,26 @@ The revision-gated build commands are:
 ```sh
 ./scripts/build-display-bringup HARDWARE_REV1 --check
 ./scripts/build-display-bringup HARDWARE_REV1
+./scripts/build-display-bringup B1144C_250901_USB_C --check
+./scripts/build-display-bringup B1144C_250901_USB_C
 ./scripts/build-count-firmware HARDWARE_REV1 --check
 ./scripts/build-count-firmware HARDWARE_REV1
 ```
 
-The two non-check commands print the current ignored BIN's byte length and
-SHA-256. Those values are local, temporary, hardware-unverified build evidence
-only. They change with source or toolchain changes, must not be copied into the
-public manifest, and must not be treated as release or flash authorization.
+Every invocation produces an ignored BIN under `tmp/firmware/`, prints its byte
+length and SHA-256, and audits it before either returning check evidence or
+making it available for a deliberate lab-hosting change. Packaging changes the
+reserved raw word at offset `0x14` from the Rust runtime's zero to WCH's startup
+sentinel `0xF5F9BDA9`; any other pre-existing value is rejected as layout
+drift. This happens before hashing and manifest generation. The sentinel gives
+startup-format parity with the WCH/FOSSASIA images; it is not evidence that the
+word itself enables ISP entry.
+
+Those values are local, temporary, hardware-unverified build evidence only.
+They change with source or toolchain changes and must not be treated as release
+or flash authorization. A deliberate lab-hosting change may copy one exact
+audited BIN into `lab_images`, but only with immutable provenance and
+`hardware_verified: false`; the write lock is mandatory.
 
 ## Rollback and recovery
 

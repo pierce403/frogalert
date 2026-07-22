@@ -5,6 +5,9 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import process from "node:process";
 
+import { validateLabDescriptor } from "../site/wchisp-protocol.js";
+import { assertCh58xUserOptionMagic } from "./firmware-image.mjs";
+
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const outputRoot = resolve(repositoryRoot, process.argv[2] || "_site");
 const releaseRoot = join(repositoryRoot, "firmware", "releases");
@@ -17,14 +20,24 @@ const manifestPath = join(releaseRoot, "manifest.json");
 const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes);
 if (
-  manifest.schema_version !== 2 ||
+  manifest.schema_version !== 3 ||
   !Array.isArray(manifest.releases) ||
+  !Array.isArray(manifest.lab_images) ||
   !Array.isArray(manifest.recovery_images)
 ) {
   throw new Error("unsupported firmware release manifest schema");
 }
 
-const descriptors = [...manifest.releases, ...manifest.recovery_images];
+const labIds = new Set();
+for (const lab of manifest.lab_images) {
+  validateLabDescriptor(lab);
+  if (labIds.has(lab.id)) {
+    throw new Error(`duplicate firmware lab image id: ${lab.id}`);
+  }
+  labIds.add(lab.id);
+}
+
+const descriptors = [...manifest.releases, ...manifest.lab_images, ...manifest.recovery_images];
 const listedFiles = new Set();
 for (const descriptor of descriptors) {
   if (
@@ -40,6 +53,7 @@ for (const descriptor of descriptors) {
   listedFiles.add(descriptor.file);
 
   const bytes = await readFile(join(releaseRoot, descriptor.file));
+  assertCh58xUserOptionMagic(bytes);
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (bytes.byteLength !== descriptor.bytes || digest !== descriptor.sha256.toLowerCase()) {
     throw new Error(`firmware artifact does not match manifest: ${descriptor.file}`);

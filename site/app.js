@@ -10,6 +10,8 @@ import {
   readConfigPacket,
   sha256Hex,
   validateFirmware,
+  validateLabDescriptor,
+  validateLabHardwareBinding,
   validateRecoveryDescriptor,
   validateReleaseDescriptor,
 } from "./wchisp-protocol.js";
@@ -61,7 +63,9 @@ const state = {
   bluetoothDevice: null,
   artifactGeneration: 0,
   activeFlashDevice: null,
+  labImages: [],
   recoveryImages: [],
+  labImageSummary: { message: "Loading inspect-only lab image metadata…", tone: "neutral" },
   releaseSummary: { message: "Loading release manifest…", tone: "neutral" },
   wakeLock: null,
   activeStage: null,
@@ -100,6 +104,9 @@ const elements = {
   pcbRevision: $("#pcb-revision"),
   releaseSelect: $("#release-select"),
   releaseStatus: $("#release-status"),
+  labImageSelect: $("#lab-image-select"),
+  labImageStatus: $("#lab-image-status"),
+  labImageDownload: $("#lab-image-download"),
   recoveryButton: $("#recovery-prepare"),
   recoveryBoardConfirmation: $("#recovery-board-confirmation"),
   recoveryStatus: $("#recovery-status"),
@@ -282,6 +289,22 @@ function setReleaseSummary(message, tone) {
 
 function restoreReleaseSummary() {
   setStatus(elements.releaseStatus, state.releaseSummary.message, state.releaseSummary.tone);
+}
+
+function setLabImageSummary(message, tone) {
+  state.labImageSummary = { message, tone };
+  setStatus(elements.labImageStatus, message, tone);
+}
+
+function restoreLabImageSummary() {
+  setStatus(elements.labImageStatus, state.labImageSummary.message, state.labImageSummary.tone);
+}
+
+function clearLabImageDownload() {
+  if (!elements.labImageDownload) return;
+  elements.labImageDownload.hidden = true;
+  elements.labImageDownload.removeAttribute("href");
+  elements.labImageDownload.removeAttribute("download");
 }
 
 function updateProgress(value, label) {
@@ -921,6 +944,11 @@ function revisionMatchesArtifact() {
   return Boolean(revision && state.firmware?.hardwareRevisions?.includes(revision));
 }
 
+function physicalMarkingMatchesArtifact() {
+  const declaredMarkings = state.firmware?.pcbMarkings;
+  return !declaredMarkings || declaredMarkings.includes(elements.pcbMarking.value.trim());
+}
+
 function recoveryArtifactConfirmationComplete() {
   return (
     state.firmware?.artifactKind !== "open-badgemagic-recovery" ||
@@ -930,19 +958,21 @@ function recoveryArtifactConfirmationComplete() {
 
 function artifactProgrammingAllowed() {
   return canProgramArtifact({
-    isBundledRecovery: state.firmware?.artifactKind === "open-badgemagic-recovery",
+    artifactKind: state.firmware?.artifactKind,
+    hardwareVerified: state.firmware?.hardwareVerified,
     hardwareVerifiedByFrogalert: state.firmware?.hardwareVerifiedByFrogalert,
   });
 }
 
 function updateFlashButton() {
+  const programmingBlocked = Boolean(state.firmware) && !artifactProgrammingAllowed();
   const enabled = canEnableFlash({
     flashing: state.flashing,
     hasUsbDevice: Boolean(state.usbDevice),
     hasChipIdentity: Boolean(state.chip),
     hasConfig: Boolean(state.config),
     hasFirmware: Boolean(state.firmware),
-    hasBoardRecord: hasBoardRecord(),
+    hasBoardRecord: hasBoardRecord() && physicalMarkingMatchesArtifact(),
     artifactMatchesRevision: revisionMatchesArtifact(),
     confirmationsComplete: confirmationsComplete(),
     artifactConfirmationComplete: recoveryArtifactConfirmationComplete(),
@@ -950,12 +980,15 @@ function updateFlashButton() {
     typedPhraseComplete: typedPhraseComplete(),
   });
   if (elements.flashButton) elements.flashButton.disabled = !enabled;
+  const armMessage = enabled
+    ? "Armed for the captured device and exact selected artifact. Final confirmation still required."
+    : programmingBlocked
+      ? "Not armed — this hosted artifact is inspection-only until its exact image and hardware profile are physically verified."
+      : "Not armed — complete device identification, artifact binding, physical checks, and the exact phrase.";
   setStatus(
     elements.armedStatus,
-    enabled
-      ? "Armed for the captured device and exact selected artifact. Final confirmation still required."
-      : "Not armed — complete device identification, artifact binding, physical checks, and the exact phrase.",
-    enabled ? "warning" : "neutral",
+    armMessage,
+    enabled || programmingBlocked ? "warning" : "neutral",
   );
   if (elements.pcbMarkingStatus) {
     elements.pcbMarkingStatus.textContent = hasBoardRecord()
@@ -1038,7 +1071,10 @@ async function chooseLocalFirmware(event) {
   const revision = selectedRevision();
   const generation = beginArtifactPreparation();
   elements.releaseSelect.value = "";
+  elements.labImageSelect.value = "";
+  clearLabImageDownload();
   restoreReleaseSummary();
+  restoreLabImageSummary();
   clearFirmware();
   if (!revision) {
     elements.firmwareInput.value = "";
@@ -1049,6 +1085,9 @@ async function chooseLocalFirmware(event) {
     await setFirmware(new Uint8Array(await file.arrayBuffer()), file.name, "local file", {
       generation,
       hardwareRevisions: [revision],
+      metadata: {
+        artifactKind: "local-developer",
+      },
     });
   } catch (error) {
     if (generation !== state.artifactGeneration) return;
@@ -1066,6 +1105,10 @@ async function prepareOpenBadgeMagicFirmware() {
   const generation = beginArtifactPreparation();
   elements.firmwareInput.value = "";
   elements.releaseSelect.value = "";
+  elements.labImageSelect.value = "";
+  clearLabImageDownload();
+  restoreReleaseSummary();
+  restoreLabImageSummary();
   clearFirmware();
   try {
     validateRecoveryDescriptor(recovery, selectedRevision());
@@ -1123,8 +1166,9 @@ async function loadReleaseManifest() {
     if (!response.ok) throw new Error(`manifest returned HTTP ${response.status}`);
     const manifest = await response.json();
     if (
-      manifest.schema_version !== 2 ||
+      manifest.schema_version !== 3 ||
       !Array.isArray(manifest.releases) ||
+      !Array.isArray(manifest.lab_images) ||
       !Array.isArray(manifest.recovery_images)
     ) {
       throw new Error("manifest schema is not supported");
@@ -1143,6 +1187,29 @@ async function loadReleaseManifest() {
       setReleaseSummary(`${releases.length} hardware-verified release${releases.length === 1 ? "" : "s"} available.`, "good");
     }
 
+    const labIds = new Set();
+    for (const lab of manifest.lab_images) {
+      validateLabDescriptor(lab);
+      if (labIds.has(lab.id)) throw new Error(`duplicate hosted lab image id: ${lab.id}`);
+      labIds.add(lab.id);
+      const option = document.createElement("option");
+      option.value = lab.id;
+      option.textContent = `${lab.label} ${lab.version} · ${lab.hardware_revisions.join(", ")} · ${
+        lab.hardware_verified ? "hardware-verified lab" : "inspection only"
+      }`;
+      elements.labImageSelect.append(option);
+    }
+    state.labImages = [...manifest.lab_images];
+    if (state.labImages.length === 0) {
+      setLabImageSummary("No hosted FrogAlert lab images are published yet. Local developer BIN files remain available.", "neutral");
+    } else {
+      elements.labImageSelect.disabled = state.flashing;
+      setLabImageSummary(
+        `${state.labImages.length} hosted lab image${state.labImages.length === 1 ? "" : "s"} available. Unverified images are inspection-only.`,
+        "warning",
+      );
+    }
+
     if (manifest.recovery_images.length !== 1) {
       throw new Error("manifest must contain exactly one reviewed open BadgeMagic recovery image");
     }
@@ -1152,9 +1219,13 @@ async function loadReleaseManifest() {
     renderRecoveryDescriptor(recovery);
     updateRecoveryButton();
   } catch (error) {
+    state.labImages = [];
     state.recoveryImages = [];
     setReleaseSummary(`Release list unavailable: ${error.message}`, "bad");
+    setLabImageSummary(`Hosted lab image list unavailable: ${error.message}`, "bad");
     setStatus(elements.recoveryStatus, `Open BadgeMagic descriptor unavailable: ${error.message}`, "bad");
+    elements.releaseSelect.disabled = true;
+    elements.labImageSelect.disabled = true;
     elements.recoveryButton.disabled = true;
   }
 }
@@ -1163,6 +1234,9 @@ async function chooseRelease(event) {
   if (state.flashing) return;
   const generation = beginArtifactPreparation();
   elements.firmwareInput.value = "";
+  elements.labImageSelect.value = "";
+  clearLabImageDownload();
+  restoreLabImageSummary();
   clearFirmware();
   if (!event.target.value) {
     restoreReleaseSummary();
@@ -1181,6 +1255,8 @@ async function chooseRelease(event) {
       generation,
       hardwareRevisions: release.hardware_revisions,
       metadata: {
+        artifactKind: "frogalert-release",
+        hardwareVerified: release.hardware_verified,
         provenance: `FrogAlert release ${release.version} · source ${release.source_commit || "not reported"}`,
         hardwareEvidence: "Manifest marks this exact release hardware-verified",
       },
@@ -1193,6 +1269,63 @@ async function chooseRelease(event) {
     event.target.value = "";
     setStatus(elements.releaseStatus, `Release not loaded: ${error.message}`, "bad");
     log(`Release rejected before any device write: ${error.message}`, "error");
+  }
+}
+
+async function chooseLabImage(event) {
+  if (state.flashing) return;
+  const generation = beginArtifactPreparation();
+  elements.firmwareInput.value = "";
+  elements.releaseSelect.value = "";
+  clearLabImageDownload();
+  restoreReleaseSummary();
+  clearFirmware();
+  if (!event.target.value) {
+    restoreLabImageSummary();
+    return;
+  }
+  try {
+    const lab = state.labImages.find((candidate) => candidate.id === event.target.value);
+    if (!lab) throw new Error("hosted lab image is not present in the loaded manifest");
+    validateLabHardwareBinding(lab, selectedRevision(), elements.pcbMarking.value);
+    const artifactUrl = firmwareArtifactUrl(lab.file, import.meta.url);
+    const response = await fetch(artifactUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`hosted lab firmware returned HTTP ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength !== lab.bytes) throw new Error("hosted lab firmware byte length does not match manifest");
+    const loaded = await setFirmware(bytes, lab.file, `${lab.label} ${lab.version}`, {
+      expectedHash: lab.sha256,
+      generation,
+      hardwareRevisions: lab.hardware_revisions,
+      metadata: {
+        artifactKind: "frogalert-lab",
+        hardwareVerified: lab.hardware_verified,
+        pcbMarkings: [...lab.pcb_markings],
+        provenance: `FrogAlert lab image ${lab.version} · source ${lab.source_commit.slice(0, 12)}`,
+        hardwareEvidence: lab.hardware_verified
+          ? "Manifest records physical verification for this exact lab image and hardware profile"
+          : "Hardware-unverified hosted lab image; destructive use locked",
+      },
+    });
+    if (!loaded) return;
+    if (elements.labImageDownload) {
+      elements.labImageDownload.href = artifactUrl;
+      elements.labImageDownload.download = lab.file;
+      elements.labImageDownload.hidden = false;
+    }
+    setStatus(
+      elements.labImageStatus,
+      lab.hardware_verified
+        ? `Loaded hardware-verified lab image ${lab.version} for ${selectedRevision()} and ${elements.pcbMarking.value.trim()}.`
+        : `Loaded ${lab.version} for inspection. Programming remains locked until this exact image and profile are physically verified.`,
+      lab.hardware_verified ? "good" : "warning",
+    );
+  } catch (error) {
+    if (generation !== state.artifactGeneration) return;
+    clearFirmware();
+    event.target.value = "";
+    setStatus(elements.labImageStatus, `Hosted lab image not loaded: ${error.message}`, "bad");
+    log(`Hosted lab image rejected before any device write: ${error.message}`, "error");
   }
 }
 
@@ -1278,7 +1411,9 @@ async function flashFirmware() {
     elements.flashButton.disabled ||
     !state.firmware ||
     !state.config ||
-    !artifactProgrammingAllowed()
+    !artifactProgrammingAllowed() ||
+    !revisionMatchesArtifact() ||
+    !physicalMarkingMatchesArtifact()
   ) {
     updateFlashButton();
     return;
@@ -1323,6 +1458,7 @@ async function flashFirmware() {
   });
   if (elements.flashPhrase) elements.flashPhrase.disabled = true;
   elements.releaseSelect.disabled = true;
+  elements.labImageSelect.disabled = true;
   elements.recoveryButton.disabled = true;
   if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = true;
   const { padded, eraseSectors } = state.firmware;
@@ -1443,6 +1579,7 @@ async function flashFirmware() {
     });
     if (elements.flashPhrase) elements.flashPhrase.disabled = false;
     elements.releaseSelect.disabled = elements.releaseSelect.options.length <= 1;
+    elements.labImageSelect.disabled = elements.labImageSelect.options.length <= 1;
     elements.usbButton.disabled = !canUseWebUsbChooser() || Boolean(state.usbDevice);
     if (elements.usbDisconnectButton) {
       elements.usbDisconnectButton.disabled = !state.usbDevice;
@@ -1506,7 +1643,11 @@ function bindEvents() {
   elements.pcbMarking.addEventListener("input", () => {
     state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
     resetConfirmations();
+    elements.labImageSelect.value = "";
+    clearLabImageDownload();
     if (state.firmware) {
+      elements.releaseSelect.value = "";
+      elements.labImageSelect.value = "";
       clearFirmware();
       log("Cleared the prepared artifact because the opened-board record changed.", "warning");
     }
@@ -1514,6 +1655,8 @@ function bindEvents() {
   });
   elements.pcbRevision.addEventListener("input", () => {
     elements.recoveryBoardConfirmation.checked = false;
+    elements.labImageSelect.value = "";
+    clearLabImageDownload();
     const transition = revisionInputTransition({
       artifactGeneration: state.artifactGeneration,
       isRecoveryArtifact: state.firmware?.artifactKind === "open-badgemagic-recovery",
@@ -1529,6 +1672,7 @@ function bindEvents() {
     updateRecoveryButton();
   });
   elements.releaseSelect.addEventListener("change", chooseRelease);
+  elements.labImageSelect.addEventListener("change", chooseLabImage);
   elements.recoveryButton.addEventListener("click", prepareOpenBadgeMagicFirmware);
   elements.recoveryBoardConfirmation.addEventListener("change", () => {
     updateRecoveryButton();

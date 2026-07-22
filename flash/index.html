@@ -393,6 +393,17 @@
               <p id="release-status" class="field-help" role="status">A release must include exact-board smoke and recovery evidence.</p>
             </article>
 
+            <article class="artifact-option">
+              <p class="terminal-label">HOSTED LAB CHANNEL</p>
+              <h3>Experimental Rust build</h3>
+              <label for="lab-image-select">Exact-profile lab image</label>
+              <select id="lab-image-select" disabled>
+                <option value="">No hosted lab image selected</option>
+              </select>
+              <p id="lab-image-status" class="field-help" role="status">Unverified hosted images are available for inspection but cannot arm programming.</p>
+              <a id="lab-image-download" class="text-link" hidden download>Download selected lab BIN for qualified local testing</a>
+            </article>
+
             <article class="artifact-option artifact-option-recovery">
               <p class="terminal-label">OPEN-FIRMWARE SUBSTITUTE</p>
               <h3>Open BadgeMagic v0.1</h3>

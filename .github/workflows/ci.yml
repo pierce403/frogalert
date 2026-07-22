@@ -33,10 +33,18 @@ jobs:
           components: rustfmt, llvm-tools-preview
       - name: Embedded Rust link and instruction audits
         run: |
+          firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
+          (
+            cd firmware
+            ../scripts/run-rust-toolchain nightly-2026-07-17 cargo test --locked --target "$firmware_host" --package frogalert-recovery
+          )
           ./scripts/build-display-bringup HARDWARE_REV1 --check
+          ./scripts/build-display-bringup B1144C_250901_USB_C --check
           ./scripts/build-count-firmware HARDWARE_REV1 --check
       - name: Browser protocol and site tests
-        run: node --test tests/*.test.mjs
+        run: |
+          node --test tests/*.test.mjs
+          node scripts/assemble-site.mjs tmp/site-build
       - name: Whitespace check
         run: |
           if git grep -nI -E '[[:blank:]]+$' -- .; then

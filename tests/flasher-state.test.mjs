@@ -71,7 +71,7 @@ test("flash gating requires fresh device identity, configuration, and acknowledg
   assert.equal(
     canEnableFlash({ ...ready, artifactProgrammingAllowed: false }),
     false,
-    "hardware-unverified bundled recovery artifact",
+    "hardware-unverified manifest-managed artifact",
   );
   assert.equal(
     canEnableFlash({ ...ready, typedPhraseComplete: false }),
@@ -85,25 +85,41 @@ test("flash gating requires fresh device identity, configuration, and acknowledg
   );
 });
 
-test("bundled recovery programming requires FrogAlert physical verification", () => {
+test("manifest-managed artifacts fail closed until their exact image is hardware-verified", () => {
+  assert.equal(canProgramArtifact(), false, "missing artifact policy");
+  assert.equal(canProgramArtifact({ artifactKind: "unknown" }), false, "unknown artifact kind");
   assert.equal(
     canProgramArtifact({
-      isBundledRecovery: true,
+      artifactKind: "open-badgemagic-recovery",
       hardwareVerifiedByFrogalert: false,
     }),
     false,
   );
   assert.equal(
     canProgramArtifact({
-      isBundledRecovery: true,
+      artifactKind: "open-badgemagic-recovery",
       hardwareVerifiedByFrogalert: true,
     }),
     true,
   );
+  for (const artifactKind of ["frogalert-lab", "frogalert-release"]) {
+    assert.equal(
+      canProgramArtifact({ artifactKind, hardwareVerified: false }),
+      false,
+      `${artifactKind} without physical verification`,
+    );
+    assert.equal(
+      canProgramArtifact({ artifactKind, hardwareVerified: true }),
+      true,
+      `${artifactKind} with physical verification`,
+    );
+  }
+});
+
+test("explicit local developer BIN route remains flashable", () => {
   assert.equal(
     canProgramArtifact({
-      isBundledRecovery: false,
-      hardwareVerifiedByFrogalert: false,
+      artifactKind: "local-developer",
     }),
     true,
     "developer-selected BIN path remains available",

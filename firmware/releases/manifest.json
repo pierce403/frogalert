@@ -1,7 +1,8 @@
 {
-  "schema_version": 2,
-  "updated": "2026-07-18",
+  "schema_version": 3,
+  "updated": "2026-07-22",
   "releases": [],
+  "lab_images": [],
   "recovery_images": [
     {
       "id": "fossasia-badgemagic-v0.1-hardware-rev1",

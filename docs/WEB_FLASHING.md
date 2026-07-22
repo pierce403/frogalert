@@ -62,11 +62,27 @@ the read-only connection into a write. Only the final explicit tap may call
 `navigator.usb.requestDevice()`. USB attach events may update the visible
 status, but must never synthesize that tap or skip a physical step.
 
-Upstream FOSSASIA firmware also documents a long press of KEY2 after its open
-firmware has already been installed. FrogAlert must label that as an upstream
-open-firmware behavior, not as evidence about unknown OEM firmware or an
-unverified FrogAlert build. The battery-disconnected cold-entry sequence is the
-recovery path when the installed application is unknown, blank, or broken.
+Upstream FOSSASIA v0.1 polls KEY2/PB22 every 200 ms and, after more than ten
+consecutive held samples (about 2.2 seconds), executes a transfer to address
+zero while KEY2 remains low. It does not install a second bootloader; the
+flashable USB ISP remains the CH582 mask-ROM implementation. FrogAlert must
+label long-press entry as an application-provided convenience, not as evidence
+about unknown OEM firmware or an unverified FrogAlert build. The
+battery-disconnected cold-entry sequence is the recovery path when the
+installed application is unknown, blank, or broken.
+
+On the photographed `B1144C_250901` board the pouch battery is soldered to PCB
+tabs; there is no user-removable battery plug. “Battery disconnected” therefore
+means safely electrically isolated by someone equipped for Li-ion bench work,
+not pulling on the cell, cutting its leads, or shorting a rail. A routine cold
+entry for this exact board has not been physically demonstrated, so the public
+guide must not imply that opening the enclosure exposes a connector.
+
+This behavior is physically confirmed on the photographed USB-C
+`B1144C_250901` badge running FOSSASIA `BM1144-C fw: v0.1`: a KEY2-only long
+press displayed the dot cue and entered ISP without RESET or C3. That evidence
+does not transfer automatically to a future FrogAlert image; each FrogAlert
+artifact must pass the same recovery test.
 
 ## What the browser can identify
 
@@ -88,8 +104,19 @@ over Bluetooth; the page labels that untrusted, optional metadata rather than
 treating it as proof of flash contents. Physical board and 11×44 confirmation
 remain separate human inputs.
 
-After compatible open firmware is installed, long-pressing KEY2 should preserve
-the easier ISP-entry path. That behavior is a firmware acceptance requirement.
+Every FrogAlert image must implement and physically prove the same deliberate
+KEY2 recovery affordance before it is flash-approved. The implementation must
+quiesce BLE, USB, display drive, and interrupts as needed, then transfer while
+KEY2 is still held. Acceptance requires a short press to retain its normal
+application action and a roughly 2.2-second hold to re-enumerate as
+`4348:55e0`, followed by successful program and byte verification. A broken or
+blank application cannot provide this convenience, so the cold-entry procedure
+must remain documented and tested.
+
+The Rust pixel-walk and count lab applications now share a 2.2-second KEY2 hold
+and address-zero transfer implementation. This is source and build evidence,
+not physical acceptance: neither FrogAlert application has yet demonstrated
+short-press safety or `4348:55e0` long-press entry on a badge.
 
 ## Browser safety state machine
 
@@ -165,10 +192,11 @@ can read from the board.
 
 ## Artifact policy
 
-The public one-click path will use same-origin, versioned `.bin` files listed in
-`firmware/releases/manifest.json`. Schema v2 keeps FrogAlert releases and
-third-party open recovery images in separate `releases` and `recovery_images`
-collections. Each entry must contain:
+The public artifact path uses same-origin, versioned `.bin` files listed in
+`firmware/releases/manifest.json`. The manifest keeps physically approved
+FrogAlert releases, hosted but unapproved FrogAlert builds, and third-party
+open recovery images in separate `releases`, `lab_images`, and
+`recovery_images` collections. Each entry must contain:
 
 - release version;
 - target and supported hardware revision(s);
@@ -179,11 +207,18 @@ collections. Each entry must contain:
 - hardware verification record.
 
 Until a hardware-tested FrogAlert firmware release exists, `releases` remains
-empty. The reviewed FOSSASIA v0.1 substitute may appear in `recovery_images`
-while retaining `hardware_verified_by_frogalert: false`. The experimental page
-also accepts a developer-selected local BIN, labels that path unverified, and
-binds it to the PCB revision entered at selection time. Firmware bytes and
-device identifiers never leave the browser. The local validator rejects wrong
+empty. A future `lab_images` entry may be fetched, hash-checked, and bound to
+its exact profile and required physical marking, but `hardware_verified: false`
+must keep it impossible to arm or program even on `/flash/`. Hosting and local
+inspection are not flash approval. This work leaves `lab_images` empty and
+publishes no FrogAlert BIN.
+
+The reviewed FOSSASIA v0.1 substitute may appear in `recovery_images` while
+retaining `hardware_verified_by_frogalert: false`. The experimental page also
+accepts a developer-selected local BIN, labels that path unverified, and binds
+it to the PCB revision entered at selection time. That explicitly local route
+remains distinct from manifest-managed write locks. Firmware bytes and device
+identifiers never leave the browser. The local validator rejects wrong
 extensions, implausibly short images, uniform blank/fill images, unaligned
 internal plans, and erase plans beyond CH582 code flash.
 

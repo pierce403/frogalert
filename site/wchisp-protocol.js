@@ -279,6 +279,86 @@ export function validateReleaseDescriptor(release, pcbRevision) {
   return true;
 }
 
+function validateManifestArtifactMetadata(artifact, description) {
+  if (!artifact || typeof artifact !== "object") {
+    throw new Error(`${description} descriptor is missing`);
+  }
+  if (artifact.target !== "ch582m-badgemagic-11x44") {
+    throw new Error(`${description} does not target the FrogAlert CH582M 11×44 badge`);
+  }
+  if (!Array.isArray(artifact.hardware_revisions) || artifact.hardware_revisions.length === 0) {
+    throw new Error(`${description} does not declare any hardware profiles`);
+  }
+  if (
+    artifact.hardware_revisions.some(
+      (revision) => typeof revision !== "string" || !/^[A-Z0-9][A-Z0-9_-]{2,63}$/.test(revision),
+    )
+  ) {
+    throw new Error(`${description} contains an invalid hardware profile`);
+  }
+  if (typeof artifact.file !== "string" || !/^[a-zA-Z0-9._-]+\.bin$/.test(artifact.file)) {
+    throw new Error(`${description} filename is not a safe raw BIN name`);
+  }
+  if (!Number.isSafeInteger(artifact.bytes) || artifact.bytes < 1) {
+    throw new Error(`${description} byte length is invalid`);
+  }
+  if (typeof artifact.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
+    throw new Error(`${description} SHA-256 is invalid`);
+  }
+  if (typeof artifact.source_commit !== "string" || !/^[a-f0-9]{40}$/.test(artifact.source_commit)) {
+    throw new Error(`${description} source commit is invalid`);
+  }
+}
+
+export function validateLabDescriptor(lab) {
+  validateManifestArtifactMetadata(lab, "lab image");
+  if (typeof lab.id !== "string" || !/^[a-z0-9][a-z0-9._-]{2,95}$/.test(lab.id)) {
+    throw new Error("lab image id is invalid");
+  }
+  if (lab.kind !== "frogalert-lab") {
+    throw new Error("lab image kind is invalid");
+  }
+  if (typeof lab.label !== "string" || !lab.label.trim()) {
+    throw new Error("lab image label is missing");
+  }
+  if (typeof lab.version !== "string" || !lab.version.trim()) {
+    throw new Error("lab image version is missing");
+  }
+  if (typeof lab.purpose !== "string" || !lab.purpose.trim()) {
+    throw new Error("lab image purpose is missing");
+  }
+  if (!Array.isArray(lab.pcb_markings) || lab.pcb_markings.length === 0) {
+    throw new Error("lab image does not declare any physical PCB markings");
+  }
+  if (
+    lab.pcb_markings.some(
+      (marking) => typeof marking !== "string" || !marking.trim() || marking.trim().length > 120,
+    )
+  ) {
+    throw new Error("lab image contains an invalid physical PCB marking");
+  }
+  if (!["usb-c", "micro-usb"].includes(lab.connector)) {
+    throw new Error("lab image connector is invalid");
+  }
+  if (typeof lab.hardware_verified !== "boolean") {
+    throw new Error("lab image hardware verification status is invalid");
+  }
+  return true;
+}
+
+export function validateLabHardwareBinding(lab, pcbRevision, pcbMarking) {
+  validateLabDescriptor(lab);
+  const revision = String(pcbRevision || "").trim();
+  if (!revision || !lab.hardware_revisions.includes(revision)) {
+    throw new Error(`lab image does not support hardware profile ${revision || "(not entered)"}`);
+  }
+  const marking = String(pcbMarking || "").trim();
+  if (!marking || !lab.pcb_markings.includes(marking)) {
+    throw new Error(`lab image does not support physical PCB marking ${marking || "(not entered)"}`);
+  }
+  return true;
+}
+
 export function validateRecoveryDescriptor(recovery, pcbRevision) {
   if (!recovery || typeof recovery !== "object") {
     throw new Error("open BadgeMagic recovery descriptor is missing");
