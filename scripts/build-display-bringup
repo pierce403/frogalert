@@ -29,6 +29,12 @@ case "$revision" in
     ;;
 esac
 
+output_dir="$repo_root/tmp/firmware"
+mkdir -p "$output_dir"
+bin="$output_dir/frogalert-pixel-walk-$revision.bin"
+# Never leave a stale BIN looking like the output of a failed build or audit.
+rm -f "$bin"
+
 cd "$repo_root/firmware"
 rust_tool="$repo_root/scripts/run-rust-toolchain"
 env -u CARGO_TARGET_DIR \
@@ -53,12 +59,11 @@ env -u CARGO_TARGET_DIR \
   --features "$cargo_feature"
 
 elf="$build_dir/riscv32imc-unknown-none-elf/release/frogalert-pixel-walk"
-output_dir="$repo_root/tmp/firmware"
-mkdir -p "$output_dir"
 host="$("$rust_tool" nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
 sysroot="$("$rust_tool" nightly-2026-07-17 rustc --print sysroot)"
 llvm_bin="$sysroot/lib/rustlib/$host/bin"
 disassembly="$output_dir/frogalert-pixel-walk-$revision.disassembly.txt"
+vector_report="$output_dir/frogalert-pixel-walk-$revision.vectors.txt"
 elf_header="$("$llvm_bin/llvm-readobj" --file-headers "$elf")"
 elf_attributes="$("$llvm_bin/llvm-readobj" --arch-specific "$elf")"
 if ! grep -Eq '^Format: elf32-.*riscv$' <<<"$elf_header" ||
@@ -91,7 +96,8 @@ fi
 echo "RISC-V attributes: $arch_attribute"
 echo "instruction audit passed: no AMO/LR/SC operations"
 echo "recovery audit passed: KEY2 trampoline jumps to absolute address zero"
-bin="$output_dir/frogalert-pixel-walk-$revision.bin"
+"$llvm_bin/llvm-readobj" --symbols --hex-dump=.highcode "$elf" >"$vector_report"
+node "$repo_root/scripts/audit-ch58x-vectors.mjs" "$elf" "$vector_report"
 "$llvm_bin/llvm-objcopy" -O binary "$elf" "$bin"
 node "$repo_root/scripts/finalize-firmware.mjs" "$bin"
 sha256sum "$bin"

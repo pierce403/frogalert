@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "profile": "B1144C_250901_USB_C",
+  "hardware_status": "build-evidence-only",
+  "upstream": {
+    "repository": "https://github.com/fossasia/badgemagic-firmware",
+    "commit": "9ce885d682b5c56c3ac7595c09e009a210885221",
+    "archive_url": "https://codeload.github.com/fossasia/badgemagic-firmware/tar.gz/9ce885d682b5c56c3ac7595c09e009a210885221",
+    "archive_file": "badgemagic-firmware-9ce885d682b5c56c3ac7595c09e009a210885221.tar.gz",
+    "archive_size": 14644075,
+    "archive_sha256": "982e36ade508545487c3282a7fd12c35a4f4df12e5b1959a8f0b2065553e9d50",
+    "extracted_directory": "badgemagic-firmware-9ce885d682b5c56c3ac7595c09e009a210885221",
+    "license": "Apache-2.0"
+  },
+  "toolchain": {
+    "name": "MRS_Toolchain_Linux_x64_V1.92",
+    "release": "1.92-toolchain",
+    "asset_id": 184573118,
+    "archive_url": "https://github.com/ch32-riscv-ug/MounRiver_Studio_Community_miror/releases/download/1.92-toolchain/MRS_Toolchain_Linux_x64_V1.92.tar.xz",
+    "archive_file": "MRS_Toolchain_Linux_x64_V1.92.tar.xz",
+    "archive_size": 330007712,
+    "archive_sha256": "33e0dd7581a2eea25bc5d1aa2c31f5c8b316e543b954d84f9e1ffc5999e93fea",
+    "compiler_version": "riscv-none-embed-gcc (xPack GNU RISC-V Embedded GCC, 64-bit) 8.2.0",
+    "prefix": "RISC-V_Embedded_GCC/bin/riscv-none-embed-",
+    "compiler_sha256": "f07cc0010658d8c6e8766e3d1ff72d0d928c69436eb1e21655c7b3351d4c5ab1",
+    "objcopy_sha256": "bc03bdb29a9811cf493c66a809e8dc4a4f00d3b1db1a8b401520ffb5d1349603",
+    "nm_sha256": "f8c685be1c7eec2417249a3c9e1242e33000d691e4f1471474218e9b5adac172",
+    "objdump_sha256": "680c3753322556f15f257ac5d6894c6d3913ac66ff31a05485a486992f9135d7",
+    "embedded_gcc_tree_sha256": "d5ad9627c1045e7c45e13a4ec909d6424ba0e2d9e42692e48208b78ad2886eef"
+  },
+  "build": {
+    "usbc_version": 1,
+    "version": "v0.1-42-g9ce885d",
+    "version_abbreviation": "v0.1",
+    "known_good_baseline_size": 177704,
+    "known_good_baseline_sha256": "2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2",
+    "known_good_canary_size": 177788,
+    "known_good_canary_sha256": "6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87",
+    "startup_sentinel_offset": 20,
+    "startup_sentinel_hex": "a9bdf9f5",
+    "required_symbols": [
+      "_start",
+      "_highcode_vma_start",
+      "_vector_base",
+      "handle_reset",
+      "TMR0_IRQHandler",
+      "USB_IRQHandler",
+      "usb_start",
+      "legacy_registerService",
+      "tmos_clockInit",
+      "main"
+    ]
+  },
+  "known_good_upstream_elf": {
+    "bin_commit": "b56cd9495738e8e3170bf723e70b445de936a5d2",
+    "path": "usb-c/badgemagic-ch582.elf",
+    "url": "https://raw.githubusercontent.com/fossasia/badgemagic-firmware/b56cd9495738e8e3170bf723e70b445de936a5d2/usb-c/badgemagic-ch582.elf",
+    "size": 250072,
+    "sha256": "d13cc219ae21824b8de45f476e2e348a57d0d7b39def72972bb2e977197838df",
+    "objcopy_arguments": ["-O", "binary", "-S"],
+    "objcopy_output_size": 177704,
+    "objcopy_output_sha256": "2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2"
+  },
+  "critical_source_sha256": {
+    "Makefile": "d9a1aad94d06c4aaddd97a1a862da5ab0318769a4c421905743c40d3aa31a6ab",
+    "LICENSE.md": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "CH5xx_ble_firmware_library/Startup/startup_CH583.S": "ec9016329d4a7de0e1e2128bac8b30d9b99743db9e02a8368f44b668c6490873",
+    "CH5xx_ble_firmware_library/Ld/Link.ld": "04678003c981d05ff7ae7181d39dea33dc6b6ddb96092945c47f2fa918dcc906",
+    "CH5xx_ble_firmware_library/BLE/LIBCH58xBLE.a": "aac6c70192113c56c383913ece3c621d182f57f0ffc3a70a264512ab79ccb4ae",
+    "CH5xx_ble_firmware_library/StdPeriphDriver/libISP583.a": "3aca22e7ea24d6011de90e5a865922834d2c5bb664734fa66536cf52acea6285",
+    "src/main.c": "adf0adf211d68bdb4587f73fe351dd11abf3a4040b298015c023c0823b1749bc",
+    "src/power.h": "b19bc470a3214657ad25bb4dcc36c00525d0bb6ebee0eef2df8d65ee9c94fcb7",
+    "src/leddrv.c": "53abbc4ba0b71aaa1c23e1b935442724334eee38dca7c6c4d6f1241711df206d",
+    "src/ble/setup.c": "cda633988c3414d740d06f4ce12eb627d5200c2621432e456219bb85e4d35fb9",
+    "src/ble/profile/legacy.c": "17cce435b26d0621093cd89793027c987dbb829c1283fc7bf012160cd837fe18",
+    "src/usb/dev.c": "f10e123735b86b1c4793556c999c45d33eace1bb081c5e967bea58d402f4923d",
+    "src/usb/setup.c": "63c1f12318d5f2bb2ec262f4c94a98f4b264c8fab2603a3c4ab5c8bb5e1f691a",
+    "src/usb/ctrl.c": "187dbbf19b039a96f89fe180efc94395b93fbe95eafa08304251430be85b3e81"
+  }
+}

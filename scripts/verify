@@ -15,9 +15,49 @@ firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed
     --target "$firmware_host" \
     --package frogalert-recovery
 )
-./scripts/build-display-bringup HARDWARE_REV1 --check
-./scripts/build-display-bringup B1144C_250901_USB_C --check
-./scripts/build-count-firmware HARDWARE_REV1 --check
+mkdir -p tmp/vector-audit
+expect_vector_quarantine() {
+  local label="$1"
+  local forbidden_bin="$2"
+  shift 2
+  local log="tmp/vector-audit/$label.log"
+
+  mkdir -p "${forbidden_bin%/*}"
+  touch "$forbidden_bin"
+  if "$@" >"$log" 2>&1; then
+    echo "expected $label to be quarantined by the CH58x vector audit" >&2
+    return 1
+  fi
+  if ! grep -Fq "CH58x vector audit failed" "$log"; then
+    echo "$label failed for an unexpected reason:" >&2
+    sed -n '1,200p' "$log" >&2
+    return 1
+  fi
+  if ! grep -Fq "[external-section]" "$log" ||
+    ! grep -Fq "[tmr0-vector-target]" "$log"; then
+    echo "$label did not expose the known misplaced external table and TMR0 vector:" >&2
+    sed -n '1,200p' "$log" >&2
+    return 1
+  fi
+  if [[ -e "$forbidden_bin" ]]; then
+    echo "$label left a flashable BIN after its vector audit failed: $forbidden_bin" >&2
+    return 1
+  fi
+  echo "$label quarantine check passed: diagnostic ELF retained; no BIN emitted"
+}
+
+expect_vector_quarantine \
+  pixel-walk-rev1 \
+  tmp/firmware/frogalert-pixel-walk-HARDWARE_REV1.bin \
+  ./scripts/build-display-bringup HARDWARE_REV1 --check
+expect_vector_quarantine \
+  pixel-walk-usbc \
+  tmp/firmware/frogalert-pixel-walk-B1144C_250901_USB_C.bin \
+  ./scripts/build-display-bringup B1144C_250901_USB_C --check
+expect_vector_quarantine \
+  count-rev1 \
+  tmp/firmware/frogalert-count-HARDWARE_REV1.bin \
+  ./scripts/build-count-firmware HARDWARE_REV1 --check
 node --test tests/*.test.mjs
 node scripts/assemble-site.mjs tmp/site-build
 

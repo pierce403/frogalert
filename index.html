@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="FrogAlert is an experimental Rust firmware project intended to turn a BadgeMagic LED nametag into a passive, local BLE signal alert badge.">
+    <meta name="description" content="FrogAlert is an experimental Rust-powered firmware project intended to turn a BadgeMagic LED nametag into a passive, local BLE signal alert badge.">
     <meta name="theme-color" content="#10271d">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta property="og:type" content="website">
     <meta property="og:title" content="FrogAlert — the nametag that watches back">
-    <meta property="og:description" content="An open Rust firmware experiment for a normal LED nametag plus short passive BLE scans and explainable local alerts.">
+    <meta property="og:description" content="An open firmware experiment with a proven BadgeMagic hardware shell, Rust detection logic, short passive BLE scans, and explainable local alerts.">
     <meta property="og:url" content="https://frogalert.org/">
     <meta name="twitter:card" content="summary">
     <title>FrogAlert — the nametag that watches back</title>
@@ -36,7 +36,7 @@
     <main id="main">
       <section class="hero" id="top">
         <div class="hero-copy">
-          <p class="eyebrow">Open badge firmware / CH582M / Rust experiment</p>
+          <p class="eyebrow">Open badge firmware / CH582M / FOSSASIA + Rust</p>
           <h1>The nametag that <em>watches back.</em></h1>
           <p class="lede">
             FrogAlert keeps doing the useful thing—showing your name—then briefly listens for nearby Bluetooth signals and flashes a local warning when an explainable rule matches.
@@ -131,10 +131,10 @@
             <code class="command">node --test tests/*.test.mjs</code>
           </article>
           <article class="evidence-card prototype">
-            <p class="evidence-state">PROTOTYPE / BADGE</p>
-            <h3>BLE count lab build</h3>
-            <p>Atomic-free CH582 observer, approximate advertiser count, numeric framebuffer, and Rev1 matrix driver. Cross-linked, never badge-tested.</p>
-            <code class="command">./scripts/build-count-firmware HARDWARE_REV1 --check</code>
+            <p class="evidence-state">REPLACEMENT BASE / BADGE</p>
+            <h3>Known-good hardware shell</h3>
+            <p>The first standalone Rust image was withdrawn after a vector-layout failure. New images retain FOSSASIA's working USB, BLE, display, buttons, and KEY2 recovery; Rust is added later behind a narrow ABI.</p>
+            <code class="command">./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check</code>
           </article>
         </div>
 
@@ -178,7 +178,7 @@
               <span class="step-tag">READ-ONLY FIRST</span>
               <h3>WCH bootloader</h3>
             </div>
-            <p>Enter ISP mode with KEY2, then identify the USB target. Connecting does not erase or program anything.</p>
+            <p>On tested FOSSASIA or approved FrogAlert firmware, use the application-provided KEY2 long press, then identify the USB target. Unknown or broken applications may require qualified cold-entry recovery. Connecting does not erase or program anything.</p>
             <button id="usb-connect" class="button button-primary" type="button" disabled>Connect + identify CH582</button>
             <p id="usb-status" class="device-status" role="status" aria-live="polite">Waiting for a WCH ISP bootloader.</p>
             <dl class="device-facts">
@@ -241,12 +241,12 @@
                 <option value="">No release selected</option>
               </select>
               <p id="release-status" class="field-help" role="status">Loading release manifest…</p>
-              <label for="lab-image-select">Hosted experimental build</label>
+              <label for="lab-image-select">Hardware-verified lab build</label>
               <select id="lab-image-select" disabled>
                 <option value="">No hosted lab image selected</option>
               </select>
-              <p id="lab-image-status" class="field-help" role="status">Loading inspect-only lab image metadata…</p>
-              <a id="lab-image-download" class="text-link" hidden download>Download selected lab BIN for qualified local testing</a>
+              <p id="lab-image-status" class="field-help" role="status">Loading hardware-verified lab metadata…</p>
+              <a id="lab-image-download" class="text-link" hidden download>Download selected hardware-verified lab BIN</a>
             </div>
             <div class="divider-label" aria-hidden="true">OR</div>
             <div class="field-group">

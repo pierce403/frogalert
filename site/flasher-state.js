@@ -19,6 +19,20 @@ export function revisionInputTransition({
   };
 }
 
+export function artifactBoardBinding({ hardwareRevisions, pcbMarkings = null } = {}) {
+  if (!Array.isArray(hardwareRevisions) || hardwareRevisions.length === 0) {
+    throw new Error("artifact hardware revisions are missing");
+  }
+  const binding = { hardwareRevisions: [...hardwareRevisions] };
+  if (pcbMarkings !== null) {
+    if (!Array.isArray(pcbMarkings) || pcbMarkings.length === 0) {
+      throw new Error("artifact physical PCB markings are missing");
+    }
+    binding.pcbMarkings = [...pcbMarkings];
+  }
+  return binding;
+}
+
 export function canProgramArtifact({
   artifactKind = "unknown",
   hardwareVerified = false,

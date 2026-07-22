@@ -3,7 +3,9 @@
 > **FAILED AND WITHDRAWN — DO NOT FLASH.** A subsequent physical test produced
 > no panel output, and holding KEY2 did not enumerate ISP. The user recovered
 > the badge with the previously working FOSSASIA USB-C image. This file remains
-> as historical publication evidence, not a recommendation.
+> as historical publication evidence, not a recommendation. See
+> [`2026-07-22-blank-rust-image-lessons.md`](2026-07-22-blank-rust-image-lessons.md)
+> for the linked-vector root cause and replacement plan.
 
 Source commit `f794974584b67f8809f5ab8cb2c52269aab7509b` added the shared
 KEY2 recovery state machine/trampoline, exact USB-C display profile, WCH startup

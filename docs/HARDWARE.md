@@ -51,11 +51,13 @@ end-user guidance.
 
 1. Open the badge and photograph the PCB and MCU marking.
 2. Confirm exactly 44 LED columns.
-3. Electrically isolate the battery, hold KEY2 (near USB), connect USB, and
-   confirm the ISP device appears as `4348:55e0` or `1a86:55e0`. On the
-   photographed USB-C board the battery is soldered, so this is skilled bench
-   work rather than an ordinary unplug step; do not cut, pry, or short the
-   cell. This cold-entry sequence remains untested on that board.
+3. If the badge runs the pinned FOSSASIA USB-C application, use its normal
+   KEY2-only long press and confirm ISP appears as `4348:55e0` or `1a86:55e0`.
+   For an unknown, blank, or broken application, cold entry instead requires
+   the battery to be safely electrically isolated before holding KEY2 and
+   connecting USB. The photographed board's battery is soldered: stop unless a
+   qualified person can isolate Li-ion power safely. Do not cut, pry, or short
+   the cell. Cold entry remains untested on that board.
 4. For `HARDWARE_REV1`, compare both sides with FOSSASIA's pinned
    [CH582 reference photos](https://github.com/fossasia/badgemagic-firmware/blob/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8/CH582.md#hardware-details),
    and confirm the Micro-USB layout. For the photographed USB-C board, record
@@ -63,16 +65,18 @@ end-user guidance.
    `B1144C_250901_USB_C`. Port shape by itself is not proof.
 5. Do not run the USB-C BLE count image. Pinned FOSSASIA USB-C source disables
    external 32 kHz selection, powers/calibrates internal LSI, and a later
-   upstream commit explicitly says the board cannot use LSE. The current Rust
-   count image and HAL BLE initializer still select external LSE.
+   upstream commit explicitly says the board cannot use LSE. The quarantined
+   Rust count image and its HAL BLE initializer select external LSE.
 6. Record the exact software profile only after all those checks. Build-profile
    tokens are not values discovered over USB, and chip identification cannot
    prove the PCB layout or matrix wiring.
 7. Separately record the exact physical silkscreen/revision. If the PCB has no
    revision marking, record that fact and retain front/back photos. Do not
    substitute the `HARDWARE_REV1` software token for this physical record.
-8. Do not flash until the specific image has completed the release gates for
-   that recorded hardware revision.
+8. Do not publish or offer end-user flashing until the specific image has
+   completed the release gates for that recorded hardware revision. An
+   explicitly authorized one-badge bench smoke is how a new image begins those
+   gates; keep its bytes under ignored `tmp/` and capture every result.
 
 ## No factory/OEM restore
 
@@ -115,56 +119,59 @@ The inspected USB-C development artifact is:
 It is provenance evidence and a fallback research reference, not a factory
 image or FrogAlert release.
 
-## First display bring-up image
+## Failed standalone Rust image
 
-`firmware/frogalert-pixel-walk/` is the only intended first Rust display test.
-It compiles separately for exact `HARDWARE_REV1` and candidate
-`B1144C_250901_USB_C`, keeps one logical LED selected, advances every 750 ms,
-and reports `x`/`y` coordinates on UART1/PA9 at 115200 baud. Display GPIO uses
-the lower 5 mA drive setting. It initializes neither BLE nor a 32 kHz radio
-clock, which keeps matrix validation separate from radio/clock bring-up. It
-also includes the shared 2.2-second KEY2 application recovery hook, but that
-hook remains physically unverified in FrogAlert firmware.
+Do not flash the historical `frogalert-pixel-walk` or `frogalert-count`
+standalone Rust images. The first USB-C pixel-walk build produced no visible
+output and its application KEY2 recovery never ran. The exact failed SHA-256
+is permanently listed in `firmware/quarantine.json`.
 
-Build and instruction-audit it with:
+Post-link inspection found a deterministic vector-table defect. The substituted
+`ch58x` PAC 0.3.0 emitted `__EXTERNAL_INTERRUPTS` in flash `.rodata`, while
+`qingke-rt` 0.5.0 expected it in the RAM `.highcode` vector table. The CH582
+Timer 0 vector at `0x20000040` consequently contained the address of
+`DefaultInterruptHandler`, an infinite self-loop, rather than the TMR0 wrapper.
+The application enabled Timer 0 before its foreground loop; the first interrupt
+therefore stopped both display refresh and KEY2 polling. The count image has
+the same linked defect.
 
-```sh
-./scripts/build-display-bringup HARDWARE_REV1 --check
-./scripts/build-display-bringup B1144C_250901_USB_C --check
-```
+The WCH marker at raw offset `0x14`, an atomic-free disassembly, and a recovery
+function ending in `jr zero` all passed. Those facts did not prove the live
+vector table reached the expected handlers. The new post-link regression audit
+checks actual vector placement/targets, and the old builders no longer emit a
+flashable BIN.
 
-Even this minimal image replaces the unrecoverable OEM bytes when flashed. The
-opened-board, read-only ISP, and explicit approval gates still apply. During the
-physical test, stop immediately if more than one pixel lights, coordinates do
-not follow a left-to-right/top-to-bottom 44×11 walk, the badge becomes warm, or
-current draw is unexpected. Record all 484 positions, the first-pair behavior,
-orientation, visual flicker, and panic/power-cycle release before trying the BLE
-count image.
+## Next physical image
 
-## Current Rust count prototype
+The next image must derive from the exact FOSSASIA USB-C source at `9ce885d` and
+preserve its startup, linker layout, clocks, USB HID+CDC stack, BLE/TMOS stack,
+BadgeMagic service, display refresh, buttons, and KEY2 recovery task. The first
+canary changes only self-identifying metadata. It does not add Rust, scanning,
+or display behavior.
 
-`firmware/frogalert-count/` links a Rust observer-only prototype only for exact
-`HARDWARE_REV1`. It performs passive BLE discovery, counts nearby unique
-addresses, and drives a numeric framebuffer through the revision-1 11×44 pin
-map. It deliberately does not provide the BadgeMagic GATT service.
+The current local canary is 177,788 bytes with SHA-256
+`6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
+That identity is build evidence only: it remains under ignored `tmp/` and is
+not approved for public or end-user flashing. Its only permitted next use is an
+explicitly authorized, one-badge bench smoke by a qualified operator; that
+initial program/verify action begins the checklist below and must be captured.
 
-Build and instruction-audit it from the repository root with:
+Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 
-```sh
-./scripts/build-count-firmware HARDWARE_REV1 --check
-```
+1. captured `wchisp` program and byte verification;
+2. captured WebUSB program and byte verification after the CLI smoke proves
+   normal KEY2 recovery;
+3. cold boot and power-cycle repetition;
+4. USB `0416:5020` HID and CDC enumeration;
+5. a BadgeMagic app nametag upload and visible display;
+6. KEY1 and short KEY2 behavior;
+7. long KEY2 with the dot cue and ISP `4348:55e0`/`1a86:55e0` enumeration;
+8. reflash of the known-good FOSSASIA image through that normal path.
 
-The check also generates and audits a finalized raw BIN under `tmp/firmware/`;
-the non-check form is reserved for a deliberate local test. Successful
-compilation, a plausible size, and clean instruction/package audits do not make
-that image flash-approved. The
-display polarity, refresh timing, BLE callback behavior, current draw, battery
-impact, and recovery path all still require physical validation.
-
-There is intentionally no `B1144C_250901_USB_C` count build. The exact
-FOSSASIA USB-C source operates from calibrated internal LSI, while the vendored
-HAL's BLE initializer hardcodes external LSE and no calibration callback.
-Resolve and test that clock path before enabling a USB-C radio artifact.
+Only after the C-only compatibility canary passes may a Rust ABI-only canary be
+tested. Passive scanning and count display are later stages. The Rust library
+may contain pure parsing/classification/counting logic, but it must not replace
+the FOSSASIA reset, vectors, clocks, USB, BLE setup, or display timer.
 
 ## Manual flashing boundary
 
@@ -176,6 +183,6 @@ wchisp flash frogalert-ch582.bin
 ```
 
 This command is documentation only today; no FrogAlert release image is
-provided yet. Do not substitute the temporary count BIN merely because it
-builds, and do not mistake the upstream open v0.1 substitute for the original
-OEM firmware.
+provided yet. Do not substitute either quarantined standalone Rust image or a
+temporary canary merely because it builds, and do not mistake the upstream
+open v0.1 substitute for the original OEM firmware.

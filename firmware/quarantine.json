@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "artifacts": [
+    {
+      "sha256": "02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22",
+      "source_commit": "f794974584b67f8809f5ab8cb2c52269aab7509b",
+      "hardware_profile": "B1144C_250901_USB_C",
+      "pcb_marking": "B1144C_250901",
+      "status": "failed-hardware-smoke",
+      "evidence": "agent-memory/logs/2026-07-22-blank-rust-image-lessons.md",
+      "reason": "No visible pixel walk and no KEY2 application-to-ISP recovery on the physical USB-C badge."
+    }
+  ]
+}

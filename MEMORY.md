@@ -32,8 +32,14 @@ on chat context or filenames alone.
   — physical CH582M confirmation, C3/KEY2 ISP entry, exact FOSSASIA USB-C
   development-artifact provenance, application descriptors, and next gates.
 - [`2026-07-22-recoverable-lab-image.md`](agent-memory/logs/2026-07-22-recoverable-lab-image.md)
-  — shared KEY2 recovery hooks, exact USB-C Rust build, startup-sentinel
-  packaging, hosted unverified lab artifact, and physical promotion gates.
+  — historical publication evidence for the failed and withdrawn USB-C Rust
+  pixel-walk artifact.
+- [`2026-07-22-blank-rust-image-lessons.md`](agent-memory/logs/2026-07-22-blank-rust-image-lessons.md)
+  — confirmed external-vector failure, recovery outcome, FOSSASIA-shell
+  architecture decision, and stronger physical/publication gates.
+- [`2026-07-22-fossasia-usbc-base.md`](agent-memory/logs/2026-07-22-fossasia-usbc-base.md)
+  — pinned source/toolchain, byte-identical baseline, metadata-only canary,
+  build hashes, and Rust ABI boundary.
 
 ## People
 

@@ -25,8 +25,9 @@ been tested on a physically verified CH582M 11×44 badge.
 
 ## Project overview
 
-FrogAlert is a Rust firmware experiment for the FOSSASIA-supported BadgeMagic
-badge. It should remain a normal programmable LED nametag, briefly scan nearby
+FrogAlert is a Rust-powered firmware experiment for the FOSSASIA-supported
+BadgeMagic badge. Its first images retain FOSSASIA's C hardware/runtime shell
+and call Rust only for pure policy logic. It should remain a normal programmable LED nametag, briefly scan nearby
 BLE advertisements, and temporarily show `COP DETECTED` or `HAX DETECTED` for
 configured signatures.
 
@@ -38,12 +39,18 @@ The public site is a dependency-free static application. It separates:
 ## Source map
 
 - `crates/frogalert-core/` — tested, allocation-free detection logic
-- `firmware/frogalert-display/` — shared revision-gated charlieplex driver
-- `firmware/frogalert-pixel-walk/` — single-pixel physical bring-up firmware
-- `firmware/frogalert-count/` — hardware-gated BLE count lab firmware
-- `firmware/frogalert-recovery/` — shared KEY2 hold and ROM-ISP transfer logic
+- `firmware/fossasia-usbc/` — pinned known-good USB-C hardware shell and
+  metadata-only compatibility canary
+- `firmware/frogalert-display/` — quarantined standalone Rust display research
+- `firmware/frogalert-pixel-walk/` — failed image retained for vector forensics
+- `firmware/frogalert-count/` — quarantined wrapper around reusable count logic
+- `firmware/frogalert-recovery/` — historical Rust KEY2 experiment, not the
+  recovery implementation used by replacement images
 - `firmware/vendor/ch58x-hal/` — pinned HAL `611954e` with documented local
   patches in `FROGALERT-VENDORING.md`
+- `firmware/quarantine.json` — permanent failed-artifact SHA denylist
+- `scripts/build-fossasia-usbc` — pinned baseline/metadata-canary build path
+- `scripts/audit-ch58x-vectors.mjs` — post-link standalone Rust regression gate
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
 - `site/isp-entry-guide.js` — pure KEY2 guide transitions and advisory timer
@@ -75,31 +82,41 @@ The public site is a dependency-free static application. It separates:
 - Never erase or write on connect. Require a user-selected firmware file,
   explicit confirmations, and a separate final action.
 - Keep the OEM/unknown KEY2 cold-entry guide adjacent to the WebUSB chooser:
-  battery disconnected, hold the button nearest USB while connecting, release
-  after one pixel lights, then choose promptly. Timers and USB attach events
-  must never call `requestDevice()`; only an explicit final user action may.
+  safely isolate battery power, hold the button nearest USB while connecting,
+  release after one pixel lights, then choose promptly. If the battery is
+  soldered, tell ordinary users to stop; isolation is qualified Li-ion bench
+  work. Timers and USB attach events must never call `requestDevice()`; only an
+  explicit final user action may.
 - Keep every destructive browser action restricted to `/flash/`; the landing
   lab may inspect a badge or artifact but contains no program control.
 - Bind an active flash to the captured USB device and prohibit reconnecting a
   replacement device until that session exits.
 - Always verify the programmed bytes before reporting success.
-- Hosted lab images are not releases. They belong in a separate `lab_images`
-  manifest collection, may be selected for local size/hash/profile inspection,
-  and must remain write-disabled while `hardware_verified` is false. An empty
-  collection is preferable to publishing a plausible but untested binary.
-- Every FrogAlert image must preserve application-level KEY2 recovery before it
-  is flash-approved. The bootloader remains the CH582 mask-ROM ISP; do not
-  bundle or replace it. Match FOSSASIA v0.1's deliberate hold semantics as the
-  reference: poll KEY2/PB22 every 200 ms, require more than ten held samples
-  (about 2.2 seconds), quiesce application peripherals, and transfer to address
-  zero while KEY2 remains low. Prove the result enumerates `4348:55e0` on the
-  physical target and that short presses do not enter ISP.
+- Unverified FrogAlert BINs stay only under ignored `tmp/`; never copy them to
+  `firmware/releases/`. Public release and lab collections both require
+  `hardware_verified: true` plus hash/profile/PCB-bound physical evidence.
+  One descriptor covers exactly one profile and one physical PCB marking. Its
+  structured `firmware/evidence/*.json` record must repeat the exact hash,
+  source, board, application USB, display, BadgeMagic upload, and KEY2-only
+  dot-to-ISP results, separate KEY1/short-KEY2 behavior, and known-good reflash.
+  Bind a dated transcript with exact identifiers and captured CLI, WebUSB,
+  kernel, app, and visual evidence; C3 entry does not satisfy the KEY2 gate.
+  `firmware/quarantine.json` is a permanent SHA denylist checked during site
+  assembly and after hashing any browser-selected local file. If the browser
+  cannot load that registry, artifact preparation must fail closed.
+- Every FrogAlert image must preserve FOSSASIA's application-level KEY2 task
+  before it is flash-approved. The bootloader remains the CH582 mask-ROM ISP;
+  do not bundle or replace it. Keep the proven 200 ms TMOS poll, more-than-ten
+  held samples (about 2.2 seconds), dot cue, and address-zero transfer intact.
+  Prove enumeration as `4348:55e0`/`1a86:55e0` and short-press safety on the
+  exact physical artifact.
 - Every packaged CH58x BIN must contain WCH's startup sentinel `0xF5F9BDA9`
-  in the reserved core-vector word at raw offset `0x14`. The Rust linker emits
-  zero there, so the build scripts must run `scripts/finalize-firmware.mjs`
-  before hashing or publication, and site assembly must reject a missing word.
-  This is WCH startup compatibility parity, not proof that the sentinel itself
-  causes application-to-ISP entry.
+  in the reserved core-vector word at raw offset `0x14`. The FOSSASIA shell
+  emits it directly and its audit must observe it without post-build mutation.
+  The historical standalone Rust path used `scripts/finalize-firmware.mjs` to
+  replace a zero, but that did not make its runtime valid. Site assembly still
+  rejects a missing word. The sentinel is not proof of recovery; post-link
+  audits must also verify vector placement and actual handler targets.
 - Do not log, persist, or transmit scanned device identifiers. Retain only the
   ephemeral per-window addresses needed for deduplication, then zero them.
 - Treat BLE OUI matches as hints only, and never use OUIs for randomized/local
@@ -119,12 +136,17 @@ Individual checks:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-./scripts/build-display-bringup HARDWARE_REV1 --check
-./scripts/build-display-bringup B1144C_250901_USB_C --check
-./scripts/build-count-firmware HARDWARE_REV1 --check
 node --test tests/*.test.mjs
-xmllint --html --noout index.html
+xmllint --html --noout index.html flash/index.html
 git diff --check
+```
+
+The pinned firmware lanes are heavier, explicit checks rather than ordinary
+host verification:
+
+```bash
+./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ```
 
 Preview the site locally:
@@ -138,10 +160,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 
 ## Coding conventions
 
-- Keep `frogalert-core` `no_std`, allocation-free, and independent of the HAL.
-- Target QingKe V4 with `riscv32imc-unknown-none-elf`. Do not enable
-  `unsafe-trust-wch-atomics`; every firmware build must pass the AMO/LR/SC
-  instruction audit.
+- Keep `frogalert-core` `no_std`, allocation-free, HAL-independent, and exposed
+  to the C shell only through primitive C ABI types.
+- Keep FOSSASIA's WCH GCC linker as the final linker. Rust must not own reset,
+  vectors, interrupts, clocks, USB, BLE setup, or display scanning. Never use
+  `unsafe-trust-wch-atomics`; every final image must pass the AMO/LR/SC audit.
+- Reconstruct the final BIN from the audited ELF with the pinned `objcopy` and
+  require byte identity with the Make-produced BIN. Lock both baseline and
+  canary size/SHA-256 values; marker strings alone are not an image audit.
 - Keep protocol encoders pure and unit-tested separately from WebUSB transport.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
@@ -162,32 +188,31 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 
 ## Known issues and boundaries
 
-- The safe first display artifact is `frogalert-pixel-walk`: it selects exactly
-  one logical pixel, advances left-to-right every 750 ms, reports `(x, y)` at
-  115200 baud on UART1/PA9, uses 5 mA GPIO drive, and initializes neither BLE
-  nor a 32 kHz radio clock. `HARDWARE_REV1` and the exact
-  `B1144C_250901_USB_C` candidate profile build separately. Both remain
-  hardware-unverified and are not flash-approved.
 - The USB-C pixel-walk image from source `f794974` booted blank and failed its
   KEY2 recovery acceptance test. It is withdrawn from the manifest and must not
-  be rebuilt, hosted, recommended, or flashed. Preserve its hash only as failed
-  evidence and base replacement firmware on the proven FOSSASIA USB-C runtime.
-- The shared Rust recovery crate and both lab applications now implement a
-  2.2-second KEY2 hold followed by peripheral-specific quiescing and a transfer
-  to address zero. This is source/build evidence only until short-press and
-  `4348:55e0` long-press behavior are observed on each physical image.
-- Raw Rust packaging patches only the reserved vector word at offset `0x14`
-  from zero to WCH's `0xF5F9BDA9` sentinel, then hashes the finalized bytes.
-  Any other pre-existing value is rejected as linker-layout drift.
-- The count prototype emits build evidence only under `./tmp/`; it is not a
-  release and has not booted on a physical badge.
-- Its passive three-second window counts up to 64 unique advertiser addresses
-  in ephemeral RAM, then displays the approximate result for seven seconds.
-- The shared Rust display driver encodes both Micro-USB `HARDWARE_REV1` and the
-  candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation, flicker,
-  current draw, and radio/display coexistence still require a physical
-  pixel-walk test.
-- The count lab firmware does not implement the BadgeMagic GATT service.
+  be hosted, recommended, or flashed. Its SHA is permanently quarantined.
+- Root cause is confirmed in the linked ELF: PAC 0.3 put
+  `__EXTERNAL_INTERRUPTS` in flash `.rodata`, while `qingke-rt` 0.5 expected it
+  in the RAM vector table. IRQ16/TMR0 pointed to `DefaultInterruptHandler`, so
+  the first display interrupt looped forever before refresh or KEY2 polling.
+  The count ELF has the same defect.
+- The Rust build helpers are quarantine diagnostics. They delete stale BINs,
+  retain ELF/vector reports, demonstrate the vector failure, and exit before
+  `objcopy`. `./scripts/verify` expects this failure. Do not bypass it.
+- The replacement base is exact FOSSASIA USB-C source `9ce885d`, pinned MRS
+  V1.92, and `USBC_VERSION=1`. The first C-only canary adds an inert identity
+  string and changes no runtime behavior. Its local BIN is 177,788 bytes with
+  SHA-256 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
+  It is build evidence only. Rust ABI integration comes only after that canary
+  passes USB/app/button/recovery/power-cycle testing.
+- The old count lab's intended passive three-second window counts up to 64
+  unique advertiser addresses in ephemeral RAM, then displays the approximate
+  result for seven seconds. That firmware is quarantined and does not implement
+  the BadgeMagic GATT service.
+- The quarantined Rust display driver encodes both Micro-USB `HARDWARE_REV1`
+  and the candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation,
+  flicker, current draw, and radio/display coexistence still require a physical
+  test in a future FOSSASIA-shell derivative.
 - The vendored HAL is upstream `611954e` plus four recorded source patches: PAC
   `0.4` to `0.3`, raw BLE-heap pointer formation, Embassy-only GPIO async
   gating, and the missing synchronous SysTick nanosecond delay. Its BLE stack
@@ -209,9 +234,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   Do not port FOSSASIA head `eb6e9da`; it has duplicate I/K entries.
 - FOSSASIA's working USB-C source selects and calibrates the internal LSI; a
   later upstream change explicitly says the board has no external 32 kHz
-  crystal. The current Rust count image and vendored HAL BLE initializer select
-  external LSE, so `B1144C_250901_USB_C` is display-only until LSI BLE support
-  is implemented and tested.
+  crystal. Keep that C clock path. Do not reuse the old Rust HAL initializer,
+  which selects external LSE, in the replacement USB-C image.
 - Browser ISP code follows the documented behavior of `ch32-rs/wchisp` and
   remains experimental until exercised on physical hardware.
 - On the photographed USB-C `B1144C_250901` badge, holding KEY2 while pressing

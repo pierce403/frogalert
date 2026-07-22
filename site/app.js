@@ -16,12 +16,17 @@ import {
   validateReleaseDescriptor,
 } from "./wchisp-protocol.js";
 import {
+  artifactBoardBinding,
   canEnableFlash,
   canProgramArtifact,
   nextArtifactGeneration,
   revisionInputTransition,
 } from "./flasher-state.js";
 import { programAndVerifyFirmware } from "./flash-session.js";
+import {
+  assertFirmwareHashNotQuarantined,
+  parseFirmwareQuarantineRegistry,
+} from "./firmware-quarantine.js";
 import {
   ISP_ENTRY_PHASE,
   ISP_ENTRY_SEQUENCE,
@@ -45,6 +50,7 @@ import {
   decodeGattText,
   firmwareArtifactUrl,
   firmwareManifestUrl,
+  firmwareQuarantineUrl,
   isMobileNavigator,
   protectedFirmwareExplanation,
   usbDescriptorSummary,
@@ -65,7 +71,8 @@ const state = {
   activeFlashDevice: null,
   labImages: [],
   recoveryImages: [],
-  labImageSummary: { message: "Loading inspect-only lab image metadata…", tone: "neutral" },
+  quarantinedFirmwareHashes: null,
+  labImageSummary: { message: "Loading hardware-verified lab metadata…", tone: "neutral" },
   releaseSummary: { message: "Loading release manifest…", tone: "neutral" },
   wakeLock: null,
   activeStage: null,
@@ -169,10 +176,10 @@ const elements = {
 
 const ISP_ENTRY_COPY = Object.freeze({
   [ISP_ENTRY_PHASE.POWER_OFF]: {
-    title: "Step 1 of 5: Remove all power",
-    instruction: "Disconnect the battery. Unplug USB and remove every other power source.",
-    status: "No device chooser has opened. Nothing has changed.",
-    next: "Badge is fully unplugged",
+    title: "Step 1 of 5: Safely isolate all power",
+    instruction: "Safely isolate the battery and unplug USB. If the battery is soldered, stop: this cold-entry fallback requires qualified Li-ion bench work.",
+    status: "No device chooser has opened. Nothing has changed. Do not continue with a soldered battery unless you are qualified to isolate it safely.",
+    next: "Power is safely isolated",
   },
   [ISP_ENTRY_PHASE.HOLD_KEY2]: {
     title: "Step 2 of 5: Hold KEY2",
@@ -1028,12 +1035,13 @@ async function setFirmware(
   bytes,
   name,
   source,
-  { expectedHash = null, generation, hardwareRevisions, metadata = {} } = {},
+  { expectedHash = null, generation, hardwareRevisions, pcbMarkings = null, metadata = {} } = {},
 ) {
   const raw = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const validated = validateFirmware(raw, name);
   const hash = await sha256Hex(raw);
   if (generation !== state.artifactGeneration) return false;
+  assertFirmwareHashNotQuarantined(hash, state.quarantinedFirmwareHashes);
   if (expectedHash && hash.toLowerCase() !== expectedHash.toLowerCase()) {
     throw new Error("firmware SHA-256 does not match its release manifest");
   }
@@ -1042,7 +1050,7 @@ async function setFirmware(
     source,
     raw,
     hash,
-    hardwareRevisions: [...hardwareRevisions],
+    ...artifactBoardBinding({ hardwareRevisions, pcbMarkings }),
     ...validated,
     ...metadata,
   };
@@ -1162,9 +1170,19 @@ async function prepareOpenBadgeMagicFirmware() {
 
 async function loadReleaseManifest() {
   try {
-    const response = await fetch(firmwareManifestUrl(import.meta.url), { cache: "no-store" });
+    const [response, quarantineResponse] = await Promise.all([
+      fetch(firmwareManifestUrl(import.meta.url), { cache: "no-store" }),
+      fetch(firmwareQuarantineUrl(import.meta.url), { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error(`manifest returned HTTP ${response.status}`);
-    const manifest = await response.json();
+    if (!quarantineResponse.ok) {
+      throw new Error(`quarantine registry returned HTTP ${quarantineResponse.status}`);
+    }
+    const [manifest, quarantine] = await Promise.all([
+      response.json(),
+      quarantineResponse.json(),
+    ]);
+    state.quarantinedFirmwareHashes = parseFirmwareQuarantineRegistry(quarantine);
     if (
       manifest.schema_version !== 3 ||
       !Array.isArray(manifest.releases) ||
@@ -1190,13 +1208,14 @@ async function loadReleaseManifest() {
     const labIds = new Set();
     for (const lab of manifest.lab_images) {
       validateLabDescriptor(lab);
+      if (lab.hardware_verified !== true) {
+        throw new Error("public FrogAlert lab image lacks physical hardware verification");
+      }
       if (labIds.has(lab.id)) throw new Error(`duplicate hosted lab image id: ${lab.id}`);
       labIds.add(lab.id);
       const option = document.createElement("option");
       option.value = lab.id;
-      option.textContent = `${lab.label} ${lab.version} · ${lab.hardware_revisions.join(", ")} · ${
-        lab.hardware_verified ? "hardware-verified lab" : "inspection only"
-      }`;
+      option.textContent = `${lab.label} ${lab.version} · ${lab.hardware_revisions.join(", ")} · hardware-verified lab`;
       elements.labImageSelect.append(option);
     }
     state.labImages = [...manifest.lab_images];
@@ -1205,8 +1224,8 @@ async function loadReleaseManifest() {
     } else {
       elements.labImageSelect.disabled = state.flashing;
       setLabImageSummary(
-        `${state.labImages.length} hosted lab image${state.labImages.length === 1 ? "" : "s"} available. Unverified images are inspection-only.`,
-        "warning",
+        `${state.labImages.length} hardware-verified lab image${state.labImages.length === 1 ? "" : "s"} available.`,
+        "good",
       );
     }
 
@@ -1219,6 +1238,7 @@ async function loadReleaseManifest() {
     renderRecoveryDescriptor(recovery);
     updateRecoveryButton();
   } catch (error) {
+    state.quarantinedFirmwareHashes = null;
     state.labImages = [];
     state.recoveryImages = [];
     setReleaseSummary(`Release list unavailable: ${error.message}`, "bad");
@@ -1244,7 +1264,7 @@ async function chooseRelease(event) {
   }
   try {
     const release = JSON.parse(event.target.value);
-    validateReleaseDescriptor(release, selectedRevision());
+    validateReleaseDescriptor(release, selectedRevision(), elements.pcbMarking.value);
     const artifactUrl = firmwareArtifactUrl(release.file, import.meta.url);
     const response = await fetch(artifactUrl, { cache: "no-store" });
     if (!response.ok) throw new Error(`firmware returned HTTP ${response.status}`);
@@ -1254,6 +1274,7 @@ async function chooseRelease(event) {
       expectedHash: release.sha256,
       generation,
       hardwareRevisions: release.hardware_revisions,
+      pcbMarkings: [...release.pcb_markings],
       metadata: {
         artifactKind: "frogalert-release",
         hardwareVerified: release.hardware_verified,
@@ -1297,14 +1318,12 @@ async function chooseLabImage(event) {
       expectedHash: lab.sha256,
       generation,
       hardwareRevisions: lab.hardware_revisions,
+      pcbMarkings: [...lab.pcb_markings],
       metadata: {
         artifactKind: "frogalert-lab",
         hardwareVerified: lab.hardware_verified,
-        pcbMarkings: [...lab.pcb_markings],
         provenance: `FrogAlert lab image ${lab.version} · source ${lab.source_commit.slice(0, 12)}`,
-        hardwareEvidence: lab.hardware_verified
-          ? "Manifest records physical verification for this exact lab image and hardware profile"
-          : "Hardware-unverified hosted lab image; destructive use locked",
+        hardwareEvidence: "Manifest records physical verification for this exact lab image and hardware profile",
       },
     });
     if (!loaded) return;
@@ -1315,10 +1334,8 @@ async function chooseLabImage(event) {
     }
     setStatus(
       elements.labImageStatus,
-      lab.hardware_verified
-        ? `Loaded hardware-verified lab image ${lab.version} for ${selectedRevision()} and ${elements.pcbMarking.value.trim()}.`
-        : `Loaded ${lab.version} for inspection. Programming remains locked until this exact image and profile are physically verified.`,
-      lab.hardware_verified ? "good" : "warning",
+      `Loaded hardware-verified lab image ${lab.version} for ${selectedRevision()} and ${elements.pcbMarking.value.trim()}.`,
+      "good",
     );
   } catch (error) {
     if (generation !== state.artifactGeneration) return;

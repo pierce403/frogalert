@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+profile="${1:-}"
+build_mode="${2:-}"
+check_mode="${3:-}"
+
+if [[ "$#" -lt 2 || "$#" -gt 3 ]] ||
+  [[ "$profile" != "B1144C_250901_USB_C" ]] ||
+  [[ "$build_mode" != "baseline" && "$build_mode" != "canary" ]] ||
+  [[ -n "$check_mode" && "$check_mode" != "--check" ]]; then
+  echo "usage: ./scripts/build-fossasia-usbc B1144C_250901_USB_C {baseline|canary} [--check]" >&2
+  echo "Refusing a generic build: this shell is pinned to the exact USB-C profile." >&2
+  exit 2
+fi
+
+lock_file="$repo_root/firmware/fossasia-usbc/upstream-lock.json"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" lock
+mapfile -t lock_values < <(
+  node -e '
+    const lock = require(process.argv[1]);
+    for (const value of [
+      lock.upstream.extracted_directory,
+      lock.toolchain.name,
+      lock.toolchain.prefix,
+      lock.build.version,
+      lock.build.version_abbreviation,
+    ]) console.log(value);
+  ' "$lock_file"
+)
+
+source_directory="$repo_root/tmp/fossasia-usbc/source/${lock_values[0]}"
+toolchain_directory="$repo_root/tmp/fossasia-usbc/toolchains/${lock_values[1]}"
+toolchain_prefix="$toolchain_directory/${lock_values[2]}"
+version="${lock_values[3]}"
+version_abbreviation="${lock_values[4]}"
+build_directory="$repo_root/tmp/fossasia-usbc/build/$build_mode"
+
+"$repo_root/scripts/prepare-fossasia-usbc" --with-toolchain
+rm -rf "$build_directory"
+mkdir -p "$build_directory"
+
+makefiles=(-f Makefile)
+if [[ "$build_mode" == "canary" ]]; then
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-canary.c" \
+    "$source_directory/src/frogalert_canary.c"
+  makefiles+=(
+    -f "$repo_root/firmware/fossasia-usbc/frogalert-canary.mk"
+  )
+fi
+
+jobs="${FROGALERT_BUILD_JOBS:-}"
+if [[ -z "$jobs" ]]; then
+  jobs="$(nproc)"
+fi
+if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]]; then
+  echo "FROGALERT_BUILD_JOBS must be a positive integer" >&2
+  exit 2
+fi
+
+(
+  cd "$source_directory"
+  make \
+    --silent \
+    -j"$jobs" \
+    "${makefiles[@]}" \
+    BUILD_DIR="$build_directory" \
+    USBC_VERSION=1 \
+    VERSION="$version" \
+    VERSION_ABBR="$version_abbreviation" \
+    PREFIX="$toolchain_prefix"
+)
+
+elf="$build_directory/badgemagic-ch582.elf"
+bin="$build_directory/badgemagic-ch582.bin"
+nm_output="$build_directory/badgemagic-ch582.nm.txt"
+disassembly="$build_directory/badgemagic-ch582.disassembly.txt"
+highcode="$build_directory/badgemagic-ch582.highcode.bin"
+elf_bin="$build_directory/badgemagic-ch582.from-elf.bin"
+nm="${toolchain_prefix}nm"
+objcopy="${toolchain_prefix}objcopy"
+objdump="${toolchain_prefix}objdump"
+size_tool="${toolchain_prefix}size"
+
+[[ -f "$elf" && -f "$bin" ]] || {
+  echo "upstream build did not produce both ELF and BIN" >&2
+  exit 1
+}
+
+"$nm" -a "$elf" >"$nm_output"
+"$objcopy" --dump-section ".highcode=$highcode" "$elf"
+"$objcopy" -O binary -S "$elf" "$elf_bin"
+if ! cmp -s "$bin" "$elf_bin"; then
+  echo "Make-produced BIN differs from the audited ELF's loadable bytes" >&2
+  exit 1
+fi
+"$objdump" -d "$elf" >"$disassembly"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" symbols "$build_mode" "$nm_output"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" vectors "$highcode" "$nm_output"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" disassembly "$disassembly"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" binary "$build_mode" "$bin"
+
+"$size_tool" "$elf"
+sha256sum "$bin"
+wc -c "$bin"
+echo "FOSSASIA runtime audit passed: reset/vector, USB, BLE, display, and KEY2 symbols retained"
+echo "ELF/BIN binding passed: final BIN exactly matches objcopy of the audited ELF"
+if [[ "$build_mode" == "baseline" ]]; then
+  echo "baseline gate passed: BIN is byte-identical to the known-good FOSSASIA USB-C image"
+else
+  echo "canary gate passed: only the C metadata overlay was requested"
+fi
+echo "build evidence: $bin"
+echo "HARDWARE UNVERIFIED: this output is local-only and is not approved for flashing"
+
+if [[ "$check_mode" == "--check" ]]; then
+  exit 0
+fi

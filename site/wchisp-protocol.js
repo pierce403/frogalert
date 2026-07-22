@@ -256,16 +256,23 @@ export function validateFirmware(raw, filename = "firmware.bin") {
   return { padded, eraseSectors };
 }
 
-export function validateReleaseDescriptor(release, pcbRevision) {
+export function validateReleaseDescriptor(release, pcbRevision, pcbMarking) {
   if (!release || release.target !== "ch582m-badgemagic-11x44" || release.hardware_verified !== true) {
     throw new Error("release is not hardware-verified for the FrogAlert target");
   }
-  if (!Array.isArray(release.hardware_revisions) || release.hardware_revisions.length === 0) {
-    throw new Error("release does not declare any verified PCB revisions");
+  if (!Array.isArray(release.hardware_revisions) || release.hardware_revisions.length !== 1) {
+    throw new Error("release must declare exactly one verified PCB revision");
   }
   const revision = String(pcbRevision || "").trim();
   if (!revision || !release.hardware_revisions.includes(revision)) {
     throw new Error(`release does not support PCB revision ${revision || "(not entered)"}`);
+  }
+  if (!Array.isArray(release.pcb_markings) || release.pcb_markings.length !== 1) {
+    throw new Error("release must declare exactly one verified physical PCB marking");
+  }
+  const marking = String(pcbMarking || "").trim();
+  if (!marking || !release.pcb_markings.includes(marking)) {
+    throw new Error(`release does not support physical PCB marking ${marking || "(not entered)"}`);
   }
   if (typeof release.file !== "string" || !/^[a-zA-Z0-9._-]+\.bin$/.test(release.file)) {
     throw new Error("release filename is not a safe raw BIN name");
@@ -286,8 +293,8 @@ function validateManifestArtifactMetadata(artifact, description) {
   if (artifact.target !== "ch582m-badgemagic-11x44") {
     throw new Error(`${description} does not target the FrogAlert CH582M 11×44 badge`);
   }
-  if (!Array.isArray(artifact.hardware_revisions) || artifact.hardware_revisions.length === 0) {
-    throw new Error(`${description} does not declare any hardware profiles`);
+  if (!Array.isArray(artifact.hardware_revisions) || artifact.hardware_revisions.length !== 1) {
+    throw new Error(`${description} must declare exactly one hardware profile`);
   }
   if (
     artifact.hardware_revisions.some(
@@ -327,8 +334,8 @@ export function validateLabDescriptor(lab) {
   if (typeof lab.purpose !== "string" || !lab.purpose.trim()) {
     throw new Error("lab image purpose is missing");
   }
-  if (!Array.isArray(lab.pcb_markings) || lab.pcb_markings.length === 0) {
-    throw new Error("lab image does not declare any physical PCB markings");
+  if (!Array.isArray(lab.pcb_markings) || lab.pcb_markings.length !== 1) {
+    throw new Error("lab image must declare exactly one physical PCB marking");
   }
   if (
     lab.pcb_markings.some(

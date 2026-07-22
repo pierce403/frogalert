@@ -58,23 +58,26 @@ The upstream scan topology uses 23 Charlieplex nets and 22 source phases. The
 clean research reference is FOSSASIA commit `aa890e9`; current head `eb6e9da`
 has duplicate I/K pin entries and must not be ported.
 
-The Rust bank driver now carries mutually exclusive `HARDWARE_REV1` and
-`B1144C_250901_USB_C` candidates. The USB-C map is pinned to the exact working
-development source: J PB15, K PB14, T PB6; all other display nets match Rev1.
-Do not alias this to generic `BM1144-C`, Rev2, or Rev3. Run a slow single-pixel
-walk before trusting orientation, the row-zero swap, pin ordering, current, or
-refresh.
+The Rust bank driver carries mutually exclusive `HARDWARE_REV1` and
+`B1144C_250901_USB_C` candidate maps, but its standalone runtime is
+quarantined. The first USB-C pixel-walk image booted blank and its KEY2 hook did
+not run. Static ELF analysis found that `ch58x` PAC 0.3.0 placed
+`__EXTERNAL_INTERRUPTS` in flash `.rodata` while `qingke-rt` 0.5.0 expected it
+in the RAM `.highcode` vector area. IRQ 16 therefore pointed to
+`DefaultInterruptHandler` rather than the TMR0 wrapper. The first enabled timer
+interrupt entered an infinite loop before display refresh or foreground KEY2
+polling. The count image has the same defect.
 
-Both Rust lab applications share a 2.2-second KEY2 hold and address-zero ROM
-transfer implementation. Unit/build evidence is not physical recovery proof;
-each artifact still needs short-press and `4348:55e0` long-press acceptance.
+The USB-C display map remains useful research evidence: J PB15, K PB14, T PB6;
+all other display nets match Rev1. Do not alias this to generic `BM1144-C`,
+Rev2, or Rev3, and do not use the old Rust images to test it.
 
-WCH startup compatibility adds a separate packaging invariant. Official WCH
-startup places `0xF5F9BDA9` in the reserved core-vector word at raw image offset
-`0x14`; qingke-rt 0.5.0 leaves that word zero. FrogAlert's build scripts replace
-only zero with that sentinel before hashing and site publication, and reject
-any other value as linker drift. The sentinel is parity with working images,
-not a demonstrated cause of the KEY2 recovery path.
+WCH startup places `0xF5F9BDA9` in the reserved core-vector word at raw image
+offset `0x14`. FrogAlert's earlier packaging patch supplied that marker, but it
+did not repair or validate the vector table. A symbol containing `jr zero` also
+did not prove that execution could reach the recovery poll. Future images keep
+the known-good FOSSASIA startup/linker/runtime intact and must audit actual
+post-link vector words as well as physical long-press recovery.
 
 ## Atomic-free BLE prototype
 
@@ -83,23 +86,23 @@ unpublished `ch58x 0.4.0` dependency changed to published `0.3.0`. Target
 `riscv32imc-unknown-none-elf`; never opt into QingKe hardware atomics. The build
 script disassembles every linked ELF and rejects AMO, LR, or SC instructions.
 
-The lab build passively scans for three seconds, counts at most 64 distinct
-advertiser addresses in an allocation-free table, zeros that table at the end
-of the window, displays the approximate count for seven seconds, and repeats.
-It logs only the count. It is observer-only and does not provide BadgeMagic
-GATT compatibility.
+The historical lab source intends to scan for three seconds, count at most 64
+distinct advertiser addresses in an allocation-free table, zero that table at
+the end of the window, display the approximate count for seven seconds, and
+repeat. Its host logic passes, but the embedded wrapper is quarantined by the
+vector failure and never demonstrated this behavior on hardware. It is
+observer-only and does not provide BadgeMagic GATT compatibility.
 
 The vendored WCH BLE archive reports V1.90 and has SHA-256
 `9363b1fd04a8d4c33798ac480fd860b4b4cce023053d8e3dfde1a9a3b00d1b72`.
 The pinned FOSSASIA USB-C source uses calibrated internal LSI, and its later
-upstream history explicitly says the board cannot use LSE. The Rust count image
-and HAL BLE initializer currently select external LSE, so only the display-only
-pixel walk may target `B1144C_250901_USB_C`; USB-C radio builds remain blocked.
+upstream history explicitly says the board cannot use LSE. The standalone Rust
+BLE design selected external LSE, another reason not to reuse it on this board.
+FrogAlert's next hardware image keeps the FOSSASIA C hardware shell and calls
+Rust only through a narrow ABI for pure classification/counting logic.
 
-Hosted FrogAlert lab images belong in the manifest's separate `lab_images`
-collection. `hardware_verified: false` permits local fetch/hash/profile
-inspection but must remain an executable direct-write lock. The first hosted
-entry is the 5,632-byte USB-C pixel walk from source `f794974`, SHA-256
-`02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22`,
-bound to `B1144C_250901_USB_C` and physical marking `B1144C_250901`. It remains
-unverified; hosting and download never imply flash approval.
+No unverified FrogAlert image may be hosted. The failed 5,632-byte SHA
+`02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22`
+is permanently quarantined. Future `releases` and `lab_images` entries require
+hash-bound physical program/verify, boot, power-cycle, button, and ROM-ISP
+evidence before site assembly accepts them.

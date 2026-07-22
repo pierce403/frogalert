@@ -46,14 +46,51 @@ node --test tests/*.test.mjs
 These tests verify packet shapes and safety validation. They do not prove that
 the WCH ROM bootloader, an OS driver, or a real badge accepts the flow.
 
-## Embedded Rust prototypes
+## Embedded firmware
 
-The `firmware/` workspace contains two hardware-unverified binaries: a minimal
-single-pixel display walk and a passive BLE count image. Shared crates provide
-the revision-gated display map and KEY2 ROM-ISP recovery logic. These are lab
-builds, not firmware releases and not yet safe to flash. Neither application
-has produced light on a FrogAlert-tested BadgeMagic PCB, and the count image
-has not received a real advertisement.
+The supported replacement path is the pinned FOSSASIA USB-C hardware shell in
+`firmware/fossasia-usbc/`. It preserves the startup assembly, linker layout,
+clocks, USB HID+CDC, BadgeMagic BLE/TMOS stack, display, buttons, and KEY2 ISP
+task that already work together on the photographed badge.
+
+Prepare the exact source and toolchain, or let the build script prepare them:
+
+```sh
+./scripts/prepare-fossasia-usbc --source-only
+./scripts/prepare-fossasia-usbc --with-toolchain
+```
+
+Build and audit the byte-identical known-good baseline:
+
+```sh
+./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
+```
+
+Build the first derived compatibility canary:
+
+```sh
+./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
+```
+
+The canary adds one retained C metadata string and owns no functions or
+hardware. Both lanes use `USBC_VERSION=1`, validate pinned archive/tool hashes
+and critical sources, audit required runtime symbols and linked instructions,
+and keep everything under ignored `tmp/fossasia-usbc/`. The baseline must match
+the known-good 177,704-byte image exactly. Neither command flashes, publishes,
+or authorizes a physical test.
+
+Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already
+populated verified cache. See `firmware/fossasia-usbc/upstream-lock.json` for
+the exact archive, compiler, tool, source, ELF/BIN, and runtime-file pins.
+
+### Quarantined standalone Rust runtime
+
+The `firmware/` Rust workspace still contains the historical pixel-walk and
+passive count wrappers. They are retained to test reusable logic and the vector
+regression guard, not to produce flashable images. The first physical
+pixel-walk test exposed an incompatible PAC/runtime vector layout: Timer 0's
+live vector points to `DefaultInterruptHandler`, so the image wedges before
+display refresh or KEY2 polling. The count ELF has the same defect.
 
 The embedded build contract is pinned to:
 
@@ -85,95 +122,78 @@ rustup toolchain install nightly-2026-07-17 \
   --target riscv32imc-unknown-none-elf
 ```
 
-Both build helpers explicitly select that toolchain and target, use the locked
-firmware dependency graph, ignore environment target-directory/Rust-flag
-overrides, and select only the intended binary. They validate the exact final
-ELF as 32-bit RISC-V IMC, disassemble with A-extension decoding enabled, and
-reject AMO, LR, or SC instructions. Build products stay under ignored `tmp/`.
+Both diagnostic build helpers explicitly select that toolchain and target, use
+the locked firmware dependency graph, ignore environment target-directory and
+Rust-flag overrides, and select only the intended binary. They validate the
+exact final ELF as 32-bit RISC-V IMC, reject AMO/LR/SC instructions, and then
+run `scripts/audit-ch58x-vectors.mjs`. The audit intentionally fails on the
+known misplaced external table before `objcopy`; any stale BIN is removed.
 
-### Safe display bring-up
+### Failed pixel-walk diagnostic
 
-Run the minimal display check before the BLE count image:
+Run only to reproduce the vector failure and retain a diagnostic ELF/report:
 
 ```sh
 ./scripts/build-display-bringup HARDWARE_REV1 --check
 ./scripts/build-display-bringup B1144C_250901_USB_C --check
 ```
 
-Run the same audited packaging path without `--check` only after the opened
-board passes its exact identity gate and the owner explicitly accepts the
-irreversible first flash:
-
-```sh
-./scripts/build-display-bringup HARDWARE_REV1
-./scripts/build-display-bringup B1144C_250901_USB_C
-```
-
-The image keeps exactly one logical framebuffer bit set. It advances from
+The source intended to keep exactly one logical framebuffer bit set and advance from
 `(0, 0)` left-to-right across 44 columns, then down through 11 rows, every
 750 ms. UART1/PA9 reports each coordinate at 115200 baud. The display pins use
 the lower 5 mA drive setting and a 250 us drive/release cadence. The build does
 not enable the HAL BLE feature, initialize Embassy, or select a 32 kHz radio
-clock. It samples active-low KEY2/PB22 every 200 ms and, after a continuous
-2.2-second hold, disables display refresh, floats the matrix, disables global
-interrupts, and transfers to address zero. This matches the upstream recovery
-mechanism at source level but remains physically unverified in FrogAlert.
+clock. Its KEY2 source is never reached after the first Timer 0 interrupt on the
+linked image. The build exits nonzero with `[external-section]` and
+`[tmr0-vector-target]` findings and emits no BIN.
 
 Its temporary paths are:
 
 - ELF:
   `tmp/build/frogalert-pixel-walk-<PROFILE>/riscv32imc-unknown-none-elf/release/frogalert-pixel-walk`
 - audited disassembly: `tmp/firmware/frogalert-pixel-walk-<PROFILE>.disassembly.txt`
-- finalized raw image: `tmp/firmware/frogalert-pixel-walk-<PROFILE>.bin`
+- vector report: `tmp/firmware/frogalert-pixel-walk-<PROFILE>.vectors.txt`
 
 `<PROFILE>` is exactly `HARDWARE_REV1` or `B1144C_250901_USB_C`. The USB-C
 candidate map is pinned to FOSSASIA source `9ce885d` and physical marking
-`B1144C_250901`; generic `BM1144-C`, Rev2, and Rev3 names are not aliases.
+`B1144C_250901`; generic `BM1144-C`, Rev2, and Rev3 names are not aliases. Do
+not bypass the audit or recover an older temporary BIN for flashing.
 
-### Passive BLE count prototype
+### Failed passive-count diagnostic
 
-Run a formatting, cross-link, size, instruction, recovery, and package-format
-audit. The ignored raw BIN is generated even in check mode so its final startup
-sentinel, size, and hash are validated:
+Run a formatting, cross-link, instruction, recovery-symbol, and vector audit:
 
 ```sh
 ./scripts/build-count-firmware HARDWARE_REV1 --check
 ```
 
-Run the non-check form for a deliberate local hardware test only after
-selecting the explicit revision gate:
-
-```sh
-./scripts/build-count-firmware HARDWARE_REV1
-```
-
-The build keeps generated material out of release directories:
+The diagnostic keeps generated material out of release directories:
 
 - ELF:
   `tmp/build/frogalert-count/riscv32imc-unknown-none-elf/release/frogalert-count-firmware`
 - audited disassembly:
   `tmp/firmware/frogalert-count-HARDWARE_REV1.disassembly.txt`
-- raw lab image: `tmp/firmware/frogalert-count-HARDWARE_REV1.bin`
+- vector report: `tmp/firmware/frogalert-count-HARDWARE_REV1.vectors.txt`
 
-Both forms print the finalized BIN's SHA-256 and exact byte count. These `tmp/`
-outputs are not release artifacts and must not be added to the website manifest
-without an intentional immutable lab descriptor. A release still requires the
-provenance and physical evidence in [RELEASE.md](RELEASE.md).
+The audit fails before BIN extraction because this ELF has the same misplaced
+external table and Timer 0 target. No form of this wrapper is approved for a
+hardware test or website manifest.
 
-The current lab loop passively scans the LE 1M PHY for three seconds, counts
+The historical lab source schedules a three-second LE 1M passive scan, counts
 distinct advertiser addresses in a fixed 64-entry table, shows the result for
-seven seconds, and repeats. A saturated window renders `64+`. The table is
-zeroed after each window; no address is logged, persisted, or transmitted.
+seven seconds, and repeats. That behavior is host-tested but never ran usefully
+on the badge because the embedded wrapper is quarantined. A saturated window
+would render `64+`. The table is zeroed after each window; no address is logged,
+persisted, or transmitted.
 Because BLE addresses can be randomized, the result is an approximate count of
 advertisers seen, not a count of people or physical devices.
 
-This lab firmware is observer-only. It does not advertise the BadgeMagic
+This historical lab source is observer-only. It does not advertise the BadgeMagic
 `FEE0/FEE1` service and cannot be configured by the BadgeMagic app. The exact
 PCB matrix mapping and orientation, radio reception, display refresh, and
-current draw all remain physical-hardware questions. There is no USB-C count
-profile: FOSSASIA's working USB-C source uses calibrated internal LSI, while
-the current Rust application and HAL BLE initializer select external LSE. Patch
-and verify that clock path before enabling `B1144C_250901_USB_C` for radio use.
+current draw all remain physical-hardware questions. Replacement scanning must
+be scheduled inside the FOSSASIA shell so it retains the proven calibrated
+internal-LSI setup and BadgeMagic peripheral behavior.
 
 ## Physical development gate
 

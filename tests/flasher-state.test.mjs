@@ -2,11 +2,26 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  artifactBoardBinding,
   canEnableFlash,
   canProgramArtifact,
   nextArtifactGeneration,
   revisionInputTransition,
 } from "../site/flasher-state.js";
+
+test("artifact state retains exact profile and physical PCB bindings", () => {
+  const revisions = ["B1144C_250901_USB_C"];
+  const markings = ["B1144C_250901"];
+  const binding = artifactBoardBinding({ hardwareRevisions: revisions, pcbMarkings: markings });
+  assert.deepEqual(binding, { hardwareRevisions: revisions, pcbMarkings: markings });
+  assert.notEqual(binding.hardwareRevisions, revisions);
+  assert.notEqual(binding.pcbMarkings, markings);
+  assert.throws(() => artifactBoardBinding({ hardwareRevisions: [] }), /revisions are missing/);
+  assert.throws(
+    () => artifactBoardBinding({ hardwareRevisions: revisions, pcbMarkings: [] }),
+    /PCB markings are missing/,
+  );
+});
 
 test("every revision input transition invalidates an in-flight artifact generation", () => {
   const inFlightGeneration = nextArtifactGeneration(4);

@@ -74,6 +74,10 @@ export function firmwareManifestUrl(moduleUrl) {
   return new URL("../firmware/releases/manifest.json", moduleUrl);
 }
 
+export function firmwareQuarantineUrl(moduleUrl) {
+  return new URL("../firmware/quarantine.json", moduleUrl);
+}
+
 export function firmwareArtifactUrl(filename, moduleUrl) {
   if (typeof filename !== "string" || !/^[a-zA-Z0-9._-]+\.bin$/.test(filename)) {
     throw new Error("firmware filename is not a safe raw BIN name");

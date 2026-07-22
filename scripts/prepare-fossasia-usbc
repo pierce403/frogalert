@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+lock_file="$repo_root/firmware/fossasia-usbc/upstream-lock.json"
+mode="${1:---source-only}"
+
+if [[ "$#" -gt 1 ]] || [[ "$mode" != "--source-only" && "$mode" != "--with-toolchain" ]]; then
+  echo "usage: ./scripts/prepare-fossasia-usbc [--source-only|--with-toolchain]" >&2
+  exit 2
+fi
+
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" lock
+
+mapfile -t lock_values < <(
+  node -e '
+    const lock = require(process.argv[1]);
+    const values = [
+      lock.upstream.archive_url,
+      lock.upstream.archive_file,
+      lock.upstream.archive_size,
+      lock.upstream.archive_sha256,
+      lock.upstream.extracted_directory,
+      lock.toolchain.archive_url,
+      lock.toolchain.archive_file,
+      lock.toolchain.archive_size,
+      lock.toolchain.archive_sha256,
+      lock.toolchain.name,
+      lock.toolchain.prefix,
+      lock.toolchain.compiler_version,
+      lock.toolchain.compiler_sha256,
+      lock.toolchain.objcopy_sha256,
+      lock.toolchain.nm_sha256,
+      lock.toolchain.objdump_sha256,
+      lock.toolchain.embedded_gcc_tree_sha256,
+    ];
+    for (const value of values) console.log(value);
+  ' "$lock_file"
+)
+
+source_url="${lock_values[0]}"
+source_archive_name="${lock_values[1]}"
+source_archive_size="${lock_values[2]}"
+source_archive_sha="${lock_values[3]}"
+source_directory_name="${lock_values[4]}"
+toolchain_url="${lock_values[5]}"
+toolchain_archive_name="${lock_values[6]}"
+toolchain_archive_size="${lock_values[7]}"
+toolchain_archive_sha="${lock_values[8]}"
+toolchain_name="${lock_values[9]}"
+toolchain_prefix_relative="${lock_values[10]}"
+toolchain_compiler_version="${lock_values[11]}"
+toolchain_compiler_sha="${lock_values[12]}"
+toolchain_objcopy_sha="${lock_values[13]}"
+toolchain_nm_sha="${lock_values[14]}"
+toolchain_objdump_sha="${lock_values[15]}"
+toolchain_tree_sha="${lock_values[16]}"
+
+work_root="$repo_root/tmp/fossasia-usbc"
+cache_directory="$work_root/cache"
+source_root="$work_root/source"
+toolchain_root="$work_root/toolchains"
+mkdir -p "$cache_directory" "$source_root" "$toolchain_root"
+
+verify_archive() {
+  local file="$1"
+  local expected_size="$2"
+  local expected_sha="$3"
+  local label="$4"
+  local actual_size actual_sha
+
+  actual_size="$(stat -c %s "$file")"
+  if [[ "$actual_size" != "$expected_size" ]]; then
+    echo "$label has size $actual_size; expected $expected_size" >&2
+    return 1
+  fi
+  actual_sha="$(sha256sum "$file" | cut -d ' ' -f 1)"
+  if [[ "$actual_sha" != "$expected_sha" ]]; then
+    echo "$label has SHA-256 $actual_sha; expected $expected_sha" >&2
+    return 1
+  fi
+}
+
+ensure_archive() {
+  local url="$1"
+  local destination="$2"
+  local expected_size="$3"
+  local expected_sha="$4"
+  local label="$5"
+  local partial="$destination.partial"
+
+  if [[ -f "$destination" ]] && verify_archive "$destination" "$expected_size" "$expected_sha" "$label"; then
+    echo "verified cached $label"
+    return
+  fi
+
+  if [[ "${FROGALERT_FOSSASIA_OFFLINE:-0}" == "1" ]]; then
+    echo "offline mode requires the verified cache file: $destination" >&2
+    exit 1
+  fi
+  command -v curl >/dev/null 2>&1 || {
+    echo "curl is required to download $label" >&2
+    exit 1
+  }
+
+  rm -f "$partial"
+  echo "downloading $label"
+  curl --fail --location --retry 3 --output "$partial" "$url"
+  verify_archive "$partial" "$expected_size" "$expected_sha" "$label"
+  mv "$partial" "$destination"
+  echo "downloaded and verified $label"
+}
+
+source_archive="$cache_directory/$source_archive_name"
+ensure_archive \
+  "$source_url" \
+  "$source_archive" \
+  "$source_archive_size" \
+  "$source_archive_sha" \
+  "FOSSASIA source archive"
+
+source_directory="$source_root/$source_directory_name"
+source_staging="$source_root/.extract-$source_directory_name"
+rm -rf "$source_directory" "$source_staging"
+mkdir -p "$source_staging"
+tar -xzf "$source_archive" -C "$source_staging"
+if [[ ! -d "$source_staging/$source_directory_name" ]]; then
+  echo "source archive did not contain $source_directory_name" >&2
+  exit 1
+fi
+mv "$source_staging/$source_directory_name" "$source_directory"
+rmdir "$source_staging"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" source "$source_directory"
+echo "prepared exact FOSSASIA source: $source_directory"
+
+if [[ "$mode" == "--source-only" ]]; then
+  exit 0
+fi
+
+toolchain_archive="$cache_directory/$toolchain_archive_name"
+ensure_archive \
+  "$toolchain_url" \
+  "$toolchain_archive" \
+  "$toolchain_archive_size" \
+  "$toolchain_archive_sha" \
+  "MRS V1.92 toolchain archive"
+
+toolchain_directory="$toolchain_root/$toolchain_name"
+toolchain_prefix="$toolchain_directory/$toolchain_prefix_relative"
+compiler="${toolchain_prefix}gcc"
+objcopy="${toolchain_prefix}objcopy"
+nm="${toolchain_prefix}nm"
+objdump="${toolchain_prefix}objdump"
+toolchain_marker="$toolchain_directory/.frogalert-archive-sha256"
+
+verify_toolchain() {
+  local actual_tree_sha
+  [[ -x "$compiler" && -x "$objcopy" && -x "$nm" && -x "$objdump" ]] || return 1
+  [[ -f "$toolchain_marker" ]] || return 1
+  [[ "$(<"$toolchain_marker")" == "$toolchain_archive_sha" ]] || return 1
+  [[ "$(sha256sum "$compiler" | cut -d ' ' -f 1)" == "$toolchain_compiler_sha" ]] || return 1
+  [[ "$(sha256sum "$objcopy" | cut -d ' ' -f 1)" == "$toolchain_objcopy_sha" ]] || return 1
+  [[ "$(sha256sum "$nm" | cut -d ' ' -f 1)" == "$toolchain_nm_sha" ]] || return 1
+  [[ "$(sha256sum "$objdump" | cut -d ' ' -f 1)" == "$toolchain_objdump_sha" ]] || return 1
+  [[ "$($compiler --version | head -n 1)" == "$toolchain_compiler_version" ]] || return 1
+  actual_tree_sha="$(
+    cd "$toolchain_directory"
+    find -L RISC-V_Embedded_GCC -type f -print0 |
+      sort -z |
+      xargs -0 sha256sum |
+      sha256sum |
+      cut -d ' ' -f 1
+  )"
+  [[ "$actual_tree_sha" == "$toolchain_tree_sha" ]] || return 1
+}
+
+if ! verify_toolchain; then
+  toolchain_staging="$toolchain_root/.extract-$toolchain_name"
+  rm -rf "$toolchain_directory" "$toolchain_staging"
+  mkdir -p "$toolchain_staging"
+  tar -xJf "$toolchain_archive" -C "$toolchain_staging"
+  if [[ ! -d "$toolchain_staging/$toolchain_name" ]]; then
+    echo "toolchain archive did not contain $toolchain_name" >&2
+    exit 1
+  fi
+  mv "$toolchain_staging/$toolchain_name" "$toolchain_directory"
+  rmdir "$toolchain_staging"
+  printf '%s\n' "$toolchain_archive_sha" >"$toolchain_marker"
+  verify_toolchain || {
+    echo "extracted MRS V1.92 toolchain failed its locked binary audit" >&2
+    exit 1
+  }
+fi
+
+echo "prepared pinned MRS V1.92 toolchain: $toolchain_directory"

@@ -104,14 +104,16 @@ test("release descriptors bind artifacts to an exact verified PCB revision", () 
     target: "ch582m-badgemagic-11x44",
     hardware_verified: true,
     hardware_revisions: ["rev-a"],
+    pcb_markings: ["BOARD-A"],
     file: "frogalert-rev-a.bin",
     bytes: 1024,
     sha256: "a".repeat(64),
   };
-  assert.equal(validateReleaseDescriptor(release, "rev-a"), true);
-  assert.throws(() => validateReleaseDescriptor(release, "rev-b"), /does not support/);
+  assert.equal(validateReleaseDescriptor(release, "rev-a", "BOARD-A"), true);
+  assert.throws(() => validateReleaseDescriptor(release, "rev-b", "BOARD-A"), /does not support/);
+  assert.throws(() => validateReleaseDescriptor(release, "rev-a", "BOARD-B"), /physical PCB marking/);
   assert.throws(
-    () => validateReleaseDescriptor({ ...release, file: "../unsafe.bin" }, "rev-a"),
+    () => validateReleaseDescriptor({ ...release, file: "../unsafe.bin" }, "rev-a", "BOARD-A"),
     /safe raw BIN/,
   );
 });

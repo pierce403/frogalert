@@ -19,35 +19,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Rust format
-        run: cargo fmt --all -- --check
-      - name: Rust lint
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Rust tests
-        run: cargo test --workspace
       - name: Install pinned embedded Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2026-07-17
           targets: riscv32imc-unknown-none-elf
           components: rustfmt, llvm-tools-preview
-      - name: Embedded Rust link and instruction audits
-        run: |
-          firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
-          (
-            cd firmware
-            ../scripts/run-rust-toolchain nightly-2026-07-17 cargo test --locked --target "$firmware_host" --package frogalert-recovery
-          )
-          ./scripts/build-display-bringup HARDWARE_REV1 --check
-          ./scripts/build-display-bringup B1144C_250901_USB_C --check
-          ./scripts/build-count-firmware HARDWARE_REV1 --check
-      - name: Browser protocol and site tests
-        run: |
-          node --test tests/*.test.mjs
-          node scripts/assemble-site.mjs tmp/site-build
-      - name: Whitespace check
-        run: |
-          if git grep -nI -E '[[:blank:]]+$' -- .; then
-            echo "Tracked files contain trailing whitespace" >&2
-            exit 1
-          fi
+      - name: Verify repository contract
+        run: ./scripts/verify

@@ -1,6 +1,6 @@
 #![no_std]
 
-/// Match the physically verified FOSSASIA v0.1 recovery affordance exactly:
+/// Model the pinned FOSSASIA USB-C source `9ce885d` recovery affordance:
 /// its 200 ms task transfers after more than ten consecutive held samples.
 pub const KEY2_POLL_MS: u16 = 200;
 pub const KEY2_HOLD_SAMPLES: u8 = 11;
@@ -50,7 +50,8 @@ impl Key2RecoveryHold {
 
 /// Transfer to the CH582 startup path at absolute address zero.
 ///
-/// FOSSASIA v0.1 uses `j 0x00` while KEY2/PB22 remains low. `jr zero` expresses
+/// Pinned FOSSASIA USB-C source `9ce885d` uses `j 0x00` while KEY2/PB22 remains
+/// low. `jr zero` expresses
 /// the same absolute target without relying on assembler interpretation of a
 /// numeric PC-relative jump. The CH582 mask-ROM ISP remains the bootloader; this
 /// function does not install or replace one.

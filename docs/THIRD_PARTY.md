@@ -2,7 +2,8 @@
 
 FrogAlert is Apache-2.0 unless a file says otherwise.
 
-- FOSSASIA `badgemagic-firmware` — Apache-2.0. Hardware mapping, BadgeMagic
+- FOSSASIA `badgemagic-firmware` — Apache-2.0. Pinned source for FrogAlert's
+  initial USB-C hardware/runtime shell, plus hardware mapping, BadgeMagic
   protocol documentation, and flashing safety reference.
   <https://github.com/fossasia/badgemagic-firmware>
 - `ch32-rs/ch58x-hal` — MIT OR Apache-2.0. Rust HAL and BLE feasibility
@@ -20,7 +21,21 @@ packet behavior with source attribution. Before redistributing copied or
 materially adapted GPL implementation code, review the license boundary and add
 the required notices/source terms rather than silently treating it as Apache.
 
-## Vendored CH58x HAL and WCH radio archive
+## Pinned FOSSASIA USB-C hardware shell
+
+`firmware/fossasia-usbc/` pins FOSSASIA source commit `9ce885d` and records the
+source archive, MRS V1.92 toolchain, critical runtime files, and known-good
+linked baseline by size and SHA-256. Source and toolchain are downloaded into
+ignored `tmp/`; the repository does not vendor or redistribute the complete
+archives.
+
+Derived images preserve upstream Apache-2.0 notices and the notices in WCH's
+startup, peripheral, ISP, and BLE components. Those WCH components are for WCH
+microcontrollers; FrogAlert's build remains CH582M-specific. Keep the original
+license files in build/release source bundles, and do not imply the opaque WCH
+BLE archive is an all-open or all-Rust implementation.
+
+## Quarantined CH58x HAL and WCH radio archive
 
 `firmware/vendor/ch58x-hal/` is the build-relevant subset of MIT OR Apache-2.0
 `ch32-rs/ch58x-hal` commit
@@ -30,7 +45,10 @@ unpublished `ch58x` `0.4.0` PAC is changed to published `0.3.0`; the BLE heap
 address uses a raw mutable pointer rather than an aliasing shared reference;
 async GPIO machinery is gated behind the HAL's `embassy` feature; and the
 synchronous SysTick delay supplies embedded-hal 1.0's required `delay_ns`
-method. The last two allow the pixel-walk build to disable BLE and Embassy. The
+method. The last two allowed the historical pixel-walk build to disable BLE and
+Embassy. That standalone runtime is now quarantined because the substituted PAC
+and runtime produced an invalid external-vector layout. The source remains for
+forensics and reusable pure logic, not as the base of new badge images. The
 upstream license notices and a local provenance note are retained.
 
 The HAL links WCH's precompiled `vendor/LIBCH58xBLE.a`; the radio stack is not

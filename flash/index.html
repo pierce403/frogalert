@@ -147,38 +147,38 @@
             <h3>WCH ISP bootloader via USB</h3>
             <p>Choose the USB bootloader, not the running Bluetooth badge. The first connection identifies chip <code>0x82</code>, family <code>0x16</code>, and configuration without erasing or programming.</p>
             <div class="isp-entry-summary">
-              <p><strong>No multi-button combo:</strong> for an OEM, unknown, blank, or broken badge, hold <strong>KEY2—the physical button nearest the USB connector—while connecting USB</strong>. Turning the display off is not enough; the battery must be disconnected for the cold-entry sequence.</p>
-              <p>Already running FOSSASIA open BadgeMagic firmware? Upstream also documents a long press of KEY2. If you are unsure what is installed, use the guided cold-entry sequence.</p>
+              <p><strong>Running FOSSASIA or tested FrogAlert firmware:</strong> with USB connected, hold <strong>KEY2—the physical button nearest the USB connector—for about 2.2 seconds</strong>. Release when the dot cue appears, then open the chooser promptly. No RESET or multi-button combo is needed.</p>
+              <p><strong>OEM, unknown, blank, or broken firmware:</strong> the application hook may not exist. Use the guided cold-entry fallback. On a soldered-battery board, electrical isolation is skilled bench work—not an ordinary battery-unplug step.</p>
             </div>
             <div class="button-row">
-              <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Guide me into flash mode</button>
-              <button id="usb-connect" class="button button-secondary" type="button" disabled>One pixel is lit — choose CH582 now</button>
+              <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Advanced cold-entry fallback</button>
+              <button id="usb-connect" class="button button-secondary" type="button" disabled>Dot or pixel is lit — choose CH582 now</button>
               <button id="usb-disconnect" class="button button-secondary" type="button" disabled>End USB session</button>
             </div>
 
             <section id="isp-entry-guide" class="isp-entry-guide" hidden tabindex="-1" role="region" aria-labelledby="isp-guide-title" data-state="closed">
               <p class="terminal-label">KEY2 BOOTLOADER GUIDE · NO ERASE OR WRITE</p>
-              <h4 id="isp-guide-title">Step 1 of 5: Remove all power</h4>
+              <h4 id="isp-guide-title">Step 1 of 5: Safely isolate all power</h4>
               <ol class="isp-guide-overview" aria-label="Bootloader entry sequence">
-                <li data-guide-phase="power-off" aria-current="step"><span>1</span><p><strong>Disconnect the battery.</strong> Unplug USB and every other power source.</p></li>
+                <li data-guide-phase="power-off" aria-current="step"><span>1</span><p><strong>Safely isolate the battery and unplug USB.</strong> If the battery is soldered, stop: this requires qualified Li-ion bench work.</p></li>
                 <li data-guide-phase="hold-key2"><span>2</span><p><strong>Hold KEY2,</strong> the button nearest the USB connector.</p></li>
                 <li data-guide-phase="connect-while-held"><span>3</span><p><strong>Keep holding KEY2</strong> while connecting a known data-capable USB cable or phone OTG adapter.</p></li>
                 <li data-guide-phase="wait-for-pixel"><span>4</span><p><strong>Wait for one illuminated pixel,</strong> then release KEY2.</p></li>
                 <li data-guide-phase="connect-window"><span>5</span><p><strong>Open the chooser promptly.</strong> ISP remains available for approximately ten seconds.</p></li>
               </ol>
-              <p id="isp-guide-instruction">Disconnect the battery. Unplug USB and remove every other power source.</p>
+              <p id="isp-guide-instruction">Safely isolate the battery and unplug USB. If the battery is soldered, stop: this cold-entry fallback requires qualified Li-ion bench work.</p>
               <p id="isp-guide-step" class="device-status" role="status" aria-live="polite" aria-atomic="true">No device chooser has opened. Nothing has changed.</p>
               <output id="isp-guide-countdown" class="isp-guide-countdown" role="timer" aria-live="off" hidden></output>
               <div class="button-row isp-guide-actions">
                 <button id="isp-guide-back" class="button button-secondary" type="button" disabled>Back</button>
-                <button id="isp-guide-next" class="button button-primary" type="button">Badge is fully unplugged</button>
+                <button id="isp-guide-next" class="button button-primary" type="button">Power is safely isolated</button>
                 <button id="isp-guide-connect" class="button button-primary" type="button" hidden disabled>Choose WCH bootloader now</button>
                 <button id="isp-guide-retry" class="button button-secondary" type="button" hidden>Start KEY2 steps again</button>
                 <button id="isp-guide-cancel" class="button button-secondary" type="button">Close guide</button>
               </div>
             </section>
 
-            <p id="usb-status" class="device-status" role="status" aria-live="polite">Use the KEY2 guide, then choose the badge while its single pixel is lit. Identification is read-only.</p>
+            <p id="usb-status" class="device-status" role="status" aria-live="polite">Use the normal KEY2 long press or the broken-firmware guide, then choose the badge while its dot or pixel cue is lit. Identification is read-only.</p>
           </article>
         </div>
 
@@ -320,13 +320,13 @@
 
         <div class="recovery-layout">
           <div>
-            <h3>Standard KEY2 sequence</h3>
+            <h3>Normal application KEY2 sequence</h3>
             <ol class="recovery-steps">
-              <li><span>1</span><p><strong>Disconnect the battery.</strong> Unplug USB and remove the badge from other power.</p></li>
+              <li><span>1</span><p><strong>Keep USB connected</strong> to a stable data-capable port or phone OTG adapter.</p></li>
               <li><span>2</span><p><strong>Press and keep holding KEY2,</strong> the button nearest the USB connector.</p></li>
-              <li><span>3</span><p><strong>Connect USB while KEY2 is still held.</strong> On a phone, use a data-capable OTG adapter and keep the connection stable.</p></li>
-              <li><span>4</span><p><strong>Watch for a single illuminated pixel,</strong> then release KEY2 and immediately use <em>One pixel is lit — choose CH582 now</em>. The bootloader window is short.</p></li>
-              <li><span>5</span><p><strong>Accept only a read-only CH582 result.</strong> If the chooser shows nothing, unplug and repeat from step 1.</p></li>
+              <li><span>3</span><p><strong>Hold for about 2.2 seconds</strong> only when running the tested FOSSASIA image or an exact FrogAlert artifact whose KEY2 recovery test passed.</p></li>
+              <li><span>4</span><p><strong>Release when the dot cue appears,</strong> then immediately use <em>Dot or pixel is lit — choose CH582 now</em>. The bootloader window is short.</p></li>
+              <li><span>5</span><p><strong>Accept only a read-only CH582 result.</strong> If the chooser shows nothing, retry once; use the cold-entry guide only if the application path is absent or broken.</p></li>
             </ol>
           </div>
 
@@ -339,7 +339,7 @@
               </div>
               <div>
                 <dt>Badge is blank, frozen, or a flash was interrupted</dt>
-                <dd>Use the KEY2 sequence, then <strong>One pixel is lit — choose CH582 now</strong>.</dd>
+                <dd>Use <strong>Advanced cold-entry fallback</strong>. A soldered battery requires qualified bench isolation.</dd>
               </div>
               <div>
                 <dt>CH582 is identified</dt>
@@ -395,13 +395,13 @@
 
             <article class="artifact-option">
               <p class="terminal-label">HOSTED LAB CHANNEL</p>
-              <h3>Experimental Rust build</h3>
+              <h3>Hardware-verified lab build</h3>
               <label for="lab-image-select">Exact-profile lab image</label>
               <select id="lab-image-select" disabled>
                 <option value="">No hosted lab image selected</option>
               </select>
-              <p id="lab-image-status" class="field-help" role="status">Unverified hosted images are available for inspection but cannot arm programming.</p>
-              <a id="lab-image-download" class="text-link" hidden download>Download selected lab BIN for qualified local testing</a>
+              <p id="lab-image-status" class="field-help" role="status">Only hash-bound images with physical boot and recovery evidence may appear here.</p>
+              <a id="lab-image-download" class="text-link" hidden download>Download selected hardware-verified lab BIN</a>
             </article>
 
             <article class="artifact-option artifact-option-recovery">

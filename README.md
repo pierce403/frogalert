@@ -1,7 +1,7 @@
 # FrogAlert
 
-FrogAlert is an experimental Rust firmware project for the FOSSASIA-supported
-BadgeMagic CH582M 11×44 LED badge. The goal is to keep the badge useful as a
+FrogAlert is an experimental Rust-powered firmware project for the
+FOSSASIA-supported BadgeMagic CH582M 11×44 LED badge. The goal is to keep the badge useful as a
 normal app-programmable nametag while briefly scanning nearby BLE advertisements
 and temporarily showing an explainable local alert such as `COP DETECTED` or
 `HAX DETECTED`.
@@ -16,18 +16,20 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 
 - Rust `no_std` detection core: tested
 - host observation/count simulator: tested
-- CH582M single-pixel display bring-up: separate `HARDWARE_REV1` and
-  `B1144C_250901_USB_C` builds with KEY2 recovery; neither is hardware-tested
-  or approved to flash
-- CH582M passive BLE count/display prototype: builds for `HARDWARE_REV1`, not
-  hardware-tested or approved to flash; USB-C is blocked by the HAL's external
-  LSE assumption
+- standalone Rust display/count images: quarantined; the PAC/runtime vector
+  mismatch makes both interrupt-driven builds unsafe to flash
+- replacement firmware base: pinned FOSSASIA USB-C C hardware shell reproduces
+  the known-good image byte-for-byte; the 177,788-byte metadata-only canary
+  builds and audits but remains local and hardware-unverified
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
 - full BadgeMagic-compatible FrogAlert firmware: not implemented
 - downloadable FrogAlert release or lab BIN: none; the first USB-C pixel-walk
   image was withdrawn after it booted blank and failed KEY2 recovery
+- public artifact safety: failed SHA permanently quarantined; site assembly
+  rejects every FrogAlert BIN without hash-bound physical smoke evidence, and
+  the browser refuses the failed SHA even if it is manually reselected
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -82,47 +84,50 @@ nearby BLE devices: 23
 The count mode renders the same compact numeric framebuffer used by the
 embedded prototype, without touching hardware.
 
-## Build the safe display bring-up
+## Build the pinned USB-C firmware base
 
-The first physical Rust image is a separate pixel walk with no BLE or external
-LSE initialization. It keeps one logical pixel selected, moves left-to-right
-through all 44×11 positions every 750 ms, reports coordinates on UART1/PA9, and
-uses the display GPIO's lower 5 mA drive setting.
+The next physical images retain the exact FOSSASIA USB-C hardware shell that
+already boots on the photographed badge. C continues to own startup, vectors,
+clocks, USB HID+CDC, BadgeMagic BLE/TMOS, display refresh, buttons, and KEY2 ISP
+entry. Rust will be linked later only for pure detection logic behind a small C
+ABI.
+
+The first build downloads and verifies the pinned source and MRS V1.92
+toolchain (about 345 MB), then reproduces the known-good baseline:
 
 ```sh
-./scripts/build-display-bringup HARDWARE_REV1 --check
-./scripts/build-display-bringup HARDWARE_REV1
+./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
+```
+
+The first derived canary adds only an inert identifying string—no new function,
+radio, display, USB, button, or recovery behavior:
+
+```sh
+./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
+```
+
+All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts
+never invoke `wchisp`, copy a BIN into `firmware/releases/`, or update the site
+manifest. A passing build is not permission for public or end-user flashing.
+The only next step is an explicitly authorized one-badge bench smoke whose
+initial program/verify starts the physical checklist in
+[docs/HARDWARE.md](docs/HARDWARE.md).
+
+## Quarantined standalone Rust prototypes
+
+The old pixel-walk and count sources remain for forensic and host-logic work,
+but their standalone badge runtime is unsafe. The post-link audit proves that
+Timer 0 points to `DefaultInterruptHandler` rather than its Rust wrapper. Their
+build helpers intentionally fail before `objcopy` and remove stale BINs:
+
+```sh
 ./scripts/build-display-bringup B1144C_250901_USB_C --check
-./scripts/build-display-bringup B1144C_250901_USB_C
-```
-
-Each command creates only ignored, finalized local evidence under `tmp/` and
-prints its size and SHA-256; `--check` still packages the BIN so the WCH startup
-sentinel can be audited. These images include the application-level KEY2 hold
-and ROM-ISP transfer, but that path has not run on FrogAlert hardware. A
-successful build is still not permission to flash. Read the opened-board and
-first-write gates in [docs/HARDWARE.md](docs/HARDWARE.md).
-
-## Build the hardware-gated count prototype
-
-The current Rust prototype passively observes BLE advertisements, counts unique
-addresses during a short scan, and renders the count on the revision-1 11×44
-matrix. It is an observer-only lab image: it does not expose the BadgeMagic GATT
-service and is neither a release nor flash-approved.
-
-From the repository root, first run the link/instruction audit or generate the
-temporary raw BIN explicitly for the opened `HARDWARE_REV1` target:
-
-```sh
 ./scripts/build-count-firmware HARDWARE_REV1 --check
-./scripts/build-count-firmware HARDWARE_REV1
 ```
 
-Both commands print the temporary BIN's current size and SHA-256. The ignored
-output is hardware-unverified evidence only; it is not a release checksum. Do
-not substitute the USB-C display profile here: the working
-FOSSASIA source uses the internal LSI, while the current Rust BLE/HAL path
-selects external LSE, so no `B1144C_250901_USB_C` count image is offered.
+Do not bypass that failure or flash an older temporary output. See the
+[lessons-learned record](agent-memory/logs/2026-07-22-blank-rust-image-lessons.md)
+for the exact linked-image cause.
 
 ## Run the website locally
 
@@ -164,28 +169,32 @@ checks. A passing local suite does not replace a physical badge test.
 ## Repository map
 
 - [`crates/frogalert-core/`](crates/frogalert-core/) — allocation-free matching
-- [`firmware/frogalert-display/`](firmware/frogalert-display/) — shared
-  revision-gated matrix driver
-- [`firmware/frogalert-pixel-walk/`](firmware/frogalert-pixel-walk/) — minimal
-  no-BLE/32-kHz-clock single-pixel bring-up for the two explicit display
-  profiles
-- [`firmware/frogalert-count/`](firmware/frogalert-count/) — board-gated Rust
-  observer/count/display prototype; not a released image
-- [`firmware/frogalert-recovery/`](firmware/frogalert-recovery/) — shared KEY2
-  hold and CH582 ROM-ISP transfer logic
+- [`firmware/fossasia-usbc/`](firmware/fossasia-usbc/) — pinned known-good
+  USB-C hardware shell and metadata-only compatibility canary
+- [`firmware/frogalert-display/`](firmware/frogalert-display/) — quarantined
+  standalone Rust matrix-driver research
+- [`firmware/frogalert-pixel-walk/`](firmware/frogalert-pixel-walk/) — failed
+  standalone runtime retained for vector-forensics regression tests
+- [`firmware/frogalert-count/`](firmware/frogalert-count/) — quarantined Rust
+  wrapper around otherwise reusable observer/count logic
+- [`firmware/frogalert-recovery/`](firmware/frogalert-recovery/) — historical
+  standalone-Rust KEY2 experiment retained for tests and forensics; replacement
+  images use FOSSASIA's application recovery task
 - [`firmware/vendor/ch58x-hal/`](firmware/vendor/ch58x-hal/) — pinned,
   provenance-documented HAL subset used by the prototype
 - [`tools/simulator/`](tools/simulator/) — desktop observation simulator
-- [`scripts/build-count-firmware`](scripts/build-count-firmware) — exact-revision
-  cross-build, disassembly audit, and temporary BIN extraction
-- [`scripts/build-display-bringup`](scripts/build-display-bringup) — explicit
-  Rev1/USB-C pixel-walk build and instruction audit
+- [`scripts/build-fossasia-usbc`](scripts/build-fossasia-usbc) — pinned baseline
+  and metadata-canary build/audit path with ignored output only
+- [`scripts/audit-ch58x-vectors.mjs`](scripts/audit-ch58x-vectors.mjs) —
+  post-link regression guard for the failed standalone Rust layout
 - [`site/`](site/) — static website and browser device implementation
 - [`flash/index.html`](flash/index.html) — dedicated guided WebUSB flashing and
   KEY2 recovery surface
 - [`tests/`](tests/) — protocol and site contract tests
 - [`firmware/releases/manifest.json`](firmware/releases/manifest.json) — public
-  release, unverified-lab, and separately labeled upstream recovery indexes
+  verified release/lab and separately labeled upstream recovery indexes
+- [`firmware/quarantine.json`](firmware/quarantine.json) — permanent denylist
+  for failed firmware hashes
 - [`docs/HARDWARE.md`](docs/HARDWARE.md) — target identity, irreversible OEM
   boundary, and open substitute constraints
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — local tools and future embedded

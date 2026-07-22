@@ -5,8 +5,13 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import process from "node:process";
 
-import { validateLabDescriptor } from "../site/wchisp-protocol.js";
+import { validateLabDescriptor, validateRecoveryDescriptor } from "../site/wchisp-protocol.js";
 import { assertCh58xUserOptionMagic } from "./firmware-image.mjs";
+import {
+  validateFirmwarePublicationManifest,
+  validateHardwareEvidenceRecord,
+  validateHardwareEvidenceTranscript,
+} from "./firmware-publication.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const outputRoot = resolve(repositoryRoot, process.argv[2] || "_site");
@@ -19,6 +24,7 @@ if (outputRoot === repositoryRoot || !outputRoot.startsWith(`${repositoryRoot}/`
 const manifestPath = join(releaseRoot, "manifest.json");
 const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes);
+const quarantine = JSON.parse(await readFile(join(repositoryRoot, "firmware", "quarantine.json")));
 if (
   manifest.schema_version !== 3 ||
   !Array.isArray(manifest.releases) ||
@@ -26,6 +32,38 @@ if (
   !Array.isArray(manifest.recovery_images)
 ) {
   throw new Error("unsupported firmware release manifest schema");
+}
+validateFirmwarePublicationManifest(manifest, quarantine);
+
+for (const artifact of quarantine.artifacts) {
+  try {
+    await readFile(join(repositoryRoot, artifact.evidence));
+  } catch {
+    throw new Error(`quarantined firmware evidence record is unavailable: ${artifact.evidence}`);
+  }
+}
+
+for (const descriptor of [...manifest.releases, ...manifest.lab_images]) {
+  try {
+    const evidenceRecord = JSON.parse(
+      await readFile(join(repositoryRoot, descriptor.hardware_evidence.record), "utf8"),
+    );
+    validateHardwareEvidenceRecord(descriptor, evidenceRecord, descriptor.file);
+    const evidenceTranscript = await readFile(
+      join(repositoryRoot, evidenceRecord.transcript),
+      "utf8",
+    );
+    validateHardwareEvidenceTranscript(
+      descriptor,
+      evidenceRecord,
+      evidenceTranscript,
+      descriptor.file,
+    );
+  } catch {
+    throw new Error(
+      `physical hardware evidence record is unavailable or invalid: ${descriptor.hardware_evidence.record}`,
+    );
+  }
 }
 
 const labIds = new Set();
@@ -36,6 +74,11 @@ for (const lab of manifest.lab_images) {
   }
   labIds.add(lab.id);
 }
+
+if (manifest.recovery_images.length !== 1) {
+  throw new Error("manifest must contain exactly one reviewed open BadgeMagic recovery image");
+}
+validateRecoveryDescriptor(manifest.recovery_images[0], "HARDWARE_REV1");
 
 const descriptors = [...manifest.releases, ...manifest.lab_images, ...manifest.recovery_images];
 const listedFiles = new Set();
@@ -74,6 +117,10 @@ for (const name of ["index.html", "CNAME", ".nojekyll"]) {
 }
 await cp(join(repositoryRoot, "site"), join(outputRoot, "site"), { recursive: true });
 await cp(join(repositoryRoot, "flash"), join(outputRoot, "flash"), { recursive: true });
+await cp(
+  join(repositoryRoot, "firmware", "quarantine.json"),
+  join(outputRoot, "firmware", "quarantine.json"),
+);
 await writeFile(join(outputRoot, "firmware", "releases", "manifest.json"), manifestBytes);
 for (const name of listedFiles) {
   await cp(join(releaseRoot, name), join(outputRoot, "firmware", "releases", name));

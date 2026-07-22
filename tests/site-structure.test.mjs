@@ -34,15 +34,15 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /id="usb-connect"[^>]+disabled/);
   assert.match(html, /Install open BadgeMagic firmware/);
   assert.match(html, /Prepare open BadgeMagic firmware/);
-  assert.match(html, /PROTOTYPE \/ BADGE/);
-  assert.match(html, /BLE count lab build/);
+  assert.match(html, /REPLACEMENT BASE \/ BADGE/);
+  assert.match(html, /Known-good hardware shell/);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
   assert.match(html, /does not connect, reset configuration, erase, or write/i);
   assert.match(html, /Programming is not enabled for this bundled image/i);
   assert.match(html, /developer BIN chooser below remains an inspection path/i);
   assert.match(html, /All destructive work is restricted to the dedicated guided flow/i);
-  assert.match(html, /Hosted experimental build/i);
-  assert.match(html, /Download selected lab BIN for qualified local testing/i);
+  assert.match(html, /Hardware-verified lab build/i);
+  assert.match(html, /Download selected hardware-verified lab BIN/i);
   assert.match(html, /compar(?:e|ed) both sides.*reference photos/i);
   assert.match(html, /USB identification only proves the MCU family/i);
   assert.doesNotMatch(html, /factory reset/i);
@@ -54,7 +54,9 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.doesNotMatch(html, /class="flash-confirmation"/);
   assert.match(app, /const destructivePage = document\.body\.dataset\.flashMode === "program"/);
   assert.match(app, /artifactKind: "frogalert-lab"/);
+  assert.match(app, /assertFirmwareHashNotQuarantined\(hash, state\.quarantinedFirmwareHashes\)/);
   assert.match(app, /physicalMarkingMatchesArtifact\(\)/);
+  assert.match(app, /pcbMarkings: \[\.\.\.release\.pcb_markings\]/);
   assert.match(app, /return destructivePage && elements\.flashPhrase\?\.value\.trim\(\) === "ERASE THIS BADGE"/);
   assert.match(app, /if \(destructivePage && elements\.flashButton\)/);
 });
@@ -98,14 +100,17 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   }
   assert.match(html, /Android.*USB OTG/is);
   assert.match(html, /iPhone.*WebUSB/is);
-  assert.match(html, /Disconnect the battery.*KEY2.*Connect.*USB/is);
-  assert.match(html, /No multi-button combo/i);
+  assert.match(html, /Safely isolate the battery.*KEY2.*Connect.*USB/is);
+  assert.match(html, /No (?:RESET or )?multi-button combo/i);
+  assert.match(html, /hold.*KEY2.*about 2\.2 seconds/is);
+  assert.match(html, /No RESET or multi-button combo is needed/i);
+  assert.match(html, /soldered-battery board.*skilled bench work/is);
   assert.match(html, /KEY2[^<]*(?:physical )?button nearest the USB connector/i);
-  assert.match(html, /Disconnect the battery.*Unplug USB/is);
+  assert.match(html, /battery is soldered.*stop.*qualified Li-ion bench work/is);
   assert.match(html, /holding KEY2.*while connecting.*data-capable USB/is);
   assert.match(html, /one illuminated pixel.*release KEY2/is);
   assert.match(html, /approximately ten seconds/i);
-  assert.match(html, /Download selected lab BIN for qualified local testing/i);
+  assert.match(html, /Download selected hardware-verified lab BIN/i);
   assert.match(html, /id="isp-guide-connect"[^>]+type="button"[^>]+hidden[^>]+disabled/);
   assert.match(`${html}\n${app}`, /Identify and Read Config/i);
   assert.ok(
@@ -125,7 +130,7 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /PCB revision.*cannot.*detect/is);
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
   assert.match(html, /No erase or write on connect/i);
-  assert.match(html, /Unverified hosted images.*inspection.*cannot arm programming/i);
+  assert.match(html, /Only hash-bound images with physical boot and recovery evidence may appear here/i);
   assert.doesNotMatch(html, /factory reset/i);
   assert.match(html, /data-flash-mode="program"/);
   assert.match(html, /Content-Security-Policy/);
@@ -147,8 +152,12 @@ test("Pages deploy waits for successful CI and publishes only manifest-listed ar
   assert.match(assembler, /firmware artifact does not match manifest/);
   assert.match(assembler, /assertCh58xUserOptionMagic/);
   assert.match(assembler, /manifest\.lab_images/);
+  assert.match(assembler, /validateFirmwarePublicationManifest/);
+  assert.match(assembler, /firmware", "quarantine\.json"/);
   assert.match(assembler, /join\(repositoryRoot, "flash"\)/);
-  assert.match(ci, /node scripts\/assemble-site\.mjs tmp\/site-build/);
+  assert.match(ci, /run: \.\/scripts\/verify/);
+  assert.doesNotMatch(ci, /run:\s*\|[\s\S]*\.\/scripts\/build-display-bringup/);
+  assert.doesNotMatch(ci, /run:\s*\|[\s\S]*\.\/scripts\/build-count-firmware/);
 });
 
 test("release manifest separates releases, hosted labs, and pinned open recovery", async () => {
@@ -161,6 +170,13 @@ test("release manifest separates releases, hosted labs, and pinned open recovery
     /ENOENT/,
     "the failed hardware-smoke image must not remain publishable",
   );
+  const quarantine = JSON.parse(await read("firmware/quarantine.json"));
+  assert.equal(quarantine.schema_version, 1);
+  assert.equal(
+    quarantine.artifacts[0].sha256,
+    "02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22",
+  );
+  await read(quarantine.artifacts[0].evidence);
 
   assert.equal(manifest.recovery_images.length, 1);
   const recovery = manifest.recovery_images[0];
@@ -197,8 +213,20 @@ test("repo skills expose valid portable frontmatter", async () => {
 
 test("feature tracker preserves evidence-based status vocabulary", async () => {
   const features = await read("FEATURES.md");
-  for (const status of ["SHIPPED", "PROTOTYPE", "PLANNED", "BLOCKED", "DEFERRED", "REJECTED"]) {
-    assert.ok(features.includes(`**${status}**`), `FEATURES.md should define ${status}`);
+  for (const status of [
+    "SHIPPED",
+    "PROTOTYPE",
+    "IN PROGRESS",
+    "PLANNED",
+    "BLOCKED",
+    "DEFERRED",
+    "REJECTED",
+    "VERIFIED",
+    "AVAILABLE",
+    "QUARANTINED",
+    "FAILED",
+  ]) {
+    assert.ok(features.includes(`| **${status}** |`), `FEATURES.md should define ${status}`);
   }
   assert.match(features, /Stable browser flashing.*BLOCKED/s);
 });

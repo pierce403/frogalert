@@ -22,6 +22,16 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
 4. Never write on connect. Require a local/release firmware image bound to the
    entered PCB revision, size and SHA-256 display, all explicit safety
    confirmations, and a final click.
+   Never copy an unverified FrogAlert BIN into the public site: assembly must
+   reject quarantined hashes and require a structured, hash/source/profile/PCB-
+   bound physical evidence record for both release and lab collections. One
+   descriptor covers one exact profile/marking pair, and evidence must include
+   application USB, display, BadgeMagic upload, and KEY2-only dot-to-ISP tests;
+   separate KEY1/short-KEY2 behavior, a known-good reflash, and a bound dated
+   transcript are also required. C3 recovery alone is insufficient. First-test
+   bytes stay only under ignored `tmp/`. Load the same quarantine registry in
+   the browser and reject a matching manually selected local file after hashing
+   it.
 5. Reset CH58x protection/configuration through `0xA8`, require exact `0xA7`
    readback, then pad, erase, program, verify, and request reset in that order.
    If verification fails, report failure prominently and do not claim recovery

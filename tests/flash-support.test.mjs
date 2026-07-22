@@ -7,6 +7,7 @@ import {
   decodeGattText,
   firmwareArtifactUrl,
   firmwareManifestUrl,
+  firmwareQuarantineUrl,
   isMobileNavigator,
   protectedFirmwareExplanation,
   usbDescriptorSummary,
@@ -55,6 +56,10 @@ test("site module URLs resolve release assets from root on both pages", () => {
   assert.equal(
     firmwareManifestUrl(moduleUrl).href,
     "https://frogalert.org/firmware/releases/manifest.json",
+  );
+  assert.equal(
+    firmwareQuarantineUrl(moduleUrl).href,
+    "https://frogalert.org/firmware/quarantine.json",
   );
   assert.equal(
     firmwareArtifactUrl("frogalert.bin", moduleUrl).href,

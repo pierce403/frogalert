@@ -40,9 +40,21 @@ The CLI fallback is `wchisp` and remains part of every release plan.
 
 ## Enter the bootloader
 
-For an OEM badge, the least invasive documented method is:
+For a badge running the tested FOSSASIA application—or a future FrogAlert image
+whose exact artifact passed recovery acceptance—the normal path is:
 
-1. Disconnect the badge battery.
+1. Keep a stable data-capable USB connection.
+2. Hold KEY2, the button nearest USB, for about 2.2 seconds.
+3. Release when the dot cue appears.
+4. Open the WebUSB chooser promptly and accept only the WCH CH582 ISP device.
+
+No RESET or multi-button combination is needed. This is application-provided
+entry into the CH582 mask-ROM ISP, not a bundled replacement bootloader.
+
+For an OEM, unknown, blank, or broken application, use the cold-entry fallback:
+
+1. Safely electrically isolate the badge battery and unplug USB. If the battery
+   is soldered, stop unless a qualified person can isolate Li-ion power safely.
 2. Hold KEY2, the button nearest USB.
 3. Connect USB while holding KEY2.
 4. Look for a single illuminated pixel and connect from the page promptly.
@@ -50,21 +62,22 @@ For an OEM badge, the least invasive documented method is:
 The bootloader window is short—upstream guidance treats it as roughly ten
 seconds—so request the device immediately. The alternative powered-board C3 reset method
 requires opening and shorting the correct capacitor and is deliberately not the
-primary website instruction. A blank, frozen, or interrupted application can
-usually still reach the ROM bootloader with KEY2. If no USB bootloader
+primary website instruction. A blank, frozen, or interrupted application cannot
+supply the ordinary long-press hook. If no USB bootloader
 enumerates after retrying with stable power and a known data cable, a website
 cannot repair that lower-level hardware or bootloader failure.
 
-`/flash/` keeps this sequence beside the USB chooser in a five-step, one-hand
-guide. The countdown begins only after the user confirms the single-pixel
+`/flash/` keeps the normal long-press instructions first and the cold-entry
+sequence beside the USB chooser in a five-step fallback guide. The countdown
+begins only after the user confirms the single-pixel
 signal and is advisory: expiry never opens a chooser, runs a command, or turns
 the read-only connection into a write. Only the final explicit tap may call
 `navigator.usb.requestDevice()`. USB attach events may update the visible
 status, but must never synthesize that tap or skip a physical step.
 
-Upstream FOSSASIA v0.1 polls KEY2/PB22 every 200 ms and, after more than ten
-consecutive held samples (about 2.2 seconds), executes a transfer to address
-zero while KEY2 remains low. It does not install a second bootloader; the
+Pinned FOSSASIA USB-C source `9ce885d` polls KEY2/PB22 every 200 ms and, after
+more than ten consecutive held samples (about 2.2 seconds), executes a transfer
+to address zero while KEY2 remains low. It does not install a second bootloader; the
 flashable USB ISP remains the CH582 mask-ROM implementation. FrogAlert must
 label long-press entry as an application-provided convenience, not as evidence
 about unknown OEM firmware or an unverified FrogAlert build. The
@@ -79,7 +92,8 @@ entry for this exact board has not been physically demonstrated, so the public
 guide must not imply that opening the enclosure exposes a connector.
 
 This behavior is physically confirmed on the photographed USB-C
-`B1144C_250901` badge running FOSSASIA `BM1144-C fw: v0.1`: a KEY2-only long
+`B1144C_250901` badge running the pinned FOSSASIA development image, which
+self-reports `BM1144-C fw: v0.1`: a KEY2-only long
 press displayed the dot cue and entered ISP without RESET or C3. That evidence
 does not transfer automatically to a future FrogAlert image; each FrogAlert
 artifact must pass the same recovery test.
@@ -104,19 +118,18 @@ over Bluetooth; the page labels that untrusted, optional metadata rather than
 treating it as proof of flash contents. Physical board and 11×44 confirmation
 remain separate human inputs.
 
-Every FrogAlert image must implement and physically prove the same deliberate
-KEY2 recovery affordance before it is flash-approved. The implementation must
-quiesce BLE, USB, display drive, and interrupts as needed, then transfer while
-KEY2 is still held. Acceptance requires a short press to retain its normal
+Every FrogAlert image must preserve and physically prove FOSSASIA's deliberate
+KEY2 recovery affordance before it is flash-approved. Keep the upstream TMOS
+polling/task, display cue, and address-zero transfer intact rather than
+reconstructing the hook in a new runtime. Acceptance requires a short press to retain its normal
 application action and a roughly 2.2-second hold to re-enumerate as
 `4348:55e0`, followed by successful program and byte verification. A broken or
 blank application cannot provide this convenience, so the cold-entry procedure
 must remain documented and tested.
 
-The Rust pixel-walk and count lab applications now share a 2.2-second KEY2 hold
-and address-zero transfer implementation. This is source and build evidence,
-not physical acceptance: neither FrogAlert application has yet demonstrated
-short-press safety or `4348:55e0` long-press entry on a badge.
+The withdrawn Rust pixel-walk image contained a recovery function but never
+reached it because its first Timer 0 interrupt entered the default handler.
+Symbol presence is no longer accepted as recovery evidence.
 
 ## Browser safety state machine
 
@@ -194,8 +207,8 @@ can read from the board.
 
 The public artifact path uses same-origin, versioned `.bin` files listed in
 `firmware/releases/manifest.json`. The manifest keeps physically approved
-FrogAlert releases, hosted but unapproved FrogAlert builds, and third-party
-open recovery images in separate `releases`, `lab_images`, and
+FrogAlert releases, physically approved experimental FrogAlert builds, and
+third-party open recovery images in separate `releases`, `lab_images`, and
 `recovery_images` collections. Each entry must contain:
 
 - release version;
@@ -205,6 +218,13 @@ open recovery images in separate `releases`, `lab_images`, and
 - SHA-256;
 - same-origin artifact filename and optional GitHub release URL;
 - hardware verification record.
+
+Site assembly rejects a FrogAlert release or lab image unless
+`hardware_verified` is true and its evidence is bound to the exact SHA-256,
+firmware profile, and PCB marking. The evidence must confirm program/verify,
+boot, power cycle, short-button safety, and long-press ROM-ISP recovery. It also
+rejects every hash in `firmware/quarantine.json`, even if a later descriptor
+claims that hash was verified. First-test images stay under ignored `tmp/`.
 
 Until a hardware-tested FrogAlert firmware release exists, `releases` and
 `lab_images` remain empty. The first display-only USB-C pixel-walk build was
@@ -219,7 +239,9 @@ it to the PCB revision entered at selection time. That explicitly local route
 remains distinct from manifest-managed write locks. Firmware bytes and device
 identifiers never leave the browser. The local validator rejects wrong
 extensions, implausibly short images, uniform blank/fill images, unaligned
-internal plans, and erase plans beyond CH582 code flash.
+internal plans, erase plans beyond CH582 code flash, and every SHA in the
+same-origin quarantine registry. If that registry cannot be loaded, artifact
+preparation fails closed.
 
 ## What verify means
 
