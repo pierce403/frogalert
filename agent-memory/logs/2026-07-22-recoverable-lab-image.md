@@ -29,3 +29,17 @@ Rev1 outputs were not hosted because no exact physical Rev1 marking was
 available to bind. A USB-C BLE-count image was not built or hosted because the
 vendored HAL still assumes external LSE while this board requires calibrated
 internal LSI.
+
+## Live publication evidence
+
+- GitHub [CI run 29950784822](https://github.com/pierce403/frogalert/actions/runs/29950784822)
+  passed for site head `ca4e6ce`.
+- GitHub [Pages run 29950854766](https://github.com/pierce403/frogalert/actions/runs/29950854766)
+  then deployed that head successfully.
+- `https://frogalert.org/flash/` exposed the one USB-C lab descriptor. Entering
+  `B1144C_250901` and `B1144C_250901_USB_C` loaded the exact file, size,
+  SHA-256, and source provenance, exposed the same-origin download, and kept
+  the destructive program control disabled.
+- A fresh download from the public artifact URL was 5,632 bytes, byte-for-byte
+  identical to the repository artifact, and hashed to
+  `02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22`.
