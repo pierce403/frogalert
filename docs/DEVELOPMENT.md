@@ -81,22 +81,34 @@ Build the later private passive-survey candidate:
 The canary adds one retained C metadata string and owns no functions or
 hardware. The survey lane keeps the same shell, uses WCH's combined
 central/peripheral role pattern, and adds only a disconnected three-second
-passive scan plus a persistent 100 ms aggregate-count scroll. Its suffix shows
-`I` initializing, `R` ready/waiting, `S` scanning, `E` error, or `T` timeout;
-the suffix disappears for a completed result. It updates live while scanning,
-also consumes the final discovery list, and checks live advertisement local
-names for case-insensitive `Flipper`. A match scrolls `FLIPPER DETECTED` until
-the next window; it does not use an OUI. The hook stops the original animation
-only on display-ownership transition rather than clearing the framebuffer at
-every 100 ms scroll step. It yields to app streaming and non-normal modes,
-never initiates a connection, zeroes its fixed address table, restores prior
-advertising state, and cancels a stuck scan after five seconds. All lanes use
-`USBC_VERSION=1`, validate pinned archive/tool hashes
+passive scan plus a KEY2-selectable 100 ms aggregate-count scroll. Short KEY2
+rotates `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system behavior and
+the separate long-KEY2 ISP poll remain inherited. Scanning continues in either
+visible view. The counter suffix shows `I` initializing, `R` ready/waiting, `S`
+scanning, `E` error, or `T` timeout; it disappears for a completed result. The
+lane updates live while scanning, consumes the final discovery list, and feeds
+live public-address/name/service data into a bounded C mirror of every README
+detection row. Cop and Flipper alerts last five seconds and restore the selected
+view. An exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
+service shows three frogs in two alternating frames for two seconds. Passive
+scans may omit scan-response-only names, so the service fallback is deliberately
+broad and may false-positive.
+
+The display hook stops the original animation only on ownership transition
+rather than clearing the framebuffer at every 100 ms step. It yields to app
+streaming and non-normal modes, never initiates a connection, zeroes its fixed
+address table, restores prior advertising state, and cancels a stuck scan after
+five seconds. The complete C policy mirror remains temporary until the separate
+Rust ABI canary passes. All lanes use `USBC_VERSION=1`, validate pinned
+archive/tool hashes
 and critical sources, audit required runtime symbols and linked instructions,
 keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
 ignored `tmp/fossasia-usbc/`. The baseline must match the known-good
 177,704-byte image exactly. No build command flashes, publishes, or authorizes
-a physical test.
+a physical test. The locked survey BIN is 201,412 bytes with SHA-256
+`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`;
+its audited text/data/BSS sizes are 192,920/8,492/4,588 bytes and it retains
+9,788 bytes of stack/runtime headroom.
 
 Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already
 populated verified cache. See `firmware/fossasia-usbc/upstream-lock.json` for

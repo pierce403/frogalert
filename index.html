@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="FrogAlert is an experimental Rust-powered firmware project intended to turn a BadgeMagic LED nametag into a passive, local BLE signal alert badge.">
+    <meta name="description" content="FrogAlert is an experimental BadgeMagic firmware project with nametag and Bluetooth-counter modes, passive local BLE detection, and hardware-gated browser flashing.">
     <meta name="theme-color" content="#10271d">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta property="og:type" content="website">
     <meta property="og:title" content="FrogAlert — the nametag that watches back">
-    <meta property="og:description" content="An open firmware experiment with a proven BadgeMagic hardware shell, Rust detection logic, short passive BLE scans, and explainable local alerts.">
+    <meta property="og:description" content="A private, hardware-unverified firmware experiment with BadgeMagic nametag and Bluetooth-counter modes, passive BLE scans, and explainable local alerts.">
     <meta property="og:url" content="https://frogalert.org/">
     <meta name="twitter:card" content="summary">
     <title>FrogAlert — the nametag that watches back</title>
@@ -39,15 +39,15 @@
           <p class="eyebrow">Open badge firmware / CH582M / FOSSASIA + Rust</p>
           <h1>The nametag that <em>watches back.</em></h1>
           <p class="lede">
-            FrogAlert keeps doing the useful thing—showing your name—then briefly listens for nearby Bluetooth signals and flashes a local warning when an explainable rule matches.
+            The private FrogAlert survey build rotates between your uploaded BadgeMagic name entries and a nearby-Bluetooth counter with a short KEY2 press. Both modes continue brief passive scans and temporarily overlay a local result when an explainable rule matches.
           </p>
           <div class="hero-actions">
             <a class="button button-primary" href="./flash/">Open guided flash tool</a>
             <a class="button button-secondary" href="https://github.com/pierce403/frogalert/blob/main/FEATURES.md">Read the full tracker</a>
           </div>
           <ul class="status-strip" aria-label="Current project status">
-            <li><span class="signal signal-good"></span>Detection core tested</li>
-            <li><span class="signal signal-warn"></span>Firmware not yet released</li>
+            <li><span class="signal signal-good"></span>Embedded detector set build-audited</li>
+            <li><span class="signal signal-warn"></span>Private BIN hardware-unverified</li>
             <li><span class="signal signal-lab"></span>Browser flasher experimental</li>
           </ul>
         </div>
@@ -72,40 +72,40 @@
 
       <section class="manifesto" id="concept">
         <p class="section-kicker">The premise</p>
-        <h2>Still a nametag. Occasionally a tiny situational-awareness frog.</h2>
+        <h2>Two displays. The same tiny situational-awareness frog.</h2>
         <div class="manifesto-grid">
           <article>
             <span class="card-number">01</span>
-            <h3>Wear your name</h3>
-            <p>Upload text and animations through the familiar BadgeMagic app. FrogAlert must preserve that content exactly.</p>
+            <h3>Choose the useful display</h3>
+            <p>Upload name entries through the familiar BadgeMagic app. In the private candidate, a short KEY2 press rotates through those entries and a <code>BT 00</code>–<code>BT 64+</code> counter. A long KEY2 hold remains the inherited ISP-entry gesture in source, but still needs proof on this exact BIN.</p>
           </article>
           <article>
             <span class="card-number">02</span>
             <h3>Listen briefly</h3>
-            <p>When no app is connected, pause advertising for a short passive BLE scan. No pairing, interrogation, location, or cloud log.</p>
+            <p>Scanning continues in both display modes. When no app is connected, FrogAlert pauses advertising for a short passive BLE scan with no pairing, interrogation, location, or cloud log.</p>
           </article>
           <article>
             <span class="card-number">03</span>
-            <h3>Show the hint</h3>
-            <p>Known public-address prefixes or advertised names can trigger <code>COP DETECTED</code> or <code>HAX DETECTED</code>, then the nametag returns.</p>
+            <h3>Overlay the hint</h3>
+            <p>Known public-address prefixes and advertised names can overlay <code>COP DETECTED</code> or <code>FLIPPER DETECTED</code> for five seconds in either mode. A BadgeMagic name or advertised <code>FEE0</code> service instead triggers a two-second three-frog dance, then the selected display returns.</p>
           </article>
         </div>
         <aside class="caveat">
-          <strong>A signal is not proof.</strong> BLE addresses rotate, names can be copied, and vendors share components. FrogAlert surfaces hints—not identities, accusations, or certainty.
+          <strong>A signal is not proof.</strong> BLE addresses rotate, names can be copied, vendors share components, and service UUIDs can be reused. This passive scan does not request scan responses, so names carried only in scan-response data are invisible; the advertised <code>FEE0</code> service is a broad BadgeMagic-compatible fallback and may false-positive. FrogAlert surfaces hints—not identities, accusations, or certainty.
         </aside>
       </section>
 
       <section class="cycle-section" aria-labelledby="cycle-title">
         <div>
-          <p class="section-kicker">Proposed radio cycle</p>
-          <h2 id="cycle-title">One radio. Four deliberate states.</h2>
-          <p>The WCH Bluetooth stack must safely switch between a BadgeMagic-compatible peripheral and a passive observer. Hardware testing decides whether this schedule ships.</p>
+          <p class="section-kicker">Private candidate behavior</p>
+          <h2 id="cycle-title">Two displays. One deliberate scan cycle.</h2>
+          <p>A short KEY2 press rotates through uploaded nametag entries and the Bluetooth counter. Both share the same observer schedule and alert logic. This behavior is build-audited in a private BIN, not yet verified on hardware or released.</p>
         </div>
-        <ol class="cycle" aria-label="Proposed FrogAlert operating cycle">
-          <li><span>~57 s</span><strong>NAMETAG</strong><small>Advertising + normal display</small></li>
+        <ol class="cycle" aria-label="Private FrogAlert candidate operating cycle">
+          <li><span>~57 s</span><strong>SELECTED MODE</strong><small>Uploaded name or latest BT count</small></li>
           <li><span>3 s</span><strong>SCAN</strong><small>Passive observer window</small></li>
-          <li><span>~5 s</span><strong>ALERT</strong><small>Only when a rule matches</small></li>
-          <li><span>&lt;1 s</span><strong>RESTORE</strong><small>Resume user content</small></li>
+          <li><span>2–5 s</span><strong>OVERLAY</strong><small>Three frogs or rule-specific text</small></li>
+          <li><span>&lt;1 s</span><strong>RESTORE</strong><small>Resume the selected display mode</small></li>
         </ol>
       </section>
 
@@ -131,24 +131,28 @@
             <code class="command">node --test tests/*.test.mjs</code>
           </article>
           <article class="evidence-card prototype">
-            <p class="evidence-state">REPLACEMENT BASE / BADGE</p>
-            <h3>Known-good hardware shell</h3>
-            <p>The first standalone Rust image was withdrawn after a vector-layout failure. New images retain FOSSASIA's working USB, BLE, display, buttons, and KEY2 recovery; Rust is added later behind a narrow ABI.</p>
-            <code class="command">./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check</code>
+            <p class="evidence-state">PROTOTYPE / BADGE · HARDWARE-UNVERIFIED</p>
+            <h3>Private two-mode survey BIN</h3>
+            <p>The 201,412-byte candidate retains FOSSASIA's USB, BLE, display, uploaded entries, buttons, and KEY2 recovery source while adding the counter, five-second text alerts, and two-second frog dance. It is not hosted or released.</p>
+            <code class="command">SHA-256 42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650</code>
           </article>
         </div>
 
         <div class="rule-table-wrap">
           <table>
-            <caption>Initial conservative match seeds</caption>
+            <caption>Rules embedded in the private, hardware-unverified survey BIN</caption>
             <thead><tr><th>Signal</th><th>Source</th><th>Result</th><th>Guardrail</th></tr></thead>
             <tbody>
-              <tr><td><code>00:25:DF</code></td><td>Axon public OUI</td><td>COP DETECTED</td><td>Public addresses only</td></tr>
-              <tr><td><code>B4:1E:52</code></td><td>Flock Safety public OUI</td><td>COP DETECTED</td><td>Public addresses only</td></tr>
-              <tr><td><code>Axon Body</code> / <code>TASER</code></td><td>Advertised name</td><td>COP DETECTED</td><td>Case-insensitive hint</td></tr>
-              <tr><td><code>Flipper</code> / <code>Ray-Ban</code></td><td>Advertised name</td><td>HAX DETECTED</td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>00:25:DF</code></td><td>Axon public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
+              <tr><td><code>B4:1E:52</code></td><td>Flock Safety public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
+              <tr><td><code>Axon Body</code> / <code>TASER</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>Flipper</code></td><td>Advertised name</td><td><code>FLIPPER DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>Ray-Ban</code> / <code>Ray Ban</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>LED Badge Magic</code></td><td>Advertised name</td><td>Three-frog dance · 2 s</td><td>Exact, case-insensitive hint</td></tr>
+              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic service</td><td>Three-frog dance · 2 s</td><td>Passive fallback; may false-positive</td></tr>
             </tbody>
           </table>
+          <p class="caveat"><strong>Passive scan limit:</strong> discovery does not request scan responses. A device name present only there cannot match, so advertised <code>FEE0</code> provides a broad BadgeMagic-compatible fallback without claiming device identity.</p>
         </div>
       </section>
 

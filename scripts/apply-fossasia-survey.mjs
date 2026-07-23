@@ -33,6 +33,59 @@ export function applyPeripheralHooks(source) {
     "\tGAPRole_PeripheralInit();\n#ifdef FROGALERT_SURVEY\n\tfrogalert_survey_role_init();\n#endif\n\n\tuint16_t min_interval = 6;",
     "combined peripheral and central role initialization",
   );
+  result = replaceOnce(
+    result,
+    `	conn_list.connTimeout = e->connTimeout;
+	enable_advertising(FALSE);
+}`,
+    `	conn_list.connTimeout = e->connTimeout;
+	enable_advertising(FALSE);
+#ifdef FROGALERT_SURVEY
+	(void)frogalert_survey_suspend(FALSE);
+#endif
+}`,
+    "peripheral connection suspends central discovery",
+  );
+  result = replaceOnce(
+    result,
+    `static void link_onTerminated(gapRoleEvent_t *pe)
+{
+	gapTerminateLinkEvent_t *event = (gapTerminateLinkEvent_t *)pe;
+	GAPRole_TerminateLink(pe->linkCmpl.connectionHandle);
+	enable_advertising(TRUE);
+
+	if(event->connectionHandle == conn_list.connHandle) {
+		conn_list.connHandle = GAP_CONNHANDLE_INIT;
+		conn_list.connInterval = 0;
+		conn_list.connSlaveLatency = 0;
+		conn_list.connTimeout = 0;
+	} else {
+		// Requested connection is not existed in connection list
+	}
+}`,
+    `static void link_onTerminated(gapRoleEvent_t *pe)
+{
+	gapTerminateLinkEvent_t *event = (gapTerminateLinkEvent_t *)pe;
+	GAPRole_TerminateLink(pe->linkCmpl.connectionHandle);
+
+	if(event->connectionHandle == conn_list.connHandle) {
+		conn_list.connHandle = GAP_CONNHANDLE_INIT;
+		conn_list.connInterval = 0;
+		conn_list.connSlaveLatency = 0;
+		conn_list.connTimeout = 0;
+#ifdef FROGALERT_SURVEY
+		frogalert_survey_on_disconnect();
+		if (frogalert_survey_suspend(TRUE))
+			enable_advertising(TRUE);
+#else
+		enable_advertising(TRUE);
+#endif
+	} else {
+		// Requested connection is not existed in connection list
+	}
+}`,
+    "peripheral disconnection waits for central discovery to become idle",
+  );
   return result;
 }
 
@@ -52,6 +105,62 @@ export function applyMainHooks(source) {
   );
   result = replaceOnce(
     result,
+    `static void bm_transition()
+{
+	if (is_play_sequentially) {
+		is_play_sequentially = 0;
+		bmlist_gohead();
+		return;
+	}
+
+	bmlist_gonext();
+	if (bmlist_current() == bmlist_head()) {
+		is_play_sequentially = 1;
+		return;
+	}
+}
+void play_splash`,
+    `static void bm_transition()
+{
+	if (is_play_sequentially) {
+		is_play_sequentially = 0;
+		bmlist_gohead();
+		return;
+	}
+
+	bmlist_gonext();
+	if (bmlist_current() == bmlist_head()) {
+		is_play_sequentially = 1;
+		return;
+	}
+}
+#ifdef FROGALERT_SURVEY
+static uint8_t frogalert_counter_view;
+
+uint8_t frogalert_survey_counter_mode(void)
+{
+	return mode == NORMAL && frogalert_counter_view;
+}
+
+static void frogalert_view_transition(void)
+{
+	if (frogalert_counter_view) {
+		frogalert_counter_view = FALSE;
+		is_play_sequentially = FALSE;
+		bmlist_gonext();
+	} else {
+		is_play_sequentially = FALSE;
+		frogalert_counter_view = TRUE;
+	}
+	frogalert_survey_view_changed();
+}
+#endif
+
+void play_splash`,
+    "KEY2 virtual counter-view rotation",
+  );
+  result = replaceOnce(
+    result,
     `static void disp_charging()
 {
 `,
@@ -68,6 +177,20 @@ static uint8_t frogalert_survey_display_owned;
 uint8_t frogalert_survey_allowed(void)
 {
 	return mode == NORMAL && !streaming_enabled;
+}
+
+void frogalert_display_survey_relinquish(void)
+{
+	frogalert_survey_display_owned = FALSE;
+}
+
+void frogalert_display_survey_release(void)
+{
+	if (!frogalert_survey_display_owned)
+		return;
+	frogalert_survey_display_owned = FALSE;
+	if (mode == NORMAL && !streaming_enabled)
+		start_normal_animation();
 }
 
 static uint8_t frogalert_display_survey_text(const char *text,
@@ -117,12 +240,38 @@ uint8_t frogalert_display_survey_message(const char *message,
 	return frogalert_display_survey_text(message, message_length);
 }
 
+void frogalert_display_frog_dance(uint8_t frame)
+{
+	static const uint16_t frogs[2][9] = {
+		{0x11c, 0x0b6, 0x07e, 0x3f4, 0x1f4,
+		 0x3f4, 0x07e, 0x0b6, 0x11c},
+		{0x09c, 0x136, 0x27e, 0x1f4, 0x1f4,
+		 0x1f4, 0x27e, 0x136, 0x09c},
+	};
+	static const uint8_t starts[3] = {1, 17, 33};
+
+	if (!frogalert_survey_display_active())
+		return;
+	if (!frogalert_survey_display_owned) {
+		stop_all_animation();
+		frogalert_survey_display_owned = TRUE;
+	}
+	memset(fb, 0, sizeof(fb));
+	frame &= 1;
+	for (uint8_t frog = 0; frog < 3; frog++) {
+		for (uint8_t column = 0; column < 9; column++)
+			fb[starts[frog] + column] = frogs[frame][column];
+	}
+}
+
 void frogalert_display_survey_step(void)
 {
-	if (!frogalert_survey_allowed()) {
-		frogalert_survey_display_owned = FALSE;
+	if (!frogalert_survey_display_active()) {
+		frogalert_display_survey_release();
 		return;
 	}
+	if (frogalert_survey_columns == 0)
+		return;
 
 	if (!frogalert_survey_display_owned) {
 		stop_all_animation();
@@ -142,6 +291,140 @@ static void disp_charging()
 {
 `,
     "bounded survey count display hooks",
+  );
+  result = replaceOnce(
+    result,
+    `	if (params[0] == 0x00) { // enter streaming mode
+		stop_all_animation();
+		streaming_enabled = 1;
+	} else if (params[0] == 0x01) { // return to normal mode
+		resume_from_streaming();
+		streaming_enabled = 0;
+	}`,
+    `	if (params[0] == 0x00) { // enter streaming mode
+		stop_all_animation();
+#ifdef FROGALERT_SURVEY
+		(void)frogalert_survey_suspend(FALSE);
+		frogalert_display_survey_relinquish();
+#endif
+		streaming_enabled = 1;
+	} else if (params[0] == 0x01) { // return to normal mode
+		streaming_enabled = 0;
+		resume_from_streaming();
+#ifdef FROGALERT_SURVEY
+		frogalert_survey_view_changed();
+#endif
+	}`,
+    "streaming transfers and restores FrogAlert display ownership",
+  );
+  result = replaceOnce(
+    result,
+    `static void disp_charging()
+{`,
+    `#ifdef FROGALERT_SURVEY
+void frogalert_survey_on_disconnect(void)
+{
+	if (streaming_enabled) {
+		streaming_enabled = 0;
+		if (mode == NORMAL)
+			start_normal_animation();
+		else
+			start_ble_animation();
+	}
+	frogalert_survey_view_changed();
+}
+#endif
+
+static void disp_charging()
+{`,
+    "streaming disconnect restores FrogAlert display ownership",
+  );
+  result = replaceOnce(
+    result,
+    `	// Disable bitmap transition while in download mode
+	btn_onOnePress(KEY2, NULL);
+
+	// Take control of the current bitmap to display
+	// the Bluetooth animation
+	ble_enable_advertise();
+	start_ble_animation();`,
+    `	// Disable bitmap transition while in download mode
+	btn_onOnePress(KEY2, NULL);
+
+	// Take control of the current bitmap to display
+	// the Bluetooth animation. Never advertise during Central discovery.
+#ifdef FROGALERT_SURVEY
+	uint8_t frogalert_radio_idle = frogalert_survey_suspend(TRUE);
+	frogalert_display_survey_relinquish();
+	if (frogalert_radio_idle)
+		ble_enable_advertise();
+#else
+	ble_enable_advertise();
+#endif
+	start_ble_animation();`,
+    "download mode suspends passive discovery before advertising",
+  );
+  result = replaceOnce(
+    result,
+    `static void mode_setup_normal()
+{
+	btn_onOnePress(KEY2, bm_transition);
+	reload_bmlist();
+	start_normal_animation();
+}`,
+    `static void mode_setup_normal()
+{
+#ifdef FROGALERT_SURVEY
+	frogalert_counter_view = FALSE;
+	frogalert_display_survey_relinquish();
+	btn_onOnePress(KEY2, frogalert_view_transition);
+#else
+	btn_onOnePress(KEY2, bm_transition);
+#endif
+	reload_bmlist();
+	start_normal_animation();
+#ifdef FROGALERT_SURVEY
+	frogalert_survey_view_changed();
+#endif
+}`,
+    "normal mode restores badge view and KEY2 rotation",
+  );
+  result = replaceOnce(
+    result,
+    `void handle_after_rx()
+{
+	if (badge_cfg.reset_rx) {
+		SYS_ResetExecute();
+	} else {
+		mode_setup_normal();
+	}
+}`,
+    `void handle_after_rx()
+{
+	if (badge_cfg.reset_rx) {
+		SYS_ResetExecute();
+	} else {
+#ifdef FROGALERT_SURVEY
+		mode = NORMAL;
+#endif
+		mode_setup_normal();
+	}
+}`,
+    "BadgeMagic upload restores the normal system mode",
+  );
+  result = replaceOnce(
+    result,
+    `	btn_onOnePress(KEY1, change_mode);
+	btn_onOnePress(KEY2, bm_transition);
+	btn_onLongPress(KEY1, change_brightness);`,
+    `	btn_onOnePress(KEY1, change_mode);
+#ifdef FROGALERT_SURVEY
+	btn_onOnePress(KEY2, frogalert_view_transition);
+#else
+	btn_onOnePress(KEY2, bm_transition);
+#endif
+	btn_onLongPress(KEY1, change_brightness);`,
+    "initial KEY2 virtual counter-view registration",
   );
   return result;
 }

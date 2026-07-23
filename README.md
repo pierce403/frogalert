@@ -4,7 +4,7 @@ FrogAlert is an experimental Rust-powered firmware project for the
 FOSSASIA-supported BadgeMagic CH582M 11×44 LED badge. The goal is to keep the badge useful as a
 normal app-programmable nametag while briefly scanning nearby BLE advertisements
 and temporarily showing an explainable local alert such as `COP DETECTED` or
-`HAX DETECTED`.
+`FLIPPER DETECTED`.
 
 Project site: **<https://frogalert.org>**
 
@@ -21,6 +21,10 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - replacement firmware base: pinned FOSSASIA USB-C C hardware shell reproduces
   the known-good image byte-for-byte; the 177,788-byte metadata-only canary
   builds and audits but remains local and hardware-unverified
+- private survey candidate: a locked 201,412-byte local BIN adds passive
+  counting, normal-nametag/count view rotation, the bounded detection table
+  below, five-second alerts, and a BadgeMagic frog animation; it remains
+  hardware-unverified and is neither published nor flash-approved
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
@@ -55,18 +59,31 @@ The Rust detection core currently contains these rules:
 | Advertised name contains | `Flipper` | Flipper name | `FLIPPER DETECTED` |
 | Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
 | Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
+| Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation for two seconds |
+| Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation for two seconds |
 
-Name matching is case-insensitive substring matching. OUI rules run only when
-the Bluetooth controller reports a public address; FrogAlert deliberately does
-not apply them to randomized or locally administered addresses. These are
-explainable hints rather than proof of device identity: names can be changed or
-spoofed, and vendor prefixes can cover unrelated products.
+Detection names use case-insensitive substring matching except for the exact
+`LED Badge Magic` frog trigger. OUI rules run only when the Bluetooth controller
+reports a public address; FrogAlert deliberately does not apply them to
+randomized or locally administered addresses. These are explainable hints
+rather than proof of device identity: names can be changed or spoofed, and
+vendor prefixes can cover unrelated products.
 
-The current private hardware survey candidate implements only the `Flipper`
-advertised-name rule. The complete table is implemented and tested in
-[`frogalert-core`](crates/frogalert-core/src/lib.rs), but the remaining rules
-will not be described as badge-firmware features until the Rust ABI integration
-and physical smoke tests pass.
+The current private hardware survey candidate mirrors every row in this table
+in a bounded C classifier. That lets the behavior be built and inspected while
+the separately gated Rust ABI canary remains pending; it does not waive that
+gate or make the BIN hardware-verified. Passive discovery does not guarantee
+that a scan-response-only local name will be delivered, so the advertised
+`0xFEE0` service is a deliberately broad BadgeMagic fallback and can animate
+for compatible non-BadgeMagic devices that reuse that UUID.
+
+In this candidate, a short KEY2 press rotates the visible content as
+`Name 1 → BT counter → Name 2 → BT counter → …`. KEY1 retains FOSSASIA's
+normal download/power behavior, KEY1 long press still changes brightness, and
+the independent long-KEY2 ISP path remains in the inherited shell. Passive
+surveys continue in both nametag and counter views. `COP DETECTED` and
+`FLIPPER DETECTED` temporarily overlay either view for five seconds, then the
+selected view resumes without changing the uploaded nametag data.
 
 ## Hardware warning
 
@@ -131,6 +148,16 @@ radio, display, USB, button, or recovery behavior:
 ```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ```
+
+The later private survey candidate is built and audited separately:
+
+```sh
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+```
+
+Its locked local BIN is 201,412 bytes with SHA-256
+`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
+Those are reproducible build facts, not physical-test or release evidence.
 
 All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts
 never invoke `wchisp`, copy a BIN into `firmware/releases/`, or update the site
@@ -234,10 +261,14 @@ checks. A passing local suite does not replace a physical badge test.
 ## Intended firmware cycle
 
 1. Advertise as a BadgeMagic-compatible nametag and render uploaded content.
-2. When no app is connected, briefly pause advertising and passively scan BLE.
-3. Match public-address OUIs and advertised names locally.
-4. Temporarily show an alert when a conservative rule matches.
-5. Restore the exact user framebuffer and resume advertising.
+2. Let short KEY2 presses rotate uploaded names with the latest nearby-device
+   count while preserving KEY1's system behavior and long-KEY2 recovery.
+3. When no app is connected, briefly pause advertising and passively scan BLE
+   in either visible view.
+4. Match public-address OUIs, advertised names, and the narrow BadgeMagic
+   service hint locally.
+5. Temporarily show an alert or frog animation, then restore the selected view
+   and resume advertising without changing saved nametag content.
 
 If the WCH BLE library cannot safely switch peripheral/observer roles in place,
 the fallback design is an explicit retained-state reboot cycle. Hardware testing

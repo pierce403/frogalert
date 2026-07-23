@@ -15,7 +15,7 @@ export const lockPath = path.join(
 export const canaryText =
   "FROGALERT:FOSSASIA-USB-C-BASE:9ce885d682b5c56c3ac7595c09e009a210885221:UNVERIFIED";
 export const surveyText =
-  "FROGALERT:SURVEY-FLIPPER:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+  "FROGALERT:SURVEY-MODES-RULES:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 function validateMode(mode) {
   assert.ok(
@@ -77,6 +77,16 @@ export function validateLock(lock) {
   assert.equal(lock.build.minimum_stack_headroom, 8192);
   assert.ok(lock.build.required_symbols.length >= 8);
   assert.ok(lock.build.required_survey_symbols.length >= 6);
+  assert.deepEqual(lock.build.required_survey_ascii, [
+    "COP DETECTED",
+    "FLIPPER DETECTED",
+    "axon body",
+    "taser",
+    "flipper",
+    "led badge magic",
+    "ray-ban",
+    "ray ban",
+  ]);
   assert.equal(
     lock.survey_reference.commit,
     "bd508ad7ceed48377619837051412a651952857f",
@@ -354,6 +364,18 @@ export async function verifyBinary(file, mode, lock) {
     mode === "survey",
     `survey marker mismatch for ${mode} build`,
   );
+  if (mode === "survey") {
+    for (const text of lock.build.required_survey_ascii) {
+      assert.ok(
+        contains(image, Buffer.from(text, "ascii")),
+        `embedded survey rule text missing from BIN: ${text}`,
+      );
+    }
+    assert.ok(
+      contains(image, Buffer.from([0xe0, 0xfe])),
+      "embedded BadgeMagic FEE0 service signature missing from BIN",
+    );
+  }
 
   const lockedImages = {
     baseline: {

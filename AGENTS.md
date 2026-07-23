@@ -28,8 +28,8 @@ been tested on a physically verified CH582M 11×44 badge.
 FrogAlert is a Rust-powered firmware experiment for the FOSSASIA-supported
 BadgeMagic badge. Its first images retain FOSSASIA's C hardware/runtime shell
 and call Rust only for pure policy logic. It should remain a normal programmable LED nametag, briefly scan nearby
-BLE advertisements, and temporarily show `COP DETECTED` or `HAX DETECTED` for
-configured signatures.
+BLE advertisements, and temporarily show `COP DETECTED` or
+`FLIPPER DETECTED` for configured signatures.
 
 The public site is a dependency-free static application. It separates:
 
@@ -217,24 +217,37 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The likely software failure was startup ordering: FOSSASIA started Peripheral
   before the survey registered its Central callback, so a combined-role
   `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
-- The replacement private survey candidate is a locked 199,788-byte BIN at
-  SHA-256 `610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`.
+- The replacement private survey candidate is a locked 201,412-byte BIN at
+  SHA-256 `42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
   It treats a successful Central start as ready instead of depending only on
   that callback, consumes both live reports and the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
-  no suffix for a completed result, `E` error, and `T` timeout. Live legacy and
-  extended advertisement data is bounds-checked for a complete/shortened local
-  name containing `Flipper`; a match scrolls `FLIPPER DETECTED` until the next
-  window. This mirrors Unagi's name rule. There is no unique Flipper OUI:
-  official firmware derives a public MAC from STM32 identifiers, so an ST OUI
-  would overmatch, and custom firmware can rename or spoof the device. The
-  embedded matcher remains a temporary C diagnostic until the Rust ABI canary.
-  The image still uses a passive three-second window only while disconnected,
-  caps and zeroes 64 addresses, restores advertising, cancels a stuck scan
-  after five seconds, and leaves 9,724 bytes of measured stack/runtime
-  headroom. It preserves audited FOSSASIA USB/BLE/display/KEY2 symbols but
-  remains private under `tmp/`, hardware-unverified, and not flash-approved or
-  published.
+  no suffix for a completed result, `E` error, and `T` timeout. Short KEY2
+  rotates `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system/brightness
+  behavior and the independent long-KEY2 ISP task remain inherited. Surveys
+  continue in either visible view. The bounded C mirror implements every
+  README OUI/name row; `COP DETECTED` and `FLIPPER DETECTED` overlay either view
+  for five seconds, then the selected view resumes. There is no unique Flipper
+  OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
+  OUI would overmatch, and custom firmware can rename or spoof the device.
+  Exact case-insensitive `LED Badge Magic` or advertised `0xFEE0` triggers
+  three frogs in two alternating frames for two seconds. Passive scans may miss
+  scan-response-only names, so the service fallback can false-positive another
+  compatible `0xFEE0` advertiser. The C mirror remains temporary until the Rust
+  ABI canary. The image still uses a passive three-second window only while
+  disconnected, caps and zeroes 64 addresses, restores advertising, cancels a
+  stuck scan after five seconds, and leaves 9,788 bytes of measured
+  stack/runtime headroom. Audited text/data/BSS sizes are
+  192,920/8,492/4,588 bytes. It preserves audited FOSSASIA
+  USB/BLE/display/KEY2 symbols but remains private under `tmp/`,
+  hardware-unverified, and not flash-approved or published.
+- WCH discovery cancellation is asynchronous. Keep `scan_active` true until
+  `GAP_DEVICE_DISCOVERY_EVENT` (or `bleIncorrectMode`) confirms the radio is
+  idle; streaming, a peripheral connection, and download mode must request
+  cancellation and defer advertising until that completion. Restore the last
+  completed count after suspension so a cancelled `S` phase is never shown as
+  a measurement. Clear an interrupted BadgeMagic streaming session on
+  disconnect before resuming survey scheduling and advertising.
 - The user observed survey-display flicker. FOSSASIA scans 22 Charlieplex
   source phases at roughly 45 Hz, which can be visible. The survey hook also
   called `stop_all_animation()` every 100 ms, clearing the live framebuffer and

@@ -49,33 +49,47 @@ callback: FOSSASIA starts Peripheral first, so that combined-role event may
 precede registration of the survey callback. A successful Central start also
 arms the first scan.
 
-As a deliberately obvious diagnostic, the final display character shows `I`
-for initialization, `R` for ready/waiting, `S` for active scan, `E` for error,
-or `T` for watchdog timeout. The suffix disappears for a completed `BT 00` to
-`BT 64+` result. Live report events update the count during `S`, and the final
-discovery list is consumed as a fallback. The persistent view replaces the
-normal nametag between surveys but yields to app streaming and non-normal
-modes. Each survey temporarily stops advertising, scans for three seconds,
-restores the prior advertising state, and waits about 57 seconds. The fixed
-address table is explicitly zeroed, and the code never establishes a central
-connection. Live legacy/extended reports are also parsed for complete or
-shortened local names containing `Flipper`, case-insensitively. A match shows
-`FLIPPER DETECTED` until the next survey window. No Flipper OUI is asserted.
+Short KEY2 presses extend FOSSASIA's existing display-selection behavior with a
+virtual counter view: `Name 1 → BT counter → Name 2 → BT counter → …`. KEY1
+keeps its upstream system-mode behavior and long-press brightness action. The
+separate roughly 2.2-second KEY2-to-ISP poll is unchanged. The view choice is
+presentation state rather than radio state, so disconnected passive surveys
+continue while either the nametag or counter is visible.
 
-This first hardware diagnostic mirrors the already tested Rust name rule in a
-bounded C parser; it does not skip the separate Rust ABI-canary gate. The
-display hook stops the original animation only when taking ownership instead
-of clearing the live framebuffer every 100 ms. FOSSASIA's underlying roughly
-45 Hz matrix refresh is unchanged. The eventual product still needs temporary
-alerts that restore the user's nametag on a shorter, configurable schedule.
+The counter's final character shows `I` for initialization, `R` for
+ready/waiting, `S` for active scan, `E` for error, or `T` for watchdog timeout.
+The suffix disappears for a completed `BT 00` to `BT 64+` result. Live report
+events update the count during `S`, and the final discovery list is consumed as
+a fallback. Each survey temporarily stops advertising, scans for three
+seconds, restores the prior advertising state, and waits about 57 seconds. The
+fixed address table is explicitly zeroed, and the code never establishes a
+central connection.
+
+The candidate mirrors every README OUI and name rule in a bounded C classifier.
+OUI rules run only for controller-reported public addresses. Complete and
+shortened local names are matched case-insensitively for `Axon Body`, `TASER`,
+`Flipper`, `Ray-Ban`, and `Ray Ban`; the resulting `COP DETECTED` or
+`FLIPPER DETECTED` overlay lasts five seconds and then restores the selected
+nametag/count view. An exact case-insensitive `LED Badge Magic` name or an
+advertised `0xFEE0` service triggers two alternating frames of three frogs for
+two seconds. Passive scans may omit a name carried only in scan response, so
+the service match is an intentional fallback and may false-positive another
+compatible device that advertises `0xFEE0`.
+
+This bounded C mirror makes the full policy inspectable in the current hardware
+shell; it does not skip the separate Rust ABI-canary gate. The display hook
+stops the original animation only when an overlay or selected counter takes
+ownership, then resumes the uploaded nametag without modifying it. FOSSASIA's
+underlying roughly 45 Hz matrix refresh is unchanged.
 
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 199,788 bytes at SHA-256
-`610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`
-with 9,724 bytes of measured stack/runtime headroom. It is likewise private and
-hardware-unverified.
+The survey candidate builds as 201,412 bytes at SHA-256
+`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
+Its audited section sizes are 192,920 bytes of text, 8,492 bytes of data, and
+4,588 bytes of BSS, with 9,788 bytes of measured stack/runtime headroom. It is
+likewise private, hardware-unverified, and not flash-approved.
 
 Each stage must retain USB `0416:5020` HID+CDC enumeration, BadgeMagic app
 uploads, ordinary buttons, the visible KEY2 dot cue, and ISP enumeration as
@@ -127,14 +141,14 @@ The survey candidate initializes both WCH roles but never scans and advertises
 at the same time. Its conservative radio schedule is:
 
 ```text
-Persistent latest-count scroll (I, R, S, complete, E, or T phase)
-  -> yield while app streaming or badge is outside normal mode
+Selected view: uploaded name or latest count
+  -> passive survey remains scheduled in either view
 Peripheral advertising (about 57 s)
   -> only scan if no app connection is active
 Observer/passive scan (3 s)
-  -> update bounded unique-address count
-Persistent latest-count scroll
-  -> restore prior advertising state
+  -> update bounded unique-address count and local rule matches
+Temporary alert/frog overlay, when matched
+  -> restore selected name/count view and prior advertising state
 ```
 
 The remaining hardware question is whether this combined-role initialization
@@ -156,10 +170,10 @@ The BadgeMagic app's legacy path expects:
 
 FrogAlert must store and render that content unchanged. Detection alerts are a
 temporary overlay; they must never overwrite the uploaded nametag payload.
-The persistent-count survey candidate does not write the uploaded payload, but
-it intentionally masks the normal nametag view outside app streaming. It is a
-diagnostic exception, not proof of the target overlay UX, and still needs app,
-button, recovery, and power-cycle regression evidence on hardware.
+The survey candidate keeps the count as a separate KEY2-selected view and
+releases display ownership after each bounded alert. This is build-layer
+behavior, not proof of the target UX; it still needs app, button, recovery,
+view-restoration, and power-cycle regression evidence on hardware.
 
 ## Detection policy
 
@@ -168,8 +182,9 @@ small and explainable:
 
 - OUI rules run only for controller-reported public addresses. Random BLE
   addresses make the first three bytes unsuitable as vendor evidence.
-- name rules are ASCII case-insensitive substring matches against Complete or
-  Shortened Local Name advertisement fields.
+- detection-name rules are ASCII case-insensitive substring matches against
+  Complete or Shortened Local Name advertisement fields; the friendly
+  `LED Badge Magic` frog trigger requires an exact case-insensitive name.
 - observations are discarded after classification. The badge has no scan log,
   network client, or telemetry.
 - the first match wins. A future rule table stored in data flash can add
@@ -186,10 +201,10 @@ small and explainable:
 4. Call the Rust classifier with synthetic advertisements while preserving the
    normal nametag path.
 5. Hardware-test the existing private passive-survey candidate while
-   disconnected, first showing only the approximate count and proving that
-   ephemeral addresses are cleared afterward.
-6. Add temporary `COP DETECTED` / `HAX DETECTED` overlays and restore the
-   uploaded nametag framebuffer unchanged.
+   disconnected, exercise the name/count KEY2 rotation and bounded overlays,
+   and prove that ephemeral addresses are cleared afterward.
+6. Replace the bounded C policy mirror with the same behavior through the
+   separately smoke-tested Rust ABI.
 7. Prove observer/peripheral role switching and the target roughly 60-second
    cadence without breaking USB, app uploads, or recovery.
 8. Measure current draw and tune scan, display, and sleep timing.

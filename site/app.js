@@ -1193,7 +1193,7 @@ async function loadReleaseManifest() {
     }
     const releases = manifest.releases.filter((release) => release.hardware_verified === true);
     if (releases.length === 0) {
-      setReleaseSummary("No hardware-verified FrogAlert firmware has been released yet. Developer BIN files can be selected locally.", "warning");
+      setReleaseSummary("No hardware-verified FrogAlert firmware has been released. Private developer BINs may be selected locally for qualified bench testing only.", "warning");
     } else {
       for (const release of releases) {
         const option = document.createElement("option");
@@ -1220,7 +1220,7 @@ async function loadReleaseManifest() {
     }
     state.labImages = [...manifest.lab_images];
     if (state.labImages.length === 0) {
-      setLabImageSummary("No hosted FrogAlert lab images are published yet. Local developer BIN files remain available.", "neutral");
+      setLabImageSummary("No hosted FrogAlert lab images are published. Private survey builds remain local, hardware-unverified developer artifacts.", "neutral");
     } else {
       elements.labImageSelect.disabled = state.flashing;
       setLabImageSummary(

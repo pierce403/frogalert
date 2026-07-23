@@ -159,21 +159,29 @@ explicitly authorized, one-badge bench smoke by a qualified operator; that
 initial program/verify action begins the checklist below and must be captured.
 
 A later private survey candidate is also reproducibly built under
-`tmp/fossasia-usbc/build/survey/`. It is 199,788 bytes with SHA-256
-`610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`.
+`tmp/fossasia-usbc/build/survey/`. It is 201,412 bytes with SHA-256
+`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
 It retains the audited FOSSASIA reset/vector, USB, BLE, display, BadgeMagic, and
-KEY2 symbols; leaves 9,724 bytes between static RAM and the stack top; performs
+KEY2 symbols; leaves 9,788 bytes between static RAM and the stack top; performs
 only a bounded three-second passive discovery; skips connected/streaming
 states; displays `I`, `R`, and `S` progress plus `E`/`T` failures; live-updates
-the count during scanning; consumes the completion list as a fallback; parses
-live complete/shortened local-name fields for case-insensitive `Flipper`; shows
-`FLIPPER DETECTED` on a match; and has a five-second cancellation watchdog. A
-suffix-free `BT 00` through `BT 64+` is a completed result. The display hook no
-longer clears the framebuffer at each 100 ms scroll step, although the base
-roughly 45 Hz multiplex refresh is unchanged. Those are build properties, not
-evidence that the badge tolerates repeated surveys. The image does not replace
-the metadata canary as the lower-risk first derived smoke and must not be
-published before the full checklist passes.
+the count during scanning; consumes the completion list as a fallback; and
+mirrors the documented public-OUI and local-name rules in bounded C. Short KEY2
+rotates `Name 1 → BT counter → Name 2 → BT counter` without changing KEY1's
+system behavior. `COP DETECTED` and `FLIPPER DETECTED` overlay either view for
+five seconds, then the selected view resumes. An exact case-insensitive
+`LED Badge Magic` name or an advertised `0xFEE0` service shows two alternating
+frames of three frogs for two seconds. Passive discovery may not receive a
+name carried only in scan response; the `0xFEE0` fallback can therefore
+false-positive another compatible advertiser. A suffix-free `BT 00` through
+`BT 64+` is a completed result. The display hook no longer clears the
+framebuffer at each 100 ms scroll step, although the base roughly 45 Hz
+multiplex refresh is unchanged. The audited section sizes are 192,920 bytes of
+text, 8,492 bytes of data, and 4,588 bytes of BSS. Those are build properties,
+not evidence that the badge tolerates repeated surveys. The image does not
+replace the metadata canary as the lower-risk first derived smoke and must not
+be published before the full checklist passes. The embedded C policy mirror
+does not bypass the separate Rust ABI canary.
 
 Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 
@@ -183,7 +191,8 @@ Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 3. cold boot and power-cycle repetition;
 4. USB `0416:5020` HID and CDC enumeration;
 5. a BadgeMagic app nametag upload and visible display;
-6. KEY1 and short KEY2 behavior;
+6. unchanged KEY1 behavior plus the complete short-KEY2
+   name/count/name rotation and restoration after every text/frog overlay;
 7. long KEY2 with the dot cue and ISP `4348:55e0`/`1a86:55e0` enumeration;
 8. reflash of the known-good FOSSASIA image through that normal path.
 

@@ -8,6 +8,7 @@ pub mod scan;
 pub enum AlertKind {
     Cop,
     Flipper,
+    FrogDance,
     Hax,
 }
 
@@ -16,6 +17,7 @@ impl AlertKind {
         match self {
             Self::Cop => "COP DETECTED",
             Self::Flipper => "FLIPPER DETECTED",
+            Self::FrogDance => "DANCING FROGS",
             Self::Hax => "HAX DETECTED",
         }
     }
@@ -35,6 +37,11 @@ pub struct Observation<'a> {
     pub public_address: bool,
     /// Complete or shortened local name extracted from advertisement data.
     pub name: Option<&'a [u8]>,
+    /// True when the advertisement contains BadgeMagic's 16-bit FEE0 service.
+    ///
+    /// This is a passive fallback because the open firmware places its local
+    /// name in a scan response, which a passive observer cannot request.
+    pub badge_magic_service: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -85,6 +92,11 @@ const NAME_RULES: &[NameRule] = &[
         label: "Flipper name",
     },
     NameRule {
+        needle: b"led badge magic",
+        kind: AlertKind::FrogDance,
+        label: "BadgeMagic name",
+    },
+    NameRule {
         needle: b"ray-ban",
         kind: AlertKind::Cop,
         label: "Ray-Ban name",
@@ -110,16 +122,25 @@ pub fn classify(observation: &Observation<'_>) -> Option<Match> {
         }
     }
 
-    let name = observation.name?;
-    for rule in NAME_RULES {
-        if ascii_contains_ignore_case(name, rule.needle) {
-            return Some(Match {
-                kind: rule.kind,
-                label: rule.label,
-            });
+    if let Some(name) = observation.name {
+        for rule in NAME_RULES {
+            let matches = if rule.kind == AlertKind::FrogDance {
+                ascii_equal_ignore_case_padded(name, rule.needle)
+            } else {
+                ascii_contains_ignore_case(name, rule.needle)
+            };
+            if matches {
+                return Some(Match {
+                    kind: rule.kind,
+                    label: rule.label,
+                });
+            }
         }
     }
-    None
+    observation.badge_magic_service.then_some(Match {
+        kind: AlertKind::FrogDance,
+        label: "BadgeMagic FEE0 service",
+    })
 }
 
 fn starts_with_either_order(address: &[u8; 6], prefix: &[u8; 3]) -> bool {
@@ -138,6 +159,13 @@ fn ascii_contains_ignore_case(haystack: &[u8], needle: &[u8]) -> bool {
     })
 }
 
+fn ascii_equal_ignore_case_padded(mut value: &[u8], expected: &[u8]) -> bool {
+    while value.last() == Some(&0) {
+        value = &value[..value.len() - 1];
+    }
+    value.eq_ignore_ascii_case(expected)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,6 +175,7 @@ mod tests {
             address,
             public_address,
             name,
+            badge_magic_service: false,
         }
     }
 
@@ -196,6 +225,26 @@ mod tests {
             assert_eq!(found.kind, AlertKind::Cop);
             assert_eq!(found.kind.message(), "COP DETECTED");
         }
+    }
+
+    #[test]
+    fn badge_magic_name_triggers_frog_dance() {
+        let found = classify(&observation([0; 6], false, Some(b"LED Badge Magic\0\0"))).unwrap();
+        assert_eq!(found.kind, AlertKind::FrogDance);
+        assert_eq!(found.kind.message(), "DANCING FROGS");
+        assert_eq!(
+            classify(&observation([0; 6], false, Some(b"My LED Badge Magic"))),
+            None
+        );
+    }
+
+    #[test]
+    fn badge_magic_service_triggers_frog_dance_without_a_scan_response() {
+        let mut seen = observation([0; 6], false, None);
+        seen.badge_magic_service = true;
+        let found = classify(&seen).unwrap();
+        assert_eq!(found.kind, AlertKind::FrogDance);
+        assert_eq!(found.label, "BadgeMagic FEE0 service");
     }
 
     #[test]

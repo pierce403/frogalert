@@ -21,6 +21,7 @@ fn main() {
         address,
         public_address,
         name: name.as_deref().map(str::as_bytes),
+        badge_magic_service: false,
     };
 
     match classify(&observation) {

@@ -12,16 +12,19 @@ hash-bound flash transcript proving that exact image was programmed. Review of
 the startup order found a likely scheduling failure: FOSSASIA starts Peripheral
 before the survey registers its Central callback, so the combined-role
 initialization event can occur before the survey can observe it. The replacement
-below removes that sole dependency and makes every radio phase visible. It has
-not yet been physically tested.
+below removes that sole dependency, makes every radio phase visible in a
+KEY2-selectable count view, and adds bounded temporary alerts while retaining
+the normal nametag as the default view. The intervening 199,788-byte
+Flipper-only candidate was superseded before physical testing. The current
+candidate has not yet been physically tested.
 
 The locked artifact is:
 
 - profile: `B1144C_250901_USB_C`;
 - path: `tmp/fossasia-usbc/build/survey/badgemagic-ch582.bin`;
-- size: 199,788 bytes;
+- size: 201,412 bytes;
 - SHA-256:
-  `610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`;
+  `42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`;
 - FOSSASIA shell source: `9ce885d682b5c56c3ac7595c09e009a210885221`;
 - toolchain: pinned MRS V1.92;
 - hardware status: unverified.
@@ -51,35 +54,55 @@ FROGALERT_FOSSASIA_OFFLINE=1 \
   on success, start failure, or timeout.
 - Cancels discovery with a five-second watchdog rather than leaving the badge
   radio-silent if WCH never emits completion.
+- Treats WCH cancellation as asynchronous: it keeps the scan active until the
+  discovery-complete event (or `bleIncorrectMode`) confirms idle, and makes
+  streaming, peripheral connection, and download-mode transitions request the
+  same cancellation before advertising can resume.
+- Clears a streaming session on current-link termination so a phone that drops
+  before sending the normal stream-exit command cannot suppress every future
+  survey until power cycle.
 - Starts a circular status scroll at 100 ms per column. `I` means initializing,
   `R` ready/waiting, `S` scanning, `E` error, and `T` watchdog timeout. The
   suffix disappears only for a completed measurement.
 - Deduplicates at most 64 six-byte advertiser addresses, updates the display
   live while scanning, and also consumes the controller's completion list in
   case individual report events were not delivered to this callback.
-- Keeps the completed `BT 00` through `BT 64+` result visible between surveys.
-  The diagnostic view intentionally masks the normal nametag between surveys,
-  but yields while the app is streaming or the badge is outside normal mode.
+- Keeps the completed `BT 00` through `BT 64+` result available as a virtual
+  display view. Short KEY2 rotates
+  `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system/brightness behavior
+  and the separate long-KEY2 ISP poll remain inherited. Scanning continues in
+  either selected view.
 - Parses live legacy and extended advertisement AD structures with strict
-  bounds checks. Complete or shortened local names containing `Flipper`,
-  case-insensitively, immediately show `FLIPPER DETECTED`; the message persists
-  until the next survey begins. The completion-list fallback has addresses but
-  no advertisement payload, so only live reports can produce a name alert.
+  bounds checks. The C mirror implements both README public-address OUIs and
+  all documented name strings; it applies OUIs only to controller-reported
+  public addresses. `COP DETECTED` and `FLIPPER DETECTED` overlay either visible
+  view for five seconds, then the selected name/count view is restored. The
+  completion-list fallback has addresses but no advertisement payload, so only
+  live reports can produce a name alert.
 - Mirrors Unagi's seeded `Flipper` name rule. It deliberately does not use a
   Flipper OUI: official firmware advertises `xFlipper <device-name>` and derives
   the public MAC from STM32 identifiers, which are not unique to Flipper.
+- Treats an exact case-insensitive `LED Badge Magic` local name or advertised
+  `0xFEE0` service as a friendly-badge hint and shows three frogs in two
+  alternating frames for two seconds. Passive discovery may not receive a name
+  carried only in scan response, so the service fallback may false-positive
+  another compatible device that advertises the same UUID.
 - Stops FOSSASIA animation tasks only when taking display ownership. The prior
   100 ms scroll path called `stop_all_animation()` every step and therefore
   cleared the live framebuffer repeatedly, adding blank/partial-frame flicker.
-  The roughly 45 Hz underlying FOSSASIA matrix refresh is unchanged.
+  The replacement releases ownership after an overlay and resumes the selected
+  uploaded name or counter. The roughly 45 Hz underlying FOSSASIA matrix
+  refresh is unchanged.
 - Explicitly zeroes the address table after success, start failure, timeout,
   and initialization; no address is printed, persisted, or transmitted.
 - Schedules the next normal attempt about 57 seconds after completion. Busy or
   connected states retry later without disturbing the app.
 
 This counts advertiser addresses heard in one short window. It does not count
-people or prove physical-device identity. OUI classification remains future
-work; the Flipper experiment uses only the advertised local name.
+people or prove physical-device identity. Every detector remains a spoofable
+hint, and the broad `0xFEE0` frog fallback is intentionally playful rather than
+an identity assertion. The full embedded rule set is still a bounded C mirror;
+moving the same policy behind the Rust ABI remains separately gated.
 
 ## Preserved shell and build evidence
 
@@ -89,8 +112,10 @@ BadgeMagic service symbols, display path, and KEY2 application recovery
 symbols. The Make-produced BIN is byte-identical to a fresh `objcopy` of the
 audited ELF. The final disassembly contains no AMO/LR/SC instructions.
 
-Static RAM ends at `0x20009204`; the WCH linker stack top is `0x2000b800`,
-leaving 9,724 bytes. The build rejects less than 8,192 bytes of headroom.
+The audited section sizes are 192,920 bytes of text, 8,492 bytes of data, and
+4,588 bytes of BSS. Static RAM ends at `0x200091c4`; the WCH linker stack top
+is `0x2000b800`, leaving 9,788 bytes. The build rejects less than 8,192 bytes of
+headroom.
 The build wrapper deletes BIN outputs on any failed preparation, compile, or
 post-link gate so a stale or partially audited image is not mistaken for a
 candidate.
@@ -105,9 +130,9 @@ appear once; source drift fails closed.
 This is build evidence only. The lowest-risk first derived smoke remains the
 metadata-only canary. Before the survey candidate is published, it must pass
 captured CLI program/verify, cold boot and power cycles, normal nametag display,
-BadgeMagic upload/streaming, count-scroll readability and updates, KEY1 and
-short KEY2, KEY2-only dot-to-ISP recovery, repeated scan/advertising/app
-reconnect behavior, current measurement, and known-good FOSSASIA reflash. The
-normal saved nametag must be rechecked after returning to the baseline because
-this diagnostic deliberately keeps the count visible. A 24-hour cadence test
-is required before calling regular surveys stable.
+BadgeMagic upload/streaming, count-scroll readability and updates, the complete
+short-KEY2 name/count rotation, unchanged KEY1 behavior, every five-second
+text-overlay restoration, the two-second frog animation, KEY2-only dot-to-ISP
+recovery, repeated scan/advertising/app reconnect behavior, current
+measurement, and known-good FOSSASIA reflash. A 24-hour cadence test is required
+before calling regular surveys stable.

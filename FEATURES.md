@@ -30,7 +30,7 @@ Readiness applies per layer. For example, the host detection engine can be
 FrogAlert is custom firmware for the FOSSASIA-supported CH582M 11×44 BadgeMagic
 badge. It remains a user-programmable nametag and periodically performs a short,
 passive BLE scan. When a conservative local rule matches, it temporarily shows
-`COP DETECTED` or `HAX DETECTED`, then restores the user's nametag content.
+`COP DETECTED` or `FLIPPER DETECTED`, then restores the user's nametag content.
 
 The historical [`frogalert-count` source](firmware/frogalert-count/src/main.rs)
 describes an observer-only bring-up loop, not that complete product. Its host
@@ -42,9 +42,9 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 
 | Requirement | Status | Acceptance evidence | Notes |
 | --- | --- | --- | --- |
-| Normal operation remains useful as a nametag | **PROTOTYPE** in survey source, **BLOCKED** for hardware | Count overlay reloads the inherited normal FOSSASIA mode; survey is gated on normal/non-streaming state | Prove exact uploaded content survives repeated windows and power cycles. |
+| Normal operation remains useful as a nametag | **PROTOTYPE** in survey source, **BLOCKED** for hardware | Short KEY2 rotates uploaded names with a separately rendered count view; passive scans and temporary alerts run in either view, then the selected view is restored | Prove exact uploaded content and selected-view behavior survive repeated windows, app uploads, and power cycles. |
 | Compatible with the BadgeMagic app legacy upload path | **AVAILABLE** in inherited shell, **BLOCKED** for survey regression | Survey keeps FOSSASIA `FEE0/FEE1` code and skips connected states | A real Android/iOS upload before, during, and after survey scheduling is required. |
-| Detection is passive and local | **SHIPPED** at core layer, **PROTOTYPE** in survey build | Survey calls passive WCH discovery and has no network/storage path | Controller results currently feed only the aggregate counter, not Rust classification. |
+| Detection is passive and local | **SHIPPED** at core layer, **PROTOTYPE** in survey build | Survey calls passive WCH discovery, feeds a bounded C mirror of the documented rules, and has no network/storage path | The C mirror is an audited diagnostic boundary, not permission to skip the Rust ABI canary or hardware testing. |
 | Alert rules are explainable | **SHIPPED** at core layer | Each match returns kind and static label | Future configurable rules must retain provenance. |
 | No device-tracking log | **SHIPPED** by design, **PROTOTYPE** in survey build | Fixed address RAM is explicitly zeroed; source tests reject address logging | Physical observation cannot prove zeroing, so retain source and disassembly audits. |
 | Alerts do not assert identity as fact | **SHIPPED** in docs | Hardware and source docs describe OUIs as hints | Site copy must preserve this caveat. |
@@ -69,13 +69,13 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | --- | --- | --- | --- |
 | Pinned FOSSASIA USB-C hardware shell | **SHIPPED** at build layer | Exact `9ce885d` source and MRS V1.92 reproduce the known-good 177,704-byte BIN at SHA-256 `2049eb58…f670a2` | C owns startup, vectors, clocks, USB, BLE/TMOS, display, buttons, and KEY2 recovery. Physical evidence applies to the upstream image, not future derivatives. |
 | C-only compatibility canary | **SHIPPED** as local build evidence, **BLOCKED** for hardware | 177,788-byte canary SHA-256 `6591f55f…03e87` retains all runtime audits and adds only an inert identity string | Stays under ignored `tmp/`; must pass program/verify, USB, app, buttons, KEY2 recovery, known-good reflash, and power cycle before publication. |
-| FOSSASIA-shell passive survey candidate | **PROTOTYPE** at local build layer, **PARTIAL** on hardware | The preceding candidate displayed its `BT 00` placeholder on the photographed badge but did not visibly advance to a measured result. The replacement is a locked 199,788-byte BIN SHA-256 `610aeb1d…d4475`; passive start/cancel symbols, bounded Flipper-name parser, 16-character alert renderer, live-result and completion-list paths, phase display, live vectors, retained USB/BLE/display/KEY2 symbols, no AMO/LR/SC, ELF/BIN identity, and 9,724 bytes RAM headroom pass | Private `tmp/` diagnostic only. It shows scan phases, live-counts up to 64 addresses, and scrolls `FLIPPER DETECTED` after a case-insensitive advertised-name match. It yields during app streaming/non-normal modes, restores advertising, zeroes RAM, and cancels a stuck scan. The replacement still needs a hash-bound physical flash and smoke test. |
+| FOSSASIA-shell passive survey candidate | **PROTOTYPE** at local build layer, **PARTIAL** on hardware | The preceding candidate displayed its `BT 00` placeholder on the photographed badge but did not visibly advance to a measured result. The replacement is a locked 201,412-byte BIN SHA-256 `42a42f4a…30e650`; passive start/cancel/suspend symbols, bounded OUI/name/service classifier, exact view rotation, alert/frog renderers, live-result and completion-list paths, live vectors, retained USB/BLE/display/KEY2 symbols, no AMO/LR/SC, ELF/BIN identity, and 9,788 bytes RAM headroom pass | Private `tmp/` diagnostic only. Short KEY2 rotates names with the counter while KEY1 behavior is unchanged; surveys run in both views. Discovery cancellation waits for WCH's completion event before advertising or connecting resumes, and an interrupted app stream is cleared on disconnect. Five-second `COP DETECTED`/`FLIPPER DETECTED` overlays restore the selected view, and a BadgeMagic hint runs a two-second frog animation. It still needs a hash-bound physical flash and smoke test. |
 | Rust for embedded application logic | **IN PROGRESS**, restricted to portable logic | The allocation-free core and host tests remain reusable | The standalone Rust runtime image booted blank. Replacement images will keep FOSSASIA's C startup/hardware shell and expose only narrow C ABI calls into Rust logic. |
 | Atomic-free Rust archive | **IN PROGRESS** | Final linked image contains no AMO/LR/SC instructions and passes the FOSSASIA linker | Rust is a static library only; current Rust object attributes may need compatibility work with the pinned MRS linker. Do not replace the known-good final linker to make the archive fit. |
 | Pin Rust and HAL revisions | **PROTOTYPE** | [`rust-toolchain.toml`](firmware/rust-toolchain.toml), firmware lockfile, and local HAL source are present and locked | Pinned nightly and dependency set build; upstream HAL warnings remain and hardware behavior is unverified. |
 | Linker/runtime configuration | **FAILED** for standalone Rust; FOSSASIA replacement **IN PROGRESS** | Linked ELF proves Timer 0 vector 16 contained `DefaultInterruptHandler` because PAC 0.3 put `__EXTERNAL_INTERRUPTS` in flash instead of the runtime's RAM vector section | Replacement images inherit FOSSASIA startup/linker/runtime unchanged; a post-link vector audit now guards any future runtime work. |
-| Reproducible release build | **PROTOTYPE** for baseline/canary/survey | Independent clean baseline builds reproduce `2049eb58…f670a2`; canary builds reproduce `6591f55f…03e87`; survey builds reproduce `610aeb1d…d4475` | A release build still needs a source commit, clean CI receipt, and physical evidence. |
-| Firmware size limit | **SHIPPED** at build layer | Binary audit rejects images over 448 KiB; survey is 199,788 bytes | Keep the exact limit in the pinned profile and release checks. |
+| Reproducible release build | **PROTOTYPE** for baseline/canary/survey | Independent clean baseline builds reproduce `2049eb58…f670a2`; canary builds reproduce `6591f55f…03e87`; survey builds reproduce `42a42f4a…30e650` | A release build still needs a source commit, clean CI receipt, and physical evidence. |
+| Firmware size limit | **SHIPPED** at build layer | Binary audit rejects images over 448 KiB; survey is 201,412 bytes | Keep the exact limit in the pinned profile and release checks. |
 | Panic/fault behavior | **PLANNED** for Rust ABI | Rust uses abort semantics and returns only through validated primitive C calls | The FOSSASIA shell owns hardware recovery; force and observe faults before adding radio behavior. |
 | Version embedded in firmware | **PLANNED** | Readable via Device Information and release manifest | Include source commit. |
 
@@ -88,12 +88,14 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Hardware revision pin maps and orientation | **BLOCKED** for physical proof | Exact-board pixel walk proves every row, column, direction, first-pair swap, and recovery path | Both candidate maps are encoded, but neither has completed FrogAlert pixel-walk evidence; never substitute generic `BM1144-C` or upstream Rev2/Rev3 naming for `B1144C_250901_USB_C`. |
 | Stable refresh without flicker | **VERIFIED** for upstream shell, **BLOCKED** after FrogAlert changes | Working FOSSASIA image visibly renders the user's nametag; the user reported visible flicker on a survey diagnostic | The survey hook no longer clears the framebuffer every 100 ms, but FOSSASIA's roughly 45 Hz multiplex refresh remains unchanged. Repeat visual/current checks on the exact replacement hash and during scan windows. |
 | Hardware-independent 5×7 text rendering | **SHIPPED** at host layer | `cargo test --workspace` covers scrolling alert text and clipping | [`display.rs`](crates/frogalert-core/src/display.rs) solves rasterization; phrase readability on the panel remains blocked by display bring-up. |
-| Nearby-device count rendering | **SHIPPED** at host layer, **PARTIAL** on hardware | Rust host renderer tests count/saturation; the preceding FOSSASIA-shell diagnostic visibly scrolled `BT 00` on the photographed badge. The replacement scrolls `BT 00  I`, `R`, and `S` phases, updates live while scanning, then removes the suffix for the completed `BT 00` through `BT 64+` result | The user report proves the display hook, not that the exact prior hash was programmed or that a survey completed. The diagnostic masks the normal nametag between scans and yields during app streaming/non-normal modes. |
-| Flipper alert text | **SHIPPED** at host layer, **PROTOTYPE** in survey build | Rust policy returns `FLIPPER DETECTED`; the C-shell diagnostic safely parses legacy/extended complete and shortened local-name fields and renders the same 16-character message | Unagi uses a name rule, not an OUI. Official firmware advertises `xFlipper <name>`; renamed/custom devices can evade it and other devices can spoof it. The embedded C mirror is temporary until the Rust ABI canary passes. |
+| Nearby-device count rendering | **SHIPPED** at host layer, **PARTIAL** on hardware | Rust host renderer tests count/saturation; the preceding FOSSASIA-shell diagnostic visibly scrolled `BT 00` on the photographed badge. The replacement keeps the latest `BT 00` through `BT 64+` result as a KEY2-selectable view and exposes `I`, `R`, `S`, `E`, and `T` phases there | The user report proves the older display hook, not that the exact replacement hash was programmed or that a survey completed. Nametag view remains selected between alerts instead of being permanently masked. |
+| Flipper alert text | **SHIPPED** at host layer, **PROTOTYPE** in survey build | Rust policy returns `FLIPPER DETECTED`; the C-shell diagnostic safely parses legacy/extended complete and shortened local-name fields and renders the same 16-character message for five seconds | Unagi uses a name rule, not an OUI. Official firmware advertises `xFlipper <name>`; renamed/custom devices can evade it and other devices can spoof it. The embedded C mirror is temporary until the Rust ABI canary passes. |
+| Cop alert text | **SHIPPED** at host layer, **PROTOTYPE** in survey build | The bounded C mirror maps both documented public-address OUIs plus `Axon Body`, `TASER`, `Ray-Ban`, and `Ray Ban` name hints to a five-second `COP DETECTED` overlay | OUI matching is restricted to controller-reported public addresses. Names and vendor prefixes remain spoofable hints, not identity proof. |
+| BadgeMagic frog animation | **PROTOTYPE** in survey build, **BLOCKED** for hardware | An exact case-insensitive `LED Badge Magic` local name or advertised `0xFEE0` service renders three frogs in two alternating frames for two seconds | Passive reports may omit a scan-response-only name. The `0xFEE0` fallback can false-positive compatible devices that reuse the service UUID. |
 | User framebuffer storage | **PLANNED** | Upload survives alert and reboot | Define data-flash ownership/versioning. |
-| Temporary alert overlay | **PLANNED** | Alert displays, then exact prior content resumes | Do not persist overlay as nametag content. |
+| Temporary alert overlay | **PROTOTYPE** in survey build, **BLOCKED** for hardware | Cop/Flipper alerts expire after five seconds and restore the selected nametag or count view without writing the uploaded payload | Prove restoration after each rule, view transition, streaming session, and power cycle. |
 | Alert cooldown/deduplication | **PLANNED** | Repeated advertisements do not strobe indefinitely | Define per-rule and global cooldowns. |
-| Button behavior preserved | **PROTOTYPE** at build layer, **BLOCKED** for hardware | Survey injection does not replace FOSSASIA button or KEY2 task symbols | Run KEY1, short KEY2, and long KEY2 dot-to-ISP checks on the exact hash. |
+| Button behavior preserved | **PROTOTYPE** at build layer, **BLOCKED** for hardware | KEY1 keeps FOSSASIA system-mode behavior and long-press brightness; short KEY2 rotates `Name 1 → BT counter → Name 2 → BT counter`, while the separate long-KEY2 recovery task remains intact | Run the complete rotation, KEY1 download/power path, brightness, and long-KEY2 dot-to-ISP checks on the exact hash. |
 | Brightness and power controls | **PLANNED** | Next-gen/app settings survive alerts | Follow existing BadgeMagic behavior where possible. |
 
 ## BadgeMagic compatibility
@@ -115,13 +117,13 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
 | Allocation-free classification core | **SHIPPED** | `cargo test --workspace`: six tests | `frogalert-core` is `no_std`. |
-| Public-address OUI matching | **SHIPPED** at core layer | Axon/Flock unit tests and simulator | Hardware controller address-type mapping pending. |
-| Ignore OUIs on random/local addresses | **SHIPPED** at core layer | Regression test rejects random-address OUI | Names may still match. |
-| Case-insensitive advertised-name matching | **SHIPPED** at core layer | Flipper/Axon tests | Parse complete and shortened local-name fields in firmware. |
+| Public-address OUI matching | **SHIPPED** at core layer, **PROTOTYPE** in survey build | Axon/Flock unit tests and bounded C mirror use controller-reported address type | Physical reports must confirm WCH byte order and address-type mapping on the exact image. |
+| Ignore OUIs on random/local addresses | **SHIPPED** at core layer, **PROTOTYPE** in survey build | Regression tests and the C mirror reject OUI rules for non-public addresses | Names may still match. |
+| Case-insensitive advertised-name matching | **SHIPPED** at core layer, **PROTOTYPE** in survey build | Complete/shortened-name, malformed-length, and embedded-rule tests pass | Passive discovery may not deliver a name carried only in scan response. |
 | Axon `00:25:DF` seed | **SHIPPED** at core layer | Test and OUI-Spy provenance | Hint, not identity proof. |
 | Flock `B4:1E:52` seed | **SHIPPED** at core layer | Rule and OUI-Spy provenance | Must confirm it appears in BLE field data. |
-| Unagi name seeds | **SHIPPED** at core layer | Flipper, Axon Body, TASER, Ray-Ban variants | Mirrored from current Unagi defaults. |
-| Parse BLE advertisement fields | **SHIPPED** at host layer | Complete/shortened-name and malformed-length tests pass | [`advertisement.rs`](crates/frogalert-core/src/advertisement.rs) is allocation-free; controller report integration remains pending. |
+| Unagi name seeds | **SHIPPED** at core layer, **PROTOTYPE** in survey build | Flipper, Axon Body, TASER, and Ray-Ban variants are mirrored in bounded C | The Rust ABI remains a separate gate despite matching behavior. |
+| Parse BLE advertisement fields | **SHIPPED** at host layer, **PROTOTYPE** in survey build | Complete/shortened-name and malformed-length tests pass in Rust and the bounded C mirror | [`advertisement.rs`](crates/frogalert-core/src/advertisement.rs) is allocation-free; replacing the diagnostic C parser with the Rust ABI remains pending. |
 | Count distinct advertisers ephemerally | **SHIPPED** at host layer | Duplicate, saturation, and clear-window tests pass | [`scan.rs`](crates/frogalert-core/src/scan.rs) uses fixed capacity and zeroes each completed window rather than retaining a history. |
 | Observer scan for about 3 seconds | **PROTOTYPE** in FOSSASIA shell, **BLOCKED** for hardware | Private survey build calls passive `GAPRole_CentralStartDiscovery(..., FALSE, FALSE)` with a three-second WCH duration and five-second cancel watchdog | The old standalone Rust image remains quarantined. Prove real scan completion, repeat cadence, current draw, and radio/display coexistence. |
 | Peripheral/observer role switching | **PROTOTYPE** in source, **BLOCKED** for hardware | WCH Central and Peripheral roles initialize together; advertising is paused before discovery rather than scanning concurrently | Repeated 24-hour run and app reconnect are required. |
@@ -338,14 +340,15 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
   FOSSASIA-shell survey candidate visibly reached its diagnostic `BT 00` on the
   photographed badge but did not show a measured count. The replacement makes
   initialization, ready/waiting, active scan, completion, error, and timeout
-  states visible; starts the first scan without relying only on a possibly
-  missed combined-role initialization callback; consumes both live reports and
-  the completion list; parses live local-name fields for `Flipper`; renders
-  `FLIPPER DETECTED`; restores advertising; zeroes addresses; and cancels a
-  stuck scan. Its exact BIN is locked but is not published or flash-approved.
-- **PLANNED:** replace the diagnostic C name mirror with the Rust ABI policy,
-  add address-type/OUI inputs for other rules, alert cooldown, and battery
-  measurements.
+  states visible in a KEY2-selectable counter view; scans in either visible
+  view; consumes live reports and the completion list; mirrors every documented
+  OUI/name rule in bounded C; renders five-second cop/Flipper overlays plus the
+  two-second BadgeMagic frog animation; restores the selected view and
+  advertising; zeroes addresses; and cancels a stuck scan. Its exact BIN is
+  locked but is not published or flash-approved.
+- **PLANNED:** replace the diagnostic C rule mirror with the Rust ABI policy,
+  add alert cooldown and battery measurements, and physically validate the
+  scan-response/FEE0 fallback tradeoff.
 - Exit gate: 24-hour run with app reconnect, no lost content, and measured power.
 
 ### M5 — Tested release and browser flash
