@@ -295,6 +295,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   and a fresh kernel transcript were not recorded. Do not transfer that claim
   to unknown firmware or an unverified FrogAlert build; use the cold-entry
   recovery path when the application hook is absent or broken.
+- Four 2026-07-22 kernel captures show `4348:55e0` ROM ISP disconnecting after
+  about 9–13 seconds and the `0416:5020` application re-enumerating when no
+  useful ISP operation kept the session active. Treat that transition as the
+  normal ISP-entry window expiring, not as proof of a bad cable or bricked
+  badge. Browser permission plus identify/config reads must complete promptly.
+  For CLI testing, start `wchisp -r 30 ...` before the KEY2 long press so the
+  tool is already polling when the dot cue appears.
 - Android Chrome may expose WebUSB through a data-capable USB OTG connection;
   iPhone/iPad browsers do not. The Android path remains hardware-unverified.
 - ISP can identify CH582, bootloader/configuration facts, and UID integrity. It

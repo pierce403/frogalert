@@ -38,6 +38,14 @@ From that running FOSSASIA image, a KEY2-only long press displayed the dot cue
 and entered ISP without RESET or C3. Exact elapsed timing and a fresh kernel
 transcript were not captured.
 
+Later kernel captures recorded four ordinary ISP entries as `4348:55e0`.
+Without a useful command keeping the session active, the device disconnected
+after about 9–13 seconds and re-enumerated the `0416:5020` application. That is
+the ROM ISP opportunity expiring, not by itself a cable failure. Browser flows
+must finish permission, claim, identify, and config reads promptly. For CLI
+testing, `wchisp -r 30 ...` can be started before the KEY2 long press so the
+tool is already polling when the dot cue appears.
+
 That result verifies the physical C3/KEY2 entry and an open USB-C application
 boot with application-provided long-press recovery. The downloaded file's
 provenance is exact, but the retained evidence lacks the `wchisp` command and
