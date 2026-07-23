@@ -23,20 +23,20 @@ int main(void)
 	assert(counter.saturated == 0);
 
 	make_address(address, 7);
-	frogalert_survey_counter_observe(&counter, address);
-	frogalert_survey_counter_observe(&counter, address);
+	assert(frogalert_survey_counter_observe(&counter, address) == 1);
+	assert(frogalert_survey_counter_observe(&counter, address) == 0);
 	assert(counter.count == 1);
 
 	frogalert_survey_counter_reset(&counter);
 	for (uint16_t value = 0; value < FROGALERT_SURVEY_MAX_DEVICES; value++) {
 		make_address(address, value);
-		frogalert_survey_counter_observe(&counter, address);
+		assert(frogalert_survey_counter_observe(&counter, address) == 1);
 	}
 	assert(counter.count == FROGALERT_SURVEY_MAX_DEVICES);
 	assert(counter.saturated == 0);
 
 	make_address(address, FROGALERT_SURVEY_MAX_DEVICES);
-	frogalert_survey_counter_observe(&counter, address);
+	assert(frogalert_survey_counter_observe(&counter, address) == 1);
 	assert(counter.count == FROGALERT_SURVEY_MAX_DEVICES);
 	assert(counter.saturated == 1);
 

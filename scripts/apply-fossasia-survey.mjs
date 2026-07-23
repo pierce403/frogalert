@@ -67,7 +67,8 @@ uint8_t frogalert_survey_allowed(void)
 	return mode == NORMAL && !streaming_enabled;
 }
 
-uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated)
+uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
+				       uint8_t phase)
 {
 	char text[FROGALERT_SURVEY_TEXT_LENGTH] = {
 		'B',
@@ -77,7 +78,7 @@ uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated)
 		(char)('0' + (count % 10)),
 		' ',
 		' ',
-		' ',
+		(char)phase,
 	};
 
 	if (saturated)

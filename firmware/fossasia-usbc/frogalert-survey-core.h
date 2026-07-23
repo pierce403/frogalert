@@ -14,7 +14,7 @@ typedef struct {
 } frogalert_survey_counter_t;
 
 void frogalert_survey_counter_reset(frogalert_survey_counter_t *counter);
-void frogalert_survey_counter_observe(frogalert_survey_counter_t *counter,
-				      const uint8_t address[6]);
+uint8_t frogalert_survey_counter_observe(frogalert_survey_counter_t *counter,
+					 const uint8_t address[6]);
 
 #endif

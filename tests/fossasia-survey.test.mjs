@@ -45,6 +45,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /frogalert_survey_bitmap/);
   assert.match(patchedMain, /frogalert_survey_offset \+ column/);
   assert.match(patchedMain, /text\[5\] = '\+'/);
+  assert.match(patchedMain, /\(char\)phase/);
   assert.match(patchedMain, /frogalert_display_survey_step\(\);/);
   assert.doesNotMatch(patchedMain, /mode_setup_normal\(\);/);
   assert.throws(
@@ -72,13 +73,22 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(survey, /SURVEY_NEXT_DELAY\s+TMOS_TICKS_FROM_MS\(57000U\)/);
   assert.match(survey, /SURVEY_SCROLL_TIME\s+TMOS_TICKS_FROM_MS\(100U\)/);
   assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
-  assert.match(survey, /frogalert_display_survey_count\(0, FALSE\)/);
+  assert.match(
+    survey,
+    /frogalert_display_survey_count\(0, FALSE,[\s\S]*SURVEY_PHASE_INITIALIZING\)/,
+  );
   assert.match(survey, /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_STEP_EVENT/);
   assert.ok(
-    survey.indexOf("frogalert_display_survey_count(0, FALSE)") <
+    survey.indexOf("frogalert_display_survey_count(0, FALSE,") <
       survey.indexOf("status = GAPRole_CentralStartDevice"),
     "diagnostic count must render before central-role startup",
   );
+  assert.match(
+    survey,
+    /status == SUCCESS \|\| status == bleAlreadyInRequestedMode\)[\s\S]*mark_central_ready\(\)/,
+  );
+  assert.match(survey, /event->discCmpl\.pDevList\[index\]\.addr/);
+  assert.match(survey, /show_survey\(SURVEY_PHASE_SCANNING\)/);
   assert.doesNotMatch(survey, /SURVEY_DISPLAY_END_EVENT/);
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);
   assert.match(survey, /GAPROLE_ADVERT_ENABLED/);
@@ -88,6 +98,7 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.doesNotMatch(survey, /GAPRole_CentralEstablishLink/);
   assert.doesNotMatch(survey, /PRINT\([^\n]*(addr|address)/i);
   assert.match(core, /volatile uint8_t \*bytes/);
+  assert.match(core, /uint8_t frogalert_survey_counter_observe/);
   assert.match(overlay, /^CFLAGS \+= -DFROGALERT_SURVEY=1$/m);
   assert.match(build, /baseline\|canary\|survey/);
   assert.match(build, /apply-fossasia-survey\.mjs/);

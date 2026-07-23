@@ -40,21 +40,28 @@ bounded passive counter for the exact USB-C profile:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-This diagnostic lane immediately begins a continuous circular scroll of
-`BT 00`. After the WCH central role becomes ready it waits 15 seconds, skips
-scan work while BadgeMagic is connected or streaming, pauses advertising, and
-scans passively for three seconds. The scroll then updates to the latest result
-from `BT 00` through `BT 64+` and remains visible between windows. Later
-windows begin about 57 seconds after the previous result. The display yields
-while the app is streaming or the badge is outside normal mode, then resumes
-the latest count. Addresses exist only in a fixed 64-entry RAM table and are
-explicitly zeroed after success, failure, or timeout. A five-second watchdog
-cancels a stuck scan and restores the prior advertising state. The image never
-initiates a central connection.
+This diagnostic lane immediately begins a continuous circular scroll. The
+final character exposes progress: `I` means Central initialization, `R` means
+ready/waiting, and `S` means the three-second passive scan is active. A
+completed result has no suffix; `E` means an initialization/start error and `T`
+means the five-second watchdog expired. For example, a normal first cycle is
+`BT 00  I`, `BT 00  R`, `BT 00  S` (with live updates), then `BT 04`.
 
-The initial `BT 00` is a display-path diagnostic placeholder, not a completed
-radio measurement. This lane intentionally replaces the normal nametag view
-between surveys; it is not the target product overlay behavior.
+The first scan begins 15 seconds after readiness, so the first completed result
+normally appears about 18 seconds after startup. The lane skips scan work while
+BadgeMagic is connected or streaming, pauses advertising, and consumes both
+live report events and the controller's completion list. The latest completed
+`BT 00` through `BT 64+` result remains visible between windows; later windows
+begin about 57 seconds after the previous result. The display yields while the
+app is streaming or the badge is outside normal mode, then resumes the latest
+count. Addresses exist only in a fixed 64-entry RAM table and are explicitly
+zeroed after success, failure, or timeout. The watchdog cancels a stuck scan
+and restores the prior advertising state. The image never initiates a central
+connection.
+
+Any value carrying a phase suffix is diagnostic state, not a completed radio
+measurement. This lane intentionally replaces the normal nametag view between
+surveys; it is not the target product overlay behavior.
 
 The first run downloads about 345 MB of pinned archives. Source, toolchain,
 objects, ELF, map, disassembly, and BIN files stay under ignored
@@ -86,8 +93,8 @@ match the already recovered FOSSASIA image exactly.
 
 The survey lane additionally requires its passive-scan/cancel/display-step
 symbols and at least 8 KiB between static RAM and the stack top. Its current
-locked BIN is 199,076 bytes with SHA-256
-`d9bb8465e5784c77e06304e555577ffedd56eb229dcc7de5ae9ac0ab5044e193`.
+locked BIN is 199,332 bytes with SHA-256
+`5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689`.
 
 It does **not** prove that a derived image boots, scans, displays correctly,
 accepts a BadgeMagic upload, enters ISP on KEY2, or recovers after a failed

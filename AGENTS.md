@@ -210,18 +210,24 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   unique advertiser addresses in ephemeral RAM, then displays the approximate
   result for seven seconds. That firmware is quarantined and does not implement
   the BadgeMagic GATT service.
-- The private FOSSASIA-shell survey candidate is a locked 199,076-byte BIN at
-  SHA-256 `d9bb8465e5784c77e06304e555577ffedd56eb229dcc7de5ae9ac0ab5044e193`.
-  It uses passive three-second WCH Central discovery only while disconnected,
-  caps and zeroes 64 addresses, restores prior advertising, continuously
-  scrolls `BT 00` to `BT 64+` at 100 ms per column, cancels a stuck scan after
-  five seconds, and leaves 9,820 bytes of measured stack/runtime headroom. The
-  initial `BT 00` is deliberately shown before the first completed survey so a
-  display-path failure can be distinguished from a scan result. This diagnostic
-  masks the normal nametag while normal/non-streaming, but yields to app
-  streaming and non-normal modes. It preserves audited FOSSASIA
-  USB/BLE/display/KEY2 symbols but remains hardware-unverified, private under
-  `tmp/`, and not flash-approved or published.
+- The preceding 199,076-byte FOSSASIA-shell survey candidate visibly displayed
+  `BT 00` on the photographed badge, proving the injected display hook ran, but
+  the user saw no nonzero result. There is no hash-bound flash transcript, so
+  do not treat that report as proof of the exact bytes or of radio behavior.
+  The likely software failure was startup ordering: FOSSASIA started Peripheral
+  before the survey registered its Central callback, so a combined-role
+  `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
+- The replacement private survey candidate is a locked 199,332-byte BIN at
+  SHA-256 `5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689`.
+  It treats a successful Central start as ready instead of depending only on
+  that callback, consumes both live reports and the discovery completion list,
+  and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
+  no suffix for a completed result, `E` error, and `T` timeout. It still uses a
+  passive three-second window only while disconnected, caps and zeroes 64
+  addresses, restores advertising, cancels a stuck scan after five seconds,
+  and leaves 9,820 bytes of measured stack/runtime headroom. It preserves
+  audited FOSSASIA USB/BLE/display/KEY2 symbols but remains private under
+  `tmp/`, hardware-unverified, and not flash-approved or published.
 - The quarantined Rust display driver encodes both Micro-USB `HARDWARE_REV1`
   and the candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation,
   flicker, current draw, and radio/display coexistence still require a physical

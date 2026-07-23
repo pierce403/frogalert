@@ -44,22 +44,28 @@ experiment is reviewable and reproducible before its turn in that sequence. It
 does not supersede the canary gates. It initializes WCH Central beside the
 existing Peripheral role using WCH's official combined-role pattern, but only
 starts passive discovery while the app is disconnected and the badge is in
-normal, non-streaming mode. As a deliberately obvious diagnostic, it begins a
-continuous `BT 00` scroll before the first scan and replaces the normal nametag
-view with the latest `BT 00` to `BT 64+` count between surveys. It yields the
-panel to app streaming and non-normal modes. Each survey temporarily stops
-advertising, scans for three seconds, restores the prior advertising state,
-and waits about 57 seconds. A five-second watchdog cancels a stuck discovery.
-The fixed address table is explicitly zeroed, and the code never establishes a
-central connection. The eventual product still needs temporary alerts that
-restore the user's nametag; this persistent view exists only to make the first
-radio/display test unmistakable.
+normal, non-streaming mode. It does not rely solely on the Central initialization
+callback: FOSSASIA starts Peripheral first, so that combined-role event may
+precede registration of the survey callback. A successful Central start also
+arms the first scan.
+
+As a deliberately obvious diagnostic, the final display character shows `I`
+for initialization, `R` for ready/waiting, `S` for active scan, `E` for error,
+or `T` for watchdog timeout. The suffix disappears for a completed `BT 00` to
+`BT 64+` result. Live report events update the count during `S`, and the final
+discovery list is consumed as a fallback. The persistent view replaces the
+normal nametag between surveys but yields to app streaming and non-normal
+modes. Each survey temporarily stops advertising, scans for three seconds,
+restores the prior advertising state, and waits about 57 seconds. The fixed
+address table is explicitly zeroed, and the code never establishes a central
+connection. The eventual product still needs temporary alerts that restore the
+user's nametag.
 
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 199,076 bytes at SHA-256
-`d9bb8465e5784c77e06304e555577ffedd56eb229dcc7de5ae9ac0ab5044e193`
+The survey candidate builds as 199,332 bytes at SHA-256
+`5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689`
 with 9,820 bytes of measured stack/runtime headroom. It is likewise private and
 hardware-unverified.
 
@@ -113,7 +119,7 @@ The survey candidate initializes both WCH roles but never scans and advertises
 at the same time. Its conservative radio schedule is:
 
 ```text
-Persistent latest-count scroll (starts at diagnostic BT 00)
+Persistent latest-count scroll (I, R, S, complete, E, or T phase)
   -> yield while app streaming or badge is outside normal mode
 Peripheral advertising (about 57 s)
   -> only scan if no app connection is active

@@ -15,7 +15,7 @@ export const lockPath = path.join(
 export const canaryText =
   "FROGALERT:FOSSASIA-USB-C-BASE:9ce885d682b5c56c3ac7595c09e009a210885221:UNVERIFIED";
 export const surveyText =
-  "FROGALERT:SURVEY-SCROLL:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+  "FROGALERT:SURVEY-LIVE:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 function validateMode(mode) {
   assert.ok(

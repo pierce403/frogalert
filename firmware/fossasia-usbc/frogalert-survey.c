@@ -29,15 +29,23 @@
 #define SURVEY_WATCHDOG_TIME   TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_SCAN_TICKS      4800U /* 3 seconds in 0.625 ms units. */
 
+#define SURVEY_PHASE_INITIALIZING 'I'
+#define SURVEY_PHASE_READY        'R'
+#define SURVEY_PHASE_SCANNING     'S'
+#define SURVEY_PHASE_COMPLETE     ' '
+#define SURVEY_PHASE_ERROR        'E'
+#define SURVEY_PHASE_TIMEOUT      'T'
+
 __attribute__((used, section(".rodata.frogalert")))
 const char frogalert_survey_identity[] =
-	"FROGALERT:SURVEY-SCROLL:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+	"FROGALERT:SURVEY-LIVE:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 static tmosTaskID survey_task_id = INVALID_TASK_ID;
 static frogalert_survey_counter_t survey_counter;
 static uint8_t central_ready;
 static uint8_t scan_active;
 static uint8_t restore_advertising;
+static bStatus_t central_init_status = SUCCESS;
 
 static void survey_central_event(gapRoleEvent_t *event);
 
@@ -68,6 +76,21 @@ static void schedule_survey(uint32_t delay)
 	tmos_start_task(survey_task_id, SURVEY_PREPARE_EVENT, delay);
 }
 
+static void show_survey(uint8_t phase)
+{
+	frogalert_display_survey_count(survey_counter.count,
+				       survey_counter.saturated, phase);
+}
+
+static void mark_central_ready(void)
+{
+	if (central_ready)
+		return;
+	central_ready = 1;
+	show_survey(SURVEY_PHASE_READY);
+	schedule_survey(SURVEY_FIRST_DELAY);
+}
+
 static void restore_advertising_if_needed(void)
 {
 	if (restore_advertising)
@@ -87,25 +110,28 @@ static void finish_survey(void)
 
 	PRINT("FrogAlert passive survey count: %u%s\n", count,
 	      saturated ? "+" : "");
-	frogalert_display_survey_count(count, saturated);
+	frogalert_display_survey_count(count, saturated,
+				       SURVEY_PHASE_COMPLETE);
 	schedule_survey(SURVEY_NEXT_DELAY);
 }
 
 static void observe_address(const uint8_t address[B_ADDR_LEN])
 {
-	if (scan_active)
-		frogalert_survey_counter_observe(&survey_counter, address);
+	if (scan_active &&
+	    frogalert_survey_counter_observe(&survey_counter, address))
+		show_survey(SURVEY_PHASE_SCANNING);
 }
 
 static void survey_central_event(gapRoleEvent_t *event)
 {
 	switch (event->gap.opcode) {
 	case GAP_DEVICE_INIT_DONE_EVENT:
-		central_ready = event->gap.hdr.status == SUCCESS;
-		if (central_ready) {
+		if (event->gap.hdr.status == SUCCESS) {
 			PRINT("FrogAlert passive survey role ready\n");
-			schedule_survey(SURVEY_FIRST_DELAY);
+			mark_central_ready();
 		} else {
+			central_ready = 0;
+			show_survey(SURVEY_PHASE_ERROR);
 			PRINT("FrogAlert survey role failed: %u\n",
 			      event->gap.hdr.status);
 		}
@@ -120,8 +146,14 @@ static void survey_central_event(gapRoleEvent_t *event)
 		observe_address(event->deviceDirectInfo.addr);
 		break;
 	case GAP_DEVICE_DISCOVERY_EVENT:
-		if (scan_active)
+		if (scan_active) {
+			for (uint8_t index = 0;
+			     event->discCmpl.pDevList &&
+			     index < event->discCmpl.numDevs;
+			     index++)
+				observe_address(event->discCmpl.pDevList[index].addr);
 			finish_survey();
+		}
 		break;
 	default:
 		break;
@@ -142,15 +174,29 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 	if (events & SURVEY_START_DEVICE_EVENT) {
 		bStatus_t status;
 
-		/* Make the diagnostic display observable before the first scan. */
-		frogalert_display_survey_count(0, FALSE);
+		/* Make every startup phase observable before the first scan. */
+		frogalert_display_survey_count(0, FALSE,
+					       SURVEY_PHASE_INITIALIZING);
 		tmos_start_reload_task(survey_task_id,
 				       SURVEY_DISPLAY_STEP_EVENT,
 				       SURVEY_SCROLL_TIME);
+		if (central_init_status != SUCCESS) {
+			show_survey(SURVEY_PHASE_ERROR);
+			return events ^ SURVEY_START_DEVICE_EVENT;
+		}
 		status = GAPRole_CentralStartDevice(
 			survey_task_id, &central_bond_callbacks, &central_callbacks);
-		if (status != SUCCESS && status != bleAlreadyInRequestedMode)
+		if (status == SUCCESS || status == bleAlreadyInRequestedMode) {
+			/*
+			 * FOSSASIA starts Peripheral before this callback is
+			 * registered. Do not depend solely on a possibly earlier
+			 * combined-role GAP_DEVICE_INIT_DONE_EVENT.
+			 */
+			mark_central_ready();
+		} else {
+			show_survey(SURVEY_PHASE_ERROR);
 			PRINT("FrogAlert central start failed: %u\n", status);
+		}
 		return events ^ SURVEY_START_DEVICE_EVENT;
 	}
 
@@ -199,12 +245,14 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		status = GAPRole_CentralStartDiscovery(DEVDISC_MODE_ALL, FALSE,
 					       FALSE);
 		if (status == SUCCESS) {
+			show_survey(SURVEY_PHASE_SCANNING);
 			tmos_start_task(survey_task_id, SURVEY_WATCHDOG_EVENT,
 					SURVEY_WATCHDOG_TIME);
 		} else {
 			scan_active = 0;
 			restore_advertising_if_needed();
 			frogalert_survey_counter_reset(&survey_counter);
+			show_survey(SURVEY_PHASE_ERROR);
 			PRINT("FrogAlert passive survey start failed: %u\n", status);
 			schedule_survey(SURVEY_RETRY_DELAY);
 		}
@@ -219,6 +267,7 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 				scan_active = 0;
 				restore_advertising_if_needed();
 				frogalert_survey_counter_reset(&survey_counter);
+				show_survey(SURVEY_PHASE_TIMEOUT);
 				PRINT("FrogAlert passive survey timed out\n");
 				schedule_survey(SURVEY_RETRY_DELAY);
 			} else {
@@ -241,9 +290,10 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 
 void frogalert_survey_role_init(void)
 {
-	bStatus_t status = GAPRole_CentralInit();
-	if (status != SUCCESS)
-		PRINT("FrogAlert central role init failed: %u\n", status);
+	central_init_status = GAPRole_CentralInit();
+	if (central_init_status != SUCCESS)
+		PRINT("FrogAlert central role init failed: %u\n",
+		      central_init_status);
 }
 
 void frogalert_survey_init(void)

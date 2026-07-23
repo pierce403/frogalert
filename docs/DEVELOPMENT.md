@@ -81,11 +81,13 @@ Build the later private passive-survey candidate:
 The canary adds one retained C metadata string and owns no functions or
 hardware. The survey lane keeps the same shell, uses WCH's combined
 central/peripheral role pattern, and adds only a disconnected three-second
-passive scan plus a persistent 100 ms aggregate-count scroll. It starts with
-`BT 00` before the first completed survey, updates after each result, and yields
-to app streaming and non-normal modes. It never initiates a connection, zeroes
-its fixed address table, restores prior advertising state, and cancels a stuck
-scan after five seconds. All lanes use `USBC_VERSION=1`, validate pinned archive/tool hashes
+passive scan plus a persistent 100 ms aggregate-count scroll. Its suffix shows
+`I` initializing, `R` ready/waiting, `S` scanning, `E` error, or `T` timeout;
+the suffix disappears for a completed result. It updates live while scanning,
+also consumes the final discovery list, and yields to app streaming and
+non-normal modes. It never initiates a connection, zeroes its fixed address
+table, restores prior advertising state, and cancels a stuck scan after five
+seconds. All lanes use `USBC_VERSION=1`, validate pinned archive/tool hashes
 and critical sources, audit required runtime symbols and linked instructions,
 keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
 ignored `tmp/fossasia-usbc/`. The baseline must match the known-good
