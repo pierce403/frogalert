@@ -86,12 +86,12 @@ const NAME_RULES: &[NameRule] = &[
     },
     NameRule {
         needle: b"ray-ban",
-        kind: AlertKind::Hax,
+        kind: AlertKind::Cop,
         label: "Ray-Ban name",
     },
     NameRule {
         needle: b"ray ban",
-        kind: AlertKind::Hax,
+        kind: AlertKind::Cop,
         label: "Ray Ban name",
     },
 ];
@@ -187,6 +187,15 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(found.kind, AlertKind::Cop);
+    }
+
+    #[test]
+    fn ray_ban_names_are_cop_alerts() {
+        for name in [b"Ray-Ban Stories".as_slice(), b"Ray Ban Meta".as_slice()] {
+            let found = classify(&observation([0; 6], false, Some(name))).unwrap();
+            assert_eq!(found.kind, AlertKind::Cop);
+            assert_eq!(found.kind.message(), "COP DETECTED");
+        }
     }
 
     #[test]

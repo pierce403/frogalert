@@ -53,8 +53,8 @@ The Rust detection core currently contains these rules:
 | Advertised name contains | `Axon Body` | Axon name | `COP DETECTED` |
 | Advertised name contains | `TASER` | TASER name | `COP DETECTED` |
 | Advertised name contains | `Flipper` | Flipper name | `FLIPPER DETECTED` |
-| Advertised name contains | `Ray-Ban` | Ray-Ban name | `HAX DETECTED` |
-| Advertised name contains | `Ray Ban` | Ray Ban name | `HAX DETECTED` |
+| Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
+| Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
 
 Name matching is case-insensitive substring matching. OUI rules run only when
 the Bluetooth controller reports a public address; FrogAlert deliberately does
