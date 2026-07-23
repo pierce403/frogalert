@@ -14,6 +14,12 @@ cc -std=c11 -Wall -Wextra -Werror \
   tests/fossasia-survey-core.c \
   -o tmp/c-tests/fossasia-survey-core
 tmp/c-tests/fossasia-survey-core
+cc -std=c11 -Wall -Wextra -Werror \
+  -Ifirmware/fossasia-usbc \
+  firmware/fossasia-usbc/frogalert-animation-compat.c \
+  tests/fossasia-animation-compat.c \
+  -o tmp/c-tests/fossasia-animation-compat
+tmp/c-tests/fossasia-animation-compat
 firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
 (
   cd firmware

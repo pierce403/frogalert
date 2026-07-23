@@ -73,6 +73,12 @@ elif [[ "$build_mode" == "survey" ]]; then
   cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-survey-core.h" \
     "$source_directory/src/ble/frogalert-survey-core.h"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-animation-compat.c" \
+    "$source_directory/src/frogalert_animation_compat.c"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-animation-compat.h" \
+    "$source_directory/src/frogalert-animation-compat.h"
   node "$repo_root/scripts/apply-fossasia-survey.mjs" "$source_directory"
   makefiles+=(
     -f "$repo_root/firmware/fossasia-usbc/frogalert-survey.mk"

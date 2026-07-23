@@ -49,7 +49,7 @@
 
 __attribute__((used, section(".rodata.frogalert")))
 const char frogalert_survey_identity[] =
-	"FROGALERT:SURVEY-MODES-RULES:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+	"FROGALERT:SURVEY-MODES-RULES-FRAME48:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 static const char cop_alert[] = "COP DETECTED";
 static const char flipper_alert[] = "FLIPPER DETECTED";

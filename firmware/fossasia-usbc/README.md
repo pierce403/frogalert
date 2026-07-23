@@ -92,7 +92,11 @@ gated on the separate ABI-only canary even though the behavior now matches the
 documented table. The display hook stops FOSSASIA's animation tasks only when
 an overlay or selected counter first takes panel ownership, then resumes the
 selected uploaded name. This removes the diagnostic's added blank-frame flicker
-but does not change FOSSASIA's roughly 45 Hz matrix refresh.
+but does not change FOSSASIA's roughly 45 Hz matrix refresh. For fixed and
+frame-animation modes only, a compatibility helper recognizes 48-column
+blocks with two blank columns at both edges and copies their inner 44 columns
+using the correct 48-column stride. Unqualified payloads retain the original
+44-column path.
 
 Any value carrying a phase suffix is diagnostic state, not a completed radio
 measurement. The selected nametag remains the base view unless the user chooses
@@ -130,9 +134,9 @@ match the already recovered FOSSASIA image exactly.
 The survey lane additionally requires its passive-scan/cancel/suspend,
 display-view, bounded classifier, text-alert, and frog-render symbols plus at
 least 8 KiB between static RAM and the stack top. Its current locked BIN is
-201,388 bytes with SHA-256
-`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
-The audited section sizes are 192,896 bytes of text, 8,492 bytes of data, and
+201,628 bytes with SHA-256
+`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
+The audited section sizes are 193,136 bytes of text, 8,492 bytes of data, and
 4,588 bytes of BSS; measured stack/runtime headroom remains 9,788 bytes.
 
 It does **not** prove that a derived image boots, scans, displays correctly,

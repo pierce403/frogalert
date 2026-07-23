@@ -109,9 +109,9 @@ and critical sources, audit required runtime symbols and linked instructions,
 keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
 ignored `tmp/fossasia-usbc/`. The baseline must match the known-good
 177,704-byte image exactly. No build command flashes, publishes, or authorizes
-a physical test. The locked survey BIN is 201,388 bytes with SHA-256
-`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`;
-its audited text/data/BSS sizes are 192,896/8,492/4,588 bytes and it retains
+a physical test. The locked survey BIN is 201,628 bytes with SHA-256
+`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`;
+its audited text/data/BSS sizes are 193,136/8,492/4,588 bytes and it retains
 9,788 bytes of stack/runtime headroom.
 
 Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already

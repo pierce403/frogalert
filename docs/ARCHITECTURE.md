@@ -85,9 +85,9 @@ underlying roughly 45 Hz matrix refresh is unchanged.
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 201,388 bytes at SHA-256
-`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
-Its audited section sizes are 192,896 bytes of text, 8,492 bytes of data, and
+The survey candidate builds as 201,628 bytes at SHA-256
+`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
+Its audited section sizes are 193,136 bytes of text, 8,492 bytes of data, and
 4,588 bytes of BSS, with 9,788 bytes of measured stack/runtime headroom. It is
 likewise private, hardware-unverified, and not flash-approved.
 

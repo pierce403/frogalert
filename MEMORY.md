@@ -43,6 +43,10 @@ on chat context or filenames alone.
 - [`2026-07-22-fossasia-passive-survey.md`](agent-memory/logs/2026-07-22-fossasia-passive-survey.md)
   — private FOSSASIA-shell passive-count candidate, exact hash, watchdog,
   RAM gate, and required physical evidence.
+- [`2026-07-22-badgemagic-animation-stride.md`](agent-memory/logs/2026-07-22-badgemagic-animation-stride.md)
+  — source-confirmed 48-versus-44 frame mismatch, narrowly qualified
+  compatibility helper, exact replacement survey hash, and remaining physical
+  acceptance gate.
 
 ## People
 

@@ -167,8 +167,8 @@ explicitly authorized, one-badge bench smoke by a qualified operator; that
 initial program/verify action begins the checklist below and must be captured.
 
 A later private survey candidate is also reproducibly built under
-`tmp/fossasia-usbc/build/survey/`. It is 201,388 bytes with SHA-256
-`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
+`tmp/fossasia-usbc/build/survey/`. It is 201,628 bytes with SHA-256
+`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
 It retains the audited FOSSASIA reset/vector, USB, BLE, display, BadgeMagic, and
 KEY2 symbols; leaves 9,788 bytes between static RAM and the stack top; performs
 only a bounded three-second passive discovery; skips connected/streaming
@@ -186,7 +186,9 @@ name carried only in scan response; the `0xFEE0` fallback can therefore
 false-positive another compatible advertiser. A suffix-free `BT 00` through
 `BT 64+` is a completed result. The display hook no longer clears the
 framebuffer at each 100 ms scroll step, although the base roughly 45 Hz
-multiplex refresh is unchanged. The audited section sizes are 192,896 bytes of
+multiplex refresh is unchanged. Qualified 48-column fixed and animation frames
+are cropped to their inner 44 columns using the wire-frame stride; the original
+path remains for unqualified payloads. The audited section sizes are 193,136 bytes of
 text, 8,492 bytes of data, and 4,588 bytes of BSS. Those are build properties,
 not evidence that the badge tolerates repeated surveys. The image does not
 replace the metadata canary as the lower-risk first derived smoke and must not

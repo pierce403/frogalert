@@ -429,16 +429,112 @@ static void disp_charging()
   return result;
 }
 
+export function applyAnimationHooks(source) {
+  let result = normalizeLineEndings(source);
+  result = replaceOnce(
+    result,
+    '#include "bmlist.h"\n#include "debug.h"\n',
+    '#include "bmlist.h"\n#include "debug.h"\n#ifdef FROGALERT_SURVEY\n#include "frogalert-animation-compat.h"\n#if LED_COLS != FROGALERT_ANIMATION_VISIBLE_COLUMNS\n#error "FrogAlert animation compatibility requires a 44-column display"\n#endif\n#endif\n',
+    "animation compatibility include",
+  );
+  result = replaceOnce(
+    result,
+    `int ani_animation(bm_t *bm, uint16_t *fb)
+{
+	int frame_steps = ANI_ANIMATION_STEPS;
+	int frames = ALIGN(bm->width, LED_COLS) / LED_COLS;
+	int total_steps = frame_steps * frames;
+	int frame = mod(bm->anim_step, total_steps)/frame_steps;
+
+	bm->anim_step++;
+
+	still(bm, fb, frame);
+
+	return mod(bm->anim_step, total_steps);
+}`,
+    `int ani_animation(bm_t *bm, uint16_t *fb)
+{
+	int frame_steps = ANI_ANIMATION_STEPS;
+#ifdef FROGALERT_SURVEY
+	int frames = frogalert_animation_frame_count(bm->buf, bm->width);
+#else
+	int frames = ALIGN(bm->width, LED_COLS) / LED_COLS;
+#endif
+	if (frames == 0) {
+		fb_fill(fb, 0);
+		return 0;
+	}
+	int total_steps = frame_steps * frames;
+	int frame = mod(bm->anim_step, total_steps)/frame_steps;
+
+	bm->anim_step++;
+
+#ifdef FROGALERT_SURVEY
+	frogalert_animation_copy_visible_frame(bm->buf, bm->width, frame, fb);
+#else
+	still(bm, fb, frame);
+#endif
+
+	return mod(bm->anim_step, total_steps);
+}`,
+    "animation mode uses qualified 48-column frames",
+  );
+  result = replaceOnce(
+    result,
+    `int ani_fixed(bm_t *bm, uint16_t *fb)
+{
+	int frame_steps = ANI_FIXED_STEPS;
+	int frames = ALIGN(bm->width, LED_COLS) / LED_COLS;
+	int total_steps = frame_steps * frames;
+	int frame = mod(bm->anim_step, total_steps)/frame_steps;
+
+	bm->anim_step++;
+	still(bm, fb, frame);
+
+	return mod(bm->anim_step, total_steps);
+}`,
+    `int ani_fixed(bm_t *bm, uint16_t *fb)
+{
+	int frame_steps = ANI_FIXED_STEPS;
+#ifdef FROGALERT_SURVEY
+	int frames = frogalert_animation_frame_count(bm->buf, bm->width);
+#else
+	int frames = ALIGN(bm->width, LED_COLS) / LED_COLS;
+#endif
+	if (frames == 0) {
+		fb_fill(fb, 0);
+		return 0;
+	}
+	int total_steps = frame_steps * frames;
+	int frame = mod(bm->anim_step, total_steps)/frame_steps;
+
+	bm->anim_step++;
+#ifdef FROGALERT_SURVEY
+	frogalert_animation_copy_visible_frame(bm->buf, bm->width, frame, fb);
+#else
+	still(bm, fb, frame);
+#endif
+
+	return mod(bm->anim_step, total_steps);
+}`,
+    "fixed mode uses qualified 48-column frames",
+  );
+  return result;
+}
+
 export async function applySurveyHooks(sourceDirectory) {
   const peripheralPath = path.join(sourceDirectory, "src/ble/peripheral.c");
   const mainPath = path.join(sourceDirectory, "src/main.c");
-  const [peripheral, main] = await Promise.all([
+  const animationPath = path.join(sourceDirectory, "src/animation.c");
+  const [peripheral, main, animation] = await Promise.all([
     readFile(peripheralPath, "utf8"),
     readFile(mainPath, "utf8"),
+    readFile(animationPath, "utf8"),
   ]);
   await Promise.all([
     writeFile(peripheralPath, applyPeripheralHooks(peripheral), "utf8"),
     writeFile(mainPath, applyMainHooks(main), "utf8"),
+    writeFile(animationPath, applyAnimationHooks(animation), "utf8"),
   ]);
 }
 

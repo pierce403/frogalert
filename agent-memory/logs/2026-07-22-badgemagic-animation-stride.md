@@ -54,7 +54,36 @@ upload in the same boot can therefore reuse stale counters and a freed
 pointer. That parser defect does not explain the exact two-column BLE/app
 symptom, but repeated USB upload must be hardened separately.
 
-## Safest next step
+## Implemented private candidate
+
+The private FOSSASIA-shell survey lane now patches only `ani_fixed()` and
+`ani_animation()`. Its allocation-free helper:
+
+- treats a payload as padded only when its width is a nonzero multiple of 48
+  and columns 0, 1, 46, and 47 of every block are zero;
+- uses a 48-column frame count and stride only for that qualified shape;
+- copies inner columns 2 through 45 into the unchanged 44-column framebuffer;
+- preserves the original 44-column slicing for all other payloads.
+
+Host C tests cover direct 44-column fallback, one padded frame, two independent
+padded frames without drift, a nonqualifying 48-column fallback, and null
+input. Source-patch tests also require both frame-based paths to call the
+helper and fail closed if pinned upstream source drifts.
+
+The independently rebuilt private BIN is:
+
+- path: `tmp/fossasia-usbc/build/survey/badgemagic-ch582.bin`;
+- size: 201,628 bytes;
+- SHA-256:
+  `8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`;
+- text/data/BSS: 193,136/8,492/4,588 bytes;
+- measured static-RAM-to-stack headroom: 9,788 bytes.
+
+The pinned runtime, vector, USB, BLE, display, KEY2, AMO/LR/SC, RAM, and
+ELF/BIN-identity audits pass. The image remains private, hardware-unverified,
+and not flash-approved.
+
+## Remaining hardware and fixture gate
 
 Capture golden `wang` payloads from the official app for:
 
@@ -63,8 +92,8 @@ Capture golden `wang` payloads from the official app for:
 3. a multi-frame GIF;
 4. at least one current special animation.
 
-Add a host decoder test that proves stored width, per-frame stride, and the
-44 visible columns. Then change only qualifying frame-based modes to advance
-by the 48-column wire stride and copy its inner columns 2 through 45. Preserve
-the existing 44-column physical framebuffer, scrolling behavior, upload
-format, FrogAlert overlays, and recovery task.
+Flash the exact hash above, confirm that fixed and animation modes no longer
+shift, and verify BadgeMagic uploads, short KEY2 mode rotation, long KEY2 dot
+and ISP enumeration, survey results, alerts, and a known-good reflash. Do not
+extend cropping to the other transition functions until their real app
+payloads are captured and tested.

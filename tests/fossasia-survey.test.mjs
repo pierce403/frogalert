@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  applyAnimationHooks,
   applyMainHooks,
   applyPeripheralHooks,
 } from "../scripts/apply-fossasia-survey.mjs";
@@ -180,13 +181,75 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
 });
 
+test("survey animation hooks crop only qualified padded 48-column frames", () => {
+  const animation = [
+    '#include "bmlist.h"',
+    '#include "debug.h"',
+    "int ani_animation(bm_t *bm, uint16_t *fb)",
+    "{",
+    "\tint frame_steps = ANI_ANIMATION_STEPS;",
+    "\tint frames = ALIGN(bm->width, LED_COLS) / LED_COLS;",
+    "\tint total_steps = frame_steps * frames;",
+    "\tint frame = mod(bm->anim_step, total_steps)/frame_steps;",
+    "",
+    "\tbm->anim_step++;",
+    "",
+    "\tstill(bm, fb, frame);",
+    "",
+    "\treturn mod(bm->anim_step, total_steps);",
+    "}",
+    "int ani_fixed(bm_t *bm, uint16_t *fb)",
+    "{",
+    "\tint frame_steps = ANI_FIXED_STEPS;",
+    "\tint frames = ALIGN(bm->width, LED_COLS) / LED_COLS;",
+    "\tint total_steps = frame_steps * frames;",
+    "\tint frame = mod(bm->anim_step, total_steps)/frame_steps;",
+    "",
+    "\tbm->anim_step++;",
+    "\tstill(bm, fb, frame);",
+    "",
+    "\treturn mod(bm->anim_step, total_steps);",
+    "}",
+  ].join("\r\n");
+
+  const patched = applyAnimationHooks(animation);
+  assert.match(patched, /#include "frogalert-animation-compat\.h"/);
+  assert.match(
+    patched,
+    /#if LED_COLS != FROGALERT_ANIMATION_VISIBLE_COLUMNS/,
+  );
+  assert.equal(
+    patched.match(/frogalert_animation_frame_count/g)?.length,
+    2,
+  );
+  assert.equal(
+    patched.match(/frogalert_animation_copy_visible_frame/g)?.length,
+    2,
+  );
+  assert.equal(patched.match(/if \(frames == 0\)/g)?.length, 2);
+  assert.doesNotMatch(patched, /ani_scroll_x[\s\S]*frogalert_animation/);
+  assert.throws(
+    () => applyAnimationHooks(patched),
+    /must match exactly once/,
+  );
+});
+
 test("survey candidate is passive, bounded, ephemeral, and connection-safe", async () => {
-  const [survey, core, overlay, build] = await Promise.all([
-    readFile(path.join(firmwareDirectory, "frogalert-survey.c"), "utf8"),
-    readFile(path.join(firmwareDirectory, "frogalert-survey-core.c"), "utf8"),
-    readFile(path.join(firmwareDirectory, "frogalert-survey.mk"), "utf8"),
-    readFile(path.join(repositoryRoot, "scripts/build-fossasia-usbc"), "utf8"),
-  ]);
+  const [survey, core, animationCompat, animationHeader, overlay, build] =
+    await Promise.all([
+      readFile(path.join(firmwareDirectory, "frogalert-survey.c"), "utf8"),
+      readFile(path.join(firmwareDirectory, "frogalert-survey-core.c"), "utf8"),
+      readFile(
+        path.join(firmwareDirectory, "frogalert-animation-compat.c"),
+        "utf8",
+      ),
+      readFile(
+        path.join(firmwareDirectory, "frogalert-animation-compat.h"),
+        "utf8",
+      ),
+      readFile(path.join(firmwareDirectory, "frogalert-survey.mk"), "utf8"),
+      readFile(path.join(repositoryRoot, "scripts/build-fossasia-usbc"), "utf8"),
+    ]);
 
   assert.match(survey, new RegExp(surveyText));
   assert.match(
@@ -286,8 +349,24 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(core, /"ray-ban"/);
   assert.match(core, /"ray ban"/);
   assert.match(core, /GAP_ADTYPE_LOCAL_NAME_COMPLETE/);
+  assert.match(
+    animationCompat,
+    /width % FROGALERT_ANIMATION_WIRE_COLUMNS != 0/,
+  );
+  assert.match(
+    animationCompat,
+    /bitmap\[base\] != 0 \|\| bitmap\[base \+ 1\] != 0/,
+  );
+  assert.match(
+    animationCompat,
+    /bitmap\[base \+ 46\] != 0 \|\| bitmap\[base \+ 47\] != 0/,
+  );
+  assert.match(animationHeader, /FROGALERT_ANIMATION_WIRE_COLUMNS\s+48U/);
   assert.match(overlay, /^CFLAGS \+= -DFROGALERT_SURVEY=1$/m);
+  assert.match(overlay, /src\/frogalert_animation_compat\.c/);
   assert.match(build, /baseline\|canary\|survey/);
+  assert.match(build, /frogalert-animation-compat\.c/);
+  assert.match(build, /frogalert-animation-compat\.h/);
   assert.match(build, /apply-fossasia-survey\.mjs/);
   assert.doesNotMatch(build, /\bwchisp\b/);
   assert.match(build, /audit-fossasia-usbc\.mjs" ram/);

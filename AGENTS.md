@@ -217,8 +217,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The likely software failure was startup ordering: FOSSASIA started Peripheral
   before the survey registered its Central callback, so a combined-role
   `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
-- The replacement private survey candidate is a locked 201,388-byte BIN at
-  SHA-256 `2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
+- The replacement private survey candidate is a locked 201,628-byte BIN at
+  SHA-256 `8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
   It treats a successful Central start as ready instead of depending only on
   that callback, consumes both live reports and the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
@@ -239,7 +239,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   once in each new window. It caps and zeroes 64 addresses, restores
   advertising, cancels a stuck scan after five seconds, and leaves 9,788 bytes of measured
   stack/runtime headroom. Audited text/data/BSS sizes are
-  192,896/8,492/4,588 bytes. It preserves audited FOSSASIA
+  193,136/8,492/4,588 bytes. It preserves audited FOSSASIA
   USB/BLE/display/KEY2 symbols but remains private under `tmp/`,
   hardware-unverified, and not flash-approved or published.
 - WCH discovery cancellation is asynchronous. Keep `scan_active` true until
@@ -261,10 +261,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   pinned FOSSASIA `9ce885d` advances `still()` frames by `LED_COLS` (44).
   Its first slice is therefore two blanks plus only 42 content columns, and
   later slices lose frame alignment. Normal text uses a different encoder
-  path. Before fixing this, capture golden app payloads for drawn, GIF,
-  fixed-text, and special-animation cases. Adapt qualifying frame-based modes
-  to the 48-column wire stride and crop the inner 44 columns; never apply a
-  global framebuffer offset.
+  path. The private survey build now changes only `ani_fixed` and
+  `ani_animation`: every 48-column block must have blank columns 0, 1, 46, and
+  47 before the helper uses a 48-column stride and copies inner columns 2
+  through 45. Otherwise it preserves the original 44-column path. Host tests
+  cover one and two padded frames plus fallback. This is still
+  hardware-unverified; capture golden drawn, GIF, fixed-text, and
+  special-animation payloads before extending other transition modes. Never
+  apply a global framebuffer offset.
 - The quarantined Rust display driver encodes both Micro-USB `HARDWARE_REV1`
   and the candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation,
   flicker, current draw, and radio/display coexistence still require a physical

@@ -21,7 +21,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - replacement firmware base: pinned FOSSASIA USB-C C hardware shell reproduces
   the known-good image byte-for-byte; the 177,788-byte metadata-only canary
   builds and audits but remains local and hardware-unverified
-- private survey candidate: a locked 201,388-byte local BIN adds passive
+- private survey candidate: a locked 201,628-byte local BIN adds passive
   counting, normal-nametag/count view rotation, the bounded detection table
   below, three-second overlays on a roughly 20-second survey cadence, and a
   BadgeMagic frog animation; it remains
@@ -158,8 +158,8 @@ The later private survey candidate is built and audited separately:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-Its locked local BIN is 201,388 bytes with SHA-256
-`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
+Its locked local BIN is 201,628 bytes with SHA-256
+`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
 Those are reproducible build facts, not physical-test or release evidence.
 
 All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts
