@@ -254,6 +254,17 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   called `stop_all_animation()` every 100 ms, clearing the live framebuffer and
   adding periodic blank/partial frames. The replacement stops animation only
   on display-ownership transition; it does not change the base refresh rate.
+- The user observed an app-sent animation shifted two columns right with the
+  first two columns blank. This is not evidence of a pin-map error. BadgeMagic
+  stable `v1.18.15` and development `42c98bc` encode an untrimmed 44-column
+  bitmap as a 48-column wire frame with two blank columns at each side, while
+  pinned FOSSASIA `9ce885d` advances `still()` frames by `LED_COLS` (44).
+  Its first slice is therefore two blanks plus only 42 content columns, and
+  later slices lose frame alignment. Normal text uses a different encoder
+  path. Before fixing this, capture golden app payloads for drawn, GIF,
+  fixed-text, and special-animation cases. Adapt qualifying frame-based modes
+  to the 48-column wire stride and crop the inner 44 columns; never apply a
+  global framebuffer offset.
 - The quarantined Rust display driver encodes both Micro-USB `HARDWARE_REV1`
   and the candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation,
   flicker, current draw, and radio/display coexistence still require a physical
