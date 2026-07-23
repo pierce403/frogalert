@@ -42,6 +42,32 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 See [FEATURES.md](FEATURES.md) for the authoritative requirement-by-requirement
 status and acceptance evidence.
 
+## Detection rules
+
+The Rust detection core currently contains these rules:
+
+| Signal | Match | Rule label | Badge alert |
+| --- | --- | --- | --- |
+| Public-address OUI | `00:25:DF` | Axon OUI | `COP DETECTED` |
+| Public-address OUI | `B4:1E:52` | Flock Safety OUI | `COP DETECTED` |
+| Advertised name contains | `Axon Body` | Axon name | `COP DETECTED` |
+| Advertised name contains | `TASER` | TASER name | `COP DETECTED` |
+| Advertised name contains | `Flipper` | Flipper name | `FLIPPER DETECTED` |
+| Advertised name contains | `Ray-Ban` | Ray-Ban name | `HAX DETECTED` |
+| Advertised name contains | `Ray Ban` | Ray Ban name | `HAX DETECTED` |
+
+Name matching is case-insensitive substring matching. OUI rules run only when
+the Bluetooth controller reports a public address; FrogAlert deliberately does
+not apply them to randomized or locally administered addresses. These are
+explainable hints rather than proof of device identity: names can be changed or
+spoofed, and vendor prefixes can cover unrelated products.
+
+The current private hardware survey candidate implements only the `Flipper`
+advertised-name rule. The complete table is implemented and tested in
+[`frogalert-core`](crates/frogalert-core/src/lib.rs), but the remaining rules
+will not be described as badge-firmware features until the Rust ABI integration
+and physical smoke tests pass.
+
 ## Hardware warning
 
 Do not flash a badge based on appearance or the BLE name `LSLED`. Open it and
