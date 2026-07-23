@@ -87,7 +87,7 @@
           <article>
             <span class="card-number">03</span>
             <h3>Overlay the hint</h3>
-            <p>Known public-address prefixes and advertised names can overlay <code>COP DETECTED</code> or <code>FLIPPER DETECTED</code> for five seconds in either mode. A BadgeMagic name or advertised <code>FEE0</code> service instead triggers a two-second three-frog dance, then the selected display returns.</p>
+            <p>Known public-address prefixes and advertised names can overlay <code>COP DETECTED</code> or <code>FLIPPER DETECTED</code> for three seconds in either mode. A BadgeMagic name or advertised <code>FEE0</code> service instead triggers a three-second three-frog dance, then the selected display returns. Survey windows start roughly every 20 seconds, so a continuously present match can retrigger once per window.</p>
           </article>
         </div>
         <aside class="caveat">
@@ -102,9 +102,9 @@
           <p>A short KEY2 press rotates through uploaded nametag entries and the Bluetooth counter. Both share the same observer schedule and alert logic. This behavior is build-audited in a private BIN, not yet verified on hardware or released.</p>
         </div>
         <ol class="cycle" aria-label="Private FrogAlert candidate operating cycle">
-          <li><span>~57 s</span><strong>SELECTED MODE</strong><small>Uploaded name or latest BT count</small></li>
+          <li><span>~17 s</span><strong>SELECTED MODE</strong><small>Uploaded name or latest BT count</small></li>
           <li><span>3 s</span><strong>SCAN</strong><small>Passive observer window</small></li>
-          <li><span>2–5 s</span><strong>OVERLAY</strong><small>Three frogs or rule-specific text</small></li>
+          <li><span>3 s</span><strong>OVERLAY</strong><small>Three frogs or rule-specific text when matched</small></li>
           <li><span>&lt;1 s</span><strong>RESTORE</strong><small>Resume the selected display mode</small></li>
         </ol>
       </section>
@@ -133,8 +133,8 @@
           <article class="evidence-card prototype">
             <p class="evidence-state">PROTOTYPE / BADGE · HARDWARE-UNVERIFIED</p>
             <h3>Private two-mode survey BIN</h3>
-            <p>The 201,412-byte candidate retains FOSSASIA's USB, BLE, display, uploaded entries, buttons, and KEY2 recovery source while adding the counter, five-second text alerts, and two-second frog dance. It is not hosted or released.</p>
-            <code class="command">SHA-256 42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650</code>
+            <p>The 201,388-byte candidate retains FOSSASIA's USB, BLE, display, uploaded entries, buttons, and KEY2 recovery source while adding the counter and three-second text/frog overlays on a roughly 20-second survey cadence. It is not hosted or released.</p>
+            <code class="command">SHA-256 2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8</code>
           </article>
         </div>
 

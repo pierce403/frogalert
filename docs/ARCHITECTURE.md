@@ -61,18 +61,18 @@ ready/waiting, `S` for active scan, `E` for error, or `T` for watchdog timeout.
 The suffix disappears for a completed `BT 00` to `BT 64+` result. Live report
 events update the count during `S`, and the final discovery list is consumed as
 a fallback. Each survey temporarily stops advertising, scans for three
-seconds, restores the prior advertising state, and waits about 57 seconds. The
-fixed address table is explicitly zeroed, and the code never establishes a
-central connection.
+seconds, restores the prior advertising state, and waits about 17 seconds.
+That produces a roughly 20-second start-to-start cycle. The fixed address table
+is explicitly zeroed, and the code never establishes a central connection.
 
 The candidate mirrors every README OUI and name rule in a bounded C classifier.
 OUI rules run only for controller-reported public addresses. Complete and
 shortened local names are matched case-insensitively for `Axon Body`, `TASER`,
 `Flipper`, `Ray-Ban`, and `Ray Ban`; the resulting `COP DETECTED` or
-`FLIPPER DETECTED` overlay lasts five seconds and then restores the selected
+`FLIPPER DETECTED` overlay lasts three seconds and then restores the selected
 nametag/count view. An exact case-insensitive `LED Badge Magic` name or an
 advertised `0xFEE0` service triggers two alternating frames of three frogs for
-two seconds. Passive scans may omit a name carried only in scan response, so
+three seconds. Passive scans may omit a name carried only in scan response, so
 the service match is an intentional fallback and may false-positive another
 compatible device that advertises `0xFEE0`.
 
@@ -85,9 +85,9 @@ underlying roughly 45 Hz matrix refresh is unchanged.
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 201,412 bytes at SHA-256
-`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
-Its audited section sizes are 192,920 bytes of text, 8,492 bytes of data, and
+The survey candidate builds as 201,388 bytes at SHA-256
+`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
+Its audited section sizes are 192,896 bytes of text, 8,492 bytes of data, and
 4,588 bytes of BSS, with 9,788 bytes of measured stack/runtime headroom. It is
 likewise private, hardware-unverified, and not flash-approved.
 
@@ -143,7 +143,7 @@ at the same time. Its conservative radio schedule is:
 ```text
 Selected view: uploaded name or latest count
   -> passive survey remains scheduled in either view
-Peripheral advertising (about 57 s)
+Peripheral advertising (about 17 s)
   -> only scan if no app connection is active
 Observer/passive scan (3 s)
   -> update bounded unique-address count and local rule matches
@@ -205,6 +205,6 @@ small and explainable:
    and prove that ephemeral addresses are cleared afterward.
 6. Replace the bounded C policy mirror with the same behavior through the
    separately smoke-tested Rust ABI.
-7. Prove observer/peripheral role switching and the target roughly 60-second
+7. Prove observer/peripheral role switching and the target roughly 20-second
    cadence without breaking USB, app uploads, or recovery.
 8. Measure current draw and tune scan, display, and sleep timing.

@@ -21,9 +21,10 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - replacement firmware base: pinned FOSSASIA USB-C C hardware shell reproduces
   the known-good image byte-for-byte; the 177,788-byte metadata-only canary
   builds and audits but remains local and hardware-unverified
-- private survey candidate: a locked 201,412-byte local BIN adds passive
+- private survey candidate: a locked 201,388-byte local BIN adds passive
   counting, normal-nametag/count view rotation, the bounded detection table
-  below, five-second alerts, and a BadgeMagic frog animation; it remains
+  below, three-second overlays on a roughly 20-second survey cadence, and a
+  BadgeMagic frog animation; it remains
   hardware-unverified and is neither published nor flash-approved
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
@@ -59,8 +60,8 @@ The Rust detection core currently contains these rules:
 | Advertised name contains | `Flipper` | Flipper name | `FLIPPER DETECTED` |
 | Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
 | Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
-| Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation for two seconds |
-| Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation for two seconds |
+| Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation for three seconds |
+| Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation for three seconds |
 
 Detection names use case-insensitive substring matching except for the exact
 `LED Badge Magic` frog trigger. OUI rules run only when the Bluetooth controller
@@ -82,8 +83,10 @@ In this candidate, a short KEY2 press rotates the visible content as
 normal download/power behavior, KEY1 long press still changes brightness, and
 the independent long-KEY2 ISP path remains in the inherited shell. Passive
 surveys continue in both nametag and counter views. `COP DETECTED` and
-`FLIPPER DETECTED` temporarily overlay either view for five seconds, then the
-selected view resumes without changing the uploaded nametag data.
+`FLIPPER DETECTED` temporarily overlay either view for three seconds, then the
+selected view resumes without changing the uploaded nametag data. Survey
+windows start roughly every 20 seconds, so a continuously present match can
+retrigger once in each new window.
 
 ## Hardware warning
 
@@ -155,8 +158,8 @@ The later private survey candidate is built and audited separately:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-Its locked local BIN is 201,412 bytes with SHA-256
-`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
+Its locked local BIN is 201,388 bytes with SHA-256
+`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
 Those are reproducible build facts, not physical-test or release evidence.
 
 All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts

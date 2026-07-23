@@ -38,8 +38,9 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Private two-mode survey BIN/);
   assert.match(html, /short KEY2 press.*uploaded.*Bluetooth counter/is);
   assert.match(html, /Scanning continues in both display modes/i);
-  assert.match(html, /five seconds in either mode/i);
-  assert.match(html, /two-second three-frog dance/i);
+  assert.match(html, /three seconds in either mode/i);
+  assert.match(html, /three-second three-frog dance/i);
+  assert.match(html, /Survey windows start roughly every 20 seconds/i);
   assert.match(html, /LED Badge Magic/);
   assert.match(html, /Passive scan limit:.*does not request scan responses/is);
   assert.match(html, /FEE0.*broad BadgeMagic-compatible fallback.*false-positive/is);
@@ -47,8 +48,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Flipper[\s\S]*FLIPPER DETECTED/);
   assert.match(html, /Ray-Ban[\s\S]*Ray Ban[\s\S]*COP DETECTED/);
   assert.doesNotMatch(html, /HAX DETECTED/);
-  assert.match(html, /201,412-byte candidate/);
-  assert.match(html, /42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650/);
+  assert.match(html, /201,388-byte candidate/);
+  assert.match(html, /2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8/);
   assert.match(html, /not hosted or released/i);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
   assert.match(html, /does not connect, reset configuration, erase, or write/i);
@@ -147,11 +148,11 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
   assert.match(html, /No erase or write on connect/i);
   assert.match(html, /Only hash-bound images with physical boot and recovery evidence may appear here/i);
-  assert.match(html, /current private survey candidate is 201,412 bytes/i);
+  assert.match(html, /current private survey candidate is 201,388 bytes/i);
   assert.match(html, /not hosted, released, or hardware-approved/i);
   assert.match(html, /qualified bench testing only/i);
   assert.match(html, /does not prove detector behavior, board compatibility, short-KEY2 mode switching, or long-KEY2 recovery/i);
-  assert.match(html, /42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650/);
+  assert.match(html, /2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8/);
   assert.doesNotMatch(html, /factory reset/i);
   assert.match(html, /data-flash-mode="program"/);
   assert.match(html, /Content-Security-Policy/);

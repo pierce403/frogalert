@@ -217,8 +217,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The likely software failure was startup ordering: FOSSASIA started Peripheral
   before the survey registered its Central callback, so a combined-role
   `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
-- The replacement private survey candidate is a locked 201,412-byte BIN at
-  SHA-256 `42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
+- The replacement private survey candidate is a locked 201,388-byte BIN at
+  SHA-256 `2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
   It treats a successful Central start as ready instead of depending only on
   that callback, consumes both live reports and the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
@@ -227,18 +227,19 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   behavior and the independent long-KEY2 ISP task remain inherited. Surveys
   continue in either visible view. The bounded C mirror implements every
   README OUI/name row; `COP DETECTED` and `FLIPPER DETECTED` overlay either view
-  for five seconds, then the selected view resumes. There is no unique Flipper
+  for three seconds, then the selected view resumes. There is no unique Flipper
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
   OUI would overmatch, and custom firmware can rename or spoof the device.
   Exact case-insensitive `LED Badge Magic` or advertised `0xFEE0` triggers
-  three frogs in two alternating frames for two seconds. Passive scans may miss
+  three frogs in two alternating frames for three seconds. Passive scans may miss
   scan-response-only names, so the service fallback can false-positive another
   compatible `0xFEE0` advertiser. The C mirror remains temporary until the Rust
-  ABI canary. The image still uses a passive three-second window only while
-  disconnected, caps and zeroes 64 addresses, restores advertising, cancels a
-  stuck scan after five seconds, and leaves 9,788 bytes of measured
+  ABI canary. The image starts a three-second passive window roughly every
+  20 seconds while disconnected; a continuously present match can retrigger
+  once in each new window. It caps and zeroes 64 addresses, restores
+  advertising, cancels a stuck scan after five seconds, and leaves 9,788 bytes of measured
   stack/runtime headroom. Audited text/data/BSS sizes are
-  192,920/8,492/4,588 bytes. It preserves audited FOSSASIA
+  192,896/8,492/4,588 bytes. It preserves audited FOSSASIA
   USB/BLE/display/KEY2 symbols but remains private under `tmp/`,
   hardware-unverified, and not flash-approved or published.
 - WCH discovery cancellation is asynchronous. Keep `scan_active` true until

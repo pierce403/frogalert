@@ -88,11 +88,15 @@ visible view. The counter suffix shows `I` initializing, `R` ready/waiting, `S`
 scanning, `E` error, or `T` timeout; it disappears for a completed result. The
 lane updates live while scanning, consumes the final discovery list, and feeds
 live public-address/name/service data into a bounded C mirror of every README
-detection row. Cop and Flipper alerts last five seconds and restore the selected
+detection row. Cop and Flipper alerts last three seconds and restore the selected
 view. An exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
-service shows three frogs in two alternating frames for two seconds. Passive
+service shows three frogs in two alternating frames for three seconds. Passive
 scans may omit scan-response-only names, so the service fallback is deliberately
 broad and may false-positive.
+
+After each three-second discovery, the next attempt waits about 17 seconds.
+That gives a roughly 20-second start-to-start cadence, and a continuously
+present match can retrigger once in each new window.
 
 The display hook stops the original animation only on ownership transition
 rather than clearing the framebuffer at every 100 ms step. It yields to app
@@ -105,9 +109,9 @@ and critical sources, audit required runtime symbols and linked instructions,
 keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
 ignored `tmp/fossasia-usbc/`. The baseline must match the known-good
 177,704-byte image exactly. No build command flashes, publishes, or authorizes
-a physical test. The locked survey BIN is 201,412 bytes with SHA-256
-`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`;
-its audited text/data/BSS sizes are 192,920/8,492/4,588 bytes and it retains
+a physical test. The locked survey BIN is 201,388 bytes with SHA-256
+`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`;
+its audited text/data/BSS sizes are 192,896/8,492/4,588 bytes and it retains
 9,788 bytes of stack/runtime headroom.
 
 Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already

@@ -195,12 +195,20 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   );
   assert.match(survey, /peripheral_is_connected\(\)/);
   assert.match(survey, /frogalert_survey_allowed\(\)/);
-  assert.match(survey, /SURVEY_SCAN_TICKS\s+4800U/);
-  assert.match(survey, /SURVEY_NEXT_DELAY\s+TMOS_TICKS_FROM_MS\(57000U\)/);
+  assert.match(survey, /SURVEY_CYCLE_TIME_MS\s+20000U/);
+  assert.match(survey, /SURVEY_SCAN_TIME_MS\s+3000U/);
+  assert.match(
+    survey,
+    /SURVEY_NEXT_DELAY\s+TMOS_TICKS_FROM_MS\(\s*\\\s*\n\s*SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS\)/,
+  );
+  assert.match(
+    survey,
+    /SURVEY_SCAN_TICKS\s+TMOS_TICKS_FROM_MS\(SURVEY_SCAN_TIME_MS\)/,
+  );
   assert.match(survey, /SURVEY_SCROLL_TIME\s+TMOS_TICKS_FROM_MS\(100U\)/);
   assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
-  assert.match(survey, /SURVEY_ALERT_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
-  assert.match(survey, /SURVEY_FROG_TIME\s+TMOS_TICKS_FROM_MS\(2000U\)/);
+  assert.match(survey, /SURVEY_ALERT_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
+  assert.match(survey, /SURVEY_FROG_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
   assert.match(
     survey,
     /save_survey_view\(0, FALSE, SURVEY_PHASE_INITIALIZING\)/,
@@ -229,6 +237,11 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(survey, /FROGALERT_ALERT_FROG_DANCE/);
   assert.match(survey, /frogalert_display_frog_dance/);
   assert.match(survey, /SURVEY_ALERT_END_EVENT/);
+  assert.match(survey, /alert == detected_alert/);
+  assert.match(
+    survey,
+    /detected_alert = FROGALERT_ALERT_NONE;[\s\S]*alert_visible = 0;[\s\S]*SURVEY_ALERT_END_EVENT/,
+  );
   assert.match(survey, /alert_visible = 0;[\s\S]*display_selected_view\(\)/);
   assert.match(survey, /frogalert_survey_counter_mode\(\)/);
   assert.match(survey, /frogalert_display_survey_release\(\)/);

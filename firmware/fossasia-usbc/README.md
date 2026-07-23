@@ -68,16 +68,18 @@ AD-structure classifier mirrors every README detector row:
 - an exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
   service runs a two-frame, three-frog animation.
 
-Cop and Flipper text overlays last five seconds. The frog animation lasts two
-seconds. Each then restores the selected nametag or latest `BT 00` through
+Cop, Flipper, and frog overlays each last three seconds. Each then restores the
+selected nametag or latest `BT 00` through
 `BT 64+` counter view without modifying uploaded content. Passive discovery
 does not guarantee delivery of a local name carried only in scan response, so
 the advertised-`0xFEE0` branch is a deliberately broad fallback and may animate
 for another compatible device that reuses that service UUID. OUI rules run only
 for controller-reported public addresses.
 
-Later windows begin about 57 seconds after the previous result. The display
-yields while the app is streaming or the badge is outside normal mode.
+Later windows begin about 17 seconds after the previous result, producing a
+roughly 20-second start-to-start survey cycle. A continuously present match can
+therefore retrigger once in each new window. The display yields while the app
+is streaming or the badge is outside normal mode.
 Addresses exist only in a fixed 64-entry RAM table and are explicitly zeroed
 after success, failure, or timeout. The watchdog cancels a stuck scan and
 restores the prior advertising state. Entering download mode suspends any
@@ -128,9 +130,9 @@ match the already recovered FOSSASIA image exactly.
 The survey lane additionally requires its passive-scan/cancel/suspend,
 display-view, bounded classifier, text-alert, and frog-render symbols plus at
 least 8 KiB between static RAM and the stack top. Its current locked BIN is
-201,412 bytes with SHA-256
-`42a42f4a1aeedafeafc4e2d14c95c467f2eb4e3397f8712be555b1b99330e650`.
-The audited section sizes are 192,920 bytes of text, 8,492 bytes of data, and
+201,388 bytes with SHA-256
+`2ea6880fa8dfdb332f539512290eea76e9bd7bf4bdeffb94baa5892357c382c8`.
+The audited section sizes are 192,896 bytes of text, 8,492 bytes of data, and
 4,588 bytes of BSS; measured stack/runtime headroom remains 9,788 bytes.
 
 It does **not** prove that a derived image boots, scans, displays correctly,
