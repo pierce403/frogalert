@@ -42,7 +42,11 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /peripheral_init\(\);[\s\S]*frogalert_survey_init\(\);/);
   assert.match(patchedMain, /mode == NORMAL && !streaming_enabled/);
   assert.match(patchedMain, /stop_all_animation\(\);/);
-  assert.match(patchedMain, /mode_setup_normal\(\);/);
+  assert.match(patchedMain, /frogalert_survey_bitmap/);
+  assert.match(patchedMain, /frogalert_survey_offset \+ column/);
+  assert.match(patchedMain, /text\[5\] = '\+'/);
+  assert.match(patchedMain, /frogalert_display_survey_step\(\);/);
+  assert.doesNotMatch(patchedMain, /mode_setup_normal\(\);/);
   assert.throws(
     () => applyPeripheralHooks(patchedPeripheral),
     /must match exactly once/,
@@ -66,7 +70,16 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(survey, /frogalert_survey_allowed\(\)/);
   assert.match(survey, /SURVEY_SCAN_TICKS\s+4800U/);
   assert.match(survey, /SURVEY_NEXT_DELAY\s+TMOS_TICKS_FROM_MS\(57000U\)/);
+  assert.match(survey, /SURVEY_SCROLL_TIME\s+TMOS_TICKS_FROM_MS\(100U\)/);
   assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
+  assert.match(survey, /frogalert_display_survey_count\(0, FALSE\)/);
+  assert.match(survey, /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_STEP_EVENT/);
+  assert.ok(
+    survey.indexOf("frogalert_display_survey_count(0, FALSE)") <
+      survey.indexOf("status = GAPRole_CentralStartDevice"),
+    "diagnostic count must render before central-role startup",
+  );
+  assert.doesNotMatch(survey, /SURVEY_DISPLAY_END_EVENT/);
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);
   assert.match(survey, /GAPROLE_ADVERT_ENABLED/);
   assert.match(survey, /status != SUCCESS \|\| advertising_enabled/);

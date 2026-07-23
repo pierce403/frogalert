@@ -69,13 +69,13 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | --- | --- | --- | --- |
 | Pinned FOSSASIA USB-C hardware shell | **SHIPPED** at build layer | Exact `9ce885d` source and MRS V1.92 reproduce the known-good 177,704-byte BIN at SHA-256 `2049eb58…f670a2` | C owns startup, vectors, clocks, USB, BLE/TMOS, display, buttons, and KEY2 recovery. Physical evidence applies to the upstream image, not future derivatives. |
 | C-only compatibility canary | **SHIPPED** as local build evidence, **BLOCKED** for hardware | 177,788-byte canary SHA-256 `6591f55f…03e87` retains all runtime audits and adds only an inert identity string | Stays under ignored `tmp/`; must pass program/verify, USB, app, buttons, KEY2 recovery, known-good reflash, and power cycle before publication. |
-| FOSSASIA-shell passive survey candidate | **PROTOTYPE** at local build layer, **BLOCKED** for hardware | Locked 198,988-byte BIN SHA-256 `38be81f1…b0df2`; passive start/cancel symbols, live vectors, retained USB/BLE/display/KEY2 symbols, no AMO/LR/SC, ELF/BIN identity, and 9,924 bytes RAM headroom pass | Private `tmp/` artifact only. Three-second window, 64-address cap, five-second overlay/watchdog, disconnected/idle gate, advertising restoration, and explicit RAM zeroing still need physical proof. |
+| FOSSASIA-shell passive survey candidate | **PROTOTYPE** at local build layer, **BLOCKED** for hardware | Locked 199,076-byte BIN SHA-256 `d9bb8465…4e193`; passive start/cancel symbols, continuous display-step symbol, live vectors, retained USB/BLE/display/KEY2 symbols, no AMO/LR/SC, ELF/BIN identity, and 9,820 bytes RAM headroom pass | Private `tmp/` diagnostic only. It immediately scrolls placeholder `BT 00`, updates the persistent count after each three-second survey, caps at 64 addresses, yields during app streaming/non-normal modes, restores advertising, zeroes RAM, and cancels a stuck scan after five seconds. All behavior still needs physical proof. |
 | Rust for embedded application logic | **IN PROGRESS**, restricted to portable logic | The allocation-free core and host tests remain reusable | The standalone Rust runtime image booted blank. Replacement images will keep FOSSASIA's C startup/hardware shell and expose only narrow C ABI calls into Rust logic. |
 | Atomic-free Rust archive | **IN PROGRESS** | Final linked image contains no AMO/LR/SC instructions and passes the FOSSASIA linker | Rust is a static library only; current Rust object attributes may need compatibility work with the pinned MRS linker. Do not replace the known-good final linker to make the archive fit. |
 | Pin Rust and HAL revisions | **PROTOTYPE** | [`rust-toolchain.toml`](firmware/rust-toolchain.toml), firmware lockfile, and local HAL source are present and locked | Pinned nightly and dependency set build; upstream HAL warnings remain and hardware behavior is unverified. |
 | Linker/runtime configuration | **FAILED** for standalone Rust; FOSSASIA replacement **IN PROGRESS** | Linked ELF proves Timer 0 vector 16 contained `DefaultInterruptHandler` because PAC 0.3 put `__EXTERNAL_INTERRUPTS` in flash instead of the runtime's RAM vector section | Replacement images inherit FOSSASIA startup/linker/runtime unchanged; a post-link vector audit now guards any future runtime work. |
-| Reproducible release build | **PROTOTYPE** for baseline/canary/survey | Independent clean baseline builds reproduce `2049eb58…f670a2`; canary builds reproduce `6591f55f…03e87`; survey builds reproduce `38be81f1…b0df2` | A release build still needs a source commit, clean CI receipt, and physical evidence. |
-| Firmware size limit | **SHIPPED** at build layer | Binary audit rejects images over 448 KiB; survey is 198,988 bytes | Keep the exact limit in the pinned profile and release checks. |
+| Reproducible release build | **PROTOTYPE** for baseline/canary/survey | Independent clean baseline builds reproduce `2049eb58…f670a2`; canary builds reproduce `6591f55f…03e87`; survey builds reproduce `d9bb8465…4e193` | A release build still needs a source commit, clean CI receipt, and physical evidence. |
+| Firmware size limit | **SHIPPED** at build layer | Binary audit rejects images over 448 KiB; survey is 199,076 bytes | Keep the exact limit in the pinned profile and release checks. |
 | Panic/fault behavior | **PLANNED** for Rust ABI | Rust uses abort semantics and returns only through validated primitive C calls | The FOSSASIA shell owns hardware recovery; force and observe faults before adding radio behavior. |
 | Version embedded in firmware | **PLANNED** | Readable via Device Information and release manifest | Include source commit. |
 
@@ -88,7 +88,7 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Hardware revision pin maps and orientation | **BLOCKED** for physical proof | Exact-board pixel walk proves every row, column, direction, first-pair swap, and recovery path | Both candidate maps are encoded, but neither has completed FrogAlert pixel-walk evidence; never substitute generic `BM1144-C` or upstream Rev2/Rev3 naming for `B1144C_250901_USB_C`. |
 | Stable refresh without flicker | **VERIFIED** for upstream shell, **BLOCKED** after FrogAlert changes | Working FOSSASIA image visibly renders the user's nametag | Repeat visual/current checks for every derived canary and during later scan windows. |
 | Hardware-independent 5×7 text rendering | **SHIPPED** at host layer | `cargo test --workspace` covers scrolling alert text and clipping | [`display.rs`](crates/frogalert-core/src/display.rs) solves rasterization; phrase readability on the panel remains blocked by display bring-up. |
-| Nearby-device count rendering | **SHIPPED** at host layer, **PROTOTYPE** in survey build | Rust host renderer tests count/saturation; FOSSASIA-shell C overlay emits `BT 00` through `BT 64+` | The C overlay deliberately uses the proven upstream framebuffer API; physical readability remains unverified. |
+| Nearby-device count rendering | **SHIPPED** at host layer, **PROTOTYPE** in survey build | Rust host renderer tests count/saturation; the FOSSASIA-shell C diagnostic continuously scrolls `BT 00` through `BT 64+` at 100 ms per column | The initial `BT 00` appears before any completed survey. The persistent diagnostic deliberately masks the normal nametag between scans, yields during app streaming/non-normal modes, and remains physically unverified. |
 | User framebuffer storage | **PLANNED** | Upload survives alert and reboot | Define data-flash ownership/versioning. |
 | Temporary alert overlay | **PLANNED** | Alert displays, then exact prior content resumes | Do not persist overlay as nametag content. |
 | Alert cooldown/deduplication | **PLANNED** | Repeated advertisements do not strobe indefinitely | Define per-rule and global cooldowns. |
@@ -334,9 +334,10 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 - **QUARANTINED software:** the old standalone Rust observer/count image shares
   the failed external-vector layout and must not be flashed.
 - **PROTOTYPE at build layer / BLOCKED for hardware:** the private
-  FOSSASIA-shell survey candidate schedules disconnected passive scans, shows
-  aggregate counts, restores advertising, zeroes addresses, and cancels a
-  stuck scan. Its exact BIN is locked but is not published or flash-approved.
+  FOSSASIA-shell survey candidate schedules disconnected passive scans,
+  continuously scrolls the latest aggregate count (starting with diagnostic
+  `BT 00`), restores advertising, zeroes addresses, and cancels a stuck scan.
+  Its exact BIN is locked but is not published or flash-approved.
 - **PLANNED:** controller address-type/name integration, Rust ABI policy,
   alert cooldown, and battery measurements.
 - Exit gate: 24-hour run with app reconnect, no lost content, and measured power.

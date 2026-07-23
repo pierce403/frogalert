@@ -141,7 +141,7 @@ if [[ "$build_mode" == "baseline" ]]; then
 elif [[ "$build_mode" == "canary" ]]; then
   echo "canary gate passed: only the C metadata overlay was requested"
 else
-  echo "survey candidate gate passed: bounded passive scan overlay requested"
+  echo "survey candidate gate passed: bounded passive scan with persistent count requested"
 fi
 echo "build evidence: $bin"
 echo "HARDWARE UNVERIFIED: this output is local-only and is not approved for flashing"

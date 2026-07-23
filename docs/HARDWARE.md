@@ -159,15 +159,18 @@ explicitly authorized, one-badge bench smoke by a qualified operator; that
 initial program/verify action begins the checklist below and must be captured.
 
 A later private survey candidate is also reproducibly built under
-`tmp/fossasia-usbc/build/survey/`. It is 198,988 bytes with SHA-256
-`38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`.
+`tmp/fossasia-usbc/build/survey/`. It is 199,076 bytes with SHA-256
+`d9bb8465e5784c77e06304e555577ffedd56eb229dcc7de5ae9ac0ab5044e193`.
 It retains the audited FOSSASIA reset/vector, USB, BLE, display, BadgeMagic, and
-KEY2 symbols; leaves 9,924 bytes between static RAM and the stack top; performs
+KEY2 symbols; leaves 9,820 bytes between static RAM and the stack top; performs
 only a bounded three-second passive discovery; skips connected/streaming
-states; and has a five-second cancellation watchdog. Those are build
-properties, not evidence that the badge tolerates repeated surveys. The image
-does not replace the metadata canary as the lower-risk first derived smoke and
-must not be published before the full checklist passes.
+states; continuously scrolls the latest `BT 00` through `BT 64+` count while
+normal and non-streaming; and has a five-second cancellation watchdog. The
+initial `BT 00` is emitted before any measurement so display bring-up is
+unambiguous. Those are build properties, not evidence that the badge tolerates
+repeated surveys. The image does not replace the metadata canary as the
+lower-risk first derived smoke and must not be published before the full
+checklist passes.
 
 Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 

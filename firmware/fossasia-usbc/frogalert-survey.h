@@ -9,6 +9,6 @@ void frogalert_survey_init(void);
 /* Implemented by the small, audited hook in the FOSSASIA main module. */
 uint8_t frogalert_survey_allowed(void);
 uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated);
-void frogalert_display_survey_end(void);
+void frogalert_display_survey_step(void);
 
 #endif

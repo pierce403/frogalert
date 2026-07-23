@@ -17,7 +17,7 @@
 #define SURVEY_START_DEVICE_EVENT (1U << 0)
 #define SURVEY_PREPARE_EVENT      (1U << 1)
 #define SURVEY_BEGIN_EVENT        (1U << 2)
-#define SURVEY_DISPLAY_END_EVENT  (1U << 3)
+#define SURVEY_DISPLAY_STEP_EVENT (1U << 3)
 #define SURVEY_WATCHDOG_EVENT     (1U << 4)
 
 #define TMOS_TICKS_FROM_MS(ms) ((uint32_t)(ms) * 1000U / 625U)
@@ -25,13 +25,13 @@
 #define SURVEY_RETRY_DELAY     TMOS_TICKS_FROM_MS(10000U)
 #define SURVEY_RADIO_QUIET     TMOS_TICKS_FROM_MS(250U)
 #define SURVEY_NEXT_DELAY      TMOS_TICKS_FROM_MS(57000U)
-#define SURVEY_DISPLAY_TIME    TMOS_TICKS_FROM_MS(5000U)
+#define SURVEY_SCROLL_TIME     TMOS_TICKS_FROM_MS(100U)
 #define SURVEY_WATCHDOG_TIME   TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_SCAN_TICKS      4800U /* 3 seconds in 0.625 ms units. */
 
 __attribute__((used, section(".rodata.frogalert")))
 const char frogalert_survey_identity[] =
-	"FROGALERT:SURVEY-COUNT:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+	"FROGALERT:SURVEY-SCROLL:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 static tmosTaskID survey_task_id = INVALID_TASK_ID;
 static frogalert_survey_counter_t survey_counter;
@@ -87,9 +87,7 @@ static void finish_survey(void)
 
 	PRINT("FrogAlert passive survey count: %u%s\n", count,
 	      saturated ? "+" : "");
-	if (frogalert_display_survey_count(count, saturated))
-		tmos_start_task(survey_task_id, SURVEY_DISPLAY_END_EVENT,
-				SURVEY_DISPLAY_TIME);
+	frogalert_display_survey_count(count, saturated);
 	schedule_survey(SURVEY_NEXT_DELAY);
 }
 
@@ -142,7 +140,14 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 	}
 
 	if (events & SURVEY_START_DEVICE_EVENT) {
-		bStatus_t status = GAPRole_CentralStartDevice(
+		bStatus_t status;
+
+		/* Make the diagnostic display observable before the first scan. */
+		frogalert_display_survey_count(0, FALSE);
+		tmos_start_reload_task(survey_task_id,
+				       SURVEY_DISPLAY_STEP_EVENT,
+				       SURVEY_SCROLL_TIME);
+		status = GAPRole_CentralStartDevice(
 			survey_task_id, &central_bond_callbacks, &central_callbacks);
 		if (status != SUCCESS && status != bleAlreadyInRequestedMode)
 			PRINT("FrogAlert central start failed: %u\n", status);
@@ -226,9 +231,9 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		return events ^ SURVEY_WATCHDOG_EVENT;
 	}
 
-	if (events & SURVEY_DISPLAY_END_EVENT) {
-		frogalert_display_survey_end();
-		return events ^ SURVEY_DISPLAY_END_EVENT;
+	if (events & SURVEY_DISPLAY_STEP_EVENT) {
+		frogalert_display_survey_step();
+		return events ^ SURVEY_DISPLAY_STEP_EVENT;
 	}
 
 	return 0;

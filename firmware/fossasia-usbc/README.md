@@ -40,13 +40,21 @@ bounded passive counter for the exact USB-C profile:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-It waits 15 seconds after the WCH central role becomes ready, skips work while
-BadgeMagic is connected or streaming, pauses advertising, scans passively for
-three seconds, and shows `BT 00` through `BT 64+` for five seconds. Later
-windows begin about 57 seconds after the previous result. Addresses exist only
-in a fixed 64-entry RAM table and are explicitly zeroed after success, failure,
-or timeout. A five-second watchdog cancels a stuck scan and restores the prior
-advertising state. The image never initiates a central connection.
+This diagnostic lane immediately begins a continuous circular scroll of
+`BT 00`. After the WCH central role becomes ready it waits 15 seconds, skips
+scan work while BadgeMagic is connected or streaming, pauses advertising, and
+scans passively for three seconds. The scroll then updates to the latest result
+from `BT 00` through `BT 64+` and remains visible between windows. Later
+windows begin about 57 seconds after the previous result. The display yields
+while the app is streaming or the badge is outside normal mode, then resumes
+the latest count. Addresses exist only in a fixed 64-entry RAM table and are
+explicitly zeroed after success, failure, or timeout. A five-second watchdog
+cancels a stuck scan and restores the prior advertising state. The image never
+initiates a central connection.
+
+The initial `BT 00` is a display-path diagnostic placeholder, not a completed
+radio measurement. This lane intentionally replaces the normal nametag view
+between surveys; it is not the target product overlay behavior.
 
 The first run downloads about 345 MB of pinned archives. Source, toolchain,
 objects, ELF, map, disassembly, and BIN files stay under ignored
@@ -76,10 +84,10 @@ the audited ELF and requires byte identity with the Make-produced BIN. Both
 derived sizes and SHA-256 values are locked; the baseline also must
 match the already recovered FOSSASIA image exactly.
 
-The survey lane additionally requires its passive-scan/cancel/display symbols
-and at least 8 KiB between static RAM and the stack top. Its current locked BIN
-is 198,988 bytes with SHA-256
-`38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`.
+The survey lane additionally requires its passive-scan/cancel/display-step
+symbols and at least 8 KiB between static RAM and the stack top. Its current
+locked BIN is 199,076 bytes with SHA-256
+`d9bb8465e5784c77e06304e555577ffedd56eb229dcc7de5ae9ac0ab5044e193`.
 
 It does **not** prove that a derived image boots, scans, displays correctly,
 accepts a BadgeMagic upload, enters ISP on KEY2, or recovers after a failed

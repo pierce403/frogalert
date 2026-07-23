@@ -56,6 +56,12 @@ export function applyMainHooks(source) {
 {
 `,
     `#ifdef FROGALERT_SURVEY
+#define FROGALERT_SURVEY_TEXT_LENGTH  8
+#define FROGALERT_SURVEY_TEXT_COLUMNS (FROGALERT_SURVEY_TEXT_LENGTH * 6)
+
+static uint16_t frogalert_survey_bitmap[FROGALERT_SURVEY_TEXT_COLUMNS];
+static uint8_t frogalert_survey_offset;
+
 uint8_t frogalert_survey_allowed(void)
 {
 	return mode == NORMAL && !streaming_enabled;
@@ -63,33 +69,47 @@ uint8_t frogalert_survey_allowed(void)
 
 uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated)
 {
-	char text[7] = {
+	char text[FROGALERT_SURVEY_TEXT_LENGTH] = {
 		'B',
 		'T',
 		' ',
 		(char)('0' + ((count / 10) % 10)),
 		(char)('0' + (count % 10)),
-		'\\0',
-		'\\0',
+		' ',
+		' ',
+		' ',
 	};
 
-	if (!frogalert_survey_allowed())
-		return FALSE;
-	if (saturated) {
+	if (saturated)
 		text[5] = '+';
-		text[6] = '\\0';
-	}
 
-	stop_all_animation();
-	memset((void *)fb, 0, sizeof(fb));
-	fb_puts(text, saturated ? 6 : 5, 4, 2);
+	for (uint8_t character = 0;
+	     character < FROGALERT_SURVEY_TEXT_LENGTH;
+	     character++) {
+		for (uint8_t column = 0; column < 6; column++) {
+			frogalert_survey_bitmap[character * 6 + column] =
+				(uint16_t)(font5x7[text[character] - ' '][column]
+					   << 2);
+		}
+	}
+	frogalert_survey_offset = 0;
+	frogalert_display_survey_step();
 	return TRUE;
 }
 
-void frogalert_display_survey_end(void)
+void frogalert_display_survey_step(void)
 {
-	if (frogalert_survey_allowed())
-		mode_setup_normal();
+	if (!frogalert_survey_allowed())
+		return;
+
+	stop_all_animation();
+	for (uint8_t column = 0; column < LED_COLS; column++) {
+		fb[column] = frogalert_survey_bitmap[
+			(frogalert_survey_offset + column) %
+			FROGALERT_SURVEY_TEXT_COLUMNS];
+	}
+	frogalert_survey_offset =
+		(frogalert_survey_offset + 1) % FROGALERT_SURVEY_TEXT_COLUMNS;
 }
 #endif
 

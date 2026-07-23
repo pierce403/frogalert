@@ -210,14 +210,18 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   unique advertiser addresses in ephemeral RAM, then displays the approximate
   result for seven seconds. That firmware is quarantined and does not implement
   the BadgeMagic GATT service.
-- The private FOSSASIA-shell survey candidate is a locked 198,988-byte BIN at
-  SHA-256 `38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`.
+- The private FOSSASIA-shell survey candidate is a locked 199,076-byte BIN at
+  SHA-256 `d9bb8465e5784c77e06304e555577ffedd56eb229dcc7de5ae9ac0ab5044e193`.
   It uses passive three-second WCH Central discovery only while disconnected,
-  caps and zeroes 64 addresses, restores prior advertising, shows `BT 00` to
-  `BT 64+` for five seconds, cancels a stuck scan after five seconds, and
-  leaves 9,924 bytes of measured stack/runtime headroom. It preserves audited
-  FOSSASIA USB/BLE/display/KEY2 symbols but remains hardware-unverified,
-  private under `tmp/`, and not flash-approved or published.
+  caps and zeroes 64 addresses, restores prior advertising, continuously
+  scrolls `BT 00` to `BT 64+` at 100 ms per column, cancels a stuck scan after
+  five seconds, and leaves 9,820 bytes of measured stack/runtime headroom. The
+  initial `BT 00` is deliberately shown before the first completed survey so a
+  display-path failure can be distinguished from a scan result. This diagnostic
+  masks the normal nametag while normal/non-streaming, but yields to app
+  streaming and non-normal modes. It preserves audited FOSSASIA
+  USB/BLE/display/KEY2 symbols but remains hardware-unverified, private under
+  `tmp/`, and not flash-approved or published.
 - The quarantined Rust display driver encodes both Micro-USB `HARDWARE_REV1`
   and the candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation,
   flicker, current draw, and radio/display coexistence still require a physical

@@ -43,19 +43,24 @@ A later **C-only passive-survey candidate** is now implemented so the radio
 experiment is reviewable and reproducible before its turn in that sequence. It
 does not supersede the canary gates. It initializes WCH Central beside the
 existing Peripheral role using WCH's official combined-role pattern, but only
-starts passive discovery while the app is disconnected and the normal nametag
-is idle. It temporarily stops advertising, scans for three seconds, displays
-only an aggregate `BT 00` to `BT 64+` result for five seconds, restores the
-nametag and prior advertising state, and waits about 57 seconds. A five-second
-watchdog cancels a stuck discovery. The fixed address table is explicitly
-zeroed, and the code never establishes a central connection.
+starts passive discovery while the app is disconnected and the badge is in
+normal, non-streaming mode. As a deliberately obvious diagnostic, it begins a
+continuous `BT 00` scroll before the first scan and replaces the normal nametag
+view with the latest `BT 00` to `BT 64+` count between surveys. It yields the
+panel to app streaming and non-normal modes. Each survey temporarily stops
+advertising, scans for three seconds, restores the prior advertising state,
+and waits about 57 seconds. A five-second watchdog cancels a stuck discovery.
+The fixed address table is explicitly zeroed, and the code never establishes a
+central connection. The eventual product still needs temporary alerts that
+restore the user's nametag; this persistent view exists only to make the first
+radio/display test unmistakable.
 
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 198,988 bytes at SHA-256
-`38be81f17dabaf81dfbb4f72cff4ea3841927d495edc1ff0794722c77f4b0df2`
-with 9,924 bytes of measured stack/runtime headroom. It is likewise private and
+The survey candidate builds as 199,076 bytes at SHA-256
+`d9bb8465e5784c77e06304e555577ffedd56eb229dcc7de5ae9ac0ab5044e193`
+with 9,820 bytes of measured stack/runtime headroom. It is likewise private and
 hardware-unverified.
 
 Each stage must retain USB `0416:5020` HID+CDC enumeration, BadgeMagic app
@@ -108,13 +113,14 @@ The survey candidate initializes both WCH roles but never scans and advertises
 at the same time. Its conservative radio schedule is:
 
 ```text
-Peripheral/nametag (about 57 s)
-  -> only if no app connection is active
+Persistent latest-count scroll (starts at diagnostic BT 00)
+  -> yield while app streaming or badge is outside normal mode
+Peripheral advertising (about 57 s)
+  -> only scan if no app connection is active
 Observer/passive scan (3 s)
-  -> classify public address OUI + advertised local name
-Count display (about 5 s)
-  -> restore the user's framebuffer
-Peripheral/nametag
+  -> update bounded unique-address count
+Persistent latest-count scroll
+  -> restore prior advertising state
 ```
 
 The remaining hardware question is whether this combined-role initialization
@@ -136,8 +142,10 @@ The BadgeMagic app's legacy path expects:
 
 FrogAlert must store and render that content unchanged. Detection alerts are a
 temporary overlay; they must never overwrite the uploaded nametag payload.
-This contract is inherited by the survey candidate but still needs app and
-power-cycle regression evidence on hardware.
+The persistent-count survey candidate does not write the uploaded payload, but
+it intentionally masks the normal nametag view outside app streaming. It is a
+diagnostic exception, not proof of the target overlay UX, and still needs app,
+button, recovery, and power-cycle regression evidence on hardware.
 
 ## Detection policy
 
