@@ -217,17 +217,29 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The likely software failure was startup ordering: FOSSASIA started Peripheral
   before the survey registered its Central callback, so a combined-role
   `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
-- The replacement private survey candidate is a locked 199,332-byte BIN at
-  SHA-256 `5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689`.
+- The replacement private survey candidate is a locked 199,788-byte BIN at
+  SHA-256 `610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`.
   It treats a successful Central start as ready instead of depending only on
   that callback, consumes both live reports and the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
-  no suffix for a completed result, `E` error, and `T` timeout. It still uses a
-  passive three-second window only while disconnected, caps and zeroes 64
-  addresses, restores advertising, cancels a stuck scan after five seconds,
-  and leaves 9,820 bytes of measured stack/runtime headroom. It preserves
-  audited FOSSASIA USB/BLE/display/KEY2 symbols but remains private under
-  `tmp/`, hardware-unverified, and not flash-approved or published.
+  no suffix for a completed result, `E` error, and `T` timeout. Live legacy and
+  extended advertisement data is bounds-checked for a complete/shortened local
+  name containing `Flipper`; a match scrolls `FLIPPER DETECTED` until the next
+  window. This mirrors Unagi's name rule. There is no unique Flipper OUI:
+  official firmware derives a public MAC from STM32 identifiers, so an ST OUI
+  would overmatch, and custom firmware can rename or spoof the device. The
+  embedded matcher remains a temporary C diagnostic until the Rust ABI canary.
+  The image still uses a passive three-second window only while disconnected,
+  caps and zeroes 64 addresses, restores advertising, cancels a stuck scan
+  after five seconds, and leaves 9,724 bytes of measured stack/runtime
+  headroom. It preserves audited FOSSASIA USB/BLE/display/KEY2 symbols but
+  remains private under `tmp/`, hardware-unverified, and not flash-approved or
+  published.
+- The user observed survey-display flicker. FOSSASIA scans 22 Charlieplex
+  source phases at roughly 45 Hz, which can be visible. The survey hook also
+  called `stop_all_animation()` every 100 ms, clearing the live framebuffer and
+  adding periodic blank/partial frames. The replacement stops animation only
+  on display-ownership transition; it does not change the base refresh rate.
 - The quarantined Rust display driver encodes both Micro-USB `HARDWARE_REV1`
   and the candidate `B1144C_250901_USB_C` map. Pixel mapping, orientation,
   flicker, current draw, and radio/display coexistence still require a physical

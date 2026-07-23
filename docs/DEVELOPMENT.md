@@ -84,10 +84,14 @@ central/peripheral role pattern, and adds only a disconnected three-second
 passive scan plus a persistent 100 ms aggregate-count scroll. Its suffix shows
 `I` initializing, `R` ready/waiting, `S` scanning, `E` error, or `T` timeout;
 the suffix disappears for a completed result. It updates live while scanning,
-also consumes the final discovery list, and yields to app streaming and
-non-normal modes. It never initiates a connection, zeroes its fixed address
-table, restores prior advertising state, and cancels a stuck scan after five
-seconds. All lanes use `USBC_VERSION=1`, validate pinned archive/tool hashes
+also consumes the final discovery list, and checks live advertisement local
+names for case-insensitive `Flipper`. A match scrolls `FLIPPER DETECTED` until
+the next window; it does not use an OUI. The hook stops the original animation
+only on display-ownership transition rather than clearing the framebuffer at
+every 100 ms scroll step. It yields to app streaming and non-normal modes,
+never initiates a connection, zeroes its fixed address table, restores prior
+advertising state, and cancels a stuck scan after five seconds. All lanes use
+`USBC_VERSION=1`, validate pinned archive/tool hashes
 and critical sources, audit required runtime symbols and linked instructions,
 keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
 ignored `tmp/fossasia-usbc/`. The baseline must match the known-good

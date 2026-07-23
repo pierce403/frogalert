@@ -56,10 +56,10 @@ test("FOSSASIA USB-C lock pins source, toolchain, and known-good baseline", asyn
   assert.equal(lock.build.known_good_baseline_size, 177704);
   assert.equal(lock.build.known_good_canary_size, 177788);
   assert.equal(lock.build.minimum_stack_headroom, 8192);
-  assert.equal(lock.build.known_good_survey_size, 199332);
+  assert.equal(lock.build.known_good_survey_size, 199788);
   assert.equal(
     lock.build.known_good_survey_sha256,
-    "5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689",
+    "610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475",
   );
   assert.equal(
     lock.build.known_good_canary_sha256,

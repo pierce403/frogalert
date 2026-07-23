@@ -139,10 +139,26 @@ its proven internal-LSI path.
 
 ## Detection seeds
 
-Unagi currently seeds name rules for `Flipper`, `Axon Body`, `TASER`,
-`Ray-Ban`, and `Ray Ban`:
+Unagi commit `53099cc9b61f98c02eaf1860313c43d188aec533` seeds a
+case-insensitive Bluetooth-name rule for `Flipper`, not a Flipper OUI. It also
+seeds name rules for `Axon Body`, `TASER`, `Ray-Ban`, and `Ray Ban`:
 
-<https://github.com/pierce403/unagi>
+<https://github.com/pierce403/unagi/blob/53099cc9b61f98c02eaf1860313c43d188aec533/app/src/main/java/ninja/unagi/alerts/DefaultAlertRules.kt>
+
+Official Flipper firmware at pinned commit
+`7432d21a7e362d4a5f636e24d6209fbb2eedff1f` constructs the BLE local name as
+`xFlipper <device-name>` and passes that complete local-name field into its GAP
+advertising configuration. Its public address is derived from STM32 device and
+company identifiers; that is not a unique Flipper vendor prefix and would also
+describe unrelated STMicroelectronics products. FrogAlert therefore matches
+the advertised name case-insensitively and does not claim a Flipper OUI:
+
+- <https://github.com/flipperdevices/flipperzero-firmware/blob/7432d21a7e362d4a5f636e24d6209fbb2eedff1f/targets/f7/furi_hal/furi_hal_version.c>
+- <https://github.com/flipperdevices/flipperzero-firmware/blob/7432d21a7e362d4a5f636e24d6209fbb2eedff1f/targets/f7/ble_glue/gap.c>
+- <https://github.com/flipperdevices/flipperzero-firmware/blob/7432d21a7e362d4a5f636e24d6209fbb2eedff1f/targets/f7/ble_glue/profiles/serial_profile.c>
+
+The rule remains a hint: custom firmware can rename a Flipper and any other
+device can advertise a name containing `Flipper`.
 
 OUI-Spy's published database provides these initial prefixes:
 

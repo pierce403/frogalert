@@ -58,15 +58,23 @@ normal nametag between surveys but yields to app streaming and non-normal
 modes. Each survey temporarily stops advertising, scans for three seconds,
 restores the prior advertising state, and waits about 57 seconds. The fixed
 address table is explicitly zeroed, and the code never establishes a central
-connection. The eventual product still needs temporary alerts that restore the
-user's nametag.
+connection. Live legacy/extended reports are also parsed for complete or
+shortened local names containing `Flipper`, case-insensitively. A match shows
+`FLIPPER DETECTED` until the next survey window. No Flipper OUI is asserted.
+
+This first hardware diagnostic mirrors the already tested Rust name rule in a
+bounded C parser; it does not skip the separate Rust ABI-canary gate. The
+display hook stops the original animation only when taking ownership instead
+of clearing the live framebuffer every 100 ms. FOSSASIA's underlying roughly
+45 Hz matrix refresh is unchanged. The eventual product still needs temporary
+alerts that restore the user's nametag on a shorter, configurable schedule.
 
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 199,332 bytes at SHA-256
-`5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689`
-with 9,820 bytes of measured stack/runtime headroom. It is likewise private and
+The survey candidate builds as 199,788 bytes at SHA-256
+`610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`
+with 9,724 bytes of measured stack/runtime headroom. It is likewise private and
 hardware-unverified.
 
 Each stage must retain USB `0416:5020` HID+CDC enumeration, BadgeMagic app

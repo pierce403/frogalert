@@ -15,7 +15,7 @@ export const lockPath = path.join(
 export const canaryText =
   "FROGALERT:FOSSASIA-USB-C-BASE:9ce885d682b5c56c3ac7595c09e009a210885221:UNVERIFIED";
 export const surveyText =
-  "FROGALERT:SURVEY-LIVE:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+  "FROGALERT:SURVEY-FLIPPER:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 function validateMode(mode) {
   assert.ok(
@@ -92,6 +92,19 @@ export function validateLock(lock) {
   assert.equal(
     lock.survey_reference.ble_heap_config,
     "EVT/EXAM/BLE/HAL/include/config.h",
+  );
+  assert.equal(
+    lock.flipper_reference.repository,
+    "https://github.com/flipperdevices/flipperzero-firmware",
+  );
+  assert.match(lock.flipper_reference.commit, /^[0-9a-f]{40}$/);
+  assert.equal(
+    lock.flipper_reference.device_name_source,
+    "targets/f7/furi_hal/furi_hal_version.c",
+  );
+  assert.equal(
+    lock.flipper_reference.advertising_source,
+    "targets/f7/ble_glue/gap.c",
   );
   assert.match(lock.known_good_upstream_elf.bin_commit, /^[0-9a-f]{40}$/);
   assert.equal(

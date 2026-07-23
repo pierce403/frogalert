@@ -38,13 +38,16 @@
 
 __attribute__((used, section(".rodata.frogalert")))
 const char frogalert_survey_identity[] =
-	"FROGALERT:SURVEY-LIVE:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+	"FROGALERT:SURVEY-FLIPPER:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+
+static const char flipper_alert[] = "FLIPPER DETECTED";
 
 static tmosTaskID survey_task_id = INVALID_TASK_ID;
 static frogalert_survey_counter_t survey_counter;
 static uint8_t central_ready;
 static uint8_t scan_active;
 static uint8_t restore_advertising;
+static uint8_t flipper_detected;
 static bStatus_t central_init_status = SUCCESS;
 
 static void survey_central_event(gapRoleEvent_t *event);
@@ -82,6 +85,12 @@ static void show_survey(uint8_t phase)
 				       survey_counter.saturated, phase);
 }
 
+static void show_flipper_alert(void)
+{
+	frogalert_display_survey_message(flipper_alert,
+					 sizeof(flipper_alert) - 1);
+}
+
 static void mark_central_ready(void)
 {
 	if (central_ready)
@@ -110,16 +119,34 @@ static void finish_survey(void)
 
 	PRINT("FrogAlert passive survey count: %u%s\n", count,
 	      saturated ? "+" : "");
-	frogalert_display_survey_count(count, saturated,
-				       SURVEY_PHASE_COMPLETE);
+	if (flipper_detected)
+		show_flipper_alert();
+	else
+		frogalert_display_survey_count(count, saturated,
+					       SURVEY_PHASE_COMPLETE);
 	schedule_survey(SURVEY_NEXT_DELAY);
+}
+
+static void observe_advertisement(const uint8_t address[B_ADDR_LEN],
+				  const uint8_t *data, uint8_t data_length)
+{
+	uint8_t count_changed;
+
+	if (!scan_active)
+		return;
+	if (!flipper_detected &&
+	    frogalert_survey_has_flipper_name(data, data_length)) {
+		flipper_detected = 1;
+		show_flipper_alert();
+	}
+	count_changed = frogalert_survey_counter_observe(&survey_counter, address);
+	if (count_changed && !flipper_detected)
+		show_survey(SURVEY_PHASE_SCANNING);
 }
 
 static void observe_address(const uint8_t address[B_ADDR_LEN])
 {
-	if (scan_active &&
-	    frogalert_survey_counter_observe(&survey_counter, address))
-		show_survey(SURVEY_PHASE_SCANNING);
+	observe_advertisement(address, NULL, 0);
 }
 
 static void survey_central_event(gapRoleEvent_t *event)
@@ -137,10 +164,14 @@ static void survey_central_event(gapRoleEvent_t *event)
 		}
 		break;
 	case GAP_DEVICE_INFO_EVENT:
-		observe_address(event->deviceInfo.addr);
+		observe_advertisement(event->deviceInfo.addr,
+				      event->deviceInfo.pEvtData,
+				      event->deviceInfo.dataLen);
 		break;
 	case GAP_EXT_ADV_DEVICE_INFO_EVENT:
-		observe_address(event->deviceExtAdvInfo.addr);
+		observe_advertisement(event->deviceExtAdvInfo.addr,
+				      event->deviceExtAdvInfo.pEvtData,
+				      event->deviceExtAdvInfo.dataLen);
 		break;
 	case GAP_DIRECT_DEVICE_INFO_EVENT:
 		observe_address(event->deviceDirectInfo.addr);
@@ -211,6 +242,7 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		}
 
 		frogalert_survey_counter_reset(&survey_counter);
+		flipper_detected = 0;
 		status = GAPRole_GetParameter(GAPROLE_ADVERT_ENABLED,
 					      &advertising_enabled);
 		if (status != SUCCESS) {
@@ -267,7 +299,10 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 				scan_active = 0;
 				restore_advertising_if_needed();
 				frogalert_survey_counter_reset(&survey_counter);
-				show_survey(SURVEY_PHASE_TIMEOUT);
+				if (flipper_detected)
+					show_flipper_alert();
+				else
+					show_survey(SURVEY_PHASE_TIMEOUT);
 				PRINT("FrogAlert passive survey timed out\n");
 				schedule_survey(SURVEY_RETRY_DELAY);
 			} else {

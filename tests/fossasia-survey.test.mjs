@@ -44,8 +44,18 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /stop_all_animation\(\);/);
   assert.match(patchedMain, /frogalert_survey_bitmap/);
   assert.match(patchedMain, /frogalert_survey_offset \+ column/);
+  assert.match(patchedMain, /FROGALERT_SURVEY_TEXT_MAX\s+16/);
+  assert.match(patchedMain, /frogalert_display_survey_message/);
   assert.match(patchedMain, /text\[5\] = '\+'/);
   assert.match(patchedMain, /\(char\)phase/);
+  assert.match(
+    patchedMain,
+    /if \(!frogalert_survey_display_owned\)[\s\S]*stop_all_animation\(\)/,
+  );
+  assert.doesNotMatch(
+    patchedMain,
+    /void frogalert_display_survey_step\(void\)[\s\S]*?\n\tstop_all_animation\(\);/,
+  );
   assert.match(patchedMain, /frogalert_display_survey_step\(\);/);
   assert.doesNotMatch(patchedMain, /mode_setup_normal\(\);/);
   assert.throws(
@@ -88,6 +98,11 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     /status == SUCCESS \|\| status == bleAlreadyInRequestedMode\)[\s\S]*mark_central_ready\(\)/,
   );
   assert.match(survey, /event->discCmpl\.pDevList\[index\]\.addr/);
+  assert.match(survey, /frogalert_survey_has_flipper_name/);
+  assert.match(survey, /event->deviceInfo\.pEvtData/);
+  assert.match(survey, /event->deviceExtAdvInfo\.pEvtData/);
+  assert.match(survey, /"FLIPPER DETECTED"/);
+  assert.match(survey, /if \(flipper_detected\)[\s\S]*show_flipper_alert\(\)/);
   assert.match(survey, /show_survey\(SURVEY_PHASE_SCANNING\)/);
   assert.doesNotMatch(survey, /SURVEY_DISPLAY_END_EVENT/);
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);
@@ -99,6 +114,8 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.doesNotMatch(survey, /PRINT\([^\n]*(addr|address)/i);
   assert.match(core, /volatile uint8_t \*bytes/);
   assert.match(core, /uint8_t frogalert_survey_counter_observe/);
+  assert.match(core, /uint8_t frogalert_survey_has_flipper_name/);
+  assert.match(core, /GAP_ADTYPE_LOCAL_NAME_COMPLETE/);
   assert.match(overlay, /^CFLAGS \+= -DFROGALERT_SURVEY=1$/m);
   assert.match(build, /baseline\|canary\|survey/);
   assert.match(build, /apply-fossasia-survey\.mjs/);
@@ -115,5 +132,16 @@ test("survey role pattern is pinned to WCH's combined-role example", async () =>
     combined_role_example: "EVT/EXAM/BLE/CentPeri/APP/centPeri_main.c",
     central_scan_example: "EVT/EXAM/BLE/CentPeri/APP/central.c",
     ble_heap_config: "EVT/EXAM/BLE/HAL/include/config.h",
+  });
+});
+
+test("Flipper name evidence is pinned to official firmware", async () => {
+  const lock = await loadLock();
+  assert.deepEqual(lock.flipper_reference, {
+    repository: "https://github.com/flipperdevices/flipperzero-firmware",
+    commit: "7432d21a7e362d4a5f636e24d6209fbb2eedff1f",
+    device_name_source: "targets/f7/furi_hal/furi_hal_version.c",
+    advertising_source: "targets/f7/ble_glue/gap.c",
+    profile_source: "targets/f7/ble_glue/profiles/serial_profile.c",
   });
 });

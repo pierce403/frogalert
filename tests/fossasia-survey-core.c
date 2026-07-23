@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "frogalert-survey-core.h"
@@ -17,6 +18,20 @@ int main(void)
 {
 	frogalert_survey_counter_t counter;
 	uint8_t address[6];
+	static const uint8_t flipper_name[] = {
+		2, 0x01, 0x06,
+		16, 0x09, 'x', 'F', 'l', 'i', 'p', 'p', 'e', 'r', ' ',
+		'M', 'a', 'r', 'l', 'i', 'n',
+	};
+	static const uint8_t short_name[] = {
+		8, 0x08, 'F', 'L', 'I', 'P', 'P', 'E', 'R',
+	};
+	static const uint8_t unrelated_name[] = {
+		11, 0x09, 'H', 'e', 'a', 'd', 'p', 'h', 'o', 'n', 'e', 's',
+	};
+	static const uint8_t truncated_name[] = {
+		9, 0x09, 'F', 'l', 'i',
+	};
 
 	frogalert_survey_counter_reset(&counter);
 	assert(counter.count == 0);
@@ -45,6 +60,16 @@ int main(void)
 	assert(counter.saturated == 0);
 	for (uint16_t index = 0; index < sizeof(counter.addresses); index++)
 		assert(((const uint8_t *)counter.addresses)[index] == 0);
+
+	assert(frogalert_survey_has_flipper_name(
+		       flipper_name, sizeof(flipper_name)) == 1);
+	assert(frogalert_survey_has_flipper_name(
+		       short_name, sizeof(short_name)) == 1);
+	assert(frogalert_survey_has_flipper_name(
+		       unrelated_name, sizeof(unrelated_name)) == 0);
+	assert(frogalert_survey_has_flipper_name(
+		       truncated_name, sizeof(truncated_name)) == 0);
+	assert(frogalert_survey_has_flipper_name(NULL, 0) == 0);
 
 	return 0;
 }

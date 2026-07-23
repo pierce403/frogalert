@@ -50,14 +50,25 @@ means the five-second watchdog expired. For example, a normal first cycle is
 The first scan begins 15 seconds after readiness, so the first completed result
 normally appears about 18 seconds after startup. The lane skips scan work while
 BadgeMagic is connected or streaming, pauses advertising, and consumes both
-live report events and the controller's completion list. The latest completed
-`BT 00` through `BT 64+` result remains visible between windows; later windows
-begin about 57 seconds after the previous result. The display yields while the
-app is streaming or the badge is outside normal mode, then resumes the latest
-count. Addresses exist only in a fixed 64-entry RAM table and are explicitly
-zeroed after success, failure, or timeout. The watchdog cancels a stuck scan
-and restores the prior advertising state. The image never initiates a central
-connection.
+live report events and the controller's completion list. A bounded AD-structure
+parser checks complete and shortened local-name fields for case-insensitive
+`Flipper`. A match immediately replaces the count with `FLIPPER DETECTED` and
+keeps that message until the next survey window. It does not use an OUI. The
+latest completed `BT 00` through `BT 64+` result otherwise remains visible
+between windows; later windows begin about 57 seconds after the previous
+result. The display yields while the app is streaming or the badge is outside
+normal mode, then resumes the latest result. Addresses exist only in a fixed
+64-entry RAM table and are explicitly zeroed after success, failure, or
+timeout. The watchdog cancels a stuck scan and restores the prior advertising
+state. The image never initiates a central connection.
+
+The hardware survey still uses the C shell for advertisement extraction. Its
+bounded Flipper-name matcher mirrors the tested Rust policy; moving that call
+behind the Rust ABI remains gated on the separate ABI-only canary. The display
+hook now stops FOSSASIA's animation tasks only when it first takes panel
+ownership rather than clearing the live framebuffer every 100 ms. This removes
+the diagnostic's added blank-frame flicker but does not change FOSSASIA's
+roughly 45 Hz matrix refresh.
 
 Any value carrying a phase suffix is diagnostic state, not a completed radio
 measurement. This lane intentionally replaces the normal nametag view between
@@ -91,10 +102,10 @@ the audited ELF and requires byte identity with the Make-produced BIN. Both
 derived sizes and SHA-256 values are locked; the baseline also must
 match the already recovered FOSSASIA image exactly.
 
-The survey lane additionally requires its passive-scan/cancel/display-step
-symbols and at least 8 KiB between static RAM and the stack top. Its current
-locked BIN is 199,332 bytes with SHA-256
-`5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689`.
+The survey lane additionally requires its passive-scan/cancel/display-step,
+name-parser, and alert-render symbols plus at least 8 KiB between static RAM
+and the stack top. Its current locked BIN is 199,788 bytes with SHA-256
+`610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`.
 
 It does **not** prove that a derived image boots, scans, displays correctly,
 accepts a BadgeMagic upload, enters ISP on KEY2, or recovers after a failed

@@ -159,18 +159,21 @@ explicitly authorized, one-badge bench smoke by a qualified operator; that
 initial program/verify action begins the checklist below and must be captured.
 
 A later private survey candidate is also reproducibly built under
-`tmp/fossasia-usbc/build/survey/`. It is 199,332 bytes with SHA-256
-`5914d05e58f819607287ed85172c18a530a0d8e0f3e1c5e2732306c3ed59b689`.
+`tmp/fossasia-usbc/build/survey/`. It is 199,788 bytes with SHA-256
+`610aeb1ddb8aefdd3ab74d7e67c41b63033620fb3b2c17a625ad0f16434d4475`.
 It retains the audited FOSSASIA reset/vector, USB, BLE, display, BadgeMagic, and
-KEY2 symbols; leaves 9,820 bytes between static RAM and the stack top; performs
+KEY2 symbols; leaves 9,724 bytes between static RAM and the stack top; performs
 only a bounded three-second passive discovery; skips connected/streaming
 states; displays `I`, `R`, and `S` progress plus `E`/`T` failures; live-updates
-the count during scanning; consumes the completion list as a fallback; and has
-a five-second cancellation watchdog. A suffix-free `BT 00` through `BT 64+` is
-a completed result. Those are build properties, not evidence that the badge
-tolerates repeated surveys. The image does not replace the metadata canary as
-the lower-risk first derived smoke and must not be published before the full
-checklist passes.
+the count during scanning; consumes the completion list as a fallback; parses
+live complete/shortened local-name fields for case-insensitive `Flipper`; shows
+`FLIPPER DETECTED` on a match; and has a five-second cancellation watchdog. A
+suffix-free `BT 00` through `BT 64+` is a completed result. The display hook no
+longer clears the framebuffer at each 100 ms scroll step, although the base
+roughly 45 Hz multiplex refresh is unchanged. Those are build properties, not
+evidence that the badge tolerates repeated surveys. The image does not replace
+the metadata canary as the lower-risk first derived smoke and must not be
+published before the full checklist passes.
 
 Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 

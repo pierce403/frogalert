@@ -77,7 +77,7 @@ Expected classifier output; count mode then prints an 11×44 text framebuffer:
 
 ```text
 COP DETECTED (Axon OUI)
-HAX DETECTED (Flipper name)
+FLIPPER DETECTED (Flipper name)
 nearby BLE devices: 23
 ```
 

@@ -7,6 +7,7 @@ pub mod scan;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AlertKind {
     Cop,
+    Flipper,
     Hax,
 }
 
@@ -14,6 +15,7 @@ impl AlertKind {
     pub const fn message(self) -> &'static str {
         match self {
             Self::Cop => "COP DETECTED",
+            Self::Flipper => "FLIPPER DETECTED",
             Self::Hax => "HAX DETECTED",
         }
     }
@@ -79,7 +81,7 @@ const NAME_RULES: &[NameRule] = &[
     },
     NameRule {
         needle: b"flipper",
-        kind: AlertKind::Hax,
+        kind: AlertKind::Flipper,
         label: "Flipper name",
     },
     NameRule {
@@ -172,8 +174,8 @@ mod tests {
     #[test]
     fn matches_names_case_insensitively() {
         let found = classify(&observation([0; 6], false, Some(b"My FLIPPER Zero"))).unwrap();
-        assert_eq!(found.kind, AlertKind::Hax);
-        assert_eq!(found.kind.message(), "HAX DETECTED");
+        assert_eq!(found.kind, AlertKind::Flipper);
+        assert_eq!(found.kind.message(), "FLIPPER DETECTED");
     }
 
     #[test]

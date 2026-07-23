@@ -56,21 +56,45 @@ export function applyMainHooks(source) {
 {
 `,
     `#ifdef FROGALERT_SURVEY
-#define FROGALERT_SURVEY_TEXT_LENGTH  8
-#define FROGALERT_SURVEY_TEXT_COLUMNS (FROGALERT_SURVEY_TEXT_LENGTH * 6)
+#define FROGALERT_SURVEY_COUNT_LENGTH 8
+#define FROGALERT_SURVEY_TEXT_MAX     16
+#define FROGALERT_SURVEY_TEXT_COLUMNS (FROGALERT_SURVEY_TEXT_MAX * 6)
 
 static uint16_t frogalert_survey_bitmap[FROGALERT_SURVEY_TEXT_COLUMNS];
 static uint8_t frogalert_survey_offset;
+static uint8_t frogalert_survey_columns;
+static uint8_t frogalert_survey_display_owned;
 
 uint8_t frogalert_survey_allowed(void)
 {
 	return mode == NORMAL && !streaming_enabled;
 }
 
+static uint8_t frogalert_display_survey_text(const char *text,
+					     uint8_t text_length)
+{
+	if (!text || text_length == 0 || text_length > FROGALERT_SURVEY_TEXT_MAX)
+		return FALSE;
+
+	for (uint8_t character = 0; character < text_length; character++) {
+		if (text[character] < ' ' || text[character] > '~')
+			return FALSE;
+		for (uint8_t column = 0; column < 6; column++) {
+			frogalert_survey_bitmap[character * 6 + column] =
+				(uint16_t)(font5x7[text[character] - ' '][column]
+					   << 2);
+		}
+	}
+	frogalert_survey_columns = text_length * 6;
+	frogalert_survey_offset = 0;
+	frogalert_display_survey_step();
+	return TRUE;
+}
+
 uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
 				       uint8_t phase)
 {
-	char text[FROGALERT_SURVEY_TEXT_LENGTH] = {
+	char text[FROGALERT_SURVEY_COUNT_LENGTH] = {
 		'B',
 		'T',
 		' ',
@@ -83,34 +107,34 @@ uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
 
 	if (saturated)
 		text[5] = '+';
+	return frogalert_display_survey_text(
+		text, FROGALERT_SURVEY_COUNT_LENGTH);
+}
 
-	for (uint8_t character = 0;
-	     character < FROGALERT_SURVEY_TEXT_LENGTH;
-	     character++) {
-		for (uint8_t column = 0; column < 6; column++) {
-			frogalert_survey_bitmap[character * 6 + column] =
-				(uint16_t)(font5x7[text[character] - ' '][column]
-					   << 2);
-		}
-	}
-	frogalert_survey_offset = 0;
-	frogalert_display_survey_step();
-	return TRUE;
+uint8_t frogalert_display_survey_message(const char *message,
+					 uint8_t message_length)
+{
+	return frogalert_display_survey_text(message, message_length);
 }
 
 void frogalert_display_survey_step(void)
 {
-	if (!frogalert_survey_allowed())
+	if (!frogalert_survey_allowed()) {
+		frogalert_survey_display_owned = FALSE;
 		return;
+	}
 
-	stop_all_animation();
+	if (!frogalert_survey_display_owned) {
+		stop_all_animation();
+		frogalert_survey_display_owned = TRUE;
+	}
 	for (uint8_t column = 0; column < LED_COLS; column++) {
 		fb[column] = frogalert_survey_bitmap[
 			(frogalert_survey_offset + column) %
-			FROGALERT_SURVEY_TEXT_COLUMNS];
+			frogalert_survey_columns];
 	}
 	frogalert_survey_offset =
-		(frogalert_survey_offset + 1) % FROGALERT_SURVEY_TEXT_COLUMNS;
+		(frogalert_survey_offset + 1) % frogalert_survey_columns;
 }
 #endif
 
