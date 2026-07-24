@@ -56,4 +56,17 @@ content viewport.
 - candidate BIN and ELF checksum verification: passed
 - GitHub workflow YAML parse: passed
 - local desktop/mobile browser and KEY2 guide interaction: passed
+- live CI run `30069161224` for commit
+  `af83fbb0d0089aac0bb0aff441084bdaa417cca6`: passed both `verify` and
+  `firmware-candidate`
+- downloaded Actions artifact
+  `frogalert-candidate-af83fbb0d0089aac0bb0aff441084bdaa417cca6`: BIN and
+  ELF checksums passed; BIN was 201,788 bytes at the locked
+  `9d35de6a…c51a7`
+- downstream run `30069244999`: passed prepare, empty approved-release
+  reconciliation, and Pages deployment
+- production `/`, `/flash/`, the versioned app/protocol/guide modules, and the
+  manifest were byte-identical to the pushed commit
+- production browser initialized the flasher and opened the first KEY2-guide
+  state without a page-originated warning or error
 - physical WebUSB program/verify of the exact current candidate: still pending

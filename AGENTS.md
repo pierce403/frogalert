@@ -160,6 +160,12 @@ artifact. Candidate metadata must keep `hardware_verified`, `flash_approved`,
 `publishable`, and `hosted_on_site` false; this build lane never edits the
 public manifest or creates a GitHub Release.
 
+The first live candidate run, Actions run `30069161224` for commit `af83fbb`,
+passed on 2026-07-23. Its downloaded bundle contained the locked 201,788-byte
+survey BIN at `9d35de6a…c51a7`; both BIN and ELF checksums passed. Downstream run
+`30069244999` correctly published no firmware release and deployed byte-exact
+site assets. This verifies the automation boundary, not the physical firmware.
+
 Preview the site locally:
 
 ```bash
