@@ -172,6 +172,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - Keep protocol encoders pure and unit-tested separately from WebUSB transport.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
+- Keep `site/og-card.svg` as the editable source for the checked-in
+  `site/og-card.jpg`; both pages use the same absolute 1200×630 social image,
+  and tests must verify its encoded dimensions.
 - Use semantic HTML, visible focus states, reduced-motion support, and readable
   status messages announced through ARIA live regions.
 - Use repo-local `./tmp/` for scratch files and ignore it.

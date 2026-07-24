@@ -7,6 +7,56 @@ const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 const readBytes = (path) => readFile(new URL(path, root));
 
+function assertSocialPreview(html) {
+  assert.match(
+    html,
+    /property="og:image" content="https:\/\/frogalert\.org\/site\/og-card\.jpg"/,
+  );
+  assert.match(html, /property="og:image:type" content="image\/jpeg"/);
+  assert.match(html, /property="og:image:width" content="1200"/);
+  assert.match(html, /property="og:image:height" content="630"/);
+  assert.match(html, /property="og:image:alt" content="[^"]+"/);
+  assert.match(html, /name="twitter:card" content="summary_large_image"/);
+  assert.match(
+    html,
+    /name="twitter:image" content="https:\/\/frogalert\.org\/site\/og-card\.jpg"/,
+  );
+  assert.match(html, /name="twitter:image:alt" content="[^"]+"/);
+  assert.doesNotMatch(html, /og-card\.png/);
+}
+
+function jpegDimensions(bytes) {
+  assert.equal(bytes[0], 0xff);
+  assert.equal(bytes[1], 0xd8);
+
+  let offset = 2;
+  while (offset + 9 < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset++;
+      continue;
+    }
+    const marker = bytes[offset + 1];
+    if (marker === 0xd8 || marker === 0xd9) {
+      offset += 2;
+      continue;
+    }
+    const segmentLength = bytes.readUInt16BE(offset + 2);
+    if (
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf)
+    ) {
+      return {
+        height: bytes.readUInt16BE(offset + 5),
+        width: bytes.readUInt16BE(offset + 7),
+      };
+    }
+    offset += 2 + segmentLength;
+  }
+  throw new Error("JPEG dimensions were not found");
+}
+
 test("landing page exposes the project and guarded device flow", async () => {
   const html = await read("index.html");
   const app = await read("site/app.js");
@@ -29,21 +79,21 @@ test("landing page exposes the project and guarded device flow", async () => {
     assert.ok(html.includes(required), `index.html should include ${required}`);
   }
   assert.match(html, /OEM (?:firmware|image) is unavailable and unrecoverable/i);
-  assert.match(html, /Web Bluetooth cannot install firmware/i);
+  assert.match(html, /Web Bluetooth checks the running BadgeMagic service/i);
   assert.match(html, /id="bluetooth-connect"[^>]+disabled/);
   assert.match(html, /id="usb-connect"[^>]+disabled/);
   assert.match(html, /Install open BadgeMagic firmware/);
   assert.match(html, /Prepare open BadgeMagic firmware/);
   assert.match(html, /PROTOTYPE \/ BADGE · HARDWARE-UNVERIFIED/);
   assert.match(html, /Private two-mode survey BIN/);
-  assert.match(html, /short KEY2 press.*uploaded.*Bluetooth counter/is);
-  assert.match(html, /Scanning continues in both display modes/i);
-  assert.match(html, /three seconds in either mode/i);
-  assert.match(html, /three-second three-frog dance/i);
-  assert.match(html, /Survey windows start roughly every 20 seconds/i);
+  assert.match(html, /short KEY2 press.*names.*BT 00/is);
+  assert.match(html, /Scanning runs in either display mode/i);
+  assert.match(html, /shows.*COP DETECTED.*for three seconds/is);
+  assert.match(html, /shows three dancing frogs/i);
+  assert.match(html, /scan starts about every 20 seconds/i);
   assert.match(html, /LED Badge Magic/);
   assert.match(html, /Passive scan limit:.*does not request scan responses/is);
-  assert.match(html, /FEE0.*broad BadgeMagic-compatible fallback.*false-positive/is);
+  assert.match(html, /FEE0.*fallback can match other compatible badges/is);
   assert.match(html, /LED Badge Magic[\s\S]*Exact, case-insensitive hint/);
   assert.match(html, /Flipper[\s\S]*FLIPPER DETECTED/);
   assert.match(html, /Ray-Ban[\s\S]*Ray Ban[\s\S]*COP DETECTED/);
@@ -53,10 +103,13 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /qualified 48-column app animations/);
   assert.match(html, /not hosted or released/i);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
-  assert.match(html, /does not connect, reset configuration, erase, or write/i);
-  assert.match(html, /Programming is not enabled for this bundled image/i);
-  assert.match(html, /developer BIN chooser below remains an inspection path/i);
-  assert.match(html, /All destructive work is restricted to the dedicated guided flow/i);
+  assert.match(html, /Preparation does not touch USB/i);
+  assert.match(
+    html,
+    /This bundled image cannot be programmed from the site yet/i,
+  );
+  assert.match(html, /local BIN chooser below is read-only on this page/i);
+  assert.match(html, /This page.*cannot reset configuration, erase, or program/is);
   assert.match(html, /Hardware-verified lab build/i);
   assert.match(html, /Download selected hardware-verified lab BIN/i);
   assert.match(html, /compar(?:e|ed) both sides.*reference photos/i);
@@ -66,6 +119,16 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /data-flash-mode="inspect"/);
   assert.match(html, /Content-Security-Policy/);
   assert.match(html, /name="referrer"/);
+  assertSocialPreview(html);
+  for (const stalePhrase of [
+    "situational-awareness frog",
+    "No vaporware arithmetic",
+    "hardware gates, and receipts",
+    "guarded destructive workflow",
+    "same tiny",
+  ]) {
+    assert.ok(!html.includes(stalePhrase), `landing copy should omit ${stalePhrase}`);
+  }
   assert.doesNotMatch(html, /id="flash-button"/);
   assert.doesNotMatch(html, /class="flash-confirmation"/);
   assert.match(app, /const destructivePage = document\.body\.dataset\.flashMode === "program"/);
@@ -147,7 +210,7 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /current (?:application )?firmware.*(?:unknown|cannot|not)/is);
   assert.match(html, /PCB revision.*cannot.*detect/is);
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
-  assert.match(html, /No erase or write on connect/i);
+  assert.match(html, /Connecting alone never writes/i);
   assert.match(html, /Only hash-bound images with physical boot and recovery evidence may appear here/i);
   assert.match(html, /current private survey candidate is 201,628 bytes/i);
   assert.match(html, /not hosted, released, or hardware-approved/i);
@@ -162,6 +225,18 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /data-flash-mode="program"/);
   assert.match(html, /Content-Security-Policy/);
   assert.match(html, /name="referrer"/);
+  assertSocialPreview(html);
+  assert.doesNotMatch(html, /every fact checks out/i);
+});
+
+test("social preview card is a 1200 by 630 JPEG", async () => {
+  const bytes = await readBytes("site/og-card.jpg");
+  assert.deepEqual(jpegDimensions(bytes), { width: 1200, height: 630 });
+  assert.ok(bytes.length > 40_000, "social card should contain rendered artwork");
+  const source = await read("site/og-card.svg");
+  assert.match(source, /width="1200" height="630"/);
+  assert.match(source, /Bluetooth alerts on a nametag/);
+  await assert.rejects(readBytes("site/og-card.png"), /ENOENT/);
 });
 
 test("Pages deploy waits for successful CI and publishes only manifest-listed artifacts", async () => {

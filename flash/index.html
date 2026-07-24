@@ -3,14 +3,26 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Safely inspect, prepare, program, verify, and recover a supported CH582M BadgeMagic badge from the FrogAlert browser flasher.">
+    <meta name="description" content="Identify, flash, verify, and recover a supported CH582M BadgeMagic badge with WebUSB.">
     <meta name="theme-color" content="#07130d">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="FrogAlert browser flasher">
-    <meta property="og:description" content="A guarded WebUSB flashing and recovery workspace for supported CH582M 11×44 BadgeMagic badges.">
+    <meta property="og:site_name" content="FrogAlert">
+    <meta property="og:title" content="Flash a BadgeMagic badge — FrogAlert">
+    <meta property="og:description" content="WebUSB flashing and recovery for supported CH582M 11×44 BadgeMagic badges.">
     <meta property="og:url" content="https://frogalert.org/flash/">
+    <meta property="og:image" content="https://frogalert.org/site/og-card.jpg">
+    <meta property="og:image:secure_url" content="https://frogalert.org/site/og-card.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="FrogAlert wordmark beside an LED badge showing COP DETECTED">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Flash a BadgeMagic badge — FrogAlert">
+    <meta name="twitter:description" content="WebUSB flashing and recovery for supported CH582M 11×44 BadgeMagic badges.">
+    <meta name="twitter:image" content="https://frogalert.org/site/og-card.jpg">
+    <meta name="twitter:image:alt" content="FrogAlert wordmark beside an LED badge showing COP DETECTED">
     <title>Flash a badge — FrogAlert</title>
     <link rel="canonical" href="https://frogalert.org/flash/">
     <link rel="stylesheet" href="../site/styles.css">
@@ -36,22 +48,22 @@
     <main id="flash-main" class="flash-main">
       <section class="flash-hero" aria-labelledby="flash-title">
         <div class="flash-hero-copy">
-          <p class="eyebrow">WebUSB badge workspace / experimental hardware path</p>
-          <h1 id="flash-title">Inspect first. Flash only when every fact checks out.</h1>
+          <p class="eyebrow">Experimental WebUSB flasher for CH582M badges</p>
+          <h1 id="flash-title">Flash a supported BadgeMagic badge.</h1>
           <p class="lede">
-            This guided tool separates a non-destructive BadgeMagic Bluetooth probe from CH582M firmware replacement through the WCH USB bootloader. There is no erase or write on connect; connecting is never permission to erase.
+            This page can identify a CH582 in WCH ISP mode, validate a local BIN, program it, and verify every written chunk. Connecting alone never writes to the badge.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#connect">Start with a read-only check</a>
-            <a class="button button-secondary" href="#recovery">Badge will not boot?</a>
+            <a class="button button-primary" href="#preflight">Check browser support</a>
+            <a class="button button-secondary" href="#recovery">Open recovery steps</a>
           </div>
         </div>
 
         <aside class="hero-safety" aria-labelledby="irreversible-title">
           <p class="terminal-label">Before the first write</p>
-          <h2 id="irreversible-title">There is no OEM backup or original-firmware restore.</h2>
+          <h2 id="irreversible-title">You cannot back up the original firmware.</h2>
           <p>
-            The OEM firmware is read-protected, unavailable, and cannot be backed up or dumped by this page. Replacing it is irreversible unless you already possess a recoverable image for your exact board.
+            The OEM firmware is read-protected and unavailable. Once replaced, it cannot be restored unless you already have a recoverable image for this exact board.
           </p>
           <p>
             FOSSASIA's open BadgeMagic firmware is a compatible substitute for one exact Micro-USB profile. It is <strong>not</strong> the original factory firmware.
@@ -70,8 +82,8 @@
       <section id="preflight" class="flash-panel" aria-labelledby="preflight-title">
         <div class="panel-heading">
           <div>
-            <p class="section-kicker">Step 1 / support preflight</p>
-            <h2 id="preflight-title">Can this browser reach the badge?</h2>
+            <p class="section-kicker">Step 1 / browser support</p>
+            <h2 id="preflight-title">Check WebUSB before opening the badge</h2>
           </div>
           <p id="capability-status" class="status-summary" role="status" aria-live="polite">Preflight has not run.</p>
         </div>
@@ -121,8 +133,8 @@
       <section id="connect" class="flash-panel" aria-labelledby="connect-title">
         <div class="panel-heading">
           <div>
-            <p class="section-kicker">Step 2 / choose the real device state</p>
-            <h2 id="connect-title">Two connections. Two different jobs.</h2>
+            <p class="section-kicker">Step 2 / Bluetooth or USB</p>
+            <h2 id="connect-title">Choose how the badge is connected</h2>
           </div>
           <p>Web Bluetooth cannot install firmware. WebUSB cannot inspect the running BadgeMagic app protocol.</p>
         </div>
@@ -306,7 +318,7 @@
             </tbody>
           </table>
         </div>
-        <p class="honesty-note"><strong>No guessing:</strong> a Bluetooth name such as <code>LSLED</code> is not proof of firmware, board revision, or compatibility. This tool must leave exact installed firmware as unavailable unless a future firmware exposes authenticated version metadata.</p>
+        <p class="honesty-note"><strong>What the page cannot tell you:</strong> a Bluetooth name such as <code>LSLED</code> does not identify the firmware or PCB. Unless firmware reports authenticated version metadata, the exact installed image remains unknown.</p>
       </section>
 
       <section id="recovery" class="flash-panel recovery-panel" aria-labelledby="recovery-title">
@@ -364,7 +376,7 @@
           <div class="panel-heading">
             <div>
               <p class="section-kicker">Step 3 / choose and verify bytes locally</p>
-              <h2 id="artifact-title">Bind one raw BIN to one exact board.</h2>
+              <h2 id="artifact-title">Match the BIN to the opened board</h2>
             </div>
             <span class="experimental-label">NO FROGALERT RELEASE IS HARDWARE-APPROVED</span>
           </div>
@@ -443,7 +455,7 @@
         <section id="confirm" class="flash-panel" aria-labelledby="confirm-title">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">Step 4 / explicit destructive consent</p>
+              <p class="section-kicker">Step 4 / final confirmation</p>
               <h2 id="confirm-title">These checks cannot be automated.</h2>
             </div>
             <span class="source-badge source-confirmed">User confirmed</span>
@@ -505,7 +517,7 @@
           </ol>
 
           <aside class="interruption-note">
-            <h3>If programming stops</h3>
+            <h3>If programming is interrupted</h3>
             <p>Do not claim success. Keep the exact selected BIN and its hash, disconnect power, repeat the KEY2 recovery sequence, establish a fresh read-only identity, then retry the complete write and verification flow. A replacement USB device must never inherit an active flash session.</p>
           </aside>
         </section>
@@ -513,8 +525,8 @@
 
       <section class="flash-help" aria-labelledby="help-title">
         <div>
-          <p class="section-kicker">Need a bench instead?</p>
-          <h2 id="help-title">The command-line fallback remains part of recovery.</h2>
+          <p class="section-kicker">Command-line fallback</p>
+          <h2 id="help-title">Use wchisp when WebUSB is unavailable</h2>
           <p>Browser and operating-system USB support varies. A missing permission prompt or driver conflict is not proof that badge firmware is broken.</p>
         </div>
         <div class="help-links">
@@ -527,7 +539,7 @@
     </main>
 
     <footer>
-      <p><strong>FROGALERT FLASH LAB</strong> · local bytes, explicit consent, verify before success.</p>
+      <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
     <script type="module" src="../site/app.js"></script>

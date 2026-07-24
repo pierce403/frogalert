@@ -1611,7 +1611,7 @@ async function startFlash() {
   if (!destructivePage) {
     setStatus(
       elements.usbStatus,
-      "This landing-page lab is read-only. Open the full flash tool for the guarded destructive workflow.",
+      "This page cannot write firmware. Open /flash/ to program a badge.",
       "warning",
     );
     return;
