@@ -1,6 +1,7 @@
 {
-  "schema_version": 3,
-  "updated": "2026-07-22",
+  "schema_version": 4,
+  "updated": "2026-07-23",
+  "github_repository": "pierce403/frogalert",
   "releases": [],
   "lab_images": [],
   "recovery_images": [

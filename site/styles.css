@@ -522,6 +522,16 @@ h3 {
   text-decoration: none;
 }
 
+.release-links {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.release-links .text-link {
+  margin-bottom: 0;
+}
+
 .evidence-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -1,4 +1,4 @@
-name: Deploy static site
+name: Publish verified firmware and site
 
 on:
   workflow_run:
@@ -6,35 +6,99 @@ on:
     types: [completed]
     branches: [main]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: publish-main
+  cancel-in-progress: false
 
 jobs:
-  deploy:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  prepare:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: actions/configure-pages@v5
       - name: Assemble and validate static artifact
         run: node scripts/assemble-site.mjs _site
-      - uses: actions/upload-pages-artifact@v3
+      - name: Prepare verified firmware release bundle
+        env:
+          FROGALERT_PUBLISH_COMMIT: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/firmware-release-plan.mjs tmp/release-publication
+      - name: Upload immutable release plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-release-publication
+          path: tmp/release-publication
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: _site
-      - name: Deploy to GitHub Pages
+
+  publish-releases:
+    needs: prepare
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware-release-publication
+          path: tmp/release-publication
+      - name: Reconcile manifest-approved GitHub Releases
+        uses: actions/github-script@v7
+        env:
+          FROGALERT_PUBLISH_COMMIT: ${{ github.event.workflow_run.head_sha }}
+        with:
+          script: |
+            const { pathToFileURL } = require("node:url");
+            const publisher = await import(
+              pathToFileURL(
+                `${process.env.GITHUB_WORKSPACE}/scripts/publish-github-releases.mjs`,
+              ).href
+            );
+            const count = await publisher.publishFirmwareReleaseBundle({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              bundleRoot: `${process.env.GITHUB_WORKSPACE}/tmp/release-publication`,
+              targetCommitish: process.env.FROGALERT_PUBLISH_COMMIT,
+              log: (message) => core.info(message),
+            });
+            core.info(
+              count === 0
+                ? "No manifest-approved FrogAlert firmware releases to publish."
+                : `Reconciled ${count} manifest-approved firmware release(s).`
+            );
+
+  deploy-pages:
+    needs: publish-releases
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy exact validated site artifact
         id: deployment
         uses: actions/deploy-pages@v4

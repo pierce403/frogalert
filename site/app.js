@@ -1,5 +1,6 @@
 import {
   COMMAND,
+  FROGALERT_GITHUB_REPOSITORY,
   WCH_USB_FILTERS,
   formatBootloaderVersion,
   identifyPacket,
@@ -12,6 +13,7 @@ import {
   validateFirmware,
   validateLabDescriptor,
   validateLabHardwareBinding,
+  validateReleaseCatalogDescriptor,
   validateRecoveryDescriptor,
   validateReleaseDescriptor,
 } from "./wchisp-protocol.js";
@@ -69,6 +71,7 @@ const state = {
   bluetoothDevice: null,
   artifactGeneration: 0,
   activeFlashDevice: null,
+  releases: [],
   labImages: [],
   recoveryImages: [],
   quarantinedFirmwareHashes: null,
@@ -111,6 +114,8 @@ const elements = {
   pcbRevision: $("#pcb-revision"),
   releaseSelect: $("#release-select"),
   releaseStatus: $("#release-status"),
+  releaseDownload: $("#release-download"),
+  releaseLink: $("#release-link"),
   labImageSelect: $("#lab-image-select"),
   labImageStatus: $("#lab-image-status"),
   labImageDownload: $("#lab-image-download"),
@@ -266,7 +271,11 @@ function startMatrixPreview() {
   const frames = ["FROG", "ALERT"];
   let frame = 0;
   renderMatrix(frames[frame]);
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  try {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+  } catch {
+    // A partial browser shell must not prevent the device/release UI from loading.
+  }
   window.setInterval(() => {
     frame = (frame + 1) % frames.length;
     renderMatrix(frames[frame]);
@@ -296,6 +305,28 @@ function setReleaseSummary(message, tone) {
 
 function restoreReleaseSummary() {
   setStatus(elements.releaseStatus, state.releaseSummary.message, state.releaseSummary.tone);
+}
+
+function clearReleaseLinks() {
+  for (const link of [elements.releaseDownload, elements.releaseLink]) {
+    if (!link) continue;
+    link.hidden = true;
+    link.removeAttribute("href");
+  }
+  elements.releaseDownload?.removeAttribute("download");
+}
+
+function renderReleaseLinks(release) {
+  clearReleaseLinks();
+  if (elements.releaseDownload) {
+    elements.releaseDownload.href = firmwareArtifactUrl(release.file, import.meta.url);
+    elements.releaseDownload.download = release.file;
+    elements.releaseDownload.hidden = false;
+  }
+  if (elements.releaseLink) {
+    elements.releaseLink.href = release.release_url;
+    elements.releaseLink.hidden = false;
+  }
 }
 
 function setLabImageSummary(message, tone) {
@@ -342,8 +373,19 @@ function isTrustworthyContext() {
   return window.isSecureContext || ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
 }
 
+function hasWebUsb() {
+  return (
+    typeof navigator.usb?.requestDevice === "function" &&
+    typeof navigator.usb?.getDevices === "function"
+  );
+}
+
+function hasWebBluetooth() {
+  return typeof navigator.bluetooth?.requestDevice === "function";
+}
+
 function canUseWebUsbChooser() {
-  return isTrustworthyContext() && "usb" in navigator;
+  return isTrustworthyContext() && hasWebUsb();
 }
 
 function stopIspEntryCountdown() {
@@ -530,8 +572,8 @@ function beginGuidedUsbConnection() {
 
 function updateCapabilities() {
   const secure = isTrustworthyContext();
-  const usb = "usb" in navigator;
-  const bluetooth = "bluetooth" in navigator;
+  const usb = hasWebUsb();
+  const bluetooth = hasWebBluetooth();
   const mobile = isMobileNavigator(navigator);
   const report = browserCapabilityReport({
     secureContext: secure,
@@ -590,7 +632,7 @@ function updateCapabilities() {
 }
 
 async function refreshAuthorizedUsbStatus() {
-  if (!("usb" in navigator) || !isTrustworthyContext()) {
+  if (!hasWebUsb() || !isTrustworthyContext()) {
     setStatus(elements.authorizedUsbStatus, "No WebUSB access in this browser.", "warning");
     return;
   }
@@ -674,7 +716,7 @@ async function connectBluetooth() {
   } finally {
     if (device?.gatt?.connected) device.gatt.disconnect();
     state.bluetoothDevice = null;
-    elements.bluetoothButton.disabled = !("bluetooth" in navigator);
+    elements.bluetoothButton.disabled = !hasWebBluetooth();
   }
 }
 
@@ -1015,6 +1057,7 @@ function updateFlashButton() {
 function clearFirmware() {
   resetConfirmations();
   state.firmware = null;
+  clearReleaseLinks();
   elements.firmwareName.textContent = "not loaded";
   elements.firmwareSize.textContent = "—";
   elements.firmwareHash.textContent = "—";
@@ -1184,25 +1227,34 @@ async function loadReleaseManifest() {
     ]);
     state.quarantinedFirmwareHashes = parseFirmwareQuarantineRegistry(quarantine);
     if (
-      manifest.schema_version !== 3 ||
+      manifest.schema_version !== 4 ||
+      manifest.github_repository !== FROGALERT_GITHUB_REPOSITORY ||
       !Array.isArray(manifest.releases) ||
       !Array.isArray(manifest.lab_images) ||
       !Array.isArray(manifest.recovery_images)
     ) {
       throw new Error("manifest schema is not supported");
     }
-    const releases = manifest.releases.filter((release) => release.hardware_verified === true);
-    if (releases.length === 0) {
+    const releaseIds = new Set();
+    for (const release of manifest.releases) {
+      validateReleaseCatalogDescriptor(release, manifest.github_repository);
+      if (releaseIds.has(release.id)) {
+        throw new Error(`duplicate firmware release id: ${release.id}`);
+      }
+      releaseIds.add(release.id);
+    }
+    state.releases = [...manifest.releases];
+    if (state.releases.length === 0) {
       setReleaseSummary("No hardware-verified FrogAlert firmware has been released. Private developer BINs may be selected locally for qualified bench testing only.", "warning");
     } else {
-      for (const release of releases) {
+      for (const release of state.releases) {
         const option = document.createElement("option");
-        option.value = JSON.stringify(release);
-        option.textContent = `${release.version} · ${release.target}`;
+        option.value = release.id;
+        option.textContent = `${release.label} ${release.version} · ${release.channel} · ${release.hardware_revisions[0]}`;
         elements.releaseSelect.append(option);
       }
       elements.releaseSelect.disabled = state.flashing;
-      setReleaseSummary(`${releases.length} hardware-verified release${releases.length === 1 ? "" : "s"} available.`, "good");
+      setReleaseSummary(`${state.releases.length} hardware-verified release${state.releases.length === 1 ? "" : "s"} available. Select one to inspect its exact board binding before loading it.`, "good");
     }
 
     const labIds = new Set();
@@ -1239,6 +1291,7 @@ async function loadReleaseManifest() {
     updateRecoveryButton();
   } catch (error) {
     state.quarantinedFirmwareHashes = null;
+    state.releases = [];
     state.labImages = [];
     state.recoveryImages = [];
     setReleaseSummary(`Release list unavailable: ${error.message}`, "bad");
@@ -1263,7 +1316,9 @@ async function chooseRelease(event) {
     return;
   }
   try {
-    const release = JSON.parse(event.target.value);
+    const release = state.releases.find((candidate) => candidate.id === event.target.value);
+    if (!release) throw new Error("selected release is not present in the loaded manifest");
+    renderReleaseLinks(release);
     validateReleaseDescriptor(release, selectedRevision(), elements.pcbMarking.value);
     const artifactUrl = firmwareArtifactUrl(release.file, import.meta.url);
     const response = await fetch(artifactUrl, { cache: "no-store" });
@@ -1287,7 +1342,8 @@ async function chooseRelease(event) {
   } catch (error) {
     if (generation !== state.artifactGeneration) return;
     clearFirmware();
-    event.target.value = "";
+    const release = state.releases.find((candidate) => candidate.id === event.target.value);
+    if (release) renderReleaseLinks(release);
     setStatus(elements.releaseStatus, `Release not loaded: ${error.message}`, "bad");
     log(`Release rejected before any device write: ${error.message}`, "error");
   }
@@ -1707,7 +1763,7 @@ function bindEvents() {
     event.preventDefault();
     event.returnValue = "";
   });
-  if ("usb" in navigator) {
+  if (hasWebUsb() && typeof navigator.usb.addEventListener === "function") {
     navigator.usb.addEventListener("connect", (event) => {
       if (
         !WCH_USB_FILTERS.some(

@@ -35,6 +35,10 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - public artifact safety: failed SHA permanently quarantined; site assembly
   rejects every FrogAlert BIN without hash-bound physical smoke evidence, and
   the browser refuses the failed SHA even if it is manually reselected
+- commit-driven release publication: successful `main` commits reconcile only
+  physically approved manifest entries into draft-then-verified GitHub
+  Releases, then deploy the same-origin website catalog; ordinary commits and
+  the current private survey BIN create no firmware release
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -216,6 +220,14 @@ USB-C pixel-walk artifact was removed after a physical flash produced no panel
 output and its KEY2 recovery path did not enumerate ISP. The recovery collection
 contains the official FOSSASIA open v0.1 Micro-USB substitute, still
 write-disabled.
+
+After a successful CI run on `main`, the publication workflow revalidates that
+manifest, creates any missing approved GitHub Release as a draft, uploads and
+re-downloads its exact BIN/ELF/checksum/metadata assets for SHA-256 comparison,
+publishes the release, and only then deploys Pages. The browser still fetches
+the same-origin manifest and BIN from `frogalert.org`; GitHub is the release
+record and alternate download, not a second trust source. See
+[docs/RELEASE.md](docs/RELEASE.md).
 
 ## Verify everything currently available
 

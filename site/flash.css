@@ -596,6 +596,12 @@
   font-size: 0.82rem;
 }
 
+.release-links {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
 .flash-recovery-facts {
   grid-template-columns: 1fr;
   margin-top: 1rem;

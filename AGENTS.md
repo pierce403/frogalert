@@ -187,6 +187,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   source commits.
 - A firmware release requires a versioned `.bin`, SHA-256 checksum, manifest,
   source commit, build provenance, hardware smoke evidence, and release notes.
+- Successful `main` commits reconcile only already-approved schema-v4 manifest
+  release entries into GitHub Releases. Revalidate exact bytes and evidence,
+  publish through a verified draft, and finish release reconciliation before
+  Pages exposes the catalog. Empty catalogs are a no-op; never turn an ordinary
+  build or commit into firmware promotion.
+- Keep the same-origin manifest and BIN as the browser's sole executable
+  release source. GitHub Releases are provenance and alternate downloads; do
+  not add a GitHub API or runtime asset dependency to the flasher.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 

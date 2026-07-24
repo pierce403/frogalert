@@ -159,16 +159,16 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Requirement | Status | Acceptance evidence | Dependency / notes |
 | --- | --- | --- | --- |
 | Versioned FrogAlert raw `.bin` | **BLOCKED** | The former USB-C pixel-walk BIN was withdrawn after blank boot and failed recovery | No FrogAlert BIN is currently published. |
-| ELF with symbols | **PLANNED** | Attached to GitHub release | For debugging, not browser users. |
+| ELF with symbols | **PROTOTYPE** at publication layer | Schema-v4 release descriptors require exact ELF filename/size/SHA; site assembly and the release planner validate ELF magic and bytes, and the GitHub workflow attaches it without copying it into Pages | No hardware-approved release ELF exists yet. For debugging, not browser users. |
 | FrogAlert release SHA-256 checksum | **PLANNED** | The failed pixel-walk hash is retained only in the failure record | A matching checksum proved byte identity, not bootability. |
-| Machine-readable manifest | **PROTOTYPE** | Separate `releases`, `lab_images`, and `recovery_images` collections prevent readiness categories from collapsing together | Includes exact target, revision, size, hash, provenance, and hardware-verification status. |
+| Machine-readable manifest | **PROTOTYPE** | Schema v4 separates `releases`, `lab_images`, and `recovery_images`, pins the GitHub repository, and adds canonical release id/version/channel/tag/notes metadata | Includes exact target, revision, size, hash, provenance, and hardware-verification status. First real release still pending. |
 | Hosted FrogAlert lab images | **BLOCKED**, catalog empty | The failed USB-C pixel-walk image was removed from the manifest and public assembly | Future first-test images stay under ignored `tmp/`; public FrogAlert bytes require hash-bound physical boot and recovery evidence. |
 | Official open BadgeMagic v0.1 recovery image | **PROTOTYPE** for exact `HARDWARE_REV1` | The [155,672-byte artifact](firmware/releases/badgemagic-open-v0.1-hardware-rev1.bin) and SHA-256 match the [pinned manifest entry](firmware/releases/manifest.json) | This is FOSSASIA's open Micro-USB replacement, not factory/OEM firmware. Preparation is available, but destructive use stays locked while FrogAlert hardware verification is false. |
 | Build provenance | **IN PROGRESS** | Pinned FOSSASIA source, known-good ELF/BIN hashes, toolchain version, and USB-C selector are recorded | A derived canary still needs a clean-build hash and physical transcript. |
 | Firmware signing | **DEFERRED** | Threat model and key custody design | Hash/provenance first; do not invent security theater. |
 | Hardware compatibility matrix | **PLANNED** | Tested revision table | Default-deny unknown revisions. |
 | Release rollback/recovery documentation | **PROTOTYPE** | [`WEB_FLASHING.md`](docs/WEB_FLASHING.md) separates the open replacement from unavailable OEM bytes | Browser preparation is documented; destructive recovery and failed-flash handling remain hardware-unverified. |
-| GitHub release automation | **PLANNED** | Tag creates draft with verified assets | Never auto-promote untested firmware. |
+| Commit-driven GitHub release automation | **PROTOTYPE** | After successful same-repository `main` CI, a least-privilege workflow revalidates approved manifest entries, checks source ancestry, creates a draft, uploads and re-download-hashes the exact BIN/ELF/checksum/descriptor/evidence assets, publishes, then permits Pages deployment; empty catalogs no-op and published byte drift fails | Unit-tested locally; first real GitHub firmware release run remains blocked on exact-image physical evidence. It never builds or promotes the private survey BIN. |
 
 ## Static website
 
@@ -217,7 +217,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 | Require CH582M/11×44 confirmation | **SHIPPED** in UI | Explicit hardware safety checkboxes | Human confirmation cannot be automated. |
 | Bind artifact to entered PCB revision | **PROTOTYPE** | Release descriptor and local selection enforce an exact value | Physical label/revision catalog pending. |
 | Local `.bin` file selection | **PROTOTYPE** | File never uploads; hash and bound revision shown locally | Developer path remains unverified. |
-| Same-origin release manifest | **PROTOTYPE** | Schema v3 has empty FrogAlert `releases` and `lab_images` plus one exact-revision open `recovery_images` descriptor | Site assembly requires one profile/PCB pair, a structured hash/source-bound record, and an identifier-bound dated transcript proving CLI/WebUSB verification, application USB, display, BadgeMagic upload, KEY1/short-KEY2, KEY2-only recovery, and known-good reflash; it rejects the failed-hash quarantine. Remaining prototype status is physical browser/ISP validation. |
+| Same-origin release manifest | **PROTOTYPE** | Schema v4 has empty FrogAlert `releases` and `lab_images` plus one exact-revision open `recovery_images` descriptor; release options use stable ids and expose separate same-origin BIN and GitHub-notes links | Site assembly requires one profile/PCB pair, a structured hash/source-bound record, and an identifier-bound dated transcript proving CLI/WebUSB verification, application USB, display, BadgeMagic upload, KEY1/short-KEY2, KEY2-only recovery, and known-good reflash; it rejects the failed-hash quarantine. Remaining prototype status is physical browser/ISP validation. |
 | Firmware plausibility, size, and padded-limit validation | **PROTOTYPE** | Unit tests reject tiny, uniform, wrong-extension, and oversized images and derive an exact aligned erase plan | Confirm exact release image layout. |
 | SHA-256 calculation | **PROTOTYPE** | Web Crypto digest displayed | Manifest comparison pending release. |
 | No erase on connect | **SHIPPED** invariant | Separate gated flash action | Regression-test UI state. |
@@ -307,7 +307,7 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 ### M1 — Static site and experimental browser transport
 
 - **PROTOTYPE:** public project experience, Web Bluetooth compatibility probe,
-  guarded WebUSB protocol, schema-v3 release/lab/recovery manifest, and an
+  guarded WebUSB protocol, schema-v4 release/lab/recovery manifest, and an
   exact-Rev1 open BadgeMagic v0.1 recovery-preparation UI.
 - **SHIPPED infrastructure:** CI, exact-successful-commit Pages deployment,
   custom domain, HTTPS, and live recovery-artifact/browser smoke testing.

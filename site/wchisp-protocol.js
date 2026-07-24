@@ -33,6 +33,7 @@ export const OPEN_BADGEMAGIC_RECOVERY = Object.freeze({
     "https://github.com/fossasia/badgemagic-firmware/commit/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8",
   license: "Apache-2.0",
 });
+export const FROGALERT_GITHUB_REPOSITORY = "pierce403/frogalert";
 export const CH58X_RESET_CONFIG = Uint8Array.of(
   0xff, 0xff, 0xff, 0xff,
   0xff, 0xff, 0xff, 0xff,
@@ -256,23 +257,81 @@ export function validateFirmware(raw, filename = "firmware.bin") {
   return { padded, eraseSectors };
 }
 
-export function validateReleaseDescriptor(release, pcbRevision, pcbMarking) {
+export function validateReleaseCatalogDescriptor(
+  release,
+  githubRepository = FROGALERT_GITHUB_REPOSITORY,
+) {
   if (!release || release.target !== "ch582m-badgemagic-11x44" || release.hardware_verified !== true) {
     throw new Error("release is not hardware-verified for the FrogAlert target");
+  }
+  if (githubRepository !== FROGALERT_GITHUB_REPOSITORY) {
+    throw new Error("release catalog repository is not the FrogAlert repository");
+  }
+  if (
+    typeof release.id !== "string" ||
+    !/^frogalert-[a-z0-9][a-z0-9.-]{2,95}$/.test(release.id)
+  ) {
+    throw new Error("release id is invalid");
+  }
+  if (release.kind !== "frogalert-release") {
+    throw new Error("release kind is invalid");
+  }
+  if (typeof release.label !== "string" || !release.label.trim()) {
+    throw new Error("release label is missing");
+  }
+  if (
+    typeof release.version !== "string" ||
+    !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(
+      release.version,
+    )
+  ) {
+    throw new Error("release version is invalid");
+  }
+  if (!["alpha", "beta", "stable"].includes(release.channel)) {
+    throw new Error("release channel is invalid");
+  }
+  const prerelease = release.version.split("-", 2)[1] || "";
+  if (
+    (release.channel === "stable" && prerelease) ||
+    (release.channel !== "stable" &&
+      !prerelease.toLowerCase().startsWith(`${release.channel}.`) &&
+      prerelease.toLowerCase() !== release.channel)
+  ) {
+    throw new Error("release version does not match its channel");
+  }
+  const expectedTag = `v${release.version}`;
+  if (release.release_tag !== expectedTag) {
+    throw new Error(`release tag must be ${expectedTag}`);
+  }
+  if (
+    release.release_url !==
+    `https://github.com/${FROGALERT_GITHUB_REPOSITORY}/releases/tag/${expectedTag}`
+  ) {
+    throw new Error("release URL is not the canonical FrogAlert GitHub release");
+  }
+  if (
+    typeof release.release_notes !== "string" ||
+    !/^firmware\/releases\/notes\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.md$/.test(
+      release.release_notes,
+    )
+  ) {
+    throw new Error("release notes path is invalid");
+  }
+  if (
+    typeof release.debug_file !== "string" ||
+    !/^[a-zA-Z0-9._-]+\.elf$/.test(release.debug_file) ||
+    !Number.isSafeInteger(release.debug_bytes) ||
+    release.debug_bytes < 64 ||
+    typeof release.debug_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(release.debug_sha256)
+  ) {
+    throw new Error("release debug ELF metadata is invalid");
   }
   if (!Array.isArray(release.hardware_revisions) || release.hardware_revisions.length !== 1) {
     throw new Error("release must declare exactly one verified PCB revision");
   }
-  const revision = String(pcbRevision || "").trim();
-  if (!revision || !release.hardware_revisions.includes(revision)) {
-    throw new Error(`release does not support PCB revision ${revision || "(not entered)"}`);
-  }
   if (!Array.isArray(release.pcb_markings) || release.pcb_markings.length !== 1) {
     throw new Error("release must declare exactly one verified physical PCB marking");
-  }
-  const marking = String(pcbMarking || "").trim();
-  if (!marking || !release.pcb_markings.includes(marking)) {
-    throw new Error(`release does not support physical PCB marking ${marking || "(not entered)"}`);
   }
   if (typeof release.file !== "string" || !/^[a-zA-Z0-9._-]+\.bin$/.test(release.file)) {
     throw new Error("release filename is not a safe raw BIN name");
@@ -282,6 +341,22 @@ export function validateReleaseDescriptor(release, pcbRevision, pcbMarking) {
   }
   if (typeof release.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(release.sha256)) {
     throw new Error("release SHA-256 is invalid");
+  }
+  if (typeof release.source_commit !== "string" || !/^[a-f0-9]{40}$/.test(release.source_commit)) {
+    throw new Error("release source commit is invalid");
+  }
+  return true;
+}
+
+export function validateReleaseDescriptor(release, pcbRevision, pcbMarking) {
+  validateReleaseCatalogDescriptor(release);
+  const revision = String(pcbRevision || "").trim();
+  if (!revision || !release.hardware_revisions.includes(revision)) {
+    throw new Error(`release does not support PCB revision ${revision || "(not entered)"}`);
+  }
+  const marking = String(pcbMarking || "").trim();
+  if (!marking || !release.pcb_markings.includes(marking)) {
+    throw new Error(`release does not support physical PCB marking ${marking || "(not entered)"}`);
   }
   return true;
 }

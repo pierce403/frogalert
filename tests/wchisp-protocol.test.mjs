@@ -101,6 +101,11 @@ test("firmware validation pads and reserves the extra erase sector", () => {
 
 test("release descriptors bind artifacts to an exact verified PCB revision", () => {
   const release = {
+    id: "frogalert-0.1.0-board-a",
+    kind: "frogalert-release",
+    label: "FrogAlert",
+    version: "0.1.0",
+    channel: "stable",
     target: "ch582m-badgemagic-11x44",
     hardware_verified: true,
     hardware_revisions: ["rev-a"],
@@ -108,6 +113,13 @@ test("release descriptors bind artifacts to an exact verified PCB revision", () 
     file: "frogalert-rev-a.bin",
     bytes: 1024,
     sha256: "a".repeat(64),
+    source_commit: "b".repeat(40),
+    release_tag: "v0.1.0",
+    release_url: "https://github.com/pierce403/frogalert/releases/tag/v0.1.0",
+    release_notes: "firmware/releases/notes/v0.1.0.md",
+    debug_file: "frogalert-rev-a.elf",
+    debug_bytes: 8192,
+    debug_sha256: "c".repeat(64),
   };
   assert.equal(validateReleaseDescriptor(release, "rev-a", "BOARD-A"), true);
   assert.throws(() => validateReleaseDescriptor(release, "rev-b", "BOARD-A"), /does not support/);

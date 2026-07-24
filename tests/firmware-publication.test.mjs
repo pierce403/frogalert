@@ -44,6 +44,11 @@ const evidence = (overrides = {}) => ({
 });
 
 const artifact = (overrides = {}) => ({
+  id: "frogalert-0.1.0-alpha.1-b1144c-250901-usbc",
+  kind: "frogalert-release",
+  label: "FrogAlert",
+  version: "0.1.0-alpha.1",
+  channel: "alpha",
   target: "ch582m-badgemagic-11x44",
   hardware_revisions: ["B1144C_250901_USB_C"],
   pcb_markings: ["B1144C_250901"],
@@ -52,11 +57,20 @@ const artifact = (overrides = {}) => ({
   bytes: 8192,
   sha256: VERIFIED_SHA,
   source_commit: "a".repeat(40),
+  release_tag: "v0.1.0-alpha.1",
+  release_url:
+    "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-alpha.1",
+  release_notes: "firmware/releases/notes/v0.1.0-alpha.1.md",
+  debug_file: "frogalert-verified-lab.elf",
+  debug_bytes: 16384,
+  debug_sha256: "e".repeat(64),
   hardware_evidence: evidence(),
   ...overrides,
 });
 
 const manifest = (overrides = {}) => ({
+  schema_version: 4,
+  github_repository: "pierce403/frogalert",
   releases: [],
   lab_images: [],
   recovery_images: [],
@@ -79,11 +93,107 @@ test("physically verified, hash-bound FrogAlert artifacts may be published", () 
     validateFirmwarePublicationManifest(
       manifest({
         releases: [artifact()],
-        lab_images: [artifact({ file: "frogalert-verified-display-lab.bin" })],
+        lab_images: [
+          artifact({
+            id: "frogalert-verified-display-lab",
+            file: "frogalert-verified-display-lab.bin",
+          }),
+        ],
       }),
       emptyQuarantine,
     ),
     true,
+  );
+});
+
+test("release metadata is canonical for commit-driven GitHub publication", () => {
+  for (const [override, pattern] of [
+    [{ id: "../release" }, /id is invalid/],
+    [{ kind: "frogalert-lab" }, /kind is invalid/],
+    [{ label: "" }, /label is missing/],
+    [{ version: "latest" }, /version is invalid/],
+    [{ channel: "nightly" }, /channel is invalid/],
+    [{ channel: "stable" }, /version does not match its stable channel/],
+    [{ release_tag: "latest" }, /tag must be/],
+    [{ release_url: "https://example.com/release" }, /URL must be/],
+    [{ release_notes: "../notes.md" }, /release notes path is invalid/],
+    [{ debug_file: "../debug.elf" }, /debug ELF filename is invalid/],
+    [{ debug_sha256: "short" }, /debug ELF SHA-256 is invalid/],
+  ]) {
+    assert.throws(
+      () =>
+        validateFirmwarePublicationManifest(
+          manifest({ releases: [artifact(override)] }),
+          emptyQuarantine,
+        ),
+      pattern,
+    );
+  }
+});
+
+test("release tags group board descriptors only when immutable metadata agrees", () => {
+  const secondBoard = artifact({
+    id: "frogalert-0.1.0-alpha.1-second-board",
+    file: "frogalert-0.1.0-alpha.1-second-board.bin",
+    debug_file: "frogalert-0.1.0-alpha.1-second-board.elf",
+    pcb_markings: ["B1144C_250902"],
+    hardware_evidence: evidence({ pcb_marking: "B1144C_250902" }),
+  });
+  assert.equal(
+    validateFirmwarePublicationManifest(
+      manifest({ releases: [artifact(), secondBoard] }),
+      emptyQuarantine,
+    ),
+    true,
+  );
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          releases: [
+            artifact(),
+            {
+              ...secondBoard,
+              source_commit: "b".repeat(40),
+              hardware_evidence: evidence({
+                source_commit: "b".repeat(40),
+                pcb_marking: "B1144C_250902",
+              }),
+            },
+          ],
+        }),
+        emptyQuarantine,
+      ),
+    /conflicting source_commit/,
+  );
+});
+
+test("publication ids and filenames are unique across release and lab catalogs", () => {
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          releases: [artifact()],
+          lab_images: [artifact()],
+        }),
+        emptyQuarantine,
+      ),
+    /duplicate FrogAlert publication id/,
+  );
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          releases: [artifact()],
+          lab_images: [
+            artifact({
+              id: "frogalert-distinct-lab",
+            }),
+          ],
+        }),
+        emptyQuarantine,
+      ),
+    /duplicate FrogAlert publication filename/,
   );
 });
 

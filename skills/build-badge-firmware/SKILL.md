@@ -46,6 +46,10 @@ not evidence that a badge is safe to flash.
    display, BadgeMagic upload, KEY1/short-KEY2 behavior, KEY2-only dot-to-ISP
    recovery, and known-good reflash, with a bound dated transcript. A
    quarantined SHA may never be republished.
+   Promotion happens only by adding the exact approved bytes, schema-v4
+   descriptor, structured evidence, transcript, and release notes to the
+   committed manifest. The post-CI workflow reconciles that reviewed entry; it
+   must never publish the current build merely because a commit passed.
 10. Update `FEATURES.md` and `agent-memory/logs/` with evidence, not optimism.
 
 ## Required hardware checks

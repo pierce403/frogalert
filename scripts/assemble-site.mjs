@@ -26,7 +26,7 @@ const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes);
 const quarantine = JSON.parse(await readFile(join(repositoryRoot, "firmware", "quarantine.json")));
 if (
-  manifest.schema_version !== 3 ||
+  manifest.schema_version !== 4 ||
   !Array.isArray(manifest.releases) ||
   !Array.isArray(manifest.lab_images) ||
   !Array.isArray(manifest.recovery_images)
@@ -103,10 +103,44 @@ for (const descriptor of descriptors) {
   }
 }
 
+const listedDebugFiles = new Set();
+for (const descriptor of manifest.releases) {
+  if (
+    typeof descriptor.debug_file !== "string" ||
+    basename(descriptor.debug_file) !== descriptor.debug_file ||
+    !descriptor.debug_file.endsWith(".elf")
+  ) {
+    throw new Error(`unsafe firmware debug ELF filename: ${descriptor.debug_file}`);
+  }
+  if (listedDebugFiles.has(descriptor.debug_file)) {
+    throw new Error(`duplicate firmware debug ELF in manifest: ${descriptor.debug_file}`);
+  }
+  listedDebugFiles.add(descriptor.debug_file);
+  const bytes = await readFile(join(releaseRoot, descriptor.debug_file));
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  if (
+    bytes.byteLength !== descriptor.debug_bytes ||
+    bytes.byteLength < 64 ||
+    bytes[0] !== 0x7f ||
+    bytes[1] !== 0x45 ||
+    bytes[2] !== 0x4c ||
+    bytes[3] !== 0x46 ||
+    digest !== descriptor.debug_sha256.toLowerCase()
+  ) {
+    throw new Error(`firmware debug ELF does not match manifest: ${descriptor.debug_file}`);
+  }
+}
+
 const sourceBins = (await readdir(releaseRoot)).filter((name) => name.endsWith(".bin"));
 for (const name of sourceBins) {
   if (!listedFiles.has(name)) {
     throw new Error(`refusing to publish unlisted firmware artifact: ${name}`);
+  }
+}
+const sourceElfs = (await readdir(releaseRoot)).filter((name) => name.endsWith(".elf"));
+for (const name of sourceElfs) {
+  if (!listedDebugFiles.has(name)) {
+    throw new Error(`refusing to publish unlisted firmware debug ELF: ${name}`);
   }
 }
 

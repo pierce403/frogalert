@@ -46,6 +46,18 @@ node --test tests/*.test.mjs
 These tests verify packet shapes and safety validation. They do not prove that
 the WCH ROM bootloader, an OS driver, or a real badge accepts the flow.
 
+Prepare the same network-free firmware publication bundle used after CI:
+
+```sh
+FROGALERT_PUBLISH_COMMIT="$(git rev-parse HEAD)" \
+  node scripts/firmware-release-plan.mjs tmp/release-publication
+```
+
+With the current empty approved-release catalog this writes only an empty
+`plan.json` and reports zero releases. It never builds, flashes, uploads, tags,
+or publishes firmware. GitHub writes occur only in the post-CI workflow after
+the same bundle has passed validation.
+
 ## Embedded firmware
 
 The supported replacement path is the pinned FOSSASIA USB-C hardware shell in

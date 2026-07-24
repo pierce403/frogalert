@@ -97,6 +97,29 @@ uploads, ordinary buttons, the visible KEY2 dot cue, and ISP enumeration as
 `4348:55e0`/`1a86:55e0` after a power cycle. No stage is copied from `tmp/` to
 the public site before that exact artifact has hash-bound evidence.
 
+## Release and website publication
+
+The committed schema-v4 manifest is the single source for both publication
+surfaces:
+
+```text
+successful main CI commit
+  -> validate manifest + quarantine + structured physical evidence
+  -> prepare immutable release bundle
+  -> draft GitHub Release
+  -> upload and download-hash every asset
+  -> publish GitHub Release
+  -> deploy the already validated Pages artifact
+  -> /flash lists the same-origin manifest entry
+```
+
+GitHub Releases are archival and human-facing. The browser does not query the
+GitHub API or flash its assets; it downloads the manifest-listed same-origin
+BIN and hashes it again locally. An empty release collection is a successful
+no-op, so ordinary commits cannot accidentally promote the private survey
+candidate. Published tags and assets are immutable under the reconciler:
+metadata or byte drift fails the workflow rather than overwriting a release.
+
 ## Quarantined standalone count prototype
 
 `firmware/frogalert-count/` was designed as a deliberately narrower experiment

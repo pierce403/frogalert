@@ -26,7 +26,7 @@
     <title>FrogAlert — Bluetooth alerts on a BadgeMagic nametag</title>
     <link rel="canonical" href="https://frogalert.org/">
     <link rel="stylesheet" href="./site/styles.css">
-    <script type="module" src="./site/app.js"></script>
+    <script type="module" src="./site/app.js?v=4"></script>
   </head>
   <body data-flash-mode="inspect">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -257,6 +257,10 @@
                 <option value="">No release selected</option>
               </select>
               <p id="release-status" class="field-help" role="status">Loading release manifest…</p>
+              <div class="release-links">
+                <a id="release-download" class="text-link" hidden download>Download selected verified BIN</a>
+                <a id="release-link" class="text-link" hidden target="_blank" rel="noopener noreferrer">Release notes on GitHub</a>
+              </div>
               <label for="lab-image-select">Hardware-verified lab build</label>
               <select id="lab-image-select" disabled>
                 <option value="">No hosted lab image selected</option>

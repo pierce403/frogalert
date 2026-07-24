@@ -10,7 +10,8 @@ cannot ship without hardware evidence.
 2. Run `./scripts/verify`.
 3. Perform a real local browser smoke at desktop and mobile widths.
 4. Commit and push the cohesive change.
-5. Verify GitHub Pages publishes the exact commit over HTTPS.
+5. Verify the post-CI publication workflow prepares an empty firmware release
+   plan and GitHub Pages publishes the exact commit over HTTPS.
 6. Confirm `frogalert.org` and the firmware manifest load without mixed content.
 7. Record the deployed commit and any browser limitations in a dated log.
 
@@ -40,6 +41,40 @@ BadgeMagic, display, button, and recovery systems from FOSSASIA source
 `9ce885d`. Do not publish its C-only or Rust-ABI canaries until the exact bytes
 pass the complete gate above.
 
+## Commit-driven publication
+
+Every successful same-repository push to `main` runs the publication workflow
+against the exact commit that passed CI. “Release on commit” means the workflow
+reconciles already-approved entries in the committed manifest; it does not
+publish whatever firmware happened to build in that commit.
+
+The workflow is deliberately ordered:
+
+1. check out the successful CI commit with full history;
+2. assemble the site and re-run all manifest, evidence, quarantine, startup
+   sentinel, byte-length, and SHA-256 checks;
+3. require every firmware `source_commit` to be an ancestor of the publishing
+   commit;
+4. create a network-free release bundle containing the exact BIN, checksum,
+   symbol-bearing ELF, descriptor snapshot, structured evidence snapshot, and
+   generated safety notes;
+5. create or resume a **draft** GitHub Release, upload each planned asset,
+   download it again, and compare its SHA-256;
+6. publish the GitHub Release only after every asset matches; and
+7. deploy the previously assembled Pages artifact only after release
+   reconciliation succeeds.
+
+A website-only commit or any commit with an empty `releases` collection
+produces an empty plan and no GitHub Release. Existing published releases are
+immutable: a missing, extra, differently sized, differently hashed, or
+differently described asset fails the workflow instead of being overwritten.
+Publication runs are not cancelled midway through an upload.
+
+The website never queries the GitHub API and never flashes from a GitHub asset.
+Its sole executable catalog remains the same-origin
+`firmware/releases/manifest.json` and its same-origin BIN copy. GitHub Releases
+provide human-readable notes, immutable downloads, and provenance.
+
 ## Manifest entry
 
 The manifest is `firmware/releases/manifest.json`. It separates physically
@@ -51,9 +86,12 @@ FrogAlert builds in `lab_images`, and attributed third-party substitutes in
 {
   "id": "frogalert-0.1.0-alpha.1-b1144c-250901-usbc",
   "kind": "frogalert-release",
-  "label": "FrogAlert 0.1.0 alpha 1",
+  "label": "FrogAlert",
   "version": "0.1.0-alpha.1",
   "channel": "alpha",
+  "release_tag": "v0.1.0-alpha.1",
+  "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-alpha.1",
+  "release_notes": "firmware/releases/notes/v0.1.0-alpha.1.md",
   "target": "ch582m-badgemagic-11x44",
   "hardware_revisions": ["B1144C_250901_USB_C"],
   "pcb_markings": ["B1144C_250901"],
@@ -61,6 +99,9 @@ FrogAlert builds in `lab_images`, and attributed third-party substitutes in
   "file": "frogalert-0.1.0-alpha.1-ch582m.bin",
   "bytes": 123456,
   "sha256": "64-lowercase-hex-characters",
+  "debug_file": "frogalert-0.1.0-alpha.1-ch582m.elf",
+  "debug_bytes": 234567,
+  "debug_sha256": "64-lowercase-hex-characters",
   "hardware_verified": true,
   "hardware_evidence": {
     "artifact_sha256": "64-lowercase-hex-characters",
@@ -89,10 +130,18 @@ FrogAlert builds in `lab_images`, and attributed third-party substitutes in
     "known_good_reflash_sha256": "2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2",
     "recovery_method": "key2-only",
     "recovery_usb_id": "4348:55e0"
-  },
-  "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-alpha.1"
+  }
 }
 ```
+
+The top-level schema is version 4 and pins
+`"github_repository": "pierce403/frogalert"`. A release id, semantic version,
+channel, `v<version>` tag, canonical repository URL, safe checked-in notes
+path, and exact symbol-bearing ELF identity are required. The ELF is attached
+to GitHub for debugging but is never copied into the Pages flasher artifact.
+Multiple exact-board descriptors may share a version/tag only when their label,
+channel, source commit, notes, and URL are identical. Artifact ids and
+filenames must be unique across release and lab collections.
 
 The site must reject unknown targets, false `hardware_verified`, invalid hashes,
 oversize images, and unsupported hardware revisions for destructive use. One

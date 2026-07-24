@@ -66,6 +66,8 @@ test("landing page exposes the project and guarded device flow", async () => {
     "id=\"bluetooth-connect\"",
     "id=\"usb-connect\"",
     "id=\"firmware-file\"",
+    "id=\"release-download\"",
+    "id=\"release-link\"",
     "id=\"pcb-marking\"",
     "id=\"pcb-revision\"",
     "id=\"lab-image-select\"",
@@ -137,6 +139,14 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /assertFirmwareHashNotQuarantined\(hash, state\.quarantinedFirmwareHashes\)/);
   assert.match(app, /physicalMarkingMatchesArtifact\(\)/);
   assert.match(app, /pcbMarkings: \[\.\.\.release\.pcb_markings\]/);
+  assert.match(app, /state\.releases = \[\.\.\.manifest\.releases\]/);
+  assert.match(app, /option\.value = release\.id/);
+  assert.doesNotMatch(app, /option\.value = JSON\.stringify\(release\)/);
+  assert.match(app, /elements\.releaseDownload\.href = firmwareArtifactUrl\(release\.file/);
+  assert.match(app, /elements\.releaseLink\.href = release\.release_url/);
+  assert.match(app, /typeof navigator\.usb\?\.requestDevice === "function"/);
+  assert.match(app, /window\.matchMedia\?\.\("\(prefers-reduced-motion: reduce\)"\)\?\.matches/);
+  assert.doesNotMatch(app, /"usb" in navigator/);
   assert.match(app, /return destructivePage && elements\.flashPhrase\?\.value\.trim\(\) === "ERASE THIS BADGE"/);
   assert.match(app, /if \(destructivePage && elements\.flashButton\)/);
   assert.match(app, /Private developer BINs may be selected locally for qualified bench testing only/);
@@ -169,6 +179,8 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     "id=\"current-firmware-status\"",
     "id=\"board-detection-status\"",
     "id=\"firmware-file\"",
+    "id=\"release-download\"",
+    "id=\"release-link\"",
     "id=\"lab-image-select\"",
     "id=\"lab-image-status\"",
     "id=\"lab-image-download\"",
@@ -225,6 +237,7 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.doesNotMatch(html, /factory reset/i);
   assert.match(html, /data-flash-mode="program"/);
   assert.match(html, /Content-Security-Policy/);
+  assert.match(html, /connect-src 'self'/);
   assert.match(html, /name="referrer"/);
   assertSocialPreview(html);
   assert.doesNotMatch(html, /every fact checks out/i);
@@ -240,7 +253,7 @@ test("social preview card is a 1200 by 630 JPEG", async () => {
   await assert.rejects(readBytes("site/og-card.png"), /ENOENT/);
 });
 
-test("Pages deploy waits for successful CI and publishes only manifest-listed artifacts", async () => {
+test("publication waits for successful same-repository CI and deploys only after release reconciliation", async () => {
   const workflow = await read(".github/workflows/pages.yml");
   const ci = await read(".github/workflows/ci.yml");
   const assembler = await read("scripts/assemble-site.mjs");
@@ -248,9 +261,17 @@ test("Pages deploy waits for successful CI and publishes only manifest-listed ar
   assert.match(workflow, /workflows: \[CI\]/);
   assert.match(workflow, /workflow_run\.conclusion == 'success'/);
   assert.match(workflow, /workflow_run\.event == 'push'/);
+  assert.match(workflow, /workflow_run\.head_branch == 'main'/);
+  assert.match(workflow, /workflow_run\.head_repository\.full_name == github\.repository/);
   assert.match(workflow, /workflow_run\.head_sha/);
   assert.match(workflow, /node scripts\/assemble-site\.mjs _site/);
+  assert.match(workflow, /node scripts\/firmware-release-plan\.mjs tmp\/release-publication/);
+  assert.match(workflow, /publishFirmwareReleaseBundle/);
+  assert.match(workflow, /contents: write/);
+  assert.match(workflow, /needs: publish-releases/);
+  assert.match(workflow, /cancel-in-progress: false/);
   assert.doesNotMatch(workflow, /find firmware\/releases/);
+  assert.doesNotMatch(workflow, /build-fossasia-usbc|build-count-firmware|build-display-bringup/);
   assert.match(assembler, /refusing to publish unlisted firmware artifact/);
   assert.match(assembler, /firmware artifact does not match manifest/);
   assert.match(assembler, /assertCh58xUserOptionMagic/);
@@ -265,7 +286,8 @@ test("Pages deploy waits for successful CI and publishes only manifest-listed ar
 
 test("release manifest separates releases, hosted labs, and pinned open recovery", async () => {
   const manifest = JSON.parse(await read("firmware/releases/manifest.json"));
-  assert.equal(manifest.schema_version, 3);
+  assert.equal(manifest.schema_version, 4);
+  assert.equal(manifest.github_repository, "pierce403/frogalert");
   assert.deepEqual(manifest.releases, []);
   assert.deepEqual(manifest.lab_images, []);
   await assert.rejects(

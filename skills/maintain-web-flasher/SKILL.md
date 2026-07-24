@@ -32,6 +32,9 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
    bytes stay only under ignored `tmp/`. Load the same quarantine registry in
    the browser and reject a matching manually selected local file after hashing
    it.
+   Keep the checked-in same-origin manifest and BIN as the executable catalog.
+   GitHub Releases may supply notes and alternate downloads, but browser code
+   must not query the GitHub API or flash a GitHub-hosted asset.
 5. Reset CH58x protection/configuration through `0xA8`, require exact `0xA7`
    readback, then pad, erase, program, verify, and request reset in that order.
    If verification fails, report failure prominently and do not claim recovery
@@ -45,6 +48,10 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
 9. Run `./scripts/verify`, then test through a local browser. Hardware changes
    additionally require a supported-browser physical-badge run.
 10. Update `FEATURES.md` and the site readiness labels with the same evidence.
+11. For publication changes, preserve the post-CI order: prepare and validate
+    an immutable bundle, publish and verify any approved GitHub Release, then
+    deploy Pages. A manifest with no approved releases must remain a successful
+    no-op.
 
 ## Release gate
 

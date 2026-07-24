@@ -50,6 +50,9 @@ on chat context or filenames alone.
 - [`2026-07-23-karr-detection-rule.md`](agent-memory/logs/2026-07-23-karr-detection-rule.md)
   — user-observed KARR `QT ` local-name prefix, narrow classifier semantics,
   mirrored Rust/C behavior, and private survey artifact gate.
+- [`2026-07-23-commit-release-pipeline.md`](agent-memory/logs/2026-07-23-commit-release-pipeline.md)
+  — schema-v4 catalog, gated commit-driven GitHub Release reconciliation, and
+  release-before-Pages ordering without publishing private firmware.
 
 ## People
 

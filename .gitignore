@@ -5,3 +5,4 @@
 *.elf
 .DS_Store
 !/firmware/releases/*.bin
+!/firmware/releases/*.elf

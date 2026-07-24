@@ -4,6 +4,15 @@ const HARDWARE_PROFILE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{2,63}$/;
 const QUARANTINE_EVIDENCE_PATTERN = /^agent-memory\/logs\/[a-zA-Z0-9._-]+\.md$/;
 const HARDWARE_EVIDENCE_PATTERN = /^firmware\/evidence\/[a-zA-Z0-9._-]+\.json$/;
 const TEST_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const RELEASE_ID_PATTERN = /^frogalert-[a-z0-9][a-z0-9.-]{2,95}$/;
+const RELEASE_VERSION_PATTERN =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
+const RELEASE_TAG_PATTERN =
+  /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
+const RELEASE_NOTES_PATTERN =
+  /^firmware\/releases\/notes\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.md$/;
+const GITHUB_REPOSITORY_PATTERN = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
+const RELEASE_CHANNELS = new Set(["alpha", "beta", "stable"]);
 const RECOVERY_USB_IDS = new Set(["4348:55e0", "1a86:55e0"]);
 const KNOWN_GOOD_REFLASH_SHA256_BY_PROFILE = new Map([
   [
@@ -267,10 +276,68 @@ export function validatePublishableFrogAlertArtifact(artifact, quarantinedHashes
   return true;
 }
 
+export function validateFrogAlertReleaseMetadata(
+  release,
+  githubRepository,
+  description = "FrogAlert release",
+) {
+  if (!GITHUB_REPOSITORY_PATTERN.test(githubRepository || "")) {
+    throw new Error("firmware publication GitHub repository is invalid");
+  }
+  if (!RELEASE_ID_PATTERN.test(release?.id || "")) {
+    throw new Error(`${description} id is invalid`);
+  }
+  if (release.kind !== "frogalert-release") {
+    throw new Error(`${description} kind is invalid`);
+  }
+  requireNonemptyString(release.label, `${description} label is missing`);
+  if (!RELEASE_VERSION_PATTERN.test(release.version || "")) {
+    throw new Error(`${description} version is invalid`);
+  }
+  if (!RELEASE_CHANNELS.has(release.channel)) {
+    throw new Error(`${description} channel is invalid`);
+  }
+  const prerelease = release.version.split("-", 2)[1] || "";
+  if (
+    (release.channel === "stable" && prerelease) ||
+    (release.channel !== "stable" &&
+      !prerelease.toLowerCase().startsWith(`${release.channel}.`) &&
+      prerelease.toLowerCase() !== release.channel)
+  ) {
+    throw new Error(`${description} version does not match its ${release.channel} channel`);
+  }
+  const expectedTag = `v${release.version}`;
+  if (!RELEASE_TAG_PATTERN.test(release.release_tag || "") || release.release_tag !== expectedTag) {
+    throw new Error(`${description} tag must be ${expectedTag}`);
+  }
+  const expectedUrl = `https://github.com/${githubRepository}/releases/tag/${expectedTag}`;
+  if (release.release_url !== expectedUrl) {
+    throw new Error(`${description} URL must be ${expectedUrl}`);
+  }
+  if (!RELEASE_NOTES_PATTERN.test(release.release_notes || "")) {
+    throw new Error(`${description} release notes path is invalid`);
+  }
+  if (
+    typeof release.debug_file !== "string" ||
+    !/^[a-zA-Z0-9._-]+\.elf$/.test(release.debug_file)
+  ) {
+    throw new Error(`${description} debug ELF filename is invalid`);
+  }
+  if (!Number.isSafeInteger(release.debug_bytes) || release.debug_bytes < 64) {
+    throw new Error(`${description} debug ELF byte length is invalid`);
+  }
+  if (!SHA256_PATTERN.test(release.debug_sha256 || "")) {
+    throw new Error(`${description} debug ELF SHA-256 is invalid`);
+  }
+  return true;
+}
+
 export function validateFirmwarePublicationManifest(manifest, quarantine) {
   if (
     !manifest ||
     typeof manifest !== "object" ||
+    manifest.schema_version !== 4 ||
+    !GITHUB_REPOSITORY_PATTERN.test(manifest.github_repository || "") ||
     !Array.isArray(manifest.releases) ||
     !Array.isArray(manifest.lab_images) ||
     !Array.isArray(manifest.recovery_images)
@@ -279,11 +346,56 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
   }
 
   const quarantinedHashes = validateFirmwareQuarantine(quarantine);
+  const artifactIds = new Set();
+  const artifactFiles = new Set();
+  const releaseGroups = new Map();
   for (const release of manifest.releases) {
     validatePublishableFrogAlertArtifact(release, quarantinedHashes, "FrogAlert release");
+    validateFrogAlertReleaseMetadata(release, manifest.github_repository);
+    if (artifactIds.has(release.id)) {
+      throw new Error(`duplicate FrogAlert publication id: ${release.id}`);
+    }
+    if (artifactFiles.has(release.file)) {
+      throw new Error(`duplicate FrogAlert publication filename: ${release.file}`);
+    }
+    if (artifactFiles.has(release.debug_file)) {
+      throw new Error(`duplicate FrogAlert publication filename: ${release.debug_file}`);
+    }
+    artifactIds.add(release.id);
+    artifactFiles.add(release.file);
+    artifactFiles.add(release.debug_file);
+
+    const group = releaseGroups.get(release.release_tag);
+    const groupIdentity = {
+      version: release.version,
+      label: release.label,
+      channel: release.channel,
+      release_url: release.release_url,
+      release_notes: release.release_notes,
+      source_commit: release.source_commit,
+    };
+    if (group) {
+      for (const [field, value] of Object.entries(groupIdentity)) {
+        if (group[field] !== value) {
+          throw new Error(
+            `FrogAlert release tag ${release.release_tag} has conflicting ${field}`,
+          );
+        }
+      }
+    } else {
+      releaseGroups.set(release.release_tag, groupIdentity);
+    }
   }
   for (const lab of manifest.lab_images) {
     validatePublishableFrogAlertArtifact(lab, quarantinedHashes, "FrogAlert lab image");
+    if (artifactIds.has(lab.id)) {
+      throw new Error(`duplicate FrogAlert publication id: ${lab.id}`);
+    }
+    if (artifactFiles.has(lab.file)) {
+      throw new Error(`duplicate FrogAlert publication filename: ${lab.file}`);
+    }
+    artifactIds.add(lab.id);
+    artifactFiles.add(lab.file);
   }
 
   // recovery_images are reviewed third-party substitutes, not FrogAlert builds.
