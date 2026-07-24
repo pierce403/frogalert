@@ -18,7 +18,7 @@ Agents working here are responsible for:
 - maintaining an honest `FEATURES.md` shipped-versus-planned tracker;
 - verifying Rust, site, flasher, and documentation changes proportionally;
 - updating repo-local memory and skills when a lesson will help future work;
-- committing cohesive completed work and pushing `main` when requested.
+- committing cohesive completed work and pushing `main` after every task.
 
 Do not imply that firmware or browser flashing is production-ready until it has
 been tested on a physically verified CH582M 11×44 badge.
@@ -185,6 +185,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - Inspect `git status` before editing and preserve unrelated changes.
 - Keep changes focused; do not mix generated firmware binaries into ordinary
   source commits.
+- A task is not complete until its cohesive verified commit is pushed to
+  `origin/main` and local `main` matches the remote. The only exceptions are an
+  explicit local-only request or a reported remote/authentication blocker.
 - A firmware release requires a versioned `.bin`, SHA-256 checksum, manifest,
   source commit, build provenance, hardware smoke evidence, and release notes.
 - Successful `main` commits reconcile only already-approved schema-v4 manifest
