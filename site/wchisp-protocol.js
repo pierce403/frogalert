@@ -348,6 +348,73 @@ export function validateReleaseCatalogDescriptor(
   return true;
 }
 
+function compareAscii(left, right) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+function compareNumericStrings(left, right) {
+  if (left.length !== right.length) return left.length < right.length ? -1 : 1;
+  return compareAscii(left, right);
+}
+
+export function compareReleaseVersions(leftVersion, rightVersion) {
+  const parse = (version) => {
+    if (
+      typeof version !== "string" ||
+      !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(
+        version,
+      )
+    ) {
+      throw new Error("release version is invalid");
+    }
+    const separator = version.indexOf("-");
+    const core = separator === -1 ? version : version.slice(0, separator);
+    const prerelease = separator === -1 ? "" : version.slice(separator + 1);
+    return { core: core.split("."), prerelease: prerelease ? prerelease.split(".") : [] };
+  };
+
+  const left = parse(leftVersion);
+  const right = parse(rightVersion);
+  for (let index = 0; index < 3; index++) {
+    const difference = compareNumericStrings(left.core[index], right.core[index]);
+    if (difference !== 0) return difference;
+  }
+  if (left.prerelease.length === 0 || right.prerelease.length === 0) {
+    if (left.prerelease.length === right.prerelease.length) return 0;
+    return left.prerelease.length === 0 ? 1 : -1;
+  }
+  const count = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < count; index++) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+    if (leftPart === undefined || rightPart === undefined) {
+      return leftPart === undefined ? -1 : 1;
+    }
+    if (leftPart === rightPart) continue;
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) return compareNumericStrings(leftPart, rightPart);
+    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+    return compareAscii(leftPart, rightPart);
+  }
+  return 0;
+}
+
+export function sortReleaseCatalogNewestFirst(
+  releases,
+  githubRepository = FROGALERT_GITHUB_REPOSITORY,
+) {
+  if (!Array.isArray(releases)) throw new TypeError("release catalog must be an array");
+  for (const release of releases) {
+    validateReleaseCatalogDescriptor(release, githubRepository);
+  }
+  return [...releases].sort((left, right) => {
+    const versionOrder = compareReleaseVersions(right.version, left.version);
+    return versionOrder || compareAscii(left.id, right.id);
+  });
+}
+
 export function validateReleaseDescriptor(release, pcbRevision, pcbMarking) {
   validateReleaseCatalogDescriptor(release);
   const revision = String(pcbRevision || "").trim();

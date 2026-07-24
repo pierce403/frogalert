@@ -2,10 +2,10 @@ export const ISP_ENTRY_WINDOW_MS = 10_000;
 
 export const ISP_ENTRY_PHASE = Object.freeze({
   CLOSED: "closed",
-  POWER_OFF: "power-off",
+  CONFIRM_COMPATIBLE: "confirm-compatible",
+  USB_CONNECTED: "usb-connected",
   HOLD_KEY2: "hold-key2",
-  CONNECT_WHILE_HELD: "connect-while-held",
-  WAIT_FOR_PIXEL: "wait-for-pixel",
+  WAIT_FOR_DOT: "wait-for-dot",
   CONNECT_WINDOW: "connect-window",
   CHOOSER: "chooser",
   IDENTIFIED: "identified",
@@ -14,10 +14,10 @@ export const ISP_ENTRY_PHASE = Object.freeze({
 
 export const ISP_ENTRY_SEQUENCE = Object.freeze([
   ISP_ENTRY_PHASE.CLOSED,
-  ISP_ENTRY_PHASE.POWER_OFF,
+  ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE,
+  ISP_ENTRY_PHASE.USB_CONNECTED,
   ISP_ENTRY_PHASE.HOLD_KEY2,
-  ISP_ENTRY_PHASE.CONNECT_WHILE_HELD,
-  ISP_ENTRY_PHASE.WAIT_FOR_PIXEL,
+  ISP_ENTRY_PHASE.WAIT_FOR_DOT,
   ISP_ENTRY_PHASE.CONNECT_WINDOW,
 ]);
 

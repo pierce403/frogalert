@@ -6,6 +6,7 @@ import {
   CH58X_RESET_CONFIG,
   COMMAND,
   OPEN_BADGEMAGIC_RECOVERY,
+  compareReleaseVersions,
   dataPacket,
   deriveXorKey,
   erasePacket,
@@ -20,6 +21,7 @@ import {
   readConfigPacket,
   resetConfigPacket,
   sha256Hex,
+  sortReleaseCatalogNewestFirst,
   validateFirmware,
   validateLabDescriptor,
   validateLabHardwareBinding,
@@ -127,6 +129,57 @@ test("release descriptors bind artifacts to an exact verified PCB revision", () 
   assert.throws(
     () => validateReleaseDescriptor({ ...release, file: "../unsafe.bin" }, "rev-a", "BOARD-A"),
     /safe raw BIN/,
+  );
+});
+
+test("approved release catalog is sorted by semantic version without selecting anything", () => {
+  const release = (version, channel, idSuffix) => ({
+    id: `frogalert-${idSuffix}`,
+    kind: "frogalert-release",
+    label: "FrogAlert",
+    version,
+    channel,
+    target: "ch582m-badgemagic-11x44",
+    hardware_verified: true,
+    hardware_revisions: ["B1144C_250901_USB_C"],
+    pcb_markings: ["B1144C_250901"],
+    file: `frogalert-${idSuffix}.bin`,
+    bytes: 1024,
+    sha256: "a".repeat(64),
+    source_commit: "b".repeat(40),
+    release_tag: `v${version}`,
+    release_url: `https://github.com/pierce403/frogalert/releases/tag/v${version}`,
+    release_notes: `firmware/releases/notes/${idSuffix}.md`,
+    debug_file: `frogalert-${idSuffix}.elf`,
+    debug_bytes: 8192,
+    debug_sha256: "c".repeat(64),
+  });
+  const input = [
+    release("1.0.0-alpha.2", "alpha", "alpha-2"),
+    release("0.10.0", "stable", "stable-0-10"),
+    release("1.0.0", "stable", "stable-1"),
+    release("1.0.0-alpha.10", "alpha", "alpha-10"),
+    release("1.0.0-beta.1", "beta", "beta-1"),
+  ];
+
+  assert.ok(compareReleaseVersions("1.10.0", "1.9.9") > 0);
+  assert.ok(compareReleaseVersions("1.0.0", "1.0.0-beta.1") > 0);
+  assert.ok(compareReleaseVersions("1.0.0-alpha.10", "1.0.0-alpha.2") > 0);
+  assert.ok(compareReleaseVersions("1.0.0-alpha-z", "1.0.0-alpha-a") > 0);
+  assert.deepEqual(
+    sortReleaseCatalogNewestFirst(input).map(({ version }) => version),
+    ["1.0.0", "1.0.0-beta.1", "1.0.0-alpha.10", "1.0.0-alpha.2", "0.10.0"],
+  );
+  assert.equal(input[0].version, "1.0.0-alpha.2", "sorting must not mutate the manifest array");
+
+  const sameVersion = [
+    release("1.0.0", "stable", "z-board"),
+    release("1.0.0", "stable", "a-board"),
+  ];
+  assert.deepEqual(
+    sortReleaseCatalogNewestFirst(sameVersion).map(({ id }) => id),
+    ["frogalert-a-board", "frogalert-z-board"],
+    "equal versions use a deterministic id tie-break",
   );
 });
 

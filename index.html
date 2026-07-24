@@ -26,7 +26,7 @@
     <title>FrogAlert — Bluetooth alerts on a BadgeMagic nametag</title>
     <link rel="canonical" href="https://frogalert.org/">
     <link rel="stylesheet" href="./site/styles.css">
-    <script type="module" src="./site/app.js?v=4"></script>
+    <script type="module" src="./site/app.js?v=5"></script>
   </head>
   <body data-flash-mode="inspect">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -173,6 +173,7 @@
           <p class="section-kicker">Browser tools</p>
           <h2 id="flash-title">This page is read-only. Flashing lives at <code>/flash/</code>.</h2>
           <p>Web Bluetooth checks the running BadgeMagic service. WebUSB identifies a CH582 bootloader. This page can also inspect a BIN, but it cannot reset configuration, erase, or program the badge.</p>
+          <p class="honesty-note"><strong>Known USB-C board:</strong> the opened PCB marked <code>B1144C_250901</code> is confirmed as a WCH <code>CH582M</code> with an 11×44 display. Ordinary KEY2 entry works only after compatible FOSSASIA or hardware-approved FrogAlert firmware supplies that hook. Original or unknown firmware on this soldered-battery board required hazardous, expert-only C3 bench recovery; RESET plus KEY2 did not work.</p>
           <p><a class="button button-primary" href="./flash/">Open flasher and recovery steps</a></p>
           <div id="capability-status" class="capability-pill" role="status">Checking browser capabilities…</div>
           <noscript><p class="device-status" data-tone="bad">JavaScript is required for browser hardware access. The project documentation remains available without it.</p></noscript>
@@ -194,7 +195,7 @@
               <span class="step-tag">READ-ONLY FIRST</span>
               <h3>WCH bootloader</h3>
             </div>
-            <p>On tested FOSSASIA or approved FrogAlert firmware, use the application-provided KEY2 long press, then identify the USB target. Unknown or broken applications may require qualified cold-entry recovery. Connecting does not erase or program anything.</p>
+            <p>After compatible firmware is installed, hold KEY2 for about 2.2 seconds and release when one dot lights near the middle. Choose <code>4348:55e0</code> or <code>1a86:55e0</code> during the observed 9–13 second window. Original or unknown firmware does not get this routine path. Connecting does not erase or program anything.</p>
             <button id="usb-connect" class="button button-primary" type="button" disabled>Connect + identify CH582</button>
             <p id="usb-status" class="device-status" role="status" aria-live="polite">Waiting for a WCH ISP bootloader.</p>
             <dl class="device-facts">
@@ -256,7 +257,7 @@
               <select id="release-select" disabled>
                 <option value="">No release selected</option>
               </select>
-              <p id="release-status" class="field-help" role="status">Loading release manifest…</p>
+              <p id="release-status" class="field-help" role="status">Loading approved releases. The newest semantic version will be labeled, never selected automatically.</p>
               <div class="release-links">
                 <a id="release-download" class="text-link" hidden download>Download selected verified BIN</a>
                 <a id="release-link" class="text-link" hidden target="_blank" rel="noopener noreferrer">Release notes on GitHub</a>
@@ -288,7 +289,7 @@
           </ol>
 
           <aside class="recovery-note">
-            <strong>Need recovery after an interrupted write?</strong> Open the <a href="./flash/">guided KEY2 recovery flow</a>. Keep the selected BIN, and never report success until every chunk passes bootloader verification. The <a href="https://github.com/ch32-rs/wchisp">wchisp CLI</a> remains the bench fallback.
+            <strong>Need recovery after an interrupted write?</strong> Use the <a href="./flash/">guided KEY2 flow</a> only if compatible firmware had already been installed. Original or unknown firmware on the confirmed USB-C board required expert-only C3 recovery outside the browser tool. Keep the selected BIN, and never report success until every chunk passes bootloader verification. The <a href="https://github.com/ch32-rs/wchisp">wchisp CLI</a> remains the bench fallback.
           </aside>
         </div>
       </section>

@@ -10,13 +10,14 @@ import {
   parseResponse,
   readConfigPacket,
   sha256Hex,
+  sortReleaseCatalogNewestFirst,
   validateFirmware,
   validateLabDescriptor,
   validateLabHardwareBinding,
   validateReleaseCatalogDescriptor,
   validateRecoveryDescriptor,
   validateReleaseDescriptor,
-} from "./wchisp-protocol.js";
+} from "./wchisp-protocol.js?v=5";
 import {
   artifactBoardBinding,
   canEnableFlash,
@@ -38,7 +39,7 @@ import {
   ispEntryCountdown,
   nextIspEntryPhase,
   previousIspEntryPhase,
-} from "./isp-entry-guide.js";
+} from "./isp-entry-guide.js?v=5";
 import {
   BADGE_CHARACTERISTIC,
   BADGE_SERVICE,
@@ -180,34 +181,41 @@ const elements = {
 };
 
 const ISP_ENTRY_COPY = Object.freeze({
-  [ISP_ENTRY_PHASE.POWER_OFF]: {
-    title: "Step 1 of 5: Safely isolate all power",
-    instruction: "Safely isolate the battery and unplug USB. If the battery is soldered, stop: this cold-entry fallback requires qualified Li-ion bench work.",
-    status: "No device chooser has opened. Nothing has changed. Do not continue with a soldered battery unless you are qualified to isolate it safely.",
-    next: "Power is safely isolated",
+  [ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE]: {
+    title: "Step 1 of 5: Confirm compatible firmware",
+    instruction:
+      "Use this routine guide only after the tested FOSSASIA USB-C firmware or an exact hardware-approved FrogAlert image is installed.",
+    status:
+      "No chooser has opened. If this badge still runs original, unknown, blank, or broken firmware, stop: this routine KEY2 guide cannot enter ISP on the confirmed B1144C_250901 board.",
+    next: "Compatible firmware is installed",
+  },
+  [ISP_ENTRY_PHASE.USB_CONNECTED]: {
+    title: "Step 2 of 5: Connect stable data USB",
+    instruction:
+      "Connect the badge to a stable data-capable USB port or phone OTG adapter and leave the cable connected.",
+    status: "The browser has not requested a device or sent a command.",
+    next: "Stable data USB is connected",
   },
   [ISP_ENTRY_PHASE.HOLD_KEY2]: {
-    title: "Step 2 of 5: Hold KEY2",
-    instruction: "Press and keep holding KEY2—the physical button nearest the USB connector.",
-    status: "Keep KEY2 held while you move to the next step.",
+    title: "Step 3 of 5: Hold KEY2",
+    instruction:
+      "Press and keep holding KEY2—the physical button nearest the USB connector—for about 2.2 seconds.",
+    status: "Keep KEY2 held until the single dot appears near the middle of the panel.",
     next: "I am holding KEY2",
   },
-  [ISP_ENTRY_PHASE.CONNECT_WHILE_HELD]: {
-    title: "Step 3 of 5: Connect data USB",
-    instruction: "Keep holding KEY2 while you plug in a known data-capable USB cable. On a phone, use a data-capable USB OTG adapter.",
-    status: "The browser still has not requested a device or sent a command.",
-    next: "USB connected; KEY2 still held",
-  },
-  [ISP_ENTRY_PHASE.WAIT_FOR_PIXEL]: {
-    title: "Step 4 of 5: Watch the panel",
-    instruction: "Keep holding KEY2 until one pixel lights near the middle of the panel. Then release KEY2.",
-    status: "Do not continue until you see the single-pixel ISP signal.",
-    next: "I see one pixel and released KEY2",
+  [ISP_ENTRY_PHASE.WAIT_FOR_DOT]: {
+    title: "Step 4 of 5: Release at the dot",
+    instruction:
+      "Release KEY2 when one dot lights near the middle of the panel. That cue comes from compatible application firmware.",
+    status: "Do not continue until you see the single dot near the middle.",
+    next: "I see the dot and released KEY2",
   },
   [ISP_ENTRY_PHASE.CONNECT_WINDOW]: {
     title: "Step 5 of 5: Open the chooser",
-    instruction: "Choose the WCH ISP device now. This first connection performs only Identify and Read Config.",
-    status: "Only your explicit chooser tap can request the USB device. No erase or write is armed.",
+    instruction:
+      "Choose USB 4348:55e0 or 1a86:55e0 now. The observed ISP window lasts about 9–13 seconds; this first connection performs only Identify and Read Config.",
+    status:
+      "Only your explicit chooser tap can request the USB device. No erase or write is armed.",
   },
   [ISP_ENTRY_PHASE.CHOOSER]: {
     title: "Browser chooser opened",
@@ -221,8 +229,10 @@ const ISP_ENTRY_COPY = Object.freeze({
   },
   [ISP_ENTRY_PHASE.RETRY]: {
     title: "No active bootloader was identified",
-    instruction: "Unplug USB and repeat the KEY2 sequence. If it still does not appear, try a known data cable, direct port, or data-capable phone OTG adapter.",
-    status: "Nothing was changed. A missing chooser device does not prove the firmware is broken.",
+    instruction:
+      "If compatible firmware is installed, repeat the KEY2 sequence with a known data cable or direct port. If the firmware is original or unknown, stop: RESET plus KEY2 did not work on the confirmed USB-C board, and its C3 recovery is expert-only.",
+    status:
+      "Nothing was changed. A missing chooser device does not authorize opening or bridging anything on the board.",
   },
 });
 
@@ -406,8 +416,8 @@ function updateIspEntryCountdown() {
   }
   const countdown = ispEntryCountdown(state.ispEntryCountdownStartedAt, performance.now());
   elements.ispGuideCountdown.textContent = countdown.expired
-    ? "The approximately ten-second window may have expired. The chooser remains read-only, or unplug USB and start again."
-    : `Try to open the chooser within about ten seconds: ${countdown.remainingSeconds} s`;
+    ? "The observed 9–13 second window may have expired. The chooser remains read-only; if compatible firmware is installed, repeat the KEY2 guide."
+    : `Open the chooser promptly during the observed 9–13 second window: about ${countdown.remainingSeconds} s remaining`;
   if (countdown.expired && state.ispEntryCountdownTimer !== null) {
     window.clearInterval(state.ispEntryCountdownTimer);
     state.ispEntryCountdownTimer = null;
@@ -466,7 +476,7 @@ function renderIspEntryGuide() {
   const physicalStep = ISP_ENTRY_SEQUENCE.includes(phase) && phase !== ISP_ENTRY_PHASE.CLOSED;
   const canAdvance = physicalStep && phase !== ISP_ENTRY_PHASE.CONNECT_WINDOW;
   elements.ispGuideBack.hidden =
-    !physicalStep || phase === ISP_ENTRY_PHASE.POWER_OFF;
+    !physicalStep || phase === ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE;
   elements.ispGuideBack.disabled = state.flashing || state.usbRequestPending;
   elements.ispGuideNext.hidden = !canAdvance;
   elements.ispGuideNext.disabled = state.flashing || state.usbRequestPending;
@@ -498,10 +508,10 @@ function focusIspEntryPhaseControl(phase) {
   let target = null;
   if (
     [
-      ISP_ENTRY_PHASE.POWER_OFF,
+      ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE,
+      ISP_ENTRY_PHASE.USB_CONNECTED,
       ISP_ENTRY_PHASE.HOLD_KEY2,
-      ISP_ENTRY_PHASE.CONNECT_WHILE_HELD,
-      ISP_ENTRY_PHASE.WAIT_FOR_PIXEL,
+      ISP_ENTRY_PHASE.WAIT_FOR_DOT,
     ].includes(phase)
   ) {
     target = elements.ispGuideNext;
@@ -540,8 +550,8 @@ function retreatIspEntryGuide() {
 
 function retryIspEntryGuide() {
   if (state.flashing) return;
-  setIspEntryPhase(ISP_ENTRY_PHASE.POWER_OFF);
-  focusIspEntryPhaseControl(ISP_ENTRY_PHASE.POWER_OFF);
+  setIspEntryPhase(ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE);
+  focusIspEntryPhaseControl(ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE);
 }
 
 function closeIspEntryGuide() {
@@ -820,8 +830,8 @@ async function connectUsb(options = {}) {
     setStatus(
       elements.usbStatus,
       cancelled
-        ? "No bootloader selected. Nothing changed. If the single pixel went out, unplug USB and repeat the KEY2 guide."
-        : `Bootloader probe failed: ${error.message}. Unplug USB and repeat the KEY2 guide with a known data cable or direct port.`,
+        ? "No bootloader selected. Nothing changed. If the dot went out and compatible firmware is installed, repeat the KEY2 guide."
+        : `Bootloader probe failed: ${error.message}. If compatible firmware is installed, repeat the KEY2 guide with a known data cable or direct port; otherwise stop.`,
       cancelled ? "neutral" : "bad",
     );
     log(cancelled ? "Device selection cancelled; nothing changed." : `Probe stopped safely: ${error.message}`, cancelled ? "info" : "error");
@@ -1243,18 +1253,24 @@ async function loadReleaseManifest() {
       }
       releaseIds.add(release.id);
     }
-    state.releases = [...manifest.releases];
+    state.releases = sortReleaseCatalogNewestFirst(
+      manifest.releases,
+      manifest.github_repository,
+    );
     if (state.releases.length === 0) {
       setReleaseSummary("No hardware-verified FrogAlert firmware has been released. Private developer BINs may be selected locally for qualified bench testing only.", "warning");
     } else {
+      const latestApprovedVersion = state.releases[0].version;
       for (const release of state.releases) {
         const option = document.createElement("option");
         option.value = release.id;
-        option.textContent = `${release.label} ${release.version} · ${release.channel} · ${release.hardware_revisions[0]}`;
+        const latestLabel =
+          release.version === latestApprovedVersion ? " · latest approved" : "";
+        option.textContent = `${release.label} ${release.version} · ${release.channel}${latestLabel} · ${release.hardware_revisions[0]}`;
         elements.releaseSelect.append(option);
       }
       elements.releaseSelect.disabled = state.flashing;
-      setReleaseSummary(`${state.releases.length} hardware-verified release${state.releases.length === 1 ? "" : "s"} available. Select one to inspect its exact board binding before loading it.`, "good");
+      setReleaseSummary(`${state.releases.length} hardware-verified release${state.releases.length === 1 ? "" : "s"} available; ${latestApprovedVersion} is the newest approved version. Nothing is selected or loaded automatically.`, "good");
     }
 
     const labIds = new Set();

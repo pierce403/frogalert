@@ -48,6 +48,33 @@ against the exact commit that passed CI. “Release on commit” means the workf
 reconciles already-approved entries in the committed manifest; it does not
 publish whatever firmware happened to build in that commit.
 
+Active firmware inputs have a separate candidate lane inside CI. After the
+ordinary repository contract passes, a `main` push that changes the portable
+policy core, the FOSSASIA USB-C shell or lock, or one of that shell's
+prepare/build/audit scripts performs the pinned `survey --check` build. CI then
+packages the audited BIN and symbol-bearing ELF with checksums and a
+machine-readable record under the deterministic version
+`0.0.0-candidate.<first-12-source-commit-hex>`. The Actions artifact is named
+`frogalert-candidate-<full-source-commit>` and expires after 30 days.
+
+That candidate artifact is deliberately outside every publication surface:
+
+- its metadata fixes `hardware_verified`, `flash_approved`, `publishable`, and
+  `hosted_on_site` to `false`;
+- packaging rechecks the locked survey size/SHA-256, CH58x startup sentinel,
+  ELF identity, source commit, pinned upstream archive, and pinned toolchain;
+- output is permitted only below ignored repo-local `tmp/`;
+- the CI job has `contents: read` and cannot create a tag or GitHub Release;
+- neither site assembly nor the browser catalog consumes Actions artifacts;
+- a candidate never modifies `firmware/releases/manifest.json`.
+
+This gives every successful active-firmware change a traceable compiler output
+without treating compilation as hardware evidence. Quarantined standalone Rust
+images retain their intentional no-BIN behavior and are not smuggled into the
+candidate lane. A candidate becomes a public release only through a later,
+separate commit containing its exact checked-in BIN/ELF, manifest descriptor,
+release notes, structured physical record, and bound transcript.
+
 The workflow is deliberately ordered:
 
 1. check out the successful CI commit with full history;
@@ -74,6 +101,12 @@ The website never queries the GitHub API and never flashes from a GitHub asset.
 Its sole executable catalog remains the same-origin
 `firmware/releases/manifest.json` and its same-origin BIN copy. GitHub Releases
 provide human-readable notes, immutable downloads, and provenance.
+
+Approved release ordering is independent from CI candidate versions. The
+flasher derives “latest” only from validated semantic versions in the approved
+`releases` collection. It may label the newest descriptor, but it must not
+automatically download, prepare, arm, or flash it; board/profile binding and an
+explicit selection remain mandatory.
 
 ## Manifest entry
 
@@ -180,15 +213,19 @@ Prepare and build the replacement shell only through its pinned scripts:
 ./scripts/prepare-fossasia-usbc --with-toolchain
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+FROGALERT_CANDIDATE_COMMIT="$(git rev-parse HEAD)" \
+  node scripts/firmware-candidate.mjs tmp/firmware-candidate
 ```
 
 The baseline must reproduce the known-good 177,704-byte BIN at SHA-256
 `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`.
-The canary adds only an inert retained metadata string. Both lanes preserve the
-FOSSASIA USB-C startup/linker/runtime and audit required symbols, startup
-marker, USB identity, KEY2-related runtime, and forbidden atomic instructions.
+The canary adds only an inert retained metadata string. All three lanes
+preserve the FOSSASIA USB-C startup/linker/runtime and audit required symbols,
+startup marker, USB identity, KEY2-related runtime, and forbidden atomic
+instructions.
 The final Make-produced BIN must also match a fresh `objcopy -O binary -S` of
-the audited ELF, and both baseline and canary size/SHA-256 values are locked.
+the audited ELF, and baseline, canary, and survey size/SHA-256 values are locked.
 Everything remains under ignored `tmp/fossasia-usbc/`; the scripts neither
 flash nor copy bytes into a public directory.
 

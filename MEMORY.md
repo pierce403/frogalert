@@ -50,6 +50,12 @@ on chat context or filenames alone.
 - [`2026-07-23-karr-detection-rule.md`](agent-memory/logs/2026-07-23-karr-detection-rule.md)
   — user-observed KARR `QT ` local-name prefix, narrow classifier semantics,
   mirrored Rust/C behavior, and private survey artifact gate.
+- [`2026-07-23-latest-survey-observation.md`](agent-memory/logs/2026-07-23-latest-survey-observation.md)
+  — positive but hash-unbound badge report, likely artifact ambiguity, exact
+  candidate identities, and the remaining physical release evidence.
+- [`2026-07-23-candidate-release-and-entry-guide.md`](agent-memory/logs/2026-07-23-candidate-release-and-entry-guide.md)
+  — commit-bound unverified CI candidates, approved-version ordering, CH582M
+  and C3/dot guidance, browser cache-busting lesson, and verification outcome.
 - [`2026-07-23-commit-release-pipeline.md`](agent-memory/logs/2026-07-23-commit-release-pipeline.md)
   — schema-v4 catalog, gated commit-driven GitHub Release reconciliation, and
   release-before-Pages ordering without publishing private firmware.

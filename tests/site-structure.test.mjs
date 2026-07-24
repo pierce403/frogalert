@@ -113,6 +113,12 @@ test("landing page exposes the project and guarded device flow", async () => {
   );
   assert.match(html, /local BIN chooser below is read-only on this page/i);
   assert.match(html, /This page.*cannot reset configuration, erase, or program/is);
+  assert.match(html, /B1144C_250901.*CH582M.*11×44/is);
+  assert.match(html, /Ordinary KEY2 entry works only after compatible FOSSASIA.*FrogAlert firmware/is);
+  assert.match(html, /Original or unknown firmware.*expert-only C3/is);
+  assert.match(html, /RESET plus KEY2 did not work/i);
+  assert.match(html, /one dot lights near the middle/i);
+  assert.match(html, /4348:55e0.*1a86:55e0.*9–13 second/is);
   assert.match(html, /Hardware-verified lab build/i);
   assert.match(html, /Download selected hardware-verified lab BIN/i);
   assert.match(html, /compar(?:e|ed) both sides.*reference photos/i);
@@ -139,9 +145,16 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /assertFirmwareHashNotQuarantined\(hash, state\.quarantinedFirmwareHashes\)/);
   assert.match(app, /physicalMarkingMatchesArtifact\(\)/);
   assert.match(app, /pcbMarkings: \[\.\.\.release\.pcb_markings\]/);
-  assert.match(app, /state\.releases = \[\.\.\.manifest\.releases\]/);
+  assert.match(app, /state\.releases = sortReleaseCatalogNewestFirst\(/);
   assert.match(app, /option\.value = release\.id/);
   assert.doesNotMatch(app, /option\.value = JSON\.stringify\(release\)/);
+  assert.match(app, /sortReleaseCatalogNewestFirst\(/);
+  assert.match(app, /wchisp-protocol\.js\?v=5/);
+  assert.match(app, /isp-entry-guide\.js\?v=5/);
+  assert.match(html, /site\/app\.js\?v=5/);
+  assert.match(app, /latest approved/);
+  assert.match(app, /Nothing is selected or loaded automatically/);
+  assert.match(html, /newest semantic version.*never selected automatically/i);
   assert.match(app, /elements\.releaseDownload\.href = firmwareArtifactUrl\(release\.file/);
   assert.match(app, /elements\.releaseLink\.href = release\.release_url/);
   assert.match(app, /typeof navigator\.usb\?\.requestDevice === "function"/);
@@ -193,17 +206,18 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
+  assert.match(html, /\.\.\/site\/app\.js\?v=5/);
   assert.match(html, /iPhone.*WebUSB/is);
-  assert.match(html, /Safely isolate the battery.*KEY2.*Connect.*USB/is);
-  assert.match(html, /No (?:RESET or )?multi-button combo/i);
+  assert.match(html, /B1144C_250901.*CH582M.*11×44/is);
+  assert.match(html, /After compatible FOSSASIA.*FrogAlert firmware is installed/is);
   assert.match(html, /hold.*KEY2.*about 2\.2 seconds/is);
-  assert.match(html, /No RESET or multi-button combo is needed/i);
-  assert.match(html, /soldered-battery board.*skilled bench work/is);
-  assert.match(html, /KEY2[^<]*(?:physical )?button nearest the USB connector/i);
-  assert.match(html, /battery is soldered.*stop.*qualified Li-ion bench work/is);
-  assert.match(html, /holding KEY2.*while connecting.*data-capable USB/is);
-  assert.match(html, /one illuminated pixel.*release KEY2/is);
-  assert.match(html, /approximately ten seconds/i);
+  assert.match(html, /one dot lights near the middle/i);
+  assert.match(html, /4348:55e0.*1a86:55e0.*9–13 second/is);
+  assert.match(html, /Original or unknown firmware.*ordinary KEY2 hook is not available/is);
+  assert.match(html, /RESET plus KEY2 did not work/i);
+  assert.match(html, /hold KEY2 while momentarily bridging both ends of PCB capacitor.*C3/is);
+  assert.match(html, /hazardous rail-collapse maneuver.*not routine/is);
+  assert.match(html, /Leave the soldered cell and its leads alone/i);
   assert.match(html, /Download selected hardware-verified lab BIN/i);
   assert.match(html, /id="isp-guide-connect"[^>]+type="button"[^>]+hidden[^>]+disabled/);
   assert.match(`${html}\n${app}`, /Identify and Read Config/i);
@@ -241,6 +255,43 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /name="referrer"/);
   assertSocialPreview(html);
   assert.doesNotMatch(html, /every fact checks out/i);
+});
+
+test("first-entry guidance defaults unknown firmware to a safe stop", async () => {
+  const sources = {
+    landing: await read("index.html"),
+    flasher: await read("flash/index.html"),
+    app: await read("site/app.js"),
+    hardware: await read("docs/HARDWARE.md"),
+    webFlashing: await read("docs/WEB_FLASHING.md"),
+    readme: await read("README.md"),
+  };
+  const combined = Object.values(sources).join("\n");
+
+  assert.match(combined, /B1144C_250901/);
+  assert.match(combined, /CH582M/);
+  assert.match(combined, /11×44/);
+  assert.match(combined, /4348:55e0/);
+  assert.match(combined, /1a86:55e0/);
+  assert.match(combined, /9–13 seconds?/);
+  assert.match(combined, /one dot.*near the middle/is);
+  assert.match(combined, /original or unknown firmware.*stop/is);
+  assert.match(combined, /RESET plus KEY2 did not work/i);
+  assert.match(combined, /both ends of PCB capacitor.*C3/is);
+  assert.match(combined, /expert-only|expert bench/i);
+
+  for (const [name, source] of Object.entries(sources)) {
+    assert.doesNotMatch(
+      source,
+      /(?:disconnect|isolate|cut).{0,40}(?:battery|cell)|(?:battery|cell).{0,40}(?:disconnect|isolate|cut)/is,
+      `${name} must not turn the soldered battery into a user step`,
+    );
+    assert.doesNotMatch(
+      source,
+      /short.{0,40}(?:battery|cell)|(?:battery|cell).{0,40}short/is,
+      `${name} must not instruct users to short the battery`,
+    );
+  }
 });
 
 test("social preview card is a 1200 by 630 JPEG", async () => {

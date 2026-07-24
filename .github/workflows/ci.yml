@@ -10,9 +10,13 @@ permissions:
 
 jobs:
   verify:
+    outputs:
+      firmware_candidate_required: ${{ steps.firmware_candidate_scope.outputs.required }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -27,3 +31,72 @@ jobs:
           components: rustfmt, llvm-tools-preview
       - name: Verify repository contract
         run: ./scripts/verify
+      - name: Detect active firmware input changes
+        if: github.event_name == 'push'
+        id: firmware_candidate_scope
+        shell: bash
+        env:
+          BEFORE_COMMIT: ${{ github.event.before }}
+          CURRENT_COMMIT: ${{ github.sha }}
+        run: |
+          changed_file_list="tmp/firmware-candidate-changed-files.txt"
+          mkdir -p tmp
+          if [[ "$BEFORE_COMMIT" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_COMMIT^{commit}" 2>/dev/null; then
+            git diff-tree --no-commit-id --name-only -r "$CURRENT_COMMIT" >"$changed_file_list"
+          else
+            git diff --name-only "$BEFORE_COMMIT" "$CURRENT_COMMIT" >"$changed_file_list"
+          fi
+
+          required=false
+          while IFS= read -r path; do
+            case "$path" in
+              Cargo.toml|Cargo.lock|\
+              crates/frogalert-core/*|\
+              firmware/fossasia-usbc/*|\
+              scripts/apply-fossasia-survey.mjs|\
+              scripts/audit-fossasia-usbc.mjs|\
+              scripts/build-fossasia-usbc|\
+              scripts/firmware-candidate.mjs|\
+              scripts/firmware-image.mjs|\
+              scripts/prepare-fossasia-usbc|\
+              .github/workflows/ci.yml)
+                required=true
+                break
+                ;;
+            esac
+          done <"$changed_file_list"
+          echo "required=$required" >>"$GITHUB_OUTPUT"
+
+  firmware-candidate:
+    needs: verify
+    if: needs.verify.outputs.firmware_candidate_required == 'true'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Cache pinned FOSSASIA inputs and MRS toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            tmp/fossasia-usbc/cache
+            tmp/fossasia-usbc/toolchains
+          key: frogalert-fossasia-usbc-${{ runner.os }}-${{ hashFiles('firmware/fossasia-usbc/upstream-lock.json') }}
+      - name: Build and audit the private survey candidate
+        run: ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+      - name: Package commit-bound candidate evidence
+        env:
+          FROGALERT_CANDIDATE_COMMIT: ${{ github.sha }}
+        run: node scripts/firmware-candidate.mjs tmp/firmware-candidate
+      - name: Upload hardware-unverified candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frogalert-candidate-${{ github.sha }}
+          path: tmp/firmware-candidate
+          if-no-files-found: error
+          retention-days: 30

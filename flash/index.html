@@ -159,38 +159,39 @@
             <h3>WCH ISP bootloader via USB</h3>
             <p>Choose the USB bootloader, not the running Bluetooth badge. The first connection identifies chip <code>0x82</code>, family <code>0x16</code>, and configuration without erasing or programming.</p>
             <div class="isp-entry-summary">
-              <p><strong>Running FOSSASIA or tested FrogAlert firmware:</strong> with USB connected, hold <strong>KEY2—the physical button nearest the USB connector—for about 2.2 seconds</strong>. Release when the dot cue appears, then open the chooser promptly. No RESET or multi-button combo is needed.</p>
-              <p><strong>OEM, unknown, blank, or broken firmware:</strong> the application hook may not exist. Use the guided cold-entry fallback. On a soldered-battery board, electrical isolation is skilled bench work—not an ordinary battery-unplug step.</p>
+              <p><strong>Confirmed reference board:</strong> the photographed USB-C PCB marked <code>B1144C_250901</code> has a WCH <code>CH582M</code> and an 11×44 display.</p>
+              <p><strong>After compatible FOSSASIA or hardware-approved FrogAlert firmware is installed:</strong> keep USB connected and hold <strong>KEY2—the physical button nearest USB—for about 2.2 seconds</strong>. Release when one dot lights near the middle, then choose <code>4348:55e0</code> or <code>1a86:55e0</code> within the observed 9–13 second ISP window.</p>
+              <p><strong>Original or unknown firmware on this board:</strong> the ordinary KEY2 hook is not available. The first documented entry required expert-only C3 bench recovery; this page does not guide that hazardous operation. RESET plus KEY2 did not work.</p>
             </div>
             <div class="button-row">
-              <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Advanced cold-entry fallback</button>
-              <button id="usb-connect" class="button button-secondary" type="button" disabled>Dot or pixel is lit — choose CH582 now</button>
+              <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Guide: compatible-firmware KEY2 entry</button>
+              <button id="usb-connect" class="button button-secondary" type="button" disabled>Dot is lit — choose CH582 now</button>
               <button id="usb-disconnect" class="button button-secondary" type="button" disabled>End USB session</button>
             </div>
 
             <section id="isp-entry-guide" class="isp-entry-guide" hidden tabindex="-1" role="region" aria-labelledby="isp-guide-title" data-state="closed">
-              <p class="terminal-label">KEY2 BOOTLOADER GUIDE · NO ERASE OR WRITE</p>
-              <h4 id="isp-guide-title">Step 1 of 5: Safely isolate all power</h4>
-              <ol class="isp-guide-overview" aria-label="Bootloader entry sequence">
-                <li data-guide-phase="power-off" aria-current="step"><span>1</span><p><strong>Safely isolate the battery and unplug USB.</strong> If the battery is soldered, stop: this requires qualified Li-ion bench work.</p></li>
-                <li data-guide-phase="hold-key2"><span>2</span><p><strong>Hold KEY2,</strong> the button nearest the USB connector.</p></li>
-                <li data-guide-phase="connect-while-held"><span>3</span><p><strong>Keep holding KEY2</strong> while connecting a known data-capable USB cable or phone OTG adapter.</p></li>
-                <li data-guide-phase="wait-for-pixel"><span>4</span><p><strong>Wait for one illuminated pixel,</strong> then release KEY2.</p></li>
-                <li data-guide-phase="connect-window"><span>5</span><p><strong>Open the chooser promptly.</strong> ISP remains available for approximately ten seconds.</p></li>
+              <p class="terminal-label">ROUTINE KEY2 BOOTLOADER GUIDE · COMPATIBLE FIRMWARE ONLY · NO ERASE OR WRITE</p>
+              <h4 id="isp-guide-title">Step 1 of 5: Confirm compatible firmware</h4>
+              <ol class="isp-guide-overview" aria-label="Compatible-firmware bootloader entry sequence">
+                <li data-guide-phase="confirm-compatible" aria-current="step"><span>1</span><p><strong>Confirm compatible firmware is already installed.</strong> Original or unknown firmware must stop here.</p></li>
+                <li data-guide-phase="usb-connected"><span>2</span><p><strong>Connect stable data USB</strong> and leave it connected.</p></li>
+                <li data-guide-phase="hold-key2"><span>3</span><p><strong>Hold KEY2 for about 2.2 seconds.</strong> It is the button nearest USB.</p></li>
+                <li data-guide-phase="wait-for-dot"><span>4</span><p><strong>Release when one dot lights near the middle.</strong></p></li>
+                <li data-guide-phase="connect-window"><span>5</span><p><strong>Open the chooser promptly.</strong> Look for <code>4348:55e0</code> or <code>1a86:55e0</code> during the observed 9–13 second window.</p></li>
               </ol>
-              <p id="isp-guide-instruction">Safely isolate the battery and unplug USB. If the battery is soldered, stop: this cold-entry fallback requires qualified Li-ion bench work.</p>
+              <p id="isp-guide-instruction">Use this routine guide only after the tested FOSSASIA USB-C firmware or an exact hardware-approved FrogAlert image is installed.</p>
               <p id="isp-guide-step" class="device-status" role="status" aria-live="polite" aria-atomic="true">No device chooser has opened. Nothing has changed.</p>
               <output id="isp-guide-countdown" class="isp-guide-countdown" role="timer" aria-live="off" hidden></output>
               <div class="button-row isp-guide-actions">
                 <button id="isp-guide-back" class="button button-secondary" type="button" disabled>Back</button>
-                <button id="isp-guide-next" class="button button-primary" type="button">Power is safely isolated</button>
+                <button id="isp-guide-next" class="button button-primary" type="button">Compatible firmware is installed</button>
                 <button id="isp-guide-connect" class="button button-primary" type="button" hidden disabled>Choose WCH bootloader now</button>
                 <button id="isp-guide-retry" class="button button-secondary" type="button" hidden>Start KEY2 steps again</button>
                 <button id="isp-guide-cancel" class="button button-secondary" type="button">Close guide</button>
               </div>
             </section>
 
-            <p id="usb-status" class="device-status" role="status" aria-live="polite">Use the normal KEY2 long press or the broken-firmware guide, then choose the badge while its dot or pixel cue is lit. Identification is read-only.</p>
+            <p id="usb-status" class="device-status" role="status" aria-live="polite">After compatible firmware shows the single dot, choose the WCH bootloader promptly. Original or unknown firmware on the confirmed USB-C board requires expert bench recovery outside this tool. Identification is read-only.</p>
           </article>
         </div>
 
@@ -324,21 +325,21 @@
       <section id="recovery" class="flash-panel recovery-panel" aria-labelledby="recovery-title">
         <div class="panel-heading">
           <div>
-            <p class="section-kicker">Recovery / application firmware may be broken</p>
-            <h2 id="recovery-title">Enter the ROM bootloader with KEY2.</h2>
+            <p class="section-kicker">Recovery / know which firmware is running</p>
+            <h2 id="recovery-title">KEY2 entry is provided by compatible firmware.</h2>
           </div>
           <span class="source-badge source-confirmed">Physical steps</span>
         </div>
 
         <div class="recovery-layout">
           <div>
-            <h3>Normal application KEY2 sequence</h3>
+            <h3>Routine sequence after compatible firmware is installed</h3>
             <ol class="recovery-steps">
               <li><span>1</span><p><strong>Keep USB connected</strong> to a stable data-capable port or phone OTG adapter.</p></li>
               <li><span>2</span><p><strong>Press and keep holding KEY2,</strong> the button nearest the USB connector.</p></li>
               <li><span>3</span><p><strong>Hold for about 2.2 seconds</strong> only when running the tested FOSSASIA image or an exact FrogAlert artifact whose KEY2 recovery test passed.</p></li>
-              <li><span>4</span><p><strong>Release when the dot cue appears,</strong> then immediately use <em>Dot or pixel is lit — choose CH582 now</em>. The bootloader window is short.</p></li>
-              <li><span>5</span><p><strong>Accept only a read-only CH582 result.</strong> If the chooser shows nothing, retry once; use the cold-entry guide only if the application path is absent or broken.</p></li>
+              <li><span>4</span><p><strong>Release when one dot lights near the middle,</strong> then immediately use <em>Dot is lit — choose CH582 now</em>.</p></li>
+              <li><span>5</span><p><strong>Accept only <code>4348:55e0</code> or <code>1a86:55e0</code>.</strong> The observed ISP window is about 9–13 seconds. If the chooser shows nothing, retry only when compatible firmware is known to be installed.</p></li>
             </ol>
           </div>
 
@@ -351,7 +352,7 @@
               </div>
               <div>
                 <dt>Badge is blank, frozen, or a flash was interrupted</dt>
-                <dd>Use <strong>Advanced cold-entry fallback</strong>. A soldered battery requires qualified bench isolation.</dd>
+                <dd>If compatible firmware was installed, retry its KEY2 sequence. If the firmware is original or unknown, stop and move to qualified bench recovery.</dd>
               </div>
               <div>
                 <dt>CH582 is identified</dt>
@@ -366,8 +367,8 @@
         </div>
 
         <details class="advanced-recovery">
-          <summary>What if KEY2 never reaches the bootloader?</summary>
-          <p>Stop before probing or shorting an opened board from a phone. The C3 reset method requires the exact schematic and physical board identification; it is deliberately not an ordinary web-flasher instruction. Review the <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">hardware safety guide</a> and use the CLI path with qualified bench access.</p>
+          <summary>Why does original or unknown firmware need expert recovery?</summary>
+          <p>On the confirmed USB-C <code>B1144C_250901</code> board, holding KEY2 while pressing the populated RESET switch did not enter ISP. The documented first entry required a qualified operator to hold KEY2 while momentarily bridging both ends of PCB capacitor <code>C3</code>. That hazardous rail-collapse maneuver is not routine, is not a battery operation, and is deliberately not implemented as a website checklist. Leave the soldered cell and its leads alone. Review the <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">hardware evidence and safety boundary</a> before qualified bench work.</p>
         </details>
       </section>
 
@@ -402,7 +403,7 @@
               <select id="release-select" disabled>
                 <option value="">No hardware-tested release available</option>
               </select>
-              <p id="release-status" class="field-help" role="status">A release must include exact-board smoke and recovery evidence.</p>
+              <p id="release-status" class="field-help" role="status">Only exact-board releases with physical smoke and recovery evidence appear. The newest semantic version is labeled, never selected automatically.</p>
               <div class="release-links">
                 <a id="release-download" class="text-link" hidden download>Download selected verified BIN</a>
                 <a id="release-link" class="text-link" hidden target="_blank" rel="noopener noreferrer">Release notes on GitHub</a>
@@ -546,6 +547,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=4"></script>
+    <script type="module" src="../site/app.js?v=5"></script>
   </body>
 </html>

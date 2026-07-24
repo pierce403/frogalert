@@ -40,63 +40,56 @@ The CLI fallback is `wchisp` and remains part of every release plan.
 
 ## Enter the bootloader
 
-For a badge running the tested FOSSASIA application—or a future FrogAlert image
-whose exact artifact passed recovery acceptance—the normal path is:
+The physically confirmed USB-C reference is an 11×44 board marked
+`B1144C_250901` with a WCH `CH582M`. It has a soldered pouch battery and no
+user-removable battery connector. Leave the cell and its leads alone.
+
+For that board running the tested FOSSASIA USB-C application—or a future
+FrogAlert image whose exact artifact passed recovery acceptance—the routine
+path is:
 
 1. Keep a stable data-capable USB connection.
 2. Hold KEY2, the button nearest USB, for about 2.2 seconds.
-3. Release when the dot cue appears.
-4. Open the WebUSB chooser promptly and accept only the WCH CH582 ISP device.
+3. Release when one dot lights near the middle of the panel.
+4. Open the WebUSB chooser promptly and accept only `4348:55e0` or
+   `1a86:55e0`.
 
 No RESET or multi-button combination is needed. This is application-provided
-entry into the CH582 mask-ROM ISP, not a bundled replacement bootloader.
+entry into the CH582 mask-ROM ISP, not a bundled replacement bootloader. Four
+captured sessions showed the ISP USB identity for about 9–13 seconds before the
+application returned, so the chooser must be opened promptly.
 
-For an OEM, unknown, blank, or broken application, use the cold-entry fallback:
+Original, unknown, blank, or broken application firmware cannot be assumed to
+provide that KEY2 hook. On the photographed board, holding KEY2 while pressing
+the populated RESET switch did not enter ISP. Its documented first entry
+required a qualified operator to hold KEY2 while momentarily bridging both ends
+of PCB capacitor `C3`. That hazardous rail-collapse maneuver is expert-only,
+is not a battery operation, and is deliberately not implemented as a public
+website checklist. An ordinary user should stop at this boundary.
 
-1. Safely electrically isolate the badge battery and unplug USB. If the battery
-   is soldered, stop unless a qualified person can isolate Li-ion power safely.
-2. Hold KEY2, the button nearest USB.
-3. Connect USB while holding KEY2.
-4. Look for a single illuminated pixel and connect from the page promptly.
-
-The bootloader window is short—upstream guidance treats it as roughly ten
-seconds—so request the device immediately. The alternative powered-board C3 reset method
-requires opening and shorting the correct capacitor and is deliberately not the
-primary website instruction. A blank, frozen, or interrupted application cannot
-supply the ordinary long-press hook. If no USB bootloader
-enumerates after retrying with stable power and a known data cable, a website
-cannot repair that lower-level hardware or bootloader failure.
-
-`/flash/` keeps the normal long-press instructions first and the cold-entry
-sequence beside the USB chooser in a five-step fallback guide. The countdown
-begins only after the user confirms the single-pixel
-signal and is advisory: expiry never opens a chooser, runs a command, or turns
-the read-only connection into a write. Only the final explicit tap may call
+`/flash/` therefore keeps a five-step guide only for the routine
+compatible-firmware KEY2 path: confirm compatible firmware, connect stable data
+USB, hold KEY2, release at the single dot, and open the chooser. The countdown
+is advisory: expiry never opens a chooser, runs a command, or turns the
+read-only connection into a write. Only the final explicit tap may call
 `navigator.usb.requestDevice()`. USB attach events may update the visible
 status, but must never synthesize that tap or skip a physical step.
 
 Pinned FOSSASIA USB-C source `9ce885d` polls KEY2/PB22 every 200 ms and, after
 more than ten consecutive held samples (about 2.2 seconds), executes a transfer
-to address zero while KEY2 remains low. It does not install a second bootloader; the
-flashable USB ISP remains the CH582 mask-ROM implementation. FrogAlert must
+to address zero while KEY2 remains low. It does not install a second bootloader;
+the flashable USB ISP remains the CH582 mask-ROM implementation. FrogAlert must
 label long-press entry as an application-provided convenience, not as evidence
-about unknown OEM firmware or an unverified FrogAlert build. The
-battery-disconnected cold-entry sequence is the recovery path when the
-installed application is unknown, blank, or broken.
-
-On the photographed `B1144C_250901` board the pouch battery is soldered to PCB
-tabs; there is no user-removable battery plug. “Battery disconnected” therefore
-means safely electrically isolated by someone equipped for Li-ion bench work,
-not pulling on the cell, cutting its leads, or shorting a rail. A routine cold
-entry for this exact board has not been physically demonstrated, so the public
-guide must not imply that opening the enclosure exposes a connector.
+about unknown OEM firmware or an unverified FrogAlert build. Original or
+unknown firmware on the confirmed board reaches the expert-recovery stop
+condition described above.
 
 This behavior is physically confirmed on the photographed USB-C
 `B1144C_250901` badge running the pinned FOSSASIA development image, which
-self-reports `BM1144-C fw: v0.1`: a KEY2-only long
-press displayed the dot cue and entered ISP without RESET or C3. That evidence
-does not transfer automatically to a future FrogAlert image; each FrogAlert
-artifact must pass the same recovery test.
+self-reports `BM1144-C fw: v0.1`: a KEY2-only long press displayed one dot near
+the middle and entered ISP without RESET or C3. That evidence does not transfer
+automatically to a future FrogAlert image; each FrogAlert artifact must pass the
+same recovery test.
 
 ## What the browser can identify
 
@@ -124,8 +117,9 @@ polling/task, display cue, and address-zero transfer intact rather than
 reconstructing the hook in a new runtime. Acceptance requires a short press to retain its normal
 application action and a roughly 2.2-second hold to re-enumerate as
 `4348:55e0`, followed by successful program and byte verification. A broken or
-blank application cannot provide this convenience, so the cold-entry procedure
-must remain documented and tested.
+blank application cannot provide this convenience; on the confirmed USB-C
+board that reaches the expert-only recovery stop condition rather than a
+routine browser checklist.
 
 The withdrawn Rust pixel-walk image contained a recovery function but never
 reached it because its first Timer 0 interrupt entered the default handler.

@@ -150,7 +150,7 @@ else
   echo "survey candidate gate passed: bounded passive scan with persistent count requested"
 fi
 echo "build evidence: $bin"
-echo "HARDWARE UNVERIFIED: this output is local-only and is not approved for flashing"
+echo "HARDWARE UNVERIFIED: build evidence only; not a public release or approved for flashing"
 
 if [[ "$check_mode" == "--check" ]]; then
   exit 0

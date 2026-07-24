@@ -50,6 +50,8 @@ The public site is a dependency-free static application. It separates:
   patches in `FROGALERT-VENDORING.md`
 - `firmware/quarantine.json` — permanent failed-artifact SHA denylist
 - `scripts/build-fossasia-usbc` — pinned baseline/canary/survey build path
+- `scripts/firmware-candidate.mjs` — packages an audited, commit-bound,
+  explicitly unverified CI candidate under ignored `tmp/`
 - `scripts/audit-ch58x-vectors.mjs` — post-link standalone Rust regression gate
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
@@ -81,11 +83,13 @@ The public site is a dependency-free static application. It separates:
   command `0xA8` and require an exact `0xA7` readback before erase.
 - Never erase or write on connect. Require a user-selected firmware file,
   explicit confirmations, and a separate final action.
-- Keep the OEM/unknown KEY2 cold-entry guide adjacent to the WebUSB chooser:
-  safely isolate battery power, hold the button nearest USB while connecting,
-  release after one pixel lights, then choose promptly. If the battery is
-  soldered, tell ordinary users to stop; isolation is qualified Li-ion bench
-  work. Timers and USB attach events must never call `requestDevice()`; only an
+- Keep the routine KEY2 guide adjacent to the WebUSB chooser, but offer it only
+  for compatible FOSSASIA or exact hardware-approved FrogAlert firmware: hold
+  the button nearest USB for about 2.2 seconds, release when one dot lights near
+  the middle, then choose promptly. Original or unknown firmware on the
+  confirmed USB-C board must reach an ordinary-user stop boundary; its
+  documented C3 entry is hazardous expert recovery, not a browser checklist.
+  Timers and USB attach events must never call `requestDevice()`; only an
   explicit final user action may.
 - Keep every destructive browser action restricted to `/flash/`; the landing
   lab may inspect a badge or artifact but contains no program control.
@@ -150,6 +154,12 @@ host verification:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
+An active-firmware `main` commit runs the survey lane after the ordinary CI
+contract and uploads an expiring `frogalert-candidate-<commit>` Actions
+artifact. Candidate metadata must keep `hardware_verified`, `flash_approved`,
+`publishable`, and `hosted_on_site` false; this build lane never edits the
+public manifest or creates a GitHub Release.
+
 Preview the site locally:
 
 ```bash
@@ -175,6 +185,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - Keep `site/og-card.svg` as the editable source for the checked-in
   `site/og-card.jpg`; both pages use the same absolute 1200×630 social image,
   and tests must verify its encoded dimensions.
+- This dependency-free site relies on explicit module query versions for cache
+  invalidation. When an app dependency changes exports or state contracts, bump
+  both pages' `app.js` query and the changed dependency query in `site/app.js`;
+  reload a browser that previously opened the old site and check console errors.
 - Use semantic HTML, visible focus states, reduced-motion support, and readable
   status messages announced through ARIA live regions.
 - Use repo-local `./tmp/` for scratch files and ignore it.
@@ -195,6 +209,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   publish through a verified draft, and finish release reconciliation before
   Pages exposes the catalog. Empty catalogs are a no-op; never turn an ordinary
   build or commit into firmware promotion.
+- Active firmware changes may produce a commit-bound Actions candidate only
+  after the locked embedded build audits pass. The candidate is build evidence,
+  expires, and remains outside GitHub Releases and Pages until a later manifest
+  commit supplies the exact physical evidence required above.
 - Keep the same-origin manifest and BIN as the browser's sole executable
   release source. GitHub Releases are provenance and alternate downloads; do
   not add a GitHub API or runtime asset dependency to the flasher.
@@ -258,6 +276,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   193,296/8,492/4,588 bytes. It preserves audited FOSSASIA
   USB/BLE/display/KEY2 symbols but remains private under `tmp/`,
   hardware-unverified, and not flash-approved or published.
+- On 2026-07-23 the user reported that the latest image they had flashed was
+  working well. Treat this as encouraging physical feedback, not release
+  evidence: the last explicitly requested-and-observed flash was likely the
+  preceding 201,628-byte animation-fix image (`8dff996d…19ebf7`), while the
+  later KARR-capable `9d35de6a…c51a7` image has no recorded flash action. No
+  exact candidate has a hash-bound CLI/WebUSB verify and recovery transcript.
 - WCH discovery cancellation is asynchronous. Keep `scan_active` true until
   `GAP_DEVICE_DISCOVERY_EVENT` (or `bleIncorrectMode`) confirms the radio is
   idle; streaming, a peripheral connection, and download mode must request
@@ -301,10 +325,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   Rev1 only at T: PB6 rather than PB23. The missing flash transcript prevents
   treating that provenance as proof of the exact bytes programmed.
 - That board's pouch battery is soldered to PCB tabs; it has no removable
-  connector. Battery-disconnected cold entry means skilled electrical
-  isolation, not an ordinary unplug step, and remains untested on this board.
-  Never tell a user to pull, cut, or short the cell or imply that opening the
-  case reveals a battery plug.
+  connector. Leave the cell and its leads alone. The only documented first ISP
+  entry from original/unknown firmware held KEY2 while a qualified operator
+  momentarily bridged both ends of PCB capacitor C3; it is a hazardous
+  rail-collapse maneuver, not battery handling or routine guidance. Never tell
+  a user to pull, cut, or short the cell or imply that opening the case reveals
+  a battery plug.
 - Do not identify this board as `HARDWARE_REV2`, `HARDWARE_REV3`, or merely
   `BM1144-C`. Those upstream labels do not distinguish the exact working map.
   Do not port FOSSASIA head `eb6e9da`; it has duplicate I/K entries.
@@ -324,8 +350,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - FOSSASIA `BM1144-C fw: v0.1` has physically demonstrated KEY2-only long-press
   ISP entry with a visible dot cue on the photographed USB-C badge. Exact timing
   and a fresh kernel transcript were not recorded. Do not transfer that claim
-  to unknown firmware or an unverified FrogAlert build; use the cold-entry
-  recovery path when the application hook is absent or broken.
+  to unknown firmware or an unverified FrogAlert build; ordinary users must
+  stop when the application hook is absent or broken, while qualified recovery
+  follows the separately documented exact-board C3 boundary.
 - Four 2026-07-22 kernel captures show `4348:55e0` ROM ISP disconnecting after
   about 9–13 seconds and the `0416:5020` application re-enumerating when no
   useful ISP operation kept the session active. Treat that transition as the

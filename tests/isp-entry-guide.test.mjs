@@ -16,10 +16,10 @@ import {
 test("KEY2 guide advances and retreats through the physical sequence", () => {
   assert.deepEqual(ISP_ENTRY_SEQUENCE, [
     ISP_ENTRY_PHASE.CLOSED,
-    ISP_ENTRY_PHASE.POWER_OFF,
+    ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE,
+    ISP_ENTRY_PHASE.USB_CONNECTED,
     ISP_ENTRY_PHASE.HOLD_KEY2,
-    ISP_ENTRY_PHASE.CONNECT_WHILE_HELD,
-    ISP_ENTRY_PHASE.WAIT_FOR_PIXEL,
+    ISP_ENTRY_PHASE.WAIT_FOR_DOT,
     ISP_ENTRY_PHASE.CONNECT_WINDOW,
   ]);
 
@@ -48,7 +48,7 @@ test("only the completed KEY2 sequence is eligible to open the chooser", () => {
 
   assert.equal(beginIspDeviceRequest(ISP_ENTRY_PHASE.CONNECT_WINDOW), ISP_ENTRY_PHASE.CHOOSER);
   assert.throws(
-    () => beginIspDeviceRequest(ISP_ENTRY_PHASE.WAIT_FOR_PIXEL),
+    () => beginIspDeviceRequest(ISP_ENTRY_PHASE.WAIT_FOR_DOT),
     /completed KEY2 entry sequence/,
   );
   assert.equal(finishIspDeviceRequest({ identified: true }), ISP_ENTRY_PHASE.IDENTIFIED);

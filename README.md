@@ -97,6 +97,17 @@ retrigger once in each new window.
 
 ## Hardware warning
 
+The photographed USB-C reference is PCB `B1144C_250901`, confirmed as a WCH
+`CH582M` with an 11×44 display. Once compatible FOSSASIA firmware is installed,
+holding KEY2 for about 2.2 seconds shows one dot near the middle and exposes WCH
+ISP as `4348:55e0` or `1a86:55e0` for roughly 9–13 seconds. That convenient
+entry is an application hook, so it is not available on original or unknown
+firmware. The first documented entry on this soldered-battery board required a
+qualified operator to hold KEY2 while momentarily bridging both ends of PCB
+capacitor `C3`; RESET plus KEY2 did not work. C3 rail-collapse recovery is
+hazardous expert bench work, not a routine website step. Leave the cell and its
+leads alone.
+
 Do not flash a badge based on appearance or the BLE name `LSLED`. Open it and
 verify all of the following:
 
