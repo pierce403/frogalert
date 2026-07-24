@@ -3,8 +3,8 @@
 FrogAlert is an experimental Rust-powered firmware project for the
 FOSSASIA-supported BadgeMagic CH582M 11×44 LED badge. The goal is to keep the badge useful as a
 normal app-programmable nametag while briefly scanning nearby BLE advertisements
-and temporarily showing an explainable local alert such as `COP DETECTED` or
-`FLIPPER DETECTED`.
+and temporarily showing an explainable local alert such as `COP DETECTED`,
+`FLIPPER DETECTED`, or `KARR DETECTED`.
 
 Project site: **<https://frogalert.org>**
 
@@ -21,7 +21,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - replacement firmware base: pinned FOSSASIA USB-C C hardware shell reproduces
   the known-good image byte-for-byte; the 177,788-byte metadata-only canary
   builds and audits but remains local and hardware-unverified
-- private survey candidate: a locked 201,628-byte local BIN adds passive
+- private survey candidate: a locked 201,788-byte local BIN adds passive
   counting, normal-nametag/count view rotation, the bounded detection table
   below, three-second overlays on a roughly 20-second survey cadence, and a
   BadgeMagic frog animation; it remains
@@ -58,17 +58,19 @@ The Rust detection core currently contains these rules:
 | Advertised name contains | `Axon Body` | Axon name | `COP DETECTED` |
 | Advertised name contains | `TASER` | TASER name | `COP DETECTED` |
 | Advertised name contains | `Flipper` | Flipper name | `FLIPPER DETECTED` |
+| Advertised name starts with a non-empty serial prefix | `QT ` | KARR QT serial name | `KARR DETECTED` |
 | Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
 | Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
 | Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation for three seconds |
 | Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation for three seconds |
 
-Detection names use case-insensitive substring matching except for the exact
-`LED Badge Magic` frog trigger. OUI rules run only when the Bluetooth controller
-reports a public address; FrogAlert deliberately does not apply them to
-randomized or locally administered addresses. These are explainable hints
-rather than proof of device identity: names can be changed or spoofed, and
-vendor prefixes can cover unrelated products.
+Detection names use case-insensitive substring matching except for two narrow
+rules: KARR requires `QT ` at the beginning plus a non-empty serial value, and
+the `LED Badge Magic` frog trigger requires an exact name. OUI rules run only
+when the Bluetooth controller reports a public address; FrogAlert deliberately
+does not apply them to randomized or locally administered addresses. These are
+explainable hints rather than proof of device identity: names can be changed or
+spoofed, and vendor prefixes can cover unrelated products.
 
 The current private hardware survey candidate mirrors every row in this table
 in a bounded C classifier. That lets the behavior be built and inspected while
@@ -82,9 +84,10 @@ In this candidate, a short KEY2 press rotates the visible content as
 `Name 1 → BT counter → Name 2 → BT counter → …`. KEY1 retains FOSSASIA's
 normal download/power behavior, KEY1 long press still changes brightness, and
 the independent long-KEY2 ISP path remains in the inherited shell. Passive
-surveys continue in both nametag and counter views. `COP DETECTED` and
-`FLIPPER DETECTED` temporarily overlay either view for three seconds, then the
-selected view resumes without changing the uploaded nametag data. Survey
+surveys continue in both nametag and counter views. `COP DETECTED`,
+`FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
+three seconds, then the selected view resumes without changing the uploaded
+nametag data. Survey
 windows start roughly every 20 seconds, so a continuously present match can
 retrigger once in each new window.
 
@@ -116,6 +119,7 @@ be permanently damaged by an incompatible image. Read
 cargo test --workspace
 cargo run -p frogalert-simulator -- "00:25:DF:12:34:56" "Axon Body 4"
 cargo run -p frogalert-simulator -- "C2:00:00:00:00:01" "Flipper Zero"
+cargo run -p frogalert-simulator -- "C2:00:00:00:00:02" "QT 123456"
 cargo run -p frogalert-simulator -- --count 23
 ```
 
@@ -124,6 +128,7 @@ Expected classifier output; count mode then prints an 11×44 text framebuffer:
 ```text
 COP DETECTED (Axon OUI)
 FLIPPER DETECTED (Flipper name)
+KARR DETECTED (KARR QT serial name)
 nearby BLE devices: 23
 ```
 
@@ -158,8 +163,8 @@ The later private survey candidate is built and audited separately:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-Its locked local BIN is 201,628 bytes with SHA-256
-`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
+Its locked local BIN is 201,788 bytes with SHA-256
+`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
 Those are reproducible build facts, not physical-test or release evidence.
 
 All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts

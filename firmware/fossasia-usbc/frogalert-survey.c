@@ -49,10 +49,11 @@
 
 __attribute__((used, section(".rodata.frogalert")))
 const char frogalert_survey_identity[] =
-	"FROGALERT:SURVEY-MODES-RULES-FRAME48:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+	"FROGALERT:SURVEY-MODES-RULES-KARR-FRAME48:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 static const char cop_alert[] = "COP DETECTED";
 static const char flipper_alert[] = "FLIPPER DETECTED";
+static const char karr_alert[] = "KARR DETECTED";
 
 static tmosTaskID survey_task_id = INVALID_TASK_ID;
 static frogalert_survey_counter_t survey_counter;
@@ -112,6 +113,10 @@ static void render_alert(frogalert_survey_alert_t alert)
 		frogalert_display_survey_message(flipper_alert,
 						 sizeof(flipper_alert) - 1);
 		break;
+	case FROGALERT_ALERT_KARR:
+		frogalert_display_survey_message(karr_alert,
+						 sizeof(karr_alert) - 1);
+		break;
 	case FROGALERT_ALERT_FROG_DANCE:
 		frogalert_display_frog_dance(frog_frame++);
 		break;
@@ -167,7 +172,7 @@ static void show_alert(frogalert_survey_alert_t alert)
 		return;
 
 	/*
-	 * A broad, friendly FEE0 hint must never hide a Cop or Flipper warning.
+	 * A broad, friendly FEE0 hint must never hide a text warning.
 	 * A later warning may replace the frog dance; warnings otherwise remain
 	 * stable for the remainder of the short survey window.
 	 */

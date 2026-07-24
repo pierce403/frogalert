@@ -28,8 +28,8 @@ been tested on a physically verified CH582M 11×44 badge.
 FrogAlert is a Rust-powered firmware experiment for the FOSSASIA-supported
 BadgeMagic badge. Its first images retain FOSSASIA's C hardware/runtime shell
 and call Rust only for pure policy logic. It should remain a normal programmable LED nametag, briefly scan nearby
-BLE advertisements, and temporarily show `COP DETECTED` or
-`FLIPPER DETECTED` for configured signatures.
+BLE advertisements, and temporarily show configured messages such as
+`COP DETECTED`, `FLIPPER DETECTED`, or `KARR DETECTED`.
 
 The public site is a dependency-free static application. It separates:
 
@@ -220,8 +220,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The likely software failure was startup ordering: FOSSASIA started Peripheral
   before the survey registered its Central callback, so a combined-role
   `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
-- The replacement private survey candidate is a locked 201,628-byte BIN at
-  SHA-256 `8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
+- The replacement private survey candidate is a locked 201,788-byte BIN at
+  SHA-256 `9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
   It treats a successful Central start as ready instead of depending only on
   that callback, consumes both live reports and the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
@@ -229,8 +229,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   rotates `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system/brightness
   behavior and the independent long-KEY2 ISP task remain inherited. Surveys
   continue in either visible view. The bounded C mirror implements every
-  README OUI/name row; `COP DETECTED` and `FLIPPER DETECTED` overlay either view
-  for three seconds, then the selected view resumes. There is no unique Flipper
+  README OUI/name row; `COP DETECTED`, `FLIPPER DETECTED`, and `KARR DETECTED`
+  overlay either view for three seconds, then the selected view resumes. KARR
+  requires a case-insensitive `QT ` prefix at the start plus a non-empty serial
+  value. There is no unique Flipper
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
   OUI would overmatch, and custom firmware can rename or spoof the device.
   Exact case-insensitive `LED Badge Magic` or advertised `0xFEE0` triggers
@@ -242,7 +244,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   once in each new window. It caps and zeroes 64 addresses, restores
   advertising, cancels a stuck scan after five seconds, and leaves 9,788 bytes of measured
   stack/runtime headroom. Audited text/data/BSS sizes are
-  193,136/8,492/4,588 bytes. It preserves audited FOSSASIA
+  193,296/8,492/4,588 bytes. It preserves audited FOSSASIA
   USB/BLE/display/KEY2 symbols but remains private under `tmp/`,
   hardware-unverified, and not flash-approved or published.
 - WCH discovery cancellation is asynchronous. Keep `scan_active` true until

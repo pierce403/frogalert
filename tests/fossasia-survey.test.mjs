@@ -297,6 +297,7 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(survey, /event->deviceExtAdvInfo\.pEvtData/);
   assert.match(survey, /"COP DETECTED"/);
   assert.match(survey, /"FLIPPER DETECTED"/);
+  assert.match(survey, /"KARR DETECTED"/);
   assert.match(survey, /FROGALERT_ALERT_FROG_DANCE/);
   assert.match(survey, /frogalert_display_frog_dance/);
   assert.match(survey, /SURVEY_ALERT_END_EVENT/);
@@ -342,6 +343,8 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(core, /"axon body"/);
   assert.match(core, /"taser"/);
   assert.match(core, /"flipper"/);
+  assert.match(core, /"qt "/);
+  assert.match(core, /ascii_starts_with_value/);
   assert.match(core, /"led badge magic"/);
   assert.match(core, /ascii_equal_padded/);
   assert.match(core, /current\.value\[index\] == 0xe0/);

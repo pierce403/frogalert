@@ -32,6 +32,19 @@ int main(void)
 	static const uint8_t short_flipper_name[] = {
 		8, 0x08, 'F', 'L', 'I', 'P', 'P', 'E', 'R',
 	};
+	static const uint8_t karr_name[] = {
+		11, 0x09, 'Q', 'T', ' ', '1', '2', '3', '4', '5', '6', '7',
+	};
+	static const uint8_t short_karr_name[] = {
+		9, 0x08, 'q', 't', ' ', 'S', 'N', '-', '4', '2',
+	};
+	static const uint8_t empty_karr_name[] = {
+		4, 0x09, 'Q', 'T', ' ',
+	};
+	static const uint8_t containing_karr_name[] = {
+		13, 0x09, 'M', 'y', ' ', 'Q', 'T', ' ', '1', '2', '3', '4',
+		'5', '6',
+	};
 	static const uint8_t badge_magic_name[] = {
 		16, 0x09, 'L', 'E', 'D', ' ', 'B', 'a', 'd', 'g', 'e', ' ',
 		'M', 'a', 'g', 'i', 'c',
@@ -122,6 +135,18 @@ int main(void)
 	assert(frogalert_survey_classify(
 		       unrelated_address, 0, short_flipper_name,
 		       sizeof(short_flipper_name)) == FROGALERT_ALERT_FLIPPER);
+	assert(frogalert_survey_classify(
+		       unrelated_address, 0, karr_name, sizeof(karr_name)) ==
+	       FROGALERT_ALERT_KARR);
+	assert(frogalert_survey_classify(
+		       unrelated_address, 0, short_karr_name,
+		       sizeof(short_karr_name)) == FROGALERT_ALERT_KARR);
+	assert(frogalert_survey_classify(
+		       unrelated_address, 0, empty_karr_name,
+		       sizeof(empty_karr_name)) == FROGALERT_ALERT_NONE);
+	assert(frogalert_survey_classify(
+		       unrelated_address, 0, containing_karr_name,
+		       sizeof(containing_karr_name)) == FROGALERT_ALERT_NONE);
 	assert(frogalert_survey_classify(
 		       unrelated_address, 0, badge_magic_name,
 		       sizeof(badge_magic_name)) == FROGALERT_ALERT_FROG_DANCE);

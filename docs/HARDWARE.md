@@ -167,8 +167,8 @@ explicitly authorized, one-badge bench smoke by a qualified operator; that
 initial program/verify action begins the checklist below and must be captured.
 
 A later private survey candidate is also reproducibly built under
-`tmp/fossasia-usbc/build/survey/`. It is 201,628 bytes with SHA-256
-`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
+`tmp/fossasia-usbc/build/survey/`. It is 201,788 bytes with SHA-256
+`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
 It retains the audited FOSSASIA reset/vector, USB, BLE, display, BadgeMagic, and
 KEY2 symbols; leaves 9,788 bytes between static RAM and the stack top; performs
 only a bounded three-second passive discovery; skips connected/streaming
@@ -176,8 +176,10 @@ states; displays `I`, `R`, and `S` progress plus `E`/`T` failures; live-updates
 the count during scanning; consumes the completion list as a fallback; and
 mirrors the documented public-OUI and local-name rules in bounded C. Short KEY2
 rotates `Name 1 → BT counter → Name 2 → BT counter` without changing KEY1's
-system behavior. `COP DETECTED` and `FLIPPER DETECTED` overlay either view for
-three seconds, then the selected view resumes. An exact case-insensitive
+system behavior. `COP DETECTED`, `FLIPPER DETECTED`, and `KARR DETECTED`
+overlay either view for three seconds, then the selected view resumes. KARR is
+a name-prefix hint requiring `QT ` at the beginning plus a non-empty serial
+value. An exact case-insensitive
 `LED Badge Magic` name or an advertised `0xFEE0` service shows two alternating
 frames of three frogs for three seconds. Survey windows start roughly every
 20 seconds, so a continuously present match can retrigger once per window.
@@ -188,7 +190,7 @@ false-positive another compatible advertiser. A suffix-free `BT 00` through
 framebuffer at each 100 ms scroll step, although the base roughly 45 Hz
 multiplex refresh is unchanged. Qualified 48-column fixed and animation frames
 are cropped to their inner 44 columns using the wire-frame stride; the original
-path remains for unqualified payloads. The audited section sizes are 193,136 bytes of
+path remains for unqualified payloads. The audited section sizes are 193,296 bytes of
 text, 8,492 bytes of data, and 4,588 bytes of BSS. Those are build properties,
 not evidence that the badge tolerates repeated surveys. The image does not
 replace the metadata canary as the lower-risk first derived smoke and must not

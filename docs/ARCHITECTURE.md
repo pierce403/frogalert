@@ -68,9 +68,10 @@ is explicitly zeroed, and the code never establishes a central connection.
 The candidate mirrors every README OUI and name rule in a bounded C classifier.
 OUI rules run only for controller-reported public addresses. Complete and
 shortened local names are matched case-insensitively for `Axon Body`, `TASER`,
-`Flipper`, `Ray-Ban`, and `Ray Ban`; the resulting `COP DETECTED` or
-`FLIPPER DETECTED` overlay lasts three seconds and then restores the selected
-nametag/count view. An exact case-insensitive `LED Badge Magic` name or an
+`Flipper`, `Ray-Ban`, and `Ray Ban`. A name beginning with case-insensitive
+`QT ` and a non-empty serial value produces `KARR DETECTED`. The resulting
+text overlay lasts three seconds and then restores the selected nametag/count
+view. An exact case-insensitive `LED Badge Magic` name or an
 advertised `0xFEE0` service triggers two alternating frames of three frogs for
 three seconds. Passive scans may omit a name carried only in scan response, so
 the service match is an intentional fallback and may false-positive another
@@ -85,9 +86,9 @@ underlying roughly 45 Hz matrix refresh is unchanged.
 The C-only canary now builds as 177,788 bytes at SHA-256
 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
 It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 201,628 bytes at SHA-256
-`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
-Its audited section sizes are 193,136 bytes of text, 8,492 bytes of data, and
+The survey candidate builds as 201,788 bytes at SHA-256
+`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
+Its audited section sizes are 193,296 bytes of text, 8,492 bytes of data, and
 4,588 bytes of BSS, with 9,788 bytes of measured stack/runtime headroom. It is
 likewise private, hardware-unverified, and not flash-approved.
 
@@ -182,9 +183,11 @@ small and explainable:
 
 - OUI rules run only for controller-reported public addresses. Random BLE
   addresses make the first three bytes unsuitable as vendor evidence.
-- detection-name rules are ASCII case-insensitive substring matches against
-  Complete or Shortened Local Name advertisement fields; the friendly
-  `LED Badge Magic` frog trigger requires an exact case-insensitive name.
+- detection-name rules examine Complete or Shortened Local Name advertisement
+  fields. Most are ASCII case-insensitive substring matches; KARR requires
+  case-insensitive `QT ` at the beginning plus a non-empty serial value, and
+  the friendly `LED Badge Magic` frog trigger requires an exact
+  case-insensitive name.
 - observations are discarded after classification. The badge has no scan log,
   network client, or telemetry.
 - the first match wins. A future rule table stored in data flash can add

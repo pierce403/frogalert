@@ -98,7 +98,7 @@
           <article>
             <span class="card-number">03</span>
             <h3>Temporary alerts</h3>
-            <p>A matching public OUI or advertised name shows <code>COP DETECTED</code> or <code>FLIPPER DETECTED</code> for three seconds. A BadgeMagic name or <code>FEE0</code> service shows three dancing frogs. The nametag or counter returns afterward.</p>
+            <p>A matching public OUI or advertised name shows <code>COP DETECTED</code>, <code>FLIPPER DETECTED</code>, or <code>KARR DETECTED</code> for three seconds. A BadgeMagic name or <code>FEE0</code> service shows three dancing frogs. The nametag or counter returns afterward.</p>
           </article>
         </div>
         <aside class="caveat">
@@ -144,8 +144,8 @@
           <article class="evidence-card prototype">
             <p class="evidence-state">PROTOTYPE / BADGE · HARDWARE-UNVERIFIED</p>
             <h3>Private two-mode survey BIN</h3>
-            <p>The 201,628-byte candidate retains FOSSASIA's USB, BLE, display, uploaded entries, buttons, and KEY2 recovery source while adding the counter, three-second text/frog overlays on a roughly 20-second survey cadence, and a narrow fix for qualified 48-column app animations. It is not hosted or released.</p>
-            <code class="command">SHA-256 8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7</code>
+            <p>The 201,788-byte candidate retains FOSSASIA's USB, BLE, display, uploaded entries, buttons, and KEY2 recovery source while adding the counter, three-second text/frog overlays on a roughly 20-second survey cadence, and a narrow fix for qualified 48-column app animations. It is not hosted or released.</p>
+            <code class="command">SHA-256 9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7</code>
           </article>
         </div>
 
@@ -158,9 +158,10 @@
               <tr><td><code>B4:1E:52</code></td><td>Flock Safety public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
               <tr><td><code>Axon Body</code> / <code>TASER</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
               <tr><td><code>Flipper</code></td><td>Advertised name</td><td><code>FLIPPER DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>QT </code> + serial</td><td>Advertised name prefix</td><td><code>KARR DETECTED</code></td><td>Case-insensitive; must start the name</td></tr>
               <tr><td><code>Ray-Ban</code> / <code>Ray Ban</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
-              <tr><td><code>LED Badge Magic</code></td><td>Advertised name</td><td>Three-frog dance · 2 s</td><td>Exact, case-insensitive hint</td></tr>
-              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic service</td><td>Three-frog dance · 2 s</td><td>Passive fallback; may false-positive</td></tr>
+              <tr><td><code>LED Badge Magic</code></td><td>Advertised name</td><td>Three-frog dance · 3 s</td><td>Exact, case-insensitive hint</td></tr>
+              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic service</td><td>Three-frog dance · 3 s</td><td>Passive fallback; may false-positive</td></tr>
             </tbody>
           </table>
           <p class="caveat"><strong>Passive scan limit:</strong> discovery does not request scan responses. A device name present only there cannot match, so advertised <code>FEE0</code> provides a broad BadgeMagic-compatible fallback without claiming device identity.</p>

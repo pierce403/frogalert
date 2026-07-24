@@ -160,6 +160,12 @@ the advertised name case-insensitively and does not claim a Flipper OUI:
 The rule remains a hint: custom firmware can rename a Flipper and any other
 device can advertise a name containing `Flipper`.
 
+The KARR rule is based on the user's observed backdoor advertisements rather
+than an OUI or an upstream code reference. It matches a local name only when it
+begins with case-insensitive `QT ` and has a non-empty serial value afterward.
+The prefix remains spoofable and is treated as a hint, not authenticated device
+identity.
+
 OUI-Spy's published database provides these initial prefixes:
 
 | Prefix | Label | FrogAlert treatment |

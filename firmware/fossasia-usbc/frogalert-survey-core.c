@@ -55,6 +55,26 @@ static uint8_t ascii_equal_padded(const uint8_t *value, uint8_t value_length,
 	return 1;
 }
 
+static uint8_t ascii_starts_with_value(const uint8_t *value,
+				       uint8_t value_length,
+				       const uint8_t *prefix,
+				       uint8_t prefix_length)
+{
+	if (!value || value_length <= prefix_length)
+		return 0;
+	for (uint8_t index = 0; index < prefix_length; index++) {
+		if (ascii_lower(value[index]) != prefix[index])
+			return 0;
+	}
+	for (uint8_t index = prefix_length; index < value_length; index++) {
+		if (value[index] != 0 && value[index] != ' ' &&
+		    value[index] != '\t' && value[index] != '\r' &&
+		    value[index] != '\n')
+			return 1;
+	}
+	return 0;
+}
+
 static uint8_t address_matches_oui(const uint8_t address[6],
 				   const uint8_t prefix[3])
 {
@@ -72,6 +92,7 @@ static frogalert_survey_alert_t classify_name(const uint8_t *name,
 	static const uint8_t axon[] = "axon body";
 	static const uint8_t taser[] = "taser";
 	static const uint8_t flipper[] = "flipper";
+	static const uint8_t karr_prefix[] = "qt ";
 	static const uint8_t badge_magic[] = "led badge magic";
 	static const uint8_t ray_ban_dash[] = "ray-ban";
 	static const uint8_t ray_ban_space[] = "ray ban";
@@ -82,6 +103,9 @@ static frogalert_survey_alert_t classify_name(const uint8_t *name,
 	if (ascii_contains(name, name_length, flipper,
 			   sizeof(flipper) - 1))
 		return FROGALERT_ALERT_FLIPPER;
+	if (ascii_starts_with_value(name, name_length, karr_prefix,
+				    sizeof(karr_prefix) - 1))
+		return FROGALERT_ALERT_KARR;
 	if (ascii_equal_padded(name, name_length, badge_magic,
 			       sizeof(badge_magic) - 1))
 		return FROGALERT_ALERT_FROG_DANCE;

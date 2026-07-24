@@ -10,6 +10,7 @@ pub enum AlertKind {
     Flipper,
     FrogDance,
     Hax,
+    Karr,
 }
 
 impl AlertKind {
@@ -19,6 +20,7 @@ impl AlertKind {
             Self::Flipper => "FLIPPER DETECTED",
             Self::FrogDance => "DANCING FROGS",
             Self::Hax => "HAX DETECTED",
+            Self::Karr => "KARR DETECTED",
         }
     }
 }
@@ -56,6 +58,14 @@ struct NameRule {
     needle: &'static [u8],
     kind: AlertKind,
     label: &'static str,
+    matcher: NameMatcher,
+}
+
+#[derive(Clone, Copy)]
+enum NameMatcher {
+    Contains,
+    ExactPadded,
+    PrefixWithSuffix,
 }
 
 // BLE-relevant seed prefixes from the published OUI-Spy database. The larger
@@ -80,31 +90,43 @@ const NAME_RULES: &[NameRule] = &[
         needle: b"axon body",
         kind: AlertKind::Cop,
         label: "Axon name",
+        matcher: NameMatcher::Contains,
     },
     NameRule {
         needle: b"taser",
         kind: AlertKind::Cop,
         label: "TASER name",
+        matcher: NameMatcher::Contains,
     },
     NameRule {
         needle: b"flipper",
         kind: AlertKind::Flipper,
         label: "Flipper name",
+        matcher: NameMatcher::Contains,
+    },
+    NameRule {
+        needle: b"qt ",
+        kind: AlertKind::Karr,
+        label: "KARR QT serial name",
+        matcher: NameMatcher::PrefixWithSuffix,
     },
     NameRule {
         needle: b"led badge magic",
         kind: AlertKind::FrogDance,
         label: "BadgeMagic name",
+        matcher: NameMatcher::ExactPadded,
     },
     NameRule {
         needle: b"ray-ban",
         kind: AlertKind::Cop,
         label: "Ray-Ban name",
+        matcher: NameMatcher::Contains,
     },
     NameRule {
         needle: b"ray ban",
         kind: AlertKind::Cop,
         label: "Ray Ban name",
+        matcher: NameMatcher::Contains,
     },
 ];
 
@@ -124,10 +146,12 @@ pub fn classify(observation: &Observation<'_>) -> Option<Match> {
 
     if let Some(name) = observation.name {
         for rule in NAME_RULES {
-            let matches = if rule.kind == AlertKind::FrogDance {
-                ascii_equal_ignore_case_padded(name, rule.needle)
-            } else {
-                ascii_contains_ignore_case(name, rule.needle)
+            let matches = match rule.matcher {
+                NameMatcher::Contains => ascii_contains_ignore_case(name, rule.needle),
+                NameMatcher::ExactPadded => ascii_equal_ignore_case_padded(name, rule.needle),
+                NameMatcher::PrefixWithSuffix => {
+                    ascii_starts_with_ignore_case_and_value(name, rule.needle)
+                }
             };
             if matches {
                 return Some(Match {
@@ -164,6 +188,14 @@ fn ascii_equal_ignore_case_padded(mut value: &[u8], expected: &[u8]) -> bool {
         value = &value[..value.len() - 1];
     }
     value.eq_ignore_ascii_case(expected)
+}
+
+fn ascii_starts_with_ignore_case_and_value(value: &[u8], prefix: &[u8]) -> bool {
+    value.len() > prefix.len()
+        && value[..prefix.len()].eq_ignore_ascii_case(prefix)
+        && value[prefix.len()..]
+            .iter()
+            .any(|byte| *byte != 0 && !byte.is_ascii_whitespace())
 }
 
 #[cfg(test)]
@@ -224,6 +256,23 @@ mod tests {
             let found = classify(&observation([0; 6], false, Some(name))).unwrap();
             assert_eq!(found.kind, AlertKind::Cop);
             assert_eq!(found.kind.message(), "COP DETECTED");
+        }
+    }
+
+    #[test]
+    fn karr_names_require_qt_prefix_and_serial_value() {
+        for name in [b"QT 123456".as_slice(), b"qt SN-42".as_slice()] {
+            let found = classify(&observation([0; 6], false, Some(name))).unwrap();
+            assert_eq!(found.kind, AlertKind::Karr);
+            assert_eq!(found.kind.message(), "KARR DETECTED");
+            assert_eq!(found.label, "KARR QT serial name");
+        }
+        for name in [
+            b"QT ".as_slice(),
+            b"QT \0\0".as_slice(),
+            b"My QT 123456".as_slice(),
+        ] {
+            assert_eq!(classify(&observation([0; 6], false, Some(name))), None);
         }
     }
 

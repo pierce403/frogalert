@@ -88,11 +88,12 @@ visible view. The counter suffix shows `I` initializing, `R` ready/waiting, `S`
 scanning, `E` error, or `T` timeout; it disappears for a completed result. The
 lane updates live while scanning, consumes the final discovery list, and feeds
 live public-address/name/service data into a bounded C mirror of every README
-detection row. Cop and Flipper alerts last three seconds and restore the selected
-view. An exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
-service shows three frogs in two alternating frames for three seconds. Passive
-scans may omit scan-response-only names, so the service fallback is deliberately
-broad and may false-positive.
+detection row. Cop, Flipper, and KARR alerts last three seconds and restore the
+selected view. KARR requires a case-insensitive `QT ` prefix at the start plus
+a non-empty serial value. An exact case-insensitive `LED Badge Magic` name or
+advertised `0xFEE0` service shows three frogs in two alternating frames for
+three seconds. Passive scans may omit scan-response-only names, so the service
+fallback is deliberately broad and may false-positive.
 
 After each three-second discovery, the next attempt waits about 17 seconds.
 That gives a roughly 20-second start-to-start cadence, and a continuously
@@ -109,9 +110,9 @@ and critical sources, audit required runtime symbols and linked instructions,
 keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
 ignored `tmp/fossasia-usbc/`. The baseline must match the known-good
 177,704-byte image exactly. No build command flashes, publishes, or authorizes
-a physical test. The locked survey BIN is 201,628 bytes with SHA-256
-`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`;
-its audited text/data/BSS sizes are 193,136/8,492/4,588 bytes and it retains
+a physical test. The locked survey BIN is 201,788 bytes with SHA-256
+`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`;
+its audited text/data/BSS sizes are 193,296/8,492/4,588 bytes and it retains
 9,788 bytes of stack/runtime headroom.
 
 Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already

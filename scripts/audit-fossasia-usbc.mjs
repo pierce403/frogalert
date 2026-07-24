@@ -15,7 +15,7 @@ export const lockPath = path.join(
 export const canaryText =
   "FROGALERT:FOSSASIA-USB-C-BASE:9ce885d682b5c56c3ac7595c09e009a210885221:UNVERIFIED";
 export const surveyText =
-  "FROGALERT:SURVEY-MODES-RULES-FRAME48:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+  "FROGALERT:SURVEY-MODES-RULES-KARR-FRAME48:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
 
 function validateMode(mode) {
   assert.ok(
@@ -80,9 +80,11 @@ export function validateLock(lock) {
   assert.deepEqual(lock.build.required_survey_ascii, [
     "COP DETECTED",
     "FLIPPER DETECTED",
+    "KARR DETECTED",
     "axon body",
     "taser",
     "flipper",
+    "qt ",
     "led badge magic",
     "ray-ban",
     "ray ban",
@@ -151,16 +153,21 @@ export async function sha256File(file) {
 
 export async function verifyLockedFile(file, expected, label) {
   const details = await stat(file);
-  assert.equal(
-    details.size,
-    expected.size,
-    `${label} size differs from the lock`,
-  );
-  assert.equal(
-    await sha256File(file),
-    expected.sha256,
-    `${label} SHA-256 differs from the lock`,
-  );
+  const actualSha256 = await sha256File(file);
+  const differences = [];
+  if (details.size !== expected.size) {
+    differences.push(
+      `size differs from the lock: ${details.size} bytes, expected ${expected.size}`,
+    );
+  }
+  if (actualSha256 !== expected.sha256) {
+    differences.push(
+      `SHA-256 differs from the lock: ${actualSha256}, expected ${expected.sha256}`,
+    );
+  }
+  if (differences.length > 0) {
+    throw new Error(`${label} ${differences.join("; ")}`);
+  }
 }
 
 function safeSourcePath(sourceDirectory, relativePath) {

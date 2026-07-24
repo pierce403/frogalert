@@ -56,17 +56,19 @@ test("FOSSASIA USB-C lock pins source, toolchain, and known-good baseline", asyn
   assert.equal(lock.build.known_good_baseline_size, 177704);
   assert.equal(lock.build.known_good_canary_size, 177788);
   assert.equal(lock.build.minimum_stack_headroom, 8192);
-  assert.equal(lock.build.known_good_survey_size, 201628);
+  assert.equal(lock.build.known_good_survey_size, 201788);
   assert.equal(
     lock.build.known_good_survey_sha256,
-    "8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7",
+    "9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7",
   );
   assert.deepEqual(lock.build.required_survey_ascii, [
     "COP DETECTED",
     "FLIPPER DETECTED",
+    "KARR DETECTED",
     "axon body",
     "taser",
     "flipper",
+    "qt ",
     "led badge magic",
     "ray-ban",
     "ray ban",

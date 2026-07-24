@@ -64,12 +64,14 @@ AD-structure classifier mirrors every README detector row:
 - public `00:25:DF` and `B4:1E:52` OUIs produce `COP DETECTED`;
 - case-insensitive `Axon Body`, `TASER`, `Ray-Ban`, and `Ray Ban` names produce
   `COP DETECTED`;
-- case-insensitive `Flipper` produces `FLIPPER DETECTED`; and
+- case-insensitive `Flipper` produces `FLIPPER DETECTED`;
+- a case-insensitive `QT ` prefix followed by a non-empty serial value produces
+  `KARR DETECTED`; and
 - an exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
   service runs a two-frame, three-frog animation.
 
-Cop, Flipper, and frog overlays each last three seconds. Each then restores the
-selected nametag or latest `BT 00` through
+Cop, Flipper, KARR, and frog overlays each last three seconds. Each then
+restores the selected nametag or latest `BT 00` through
 `BT 64+` counter view without modifying uploaded content. Passive discovery
 does not guarantee delivery of a local name carried only in scan response, so
 the advertised-`0xFEE0` branch is a deliberately broad fallback and may animate
@@ -134,9 +136,9 @@ match the already recovered FOSSASIA image exactly.
 The survey lane additionally requires its passive-scan/cancel/suspend,
 display-view, bounded classifier, text-alert, and frog-render symbols plus at
 least 8 KiB between static RAM and the stack top. Its current locked BIN is
-201,628 bytes with SHA-256
-`8dff996d2170c24dc30aa781f27ff47fae6ab1ea7a6f53eac777d40edf19ebf7`.
-The audited section sizes are 193,136 bytes of text, 8,492 bytes of data, and
+201,788 bytes with SHA-256
+`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
+The audited section sizes are 193,296 bytes of text, 8,492 bytes of data, and
 4,588 bytes of BSS; measured stack/runtime headroom remains 9,788 bytes.
 
 It does **not** prove that a derived image boots, scans, displays correctly,

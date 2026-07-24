@@ -47,6 +47,9 @@ on chat context or filenames alone.
   — source-confirmed 48-versus-44 frame mismatch, narrowly qualified
   compatibility helper, exact replacement survey hash, and remaining physical
   acceptance gate.
+- [`2026-07-23-karr-detection-rule.md`](agent-memory/logs/2026-07-23-karr-detection-rule.md)
+  — user-observed KARR `QT ` local-name prefix, narrow classifier semantics,
+  mirrored Rust/C behavior, and private survey artifact gate.
 
 ## People
 
