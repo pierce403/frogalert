@@ -20,10 +20,10 @@ matrices. The enclosure and the OEM BLE name `LSLED` are not sufficient proof.
 FrogAlert keeps two explicit USB-C profiles. The newer Nyx board is the build
 default, not an automatically detected target:
 
-| Profile | Printed PCB marking | KEY1/PA1 input | Pressed level | Shutdown wake |
-| --- | --- | --- | --- | --- |
-| `B1144C_260404_USB_C` (default) | `B1144C_260404` | pull-up | low | falling edge |
-| `B1144C_250901_USB_C` (legacy) | `B1144C_250901` | pull-down | high | rising edge |
+| Profile | Printed PCB marking | Physical KEY2 | KEY1/PA1 input | Pressed level | Shutdown wake |
+| --- | --- | --- | --- | --- | --- |
+| `B1144C_260404_USB_C` (default) | `B1144C_260404` | farther from USB | pull-up | low | falling edge |
+| `B1144C_250901_USB_C` (legacy) | `B1144C_250901` | nearest USB | pull-down | high | rising edge |
 
 The 23 display nets are identical between these two USB-C profiles:
 
@@ -32,11 +32,12 @@ PA15 PB18 PB0 PB7 PA12 PA10 PA11 PB9 PB8 PB15 PB14 PB13
 PB12 PB5 PA4 PB3 PB4 PB2 PB1 PB6 PB21 PB20 PB19
 ```
 
-KEY2 remains PB22 with a pull-up and active-low press on both profiles. The
-profile change is therefore a KEY1 electrical-polarity and wake-edge change,
-not a shifted LED matrix. The `260404` values come from Nyx's board notes and
-FOSSASIA commit `696bbd71`; they are source-level evidence and still require
-an exact-board FrogAlert smoke test.
+KEY2 remains PB22 with a pull-up and active-low press on both profiles, but the
+board layouts put that switch in different physical positions. The profile
+change is otherwise a KEY1 electrical-polarity and wake-edge change, not a
+shifted LED matrix. The `260404` values and KEY2 position come from Nyx's board
+notes and FOSSASIA commit `696bbd71`; they still require an exact-board
+FrogAlert smoke test.
 
 Safe passive boot-time auto-detection is not available. Before KEY1 has been
 pressed, its switch is open on both boards, so PA1 only reflects the internal
@@ -92,6 +93,14 @@ It does not verify the website WebUSB implementation, FrogAlert firmware, all
 484 LED positions, or radio operation. Bridging C3 collapses the board's power
 rail and remains hazardous, qualified bench recovery rather than an end-user
 procedure.
+
+On 2026-07-28, a second opened badge was photographed with PCB marking
+`B1144C_260404` and a readable CH582M package. Its C3 and RESET placement
+visually matches the older layout. Repeated attempts that held the side button
+nearest USB while bridging C3 only disconnected and re-enumerated the OEM
+`0416:5020` application. Nyx's revision-specific instructions identify KEY2 on
+this board as the other side button, farther from USB. This explains the reset
+observations but is not yet a successful `260404` ISP-entry record.
 
 ## Before the first flash
 

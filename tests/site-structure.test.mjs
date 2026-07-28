@@ -124,10 +124,10 @@ test("landing page exposes the project and guarded device flow", async () => {
   );
   assert.match(html, /local BIN chooser below is read-only on this page/i);
   assert.match(html, /This page.*cannot reset configuration, erase, or program/is);
-  assert.match(html, /B1144C_250901.*CH582M.*11×44/is);
-  assert.match(html, /Ordinary KEY2 entry works only after compatible FOSSASIA.*FrogAlert firmware/is);
-  assert.match(html, /Original or unknown firmware.*expert-only C3/is);
-  assert.match(html, /RESET plus KEY2 did not work/i);
+  assert.match(html, /B1144C_250901.*B1144C_260404.*CH582M/is);
+  assert.match(html, /KEY2.*nearest USB on.*250901.*farther from USB on.*260404/is);
+  assert.match(html, /Ordinary long-press entry works only after compatible FOSSASIA.*FrogAlert firmware/is);
+  assert.match(html, /Original or unknown firmware.*expert-recovery boundary/is);
   assert.match(html, /one dot lights near the middle/i);
   assert.match(html, /4348:55e0.*1a86:55e0.*9–13 second/is);
   assert.match(html, /Hardware-verified lab build/i);
@@ -163,7 +163,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=7/);
+  assert.match(html, /site\/app\.js\?v=8/);
   assert.match(app, /latest approved/);
   assert.match(app, /Nothing is selected or loaded automatically/);
   assert.match(html, /newest semantic version.*never selected automatically/i);
@@ -224,15 +224,17 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=7/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=8/);
   assert.match(html, /iPhone.*WebUSB/is);
   assert.match(html, /B1144C_250901.*CH582M.*11×44/is);
+  assert.match(html, /B1144C_260404.*KEY2.*farther from USB/is);
+  assert.match(html, /B1144C_250901.*nearest USB/is);
   assert.match(html, /After compatible FOSSASIA.*FrogAlert firmware is installed/is);
   assert.match(html, /hold.*KEY2.*about 2\.2 seconds/is);
   assert.match(html, /one dot lights near the middle/i);
   assert.match(html, /4348:55e0.*1a86:55e0.*9–13 second/is);
-  assert.match(html, /Original or unknown firmware.*ordinary KEY2 hook is not available/is);
-  assert.match(html, /RESET plus KEY2 did not work/i);
+  assert.match(html, /Original or unknown firmware.*ordinary long-press hook is not available/is);
+  assert.match(html, /RESET switch did not enter ISP/i);
   assert.match(html, /hold KEY2 while momentarily bridging both ends of PCB capacitor.*C3/is);
   assert.match(html, /hazardous rail-collapse maneuver.*not routine/is);
   assert.match(html, /Leave the soldered cell and its leads alone/i);
@@ -299,9 +301,11 @@ test("first-entry guidance defaults unknown firmware to a safe stop", async () =
   assert.match(combined, /9–13 seconds?/);
   assert.match(combined, /one dot.*near the middle/is);
   assert.match(combined, /original or unknown firmware.*stop/is);
-  assert.match(combined, /RESET plus KEY2 did not work/i);
+  assert.match(combined, /RESET.*did not (?:work|enter ISP)/i);
   assert.match(combined, /both ends of PCB capacitor.*C3/is);
   assert.match(combined, /expert-only|expert bench/i);
+  assert.match(combined, /260404.*farther from USB/is);
+  assert.match(combined, /250901.*nearest USB/is);
 
   for (const [name, source] of Object.entries(sources)) {
     assert.doesNotMatch(

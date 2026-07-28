@@ -112,7 +112,9 @@ it. Normal content resumes only when the overlay releases display ownership.
 The photographed USB-C reference is PCB `B1144C_250901`, confirmed as a WCH
 `CH582M` with an 11×44 display. Nyx documents the newer
 `B1144C_260404` USB-C board. Both use the same 23-net LED matrix mapping and
-KEY2/PB22 behavior. The relevant difference is KEY1/PA1: `250901` uses an
+KEY2/PB22 electrical behavior, but KEY2 is physically nearest USB on `250901`
+and farther from USB on `260404`. The other relevant difference is KEY1/PA1:
+`250901` uses an
 internal pull-down with active-high presses and rising-edge shutdown wake;
 `260404` connects the switch to ground and needs an internal pull-up,
 active-low presses, and falling-edge wake.
@@ -132,7 +134,9 @@ first documented entry on the soldered-battery `250901` board required a
 qualified operator to hold KEY2 while momentarily bridging both ends of PCB
 capacitor `C3`; RESET plus KEY2 did not work. C3 rail-collapse recovery is
 hazardous expert bench work, not a routine website step. Leave the cell and its
-leads alone.
+leads alone. Nyx documents the `260404` first-entry attempt with the same C3
+operation but its revision's KEY2 is the button farther from USB; FrogAlert has
+not yet captured successful ISP enumeration on that revision.
 
 Do not flash a badge based on appearance or the BLE name `LSLED`. Open it and
 verify all of the following:

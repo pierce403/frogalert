@@ -160,8 +160,9 @@
             <p>Choose the USB bootloader, not the running Bluetooth badge. The first connection identifies chip <code>0x82</code>, family <code>0x16</code>, and configuration without erasing or programming.</p>
             <div class="isp-entry-summary">
               <p><strong>Confirmed reference board:</strong> the photographed USB-C PCB marked <code>B1144C_250901</code> has a WCH <code>CH582M</code> and an 11×44 display.</p>
-              <p><strong>After compatible FOSSASIA or hardware-approved FrogAlert firmware is installed:</strong> keep USB connected and hold <strong>KEY2—the physical button nearest USB—for about 2.2 seconds</strong>. Release when one dot lights near the middle, then choose <code>4348:55e0</code> or <code>1a86:55e0</code> within the observed 9–13 second ISP window.</p>
-              <p><strong>Original or unknown firmware on this board:</strong> the ordinary KEY2 hook is not available. The first documented entry required expert-only C3 bench recovery; this page does not guide that hazardous operation. RESET plus KEY2 did not work.</p>
+              <p><strong>Locate KEY2 from the printed revision:</strong> on <code>B1144C_260404</code>, KEY2 is the side button <strong>farther from USB</strong>; on <code>B1144C_250901</code>, it is the button <strong>nearest USB</strong>. Do not infer the button from enclosure color.</p>
+              <p><strong>After compatible FOSSASIA or hardware-approved FrogAlert firmware is installed:</strong> keep USB connected and hold the correct <strong>KEY2 for about 2.2 seconds</strong>. Release when one dot lights near the middle, then choose <code>4348:55e0</code> or <code>1a86:55e0</code> within the observed 9–13 second ISP window.</p>
+              <p><strong>Original or unknown firmware:</strong> the ordinary long-press hook is not available. Revision-specific first entry may require expert-only C3 bench recovery; this page does not guide that hazardous operation. RESET plus the correctly identified KEY2 was tested without success only on the photographed <code>250901</code> board.</p>
             </div>
             <div class="button-row">
               <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Guide: compatible-firmware KEY2 entry</button>
@@ -175,7 +176,7 @@
               <ol class="isp-guide-overview" aria-label="Compatible-firmware bootloader entry sequence">
                 <li data-guide-phase="confirm-compatible" aria-current="step"><span>1</span><p><strong>Confirm compatible firmware is already installed.</strong> Original or unknown firmware must stop here.</p></li>
                 <li data-guide-phase="usb-connected"><span>2</span><p><strong>Connect stable data USB</strong> and leave it connected.</p></li>
-                <li data-guide-phase="hold-key2"><span>3</span><p><strong>Hold KEY2 for about 2.2 seconds.</strong> It is the button nearest USB.</p></li>
+                <li data-guide-phase="hold-key2"><span>3</span><p><strong>Hold KEY2 for about 2.2 seconds.</strong> It is farther from USB on <code>260404</code> and nearest USB on <code>250901</code>.</p></li>
                 <li data-guide-phase="wait-for-dot"><span>4</span><p><strong>Release when one dot lights near the middle.</strong></p></li>
                 <li data-guide-phase="connect-window"><span>5</span><p><strong>Open the chooser promptly.</strong> Look for <code>4348:55e0</code> or <code>1a86:55e0</code> during the observed 9–13 second window.</p></li>
               </ol>
@@ -336,7 +337,7 @@
             <h3>Routine sequence after compatible firmware is installed</h3>
             <ol class="recovery-steps">
               <li><span>1</span><p><strong>Keep USB connected</strong> to a stable data-capable port or phone OTG adapter.</p></li>
-              <li><span>2</span><p><strong>Press and keep holding KEY2,</strong> the button nearest the USB connector.</p></li>
+              <li><span>2</span><p><strong>Press and keep holding the revision's KEY2:</strong> farther from USB on <code>260404</code>, nearest USB on <code>250901</code>.</p></li>
               <li><span>3</span><p><strong>Hold for about 2.2 seconds</strong> only when running the tested FOSSASIA image or an exact FrogAlert artifact whose KEY2 recovery test passed.</p></li>
               <li><span>4</span><p><strong>Release when one dot lights near the middle,</strong> then immediately use <em>Dot is lit — choose CH582 now</em>.</p></li>
               <li><span>5</span><p><strong>Accept only <code>4348:55e0</code> or <code>1a86:55e0</code>.</strong> The observed ISP window is about 9–13 seconds. If the chooser shows nothing, retry only when compatible firmware is known to be installed.</p></li>
@@ -368,7 +369,7 @@
 
         <details class="advanced-recovery">
           <summary>Why does original or unknown firmware need expert recovery?</summary>
-          <p>On the confirmed USB-C <code>B1144C_250901</code> board, holding KEY2 while pressing the populated RESET switch did not enter ISP. The documented first entry required a qualified operator to hold KEY2 while momentarily bridging both ends of PCB capacitor <code>C3</code>. That hazardous rail-collapse maneuver is not routine, is not a battery operation, and is deliberately not implemented as a website checklist. Leave the soldered cell and its leads alone. Review the <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">hardware evidence and safety boundary</a> before qualified bench work.</p>
+          <p>On the confirmed USB-C <code>B1144C_250901</code> board, holding its KEY2—the button nearest USB—while pressing the populated RESET switch did not enter ISP. Its documented first entry required a qualified operator to hold KEY2 while momentarily bridging both ends of PCB capacitor <code>C3</code>. Nyx documents the same C3 operation for <code>B1144C_260404</code>, but with KEY2 explicitly identified as the button farther from USB; FrogAlert has not yet captured a successful ISP enumeration for that revision. This hazardous rail-collapse maneuver is not routine, is not a battery operation, and is deliberately not implemented as a website checklist. Leave the soldered cell and its leads alone. Review the <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">hardware evidence and safety boundary</a> and <a href="https://badge.nyx.ms/flash.html">Nyx's revision-specific notes</a> before qualified bench work.</p>
         </details>
       </section>
 
@@ -581,6 +582,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=7"></script>
+    <script type="module" src="../site/app.js?v=8"></script>
   </body>
 </html>

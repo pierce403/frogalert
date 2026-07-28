@@ -26,7 +26,7 @@
     <title>FrogAlert — Bluetooth alerts on a BadgeMagic nametag</title>
     <link rel="canonical" href="https://frogalert.org/">
     <link rel="stylesheet" href="./site/styles.css">
-    <script type="module" src="./site/app.js?v=7"></script>
+    <script type="module" src="./site/app.js?v=8"></script>
   </head>
   <body data-flash-mode="inspect">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -174,7 +174,7 @@
           <p class="section-kicker">Browser tools</p>
           <h2 id="flash-title">This page is read-only. Flashing lives at <code>/flash/</code>.</h2>
           <p>Web Bluetooth checks the running BadgeMagic service. WebUSB identifies a CH582 bootloader. This page can also inspect a BIN, but it cannot reset configuration, erase, or program the badge.</p>
-          <p class="honesty-note"><strong>USB-C profiles:</strong> the opened PCB marked <code>B1144C_250901</code> is physically confirmed as a WCH <code>CH582M</code> with an 11×44 display. The new default <code>B1144C_260404</code> profile applies FOSSASIA's documented KEY1 change from active-high to active-low while leaving the LED matrix pin map unchanged; it still needs hash-bound badge testing. The open switch cannot be distinguished passively at boot, so select the printed PCB marking instead of relying on auto-detection. Ordinary KEY2 entry works only after compatible FOSSASIA or hardware-approved FrogAlert firmware supplies that hook. Original or unknown firmware on this soldered-battery board required hazardous, expert-only C3 bench recovery; RESET plus KEY2 did not work.</p>
+          <p class="honesty-note"><strong>USB-C profiles:</strong> opened PCBs marked <code>B1144C_250901</code> and <code>B1144C_260404</code> have been photographed with WCH <code>CH582M</code> chips. The profiles share the LED matrix and KEY2 electrical mapping but not KEY2's physical position: it is nearest USB on <code>250901</code> and farther from USB on <code>260404</code>. The open KEY1 switch cannot be distinguished passively at boot, so select the printed PCB marking instead of relying on auto-detection. Ordinary long-press entry works only after compatible FOSSASIA or hardware-approved FrogAlert firmware supplies that hook. Original or unknown firmware reaches a revision-specific, hazardous expert-recovery boundary outside the browser tool.</p>
           <p><a class="button button-primary" href="./flash/">Open flasher and recovery steps</a></p>
           <div id="capability-status" class="capability-pill" role="status">Checking browser capabilities…</div>
           <noscript><p class="device-status" data-tone="bad">JavaScript is required for browser hardware access. The project documentation remains available without it.</p></noscript>

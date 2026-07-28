@@ -24,10 +24,11 @@
 - If a browser USB operation times out, the underlying command may still have
   completed. Treat device state as unknown and require a fresh identify plus a
   complete program/verify cycle.
-- The KEY2 recovery path is battery disconnected, hold the button nearest USB,
-  attach stable USB while holding, release after the single pixel, then connect
-  promptly. Keep the revision-specific C3 shorting method out of routine web
-  instructions.
+- The routine compatible-firmware KEY2 path is profile-specific: KEY2 is
+  farther from USB on `B1144C_260404` and nearest USB on `B1144C_250901`.
+  Release after the single pixel, then connect promptly. Keep revision-specific
+  C3 shorting out of routine web instructions; both photographed USB-C badges
+  have soldered batteries without user-removable connectors.
 - A physical USB-C badge marked `B1144C_250901` has a populated switch labeled
   `RESET`, but holding KEY2 while pressing it caused no USB re-enumeration from
   the OEM `0416:5020` application device. Treat RESET+KEY2 as disproven for that

@@ -66,6 +66,10 @@ on chat context or filenames alone.
   — identical USB-C matrix mapping, `260404`/`250901` KEY1 profiles,
   no safe untouched-button auto-detection, bounded web monitoring config,
   display-event ownership, and dual-profile candidate boundaries.
+- [`2026-07-28-260404-key2-position.md`](agent-memory/logs/2026-07-28-260404-key2-position.md)
+  — photographed CH582M `260404` board, profile-specific physical KEY2
+  positions, wrong-button C3 reset evidence, and pending correct-button ISP
+  proof.
 
 ## People
 

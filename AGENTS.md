@@ -95,8 +95,9 @@ The public site is a dependency-free static application. It separates:
   explicit confirmations, and a separate final action.
 - Keep the routine KEY2 guide adjacent to the WebUSB chooser, but offer it only
   for compatible FOSSASIA or exact hardware-approved FrogAlert firmware: hold
-  the button nearest USB for about 2.2 seconds, release when one dot lights near
-  the middle, then choose promptly. Original or unknown firmware on the
+  the profile-specific KEY2 for about 2.2 seconds (`260404`: farther from USB;
+  `250901`: nearest USB), release when one dot lights near the middle, then
+  choose promptly. Original or unknown firmware on the
   confirmed USB-C board must reach an ordinary-user stop boundary; its
   documented C3 entry is hazardous expert recovery, not a browser checklist.
   Timers and USB attach events must never call `requestDevice()`; only an
@@ -366,7 +367,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   changes KEY1/PA1 to pull-up, active-low, and falling-edge shutdown wake while
   retaining the exact `250901` USB-C display table and KEY2/PB22 behavior. An
   untouched switch is open on both boards and cannot passively identify the
-  profile. Case color is only a heuristic; require the printed marking.
+  profile. The same electrical KEY2 is physically farther from USB on `260404`
+  and nearest USB on `250901`. Case color is only a heuristic; require the
+  printed marking.
 - That board's pouch battery is soldered to PCB tabs; it has no removable
   connector. Leave the cell and its leads alone. The only documented first ISP
   entry from original/unknown firmware held KEY2 while a qualified operator
@@ -390,6 +393,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `LED Badge Magic`, `BM1144-C fw: v0.1`, with HID and CDC ACM interfaces. The
   C3 rail-collapse method remains hazardous bench recovery and must not become
   routine web-flasher guidance.
+- A 2026-07-28 full-board photo confirms a second badge marked
+  `B1144C_260404` with a readable CH582M package and soldered battery. Holding
+  the nearer-to-USB button while bridging C3 repeatedly returned the OEM
+  `0416:5020` application. Nyx's revision-specific instructions identify KEY2
+  as the button farther from USB, explaining those resets. Do not transfer the
+  `250901` physical position to `260404`; successful `260404` ISP enumeration
+  remains unrecorded.
 - FOSSASIA `BM1144-C fw: v0.1` has physically demonstrated KEY2-only long-press
   ISP entry with a visible dot cue on the photographed USB-C badge. Exact timing
   and a fresh kernel transcript were not recorded. Do not transfer that claim

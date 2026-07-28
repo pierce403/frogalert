@@ -49,7 +49,8 @@ FrogAlert image whose exact artifact passed recovery acceptance—the routine
 path is:
 
 1. Keep a stable data-capable USB connection.
-2. Hold KEY2, the button nearest USB, for about 2.2 seconds.
+2. Hold the profile's KEY2 for about 2.2 seconds: the button farther from USB
+   on `B1144C_260404`, or the button nearest USB on `B1144C_250901`.
 3. Release when one dot lights near the middle of the panel.
 4. Open the WebUSB chooser promptly and accept only `4348:55e0` or
    `1a86:55e0`.
@@ -60,12 +61,17 @@ captured sessions showed the ISP USB identity for about 9–13 seconds before th
 application returned, so the chooser must be opened promptly.
 
 Original, unknown, blank, or broken application firmware cannot be assumed to
-provide that KEY2 hook. On the photographed board, holding KEY2 while pressing
-the populated RESET switch did not enter ISP. Its documented first entry
-required a qualified operator to hold KEY2 while momentarily bridging both ends
-of PCB capacitor `C3`. That hazardous rail-collapse maneuver is expert-only,
-is not a battery operation, and is deliberately not implemented as a public
-website checklist. An ordinary user should stop at this boundary.
+provide that KEY2 hook. On the photographed `B1144C_250901` board, holding its
+KEY2—the button nearest USB—while pressing the populated RESET switch did not
+enter ISP. Its documented first entry required a qualified operator to hold
+KEY2 while momentarily bridging both ends of PCB capacitor `C3`. Nyx documents
+the same C3 operation for `B1144C_260404`, but identifies KEY2 as the button
+farther from USB. FrogAlert has photographed that revision and observed that
+bridging C3 while holding the nearer, wrong button only reset the OEM
+`0416:5020` application; successful `260404` ISP enumeration remains pending.
+That hazardous rail-collapse maneuver is expert-only, is not a battery
+operation, and is deliberately not implemented as a public website checklist.
+An ordinary user should stop at this boundary.
 
 `/flash/` therefore keeps a five-step guide only for the routine
 compatible-firmware KEY2 path: confirm compatible firmware, connect stable data
@@ -135,8 +141,10 @@ The flashing page offers exact USB-C profile choices:
   pull-down/active-high/rising-wake profile; and
 - `HARDWARE_REV1` — the separate Micro-USB recovery-only path.
 
-The two USB-C boards use the same LED matrix and KEY2 pin mapping. Their KEY1
-switch is open while untouched, so there is no reliable read-only boot probe:
+The two USB-C boards use the same LED matrix and KEY2/PB22 electrical mapping,
+but their physical KEY2 positions differ: farther from USB on `260404`, nearest
+USB on `250901`. Their KEY1 switch is open while untouched, so there is no
+reliable read-only boot probe:
 PA1 simply follows the internal pull selected by firmware. The browser cannot
 infer the profile from CH582 identity, USB descriptors, case color, generic
 `BM1144-C` text, or an untouched button. It intentionally starts with no

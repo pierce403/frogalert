@@ -224,7 +224,7 @@ const ISP_ENTRY_COPY = Object.freeze({
   [ISP_ENTRY_PHASE.HOLD_KEY2]: {
     title: "Step 3 of 5: Hold KEY2",
     instruction:
-      "Press and keep holding KEY2—the physical button nearest the USB connector—for about 2.2 seconds.",
+      "Press and keep holding the correct KEY2 for about 2.2 seconds: it is farther from USB on B1144C_260404 and nearest USB on B1144C_250901.",
     status: "Keep KEY2 held until the single dot appears near the middle of the panel.",
     next: "I am holding KEY2",
   },
@@ -255,7 +255,7 @@ const ISP_ENTRY_COPY = Object.freeze({
   [ISP_ENTRY_PHASE.RETRY]: {
     title: "No active bootloader was identified",
     instruction:
-      "If compatible firmware is installed, repeat the KEY2 sequence with a known data cable or direct port. If the firmware is original or unknown, stop: RESET plus KEY2 did not work on the confirmed USB-C board, and its C3 recovery is expert-only.",
+      "If compatible firmware is installed, confirm the printed PCB revision and repeat with its correct KEY2: farther from USB on 260404, nearest USB on 250901. If firmware is original or unknown, stop: its revision-specific C3 recovery is expert-only.",
     status:
       "Nothing was changed. A missing chooser device does not authorize opening or bridging anything on the board.",
   },
