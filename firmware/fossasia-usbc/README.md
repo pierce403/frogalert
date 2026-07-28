@@ -58,11 +58,12 @@ identity string with no functions or hardware references. The private survey
 candidate keeps that same C hardware shell and adds a bounded passive counter
 and classifier for the selected profile.
 
-This diagnostic lane starts in normal nametag view. Short KEY2 presses extend
-FOSSASIA's existing display selection with a virtual counter:
-`Name 1 → BT counter → Name 2 → BT counter → …`. KEY1 retains its normal
-download/power behavior and long-press brightness action, and the separate
-long-KEY2 ISP task remains unchanged. Passive surveys run in either visible
+This diagnostic lane starts in normal nametag view. The physical button nearest
+USB extends FOSSASIA's existing display selection with a virtual counter:
+`Name 1 → BT counter → Name 2 → BT counter → …`. That is KEY1 on `260404`
+and KEY2 on `250901`. The other short press retains normal system/power
+behavior, KEY1 retains long-press brightness, and the separate long-KEY2 ISP
+task remains unchanged. Passive surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio
 schedule runs.
 
@@ -122,7 +123,10 @@ an overlay or selected counter first takes panel ownership. Because those
 tasks may already have queued a next event, the patched marquee, flash, fixed,
 and Bluetooth-animation handlers consume their event while FrogAlert owns the
 panel instead of rescheduling. The selected uploaded name/count view resumes
-only after the three-second overlay releases ownership. This removes both the
+only after the three-second overlay releases ownership. The count is a single
+centered fixed frame. Text alerts split into no more than two fixed pages held
+for 1.5 seconds each; only the frog alert deliberately changes pose. This
+removes both the
 diagnostic's added blank-frame flicker and the competing-scroll restart, but
 does not change FOSSASIA's roughly 45 Hz matrix refresh. For fixed and
 frame-animation modes only, a compatibility helper recognizes 48-column

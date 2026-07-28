@@ -68,8 +68,11 @@ on chat context or filenames alone.
   display-event ownership, and dual-profile candidate boundaries.
 - [`2026-07-28-260404-key2-position.md`](agent-memory/logs/2026-07-28-260404-key2-position.md)
   — photographed CH582M `260404` board, profile-specific physical KEY2
-  positions, wrong-button C3 reset evidence, and pending correct-button ISP
-  proof.
+  positions, wrong-button C3 reset evidence, correct-button ROM ISP
+  enumeration, and the later FOSSASIA application boot.
+- [`2026-07-28-fixed-survey-pages.md`](agent-memory/logs/2026-07-28-fixed-survey-pages.md)
+  — non-scrolling count and two-page alert design, 1.5-second page timing, and
+  the locked dual-profile candidate hashes.
 
 ## People
 

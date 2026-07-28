@@ -24,7 +24,7 @@
 #define SURVEY_START_DEVICE_EVENT (1U << 0)
 #define SURVEY_PREPARE_EVENT      (1U << 1)
 #define SURVEY_BEGIN_EVENT        (1U << 2)
-#define SURVEY_DISPLAY_STEP_EVENT (1U << 3)
+#define SURVEY_DISPLAY_PAGE_EVENT (1U << 3)
 #define SURVEY_WATCHDOG_EVENT     (1U << 4)
 #define SURVEY_ALERT_END_EVENT    (1U << 5)
 
@@ -37,7 +37,7 @@
 #define SURVEY_RADIO_QUIET    TMOS_TICKS_FROM_MS(SURVEY_RADIO_QUIET_MS)
 #define SURVEY_NEXT_DELAY     TMOS_TICKS_FROM_MS( \
 	SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS - SURVEY_RADIO_QUIET_MS)
-#define SURVEY_SCROLL_TIME    TMOS_TICKS_FROM_MS(50U)
+#define SURVEY_PAGE_TIME      TMOS_TICKS_FROM_MS(1500U)
 #define SURVEY_WATCHDOG_TIME  TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_ALERT_TIME     TMOS_TICKS_FROM_MS(3000U)
 #define SURVEY_FROG_TIME      TMOS_TICKS_FROM_MS(3000U)
@@ -361,8 +361,8 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		/* Make every startup phase observable before the first scan. */
 		save_survey_view(0, FALSE, SURVEY_PHASE_INITIALIZING);
 		tmos_start_reload_task(survey_task_id,
-				       SURVEY_DISPLAY_STEP_EVENT,
-				       SURVEY_SCROLL_TIME);
+				       SURVEY_DISPLAY_PAGE_EVENT,
+				       SURVEY_PAGE_TIME);
 		if (central_init_status != SUCCESS) {
 			show_survey(SURVEY_PHASE_ERROR);
 			return events ^ SURVEY_START_DEVICE_EVENT;
@@ -475,13 +475,13 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		return events ^ SURVEY_ALERT_END_EVENT;
 	}
 
-	if (events & SURVEY_DISPLAY_STEP_EVENT) {
+	if (events & SURVEY_DISPLAY_PAGE_EVENT) {
 		if (alert_visible &&
 		    detected_alert == FROGALERT_ALERT_FROG_DANCE)
 			frogalert_display_frog_dance(frog_frame++);
 		else
-			frogalert_display_survey_step();
-		return events ^ SURVEY_DISPLAY_STEP_EVENT;
+			frogalert_display_survey_page_step();
+		return events ^ SURVEY_DISPLAY_PAGE_EVENT;
 	}
 
 	return 0;

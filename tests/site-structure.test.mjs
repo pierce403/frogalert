@@ -96,7 +96,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Prepare open BadgeMagic firmware/);
   assert.match(html, /PROTOTYPE \/ BADGE · HARDWARE-UNVERIFIED/);
   assert.match(html, /Private dual-profile survey BINs/);
-  assert.match(html, /short KEY2 press.*names.*BT 00/is);
+  assert.match(html, /view button.*names.*BT 00.*nearest USB.*260404/is);
   assert.match(html, /Scanning runs in either display mode/i);
   assert.match(html, /shows.*COP DETECTED.*for three seconds/is);
   assert.match(html, /shows three dancing frogs/i);
@@ -109,10 +109,10 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /QT [\s\S]*serial[\s\S]*KARR DETECTED/);
   assert.match(html, /Ray-Ban[\s\S]*Ray Ban[\s\S]*COP DETECTED/);
   assert.doesNotMatch(html, /HAX DETECTED/);
-  assert.match(html, /203,988-byte .*260404.*250901.*candidates/is);
-  assert.match(html, /fa6c33bb46204d1d64608558d775d30000d281defffeb79673491e7d08ad4c0d/);
-  assert.match(html, /6cb96044bf4163e441884c71c1e055adb8fe52d8ad08bf2a734f836d43e161d9/);
-  assert.match(html, /display ownership while alerts scroll/);
+  assert.match(html, /profile-specific .*260404.*250901.*candidates/is);
+  assert.match(html, /204,364 bytes.*07b32a578d308b6db52e620130d5c4a700fb6fa77d0d9ca0c3ce29cc3ca91995/);
+  assert.match(html, /ca5140869aeeebf291dffbfb448142ac9a3e7bb66bf88509f507329a01a97f65/);
+  assert.match(html, /a fixed counter, fixed-page three-second text alerts/);
   assert.match(html, /active-low .*260404.*build default/is);
   assert.match(html, /cannot be distinguished passively at boot/i);
   assert.match(html, /not hosted or released/i);

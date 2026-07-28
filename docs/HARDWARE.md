@@ -99,8 +99,12 @@ On 2026-07-28, a second opened badge was photographed with PCB marking
 visually matches the older layout. Repeated attempts that held the side button
 nearest USB while bridging C3 only disconnected and re-enumerated the OEM
 `0416:5020` application. Nyx's revision-specific instructions identify KEY2 on
-this board as the other side button, farther from USB. This explains the reset
-observations but is not yet a successful `260404` ISP-entry record.
+this board as the other side button, farther from USB. Holding that button while
+bridging C3 enumerated the ROM ISP as `4348:55e0` twice on 2026-07-28. A later
+application boot enumerated as FOSSASIA's `LED Badge Magic` with HID and CDC
+ACM interfaces. The kernel record proves the revision-specific entry method
+and open-firmware boot, but no captured `wchisp` program/verify transcript
+binds an exact BIN hash to that flash.
 
 ## Before the first flash
 
@@ -220,7 +224,9 @@ survey window. The embedded configuration is CRC-protected and contains the
 compiled profile id; a mismatch or malformed block disables alerts rather than
 silently selecting another board profile.
 
-The overlay is the sole display owner for its three-second lifetime. Original
+The overlay is the sole display owner for its three-second lifetime. Text
+alerts use at most two fixed pages held for 1.5 seconds each; the count is one
+centered fixed frame. Original
 marquee, flash, fixed-animation, and Bluetooth-stream events that were already
 queued are consumed while that ownership flag is active, so they cannot
 restart scrolling underneath an alert. Releasing the overlay restarts only the
@@ -242,9 +248,9 @@ Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 3. cold boot and power-cycle repetition;
 4. USB `0416:5020` HID and CDC enumeration;
 5. a BadgeMagic app nametag upload and visible display;
-6. the profile-appropriate KEY1 press/brightness/power/wake behavior, plus the
-   complete short-KEY2 name/count/name rotation and restoration after every
-   text/frog/custom overlay;
+6. the profile-appropriate short system/view actions and
+   KEY1 brightness/power/wake behavior, plus complete name/count/name rotation
+   and restoration after every text/frog/custom overlay;
 7. long KEY2 with the dot cue and ISP `4348:55e0`/`1a86:55e0` enumeration;
 8. reflash of the known-good FOSSASIA image through that normal path.
 

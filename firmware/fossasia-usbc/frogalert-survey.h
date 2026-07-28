@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "frogalert-monitor-config.h"
+
 void frogalert_survey_role_init(void);
 void frogalert_survey_init(void);
 uint8_t frogalert_survey_suspend(uint8_t advertise_after);
@@ -20,6 +22,6 @@ uint8_t frogalert_display_survey_message(const char *message,
 void frogalert_display_frog_dance(uint8_t frame);
 void frogalert_display_survey_relinquish(void);
 void frogalert_display_survey_release(void);
-void frogalert_display_survey_step(void);
+void frogalert_display_survey_page_step(void);
 
 #endif

@@ -215,13 +215,16 @@ void play_splash`,
 {
 `,
     `#ifdef FROGALERT_SURVEY
-#define FROGALERT_SURVEY_COUNT_LENGTH 8
+#define FROGALERT_SURVEY_COUNT_LENGTH 7
 #define FROGALERT_SURVEY_TEXT_MAX     16
-#define FROGALERT_SURVEY_TEXT_COLUMNS (FROGALERT_SURVEY_TEXT_MAX * 6)
+#define FROGALERT_SURVEY_PAGE_CHARS   8
+#define FROGALERT_SURVEY_PAGE_MAX     2
 
-static uint16_t frogalert_survey_bitmap[FROGALERT_SURVEY_TEXT_COLUMNS];
-static uint8_t frogalert_survey_offset;
-static uint8_t frogalert_survey_columns;
+static char frogalert_survey_text[FROGALERT_SURVEY_TEXT_MAX];
+static uint8_t frogalert_survey_page_start[FROGALERT_SURVEY_PAGE_MAX];
+static uint8_t frogalert_survey_page_length[FROGALERT_SURVEY_PAGE_MAX];
+static uint8_t frogalert_survey_page_count;
+static uint8_t frogalert_survey_page;
 static uint8_t frogalert_survey_display_owned;
 
 uint8_t frogalert_survey_allowed(void)
@@ -243,24 +246,82 @@ void frogalert_display_survey_release(void)
 		start_normal_animation();
 }
 
-static uint8_t frogalert_display_survey_text(const char *text,
-					     uint8_t text_length)
+static void frogalert_display_survey_render_page(void)
 {
+	uint8_t text_length;
+	uint8_t text_start;
+	uint8_t stride;
+	uint8_t width;
+	uint8_t start;
+
+	if (!frogalert_survey_display_active()) {
+		frogalert_display_survey_release();
+		return;
+	}
+	if (!frogalert_survey_page_count)
+		return;
+	if (!frogalert_survey_display_owned) {
+		stop_all_animation();
+		frogalert_survey_display_owned = TRUE;
+	}
+
+	text_start = frogalert_survey_page_start[frogalert_survey_page];
+	text_length = frogalert_survey_page_length[frogalert_survey_page];
+	stride = text_length == FROGALERT_SURVEY_PAGE_CHARS ? 5 : 6;
+	width = (uint8_t)(text_length * stride - (stride == 6 ? 1 : 0));
+	start = (uint8_t)((LED_COLS - width) / 2);
+	memset(fb, 0, sizeof(fb));
+	for (uint8_t character = 0; character < text_length; character++) {
+		for (uint8_t column = 0; column < 5; column++)
+			fb[start + character * stride + column] =
+				(uint16_t)(font5x7[
+					frogalert_survey_text[
+						text_start + character] - ' ']
+					[column] << 2);
+	}
+}
+
+static uint8_t frogalert_display_survey_text(const char *text,
+					     uint8_t text_length,
+					     uint8_t paginate)
+{
+	uint8_t second_start;
+	uint8_t split;
+
 	if (!text || text_length == 0 || text_length > FROGALERT_SURVEY_TEXT_MAX)
 		return FALSE;
-
 	for (uint8_t character = 0; character < text_length; character++) {
 		if (text[character] < ' ' || text[character] > '~')
 			return FALSE;
-		for (uint8_t column = 0; column < 6; column++) {
-			frogalert_survey_bitmap[character * 6 + column] =
-				(uint16_t)(font5x7[text[character] - ' '][column]
-					   << 2);
-		}
+		frogalert_survey_text[character] = text[character];
 	}
-	frogalert_survey_columns = text_length * 6;
-	frogalert_survey_offset = 0;
-	frogalert_display_survey_step();
+
+	frogalert_survey_page = 0;
+	frogalert_survey_page_count = 1;
+	frogalert_survey_page_start[0] = 0;
+	frogalert_survey_page_length[0] = text_length;
+	frogalert_survey_page_start[1] = 0;
+	frogalert_survey_page_length[1] = 0;
+	if (paginate && text_length > FROGALERT_SURVEY_PAGE_CHARS) {
+		split = FROGALERT_SURVEY_PAGE_CHARS;
+		for (uint8_t index = 1;
+		     index < FROGALERT_SURVEY_PAGE_CHARS; index++) {
+			if (text[index] == ' ' &&
+			    text_length - index - 1 <=
+				    FROGALERT_SURVEY_PAGE_CHARS)
+				split = index;
+		}
+		second_start = split;
+		while (second_start < text_length &&
+		       text[second_start] == ' ')
+			second_start++;
+		frogalert_survey_page_count = 2;
+		frogalert_survey_page_length[0] = split;
+		frogalert_survey_page_start[1] = second_start;
+		frogalert_survey_page_length[1] =
+			(uint8_t)(text_length - second_start);
+	}
+	frogalert_display_survey_render_page();
 	return TRUE;
 }
 
@@ -274,20 +335,24 @@ uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
 		(char)('0' + ((count / 10) % 10)),
 		(char)('0' + (count % 10)),
 		' ',
-		' ',
 		(char)phase,
 	};
+	uint8_t text_length = 5;
 
-	if (saturated)
+	if (saturated) {
 		text[5] = '+';
+		text_length = 6;
+	}
+	if (phase != ' ')
+		text_length = FROGALERT_SURVEY_COUNT_LENGTH;
 	return frogalert_display_survey_text(
-		text, FROGALERT_SURVEY_COUNT_LENGTH);
+		text, text_length, FALSE);
 }
 
 uint8_t frogalert_display_survey_message(const char *message,
 					 uint8_t message_length)
 {
-	return frogalert_display_survey_text(message, message_length);
+	return frogalert_display_survey_text(message, message_length, TRUE);
 }
 
 void frogalert_display_frog_dance(uint8_t frame)
@@ -314,26 +379,19 @@ void frogalert_display_frog_dance(uint8_t frame)
 	}
 }
 
-void frogalert_display_survey_step(void)
+void frogalert_display_survey_page_step(void)
 {
 	if (!frogalert_survey_display_active()) {
 		frogalert_display_survey_release();
 		return;
 	}
-	if (frogalert_survey_columns == 0)
+	if (!frogalert_survey_display_owned ||
+	    frogalert_survey_page_count <= 1)
 		return;
-
-	if (!frogalert_survey_display_owned) {
-		stop_all_animation();
-		frogalert_survey_display_owned = TRUE;
-	}
-	for (uint8_t column = 0; column < LED_COLS; column++) {
-		fb[column] = frogalert_survey_bitmap[
-			(frogalert_survey_offset + column) %
-			frogalert_survey_columns];
-	}
-	frogalert_survey_offset =
-		(frogalert_survey_offset + 1) % frogalert_survey_columns;
+	frogalert_survey_page =
+		(uint8_t)((frogalert_survey_page + 1) %
+			  frogalert_survey_page_count);
+	frogalert_display_survey_render_page();
 }
 #endif
 
@@ -398,8 +456,13 @@ static void disp_charging()
 	// the Bluetooth animation
 	ble_enable_advertise();
 	start_ble_animation();`,
-    `	// Disable bitmap transition while in download mode
+    `	// Disable the profile-specific view button in download mode.
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_260404_USB_C
+	btn_onOnePress(KEY1, NULL);
+	btn_onOnePress(KEY2, change_mode);
+#else
 	btn_onOnePress(KEY2, NULL);
+#endif
 
 	// Take control of the current bitmap to display
 	// the Bluetooth animation. Never advertise during Central discovery.
@@ -427,7 +490,12 @@ static void disp_charging()
 #ifdef FROGALERT_SURVEY
 	frogalert_counter_view = FALSE;
 	frogalert_display_survey_relinquish();
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_260404_USB_C
+	btn_onOnePress(KEY1, frogalert_view_transition);
+	btn_onOnePress(KEY2, change_mode);
+#else
 	btn_onOnePress(KEY2, frogalert_view_transition);
+#endif
 #else
 	btn_onOnePress(KEY2, bm_transition);
 #endif
@@ -467,10 +535,16 @@ static void disp_charging()
     `	btn_onOnePress(KEY1, change_mode);
 	btn_onOnePress(KEY2, bm_transition);
 	btn_onLongPress(KEY1, change_brightness);`,
-    `	btn_onOnePress(KEY1, change_mode);
-#ifdef FROGALERT_SURVEY
-	btn_onOnePress(KEY2, frogalert_view_transition);
+    `#ifdef FROGALERT_SURVEY
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_260404_USB_C
+	btn_onOnePress(KEY1, frogalert_view_transition);
+	btn_onOnePress(KEY2, change_mode);
 #else
+	btn_onOnePress(KEY1, change_mode);
+	btn_onOnePress(KEY2, frogalert_view_transition);
+#endif
+#else
+	btn_onOnePress(KEY1, change_mode);
 	btn_onOnePress(KEY2, bm_transition);
 #endif
 	btn_onLongPress(KEY1, change_brightness);`,

@@ -93,14 +93,19 @@ compiled hardware profile. The browser will not rewrite a `250901` image as a
 `260404` image or vice versa. A customized download is a newly derived,
 hardware-unverified local artifact even when its base BIN came from CI.
 
-In these candidates, a short KEY2 press rotates the visible content as
-`Name 1 → BT counter → Name 2 → BT counter → …`. KEY1 retains FOSSASIA's
-normal download/power behavior, KEY1 long press still changes brightness, and
-the independent long-KEY2 ISP path remains in the inherited shell. Passive
+In these candidates, the physical button nearest USB rotates the visible
+content as `Name 1 → BT counter → Name 2 → BT counter → …`: that is KEY2 on
+`250901`, but KEY1 on the reversed `260404` layout. The other short press keeps
+FOSSASIA's normal system-mode action. KEY1 long press still changes brightness,
+and the independent farther-button long-KEY2 ISP path remains in the inherited
+shell on `260404`. Passive
 surveys continue in both nametag and counter views. `COP DETECTED`,
 `FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
 three seconds, then the selected view resumes without changing the uploaded
-nametag data. Survey
+nametag data. The counter is one centered, fixed frame (`BT 04`, with a
+one-letter phase suffix while a survey is in progress). Text alerts use at
+most two fixed pages held for 1.5 seconds each—such as `COP` followed by
+`DETECTED`—rather than scrolling pixel by pixel. Survey
 windows start roughly every 20 seconds, so a continuously present match can
 retrigger once in each new window. While an overlay owns the panel, already
 queued marquee, flash, fixed-animation, and Bluetooth-stream animation events
@@ -338,8 +343,9 @@ checks. A passing local suite does not replace a physical badge test.
 ## Intended firmware cycle
 
 1. Advertise as a BadgeMagic-compatible nametag and render uploaded content.
-2. Let short KEY2 presses rotate uploaded names with the latest nearby-device
-   count while preserving KEY1's system behavior and long-KEY2 recovery.
+2. Let short view-button presses—nearest USB on either known board—rotate
+   uploaded names with the latest nearby-device count while preserving the
+   other system action and long-KEY2 recovery.
 3. When no app is connected, briefly pause advertising and passively scan BLE
    in either visible view.
 4. Match the enabled built-in groups and bounded custom public-address OUI,

@@ -108,15 +108,18 @@ into one hash or infer the profile from an untouched KEY1 input.
 The canary adds one retained C metadata string and owns no functions or
 hardware. The survey lane keeps the same shell, uses WCH's combined
 central/peripheral role pattern, and adds only a disconnected three-second
-passive scan plus a KEY2-selectable 50 ms aggregate-count scroll. Short KEY2
-rotates `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system behavior and
-the separate long-KEY2 ISP poll remain inherited. Scanning continues in either
+passive scan plus a button-selectable fixed aggregate-count frame. The button
+nearest USB rotates `Name 1 → BT counter → Name 2 → BT counter`: KEY1 on
+`260404`, KEY2 on `250901`. The other short press keeps the normal system
+action; KEY1 long brightness and the separate long-KEY2 ISP poll remain
+inherited. Scanning continues in either
 visible view. The counter suffix shows `I` initializing, `R` ready/waiting, `S`
 scanning, `E` error, or `T` timeout; it disappears for a completed result. The
 lane updates live while scanning, consumes the final discovery list, and feeds
 live public-address/name/service data into a bounded C mirror of every README
-detection row. Cop, Flipper, and KARR alerts last three seconds and restore the
-selected view. KARR requires a case-insensitive `QT ` prefix at the start plus
+detection row. Cop, Flipper, and KARR alerts use no more than two fixed
+1.5-second pages, last three seconds in total, and restore the selected view.
+KARR requires a case-insensitive `QT ` prefix at the start plus
 a non-empty serial value. An exact case-insensitive `LED Badge Magic` name or
 advertised `0xFEE0` service shows three frogs in two alternating frames for
 three seconds. Passive scans may omit scan-response-only names, so the service
@@ -135,8 +138,9 @@ The block includes the compiled profile id and CRC32. Firmware validates its
 schema, lengths, reserved bytes, padding, profile, and CRC before enabling
 alerts.
 
-The display hook stops the original animation only on ownership transition
-rather than clearing the framebuffer at every 50 ms step. More importantly,
+The display hook stops the original animation only on ownership transition.
+It redraws the counter once per value/phase change and alert text only at the
+1.5-second page boundary. More importantly,
 the patched original event handlers consume queued marquee, flash,
 fixed-animation, and Bluetooth animation steps while a FrogAlert overlay owns
 the panel. Those events therefore cannot restart a scroll behind the overlay;

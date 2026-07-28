@@ -288,13 +288,15 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   instead of depending only on that callback, consumes both live reports and
   the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
-  no suffix for a completed result, `E` error, and `T` timeout. Short KEY2
-  rotates `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system/brightness
-  behavior and the independent long-KEY2 ISP task remain inherited. Surveys
+  no suffix for a completed result, `E` error, and `T` timeout. The nearest-USB
+  view button rotates `Name 1 → BT counter → Name 2 → BT counter`: KEY1 on
+  `260404`, KEY2 on `250901`. The other short press retains the system action;
+  KEY1 long brightness and the independent long-KEY2 ISP task remain inherited. Surveys
   continue in either visible view. A CRC/profile-bound configuration enables
   built-in groups and up to eight custom rules. The bounded C mirror implements
-  every README OUI/name row; built-in and custom messages overlay either view
-  for three seconds, then the selected view resumes. KARR
+  every README OUI/name row. The counter is one centered fixed frame; built-in
+  and custom text alerts use at most two fixed pages held for 1.5 seconds each,
+  then the selected view resumes after three seconds. KARR
   requires a case-insensitive `QT ` prefix at the start plus a non-empty serial
   value. There is no unique Flipper
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
@@ -307,7 +309,15 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   20 seconds while disconnected; a continuously present match can retrigger
   once in each new window. It caps and zeroes 64 addresses, restores
   advertising, cancels a stuck scan after five seconds, and preserves audited
-  FOSSASIA USB/BLE/display/KEY2 symbols. Original scrolling tasks can already
+  FOSSASIA USB/BLE/display/KEY2 symbols. The locked fixed-page candidates are
+  profile-specific view control keeps the physical button nearest USB as the
+  counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
+  short press retains the normal system action and KEY2 long press retains ISP
+  entry. The locked `260404` candidate is 204,364 bytes at SHA-256
+  `07b32a578d308b6db52e620130d5c4a700fb6fa77d0d9ca0c3ce29cc3ca91995`;
+  the `250901` candidate is 204,332 bytes at SHA-256
+  `ca5140869aeeebf291dffbfb448142ac9a3e7bb66bf88509f507329a01a97f65`.
+  Original scrolling tasks can already
   have queued work, so their marquee/flash/fixed/Bluetooth event handlers must
   consume events without rescheduling while an overlay owns the panel. Both
   candidates remain private under `tmp/`, hardware-unverified, and not
@@ -398,8 +408,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the nearer-to-USB button while bridging C3 repeatedly returned the OEM
   `0416:5020` application. Nyx's revision-specific instructions identify KEY2
   as the button farther from USB, explaining those resets. Do not transfer the
-  `250901` physical position to `260404`; successful `260404` ISP enumeration
-  remains unrecorded.
+  `250901` physical position to `260404`. Holding the farther button while
+  bridging C3 subsequently enumerated `4348:55e0` twice, and the board later
+  booted FOSSASIA `LED Badge Magic` with HID and CDC ACM. This verifies the
+  revision-specific ISP entry and an open-firmware boot, but no captured
+  `wchisp` program/verify transcript binds the exact programmed BIN.
 - FOSSASIA `BM1144-C fw: v0.1` has physically demonstrated KEY2-only long-press
   ISP entry with a visible dot cue on the photographed USB-C badge. Exact timing
   and a fresh kernel transcript were not recorded. Do not transfer that claim

@@ -68,9 +68,11 @@ callback: FOSSASIA starts Peripheral first, so that combined-role event may
 precede registration of the survey callback. A successful Central start also
 arms the first scan.
 
-Short KEY2 presses extend FOSSASIA's existing display-selection behavior with a
-virtual counter view: `Name 1 → BT counter → Name 2 → BT counter → …`. KEY1
-keeps its upstream system-mode behavior and long-press brightness action. The
+The physical button nearest USB extends FOSSASIA's display-selection behavior
+with a virtual counter view:
+`Name 1 → BT counter → Name 2 → BT counter → …`. That input is KEY1 on the
+reversed `260404` layout and KEY2 on `250901`; the other short press retains
+the upstream system-mode action. KEY1 keeps its long-press brightness action. The
 separate roughly 2.2-second KEY2-to-ISP poll is unchanged. The view choice is
 presentation state rather than radio state, so disconnected passive surveys
 continue while either the nametag or counter is visible.

@@ -167,10 +167,41 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(patchedMain, /mode = NORMAL;[\s\S]*mode_setup_normal\(\)/);
   assert.match(patchedMain, /stop_all_animation\(\);/);
-  assert.match(patchedMain, /frogalert_survey_bitmap/);
-  assert.match(patchedMain, /frogalert_survey_offset \+ column/);
+  assert.match(
+    patchedMain,
+    /FROGALERT_PROFILE_B1144C_260404_USB_C[\s\S]*btn_onOnePress\(KEY1, frogalert_view_transition\);[\s\S]*btn_onOnePress\(KEY2, change_mode\);/,
+  );
+  assert.match(
+    patchedMain,
+    /Disable the profile-specific view button[\s\S]*btn_onOnePress\(KEY1, NULL\);[\s\S]*btn_onOnePress\(KEY2, change_mode\);[\s\S]*btn_onOnePress\(KEY2, NULL\);/,
+  );
+  assert.match(patchedMain, /frogalert_survey_text/);
+  assert.match(patchedMain, /FROGALERT_SURVEY_PAGE_CHARS\s+8/);
+  assert.match(patchedMain, /FROGALERT_SURVEY_PAGE_MAX\s+2/);
   assert.match(patchedMain, /FROGALERT_SURVEY_TEXT_MAX\s+16/);
   assert.match(patchedMain, /frogalert_display_survey_message/);
+  assert.match(
+    patchedMain,
+    /frogalert_display_survey_text\(\s*text, text_length, FALSE\)/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_display_survey_text\(message, message_length, TRUE\)/,
+  );
+  assert.match(
+    patchedMain,
+    /stride = text_length == FROGALERT_SURVEY_PAGE_CHARS \? 5 : 6;/,
+  );
+  assert.match(
+    patchedMain,
+    /start = \(uint8_t\)\(\(LED_COLS - width\) \/ 2\);/,
+  );
+  assert.match(
+    patchedMain,
+    /!frogalert_survey_display_owned \|\|\s*frogalert_survey_page_count <= 1/,
+  );
+  assert.doesNotMatch(patchedMain, /frogalert_survey_offset/);
+  assert.doesNotMatch(patchedMain, /frogalert_survey_bitmap/);
   assert.match(patchedMain, /text\[5\] = '\+'/);
   assert.match(patchedMain, /\(char\)phase/);
   assert.match(
@@ -191,9 +222,13 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.doesNotMatch(
     patchedMain,
-    /void frogalert_display_survey_step\(void\)[\s\S]*?\n\tstop_all_animation\(\);/,
+    /void frogalert_display_survey_page_step\(void\)[\s\S]*?\n\tstop_all_animation\(\);/,
   );
-  assert.match(patchedMain, /frogalert_display_survey_step\(\);/);
+  assert.match(
+    patchedMain,
+    /frogalert_survey_page_count <= 1[\s\S]*frogalert_survey_page \+ 1/,
+  );
+  assert.match(patchedMain, /frogalert_display_survey_render_page\(\);/);
   assert.match(patchedMain, /void frogalert_display_frog_dance/);
   assert.match(patchedMain, /static const uint16_t frogs\[2\]\[9\]/);
   assert.match(patchedMain, /static const uint8_t starts\[3\]/);
@@ -297,7 +332,8 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     survey,
     /SURVEY_SCAN_TICKS\s+TMOS_TICKS_FROM_MS\(SURVEY_SCAN_TIME_MS\)/,
   );
-  assert.match(survey, /SURVEY_SCROLL_TIME\s+TMOS_TICKS_FROM_MS\(50U\)/);
+  assert.match(survey, /SURVEY_PAGE_TIME\s+TMOS_TICKS_FROM_MS\(1500U\)/);
+  assert.doesNotMatch(survey, /SURVEY_SCROLL_TIME|SURVEY_DISPLAY_STEP_EVENT/);
   assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
   assert.match(survey, /SURVEY_ALERT_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
   assert.match(survey, /SURVEY_FROG_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
@@ -305,7 +341,8 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     survey,
     /save_survey_view\(0, FALSE, SURVEY_PHASE_INITIALIZING\)/,
   );
-  assert.match(survey, /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_STEP_EVENT/);
+  assert.match(survey, /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_PAGE_EVENT/);
+  assert.match(survey, /frogalert_display_survey_page_step\(\)/);
   assert.ok(
     survey.indexOf("save_survey_view(0, FALSE,") <
       survey.indexOf("status = GAPRole_CentralStartDevice"),

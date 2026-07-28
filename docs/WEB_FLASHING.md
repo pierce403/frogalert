@@ -68,7 +68,10 @@ KEY2 while momentarily bridging both ends of PCB capacitor `C3`. Nyx documents
 the same C3 operation for `B1144C_260404`, but identifies KEY2 as the button
 farther from USB. FrogAlert has photographed that revision and observed that
 bridging C3 while holding the nearer, wrong button only reset the OEM
-`0416:5020` application; successful `260404` ISP enumeration remains pending.
+`0416:5020` application. Holding the farther-from-USB KEY2 while bridging C3
+subsequently enumerated `4348:55e0` twice on 2026-07-28, and the board later
+booted FOSSASIA's `LED Badge Magic` application. No captured `wchisp`
+program/verify transcript binds the exact flashed bytes.
 That hazardous rail-collapse maneuver is expert-only, is not a battery
 operation, and is deliberately not implemented as a public website checklist.
 An ordinary user should stop at this boundary.
