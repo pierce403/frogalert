@@ -591,6 +591,110 @@
   background: rgba(255, 176, 123, 0.045);
 }
 
+.monitor-config-card {
+  border-color: rgba(96, 231, 218, 0.32);
+  background: rgba(96, 231, 218, 0.035);
+}
+
+.monitor-targets {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0;
+  border: 1px solid var(--flash-line);
+  padding: 0.85rem;
+}
+
+.monitor-targets legend {
+  padding: 0 0.35rem;
+  color: var(--cream);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.monitor-targets label {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  color: #c5d0c8;
+  font-size: 0.78rem;
+}
+
+.monitor-targets input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.1rem;
+}
+
+.custom-target-heading {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.custom-target-heading h4 {
+  margin: 0;
+}
+
+.monitor-custom-rules {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.8rem 0;
+}
+
+.custom-target-row {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid var(--flash-line);
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.custom-target-row label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--muted-dark);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.monitor-rule-remove {
+  justify-self: start;
+}
+
+.monitor-config-facts {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.85rem 0;
+}
+
+.monitor-config-facts > div {
+  min-width: 0;
+  border-top: 1px solid var(--flash-line);
+  padding-top: 0.55rem;
+}
+
+.monitor-config-facts dt {
+  color: var(--muted-dark);
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.monitor-config-facts dd {
+  margin: 0.2rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--cream);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+}
+
 .artifact-option > p:not(.terminal-label):not(.field-help) {
   color: var(--muted-dark);
   font-size: 0.82rem;
@@ -856,6 +960,15 @@
 
   .flash-artifact-facts {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .monitor-config-card {
+    grid-column: span 2;
+  }
+
+  .custom-target-row {
+    grid-template-columns: minmax(8rem, 0.8fr) minmax(10rem, 1fr) minmax(10rem, 1fr) auto;
+    align-items: end;
   }
 
   .flash-help {

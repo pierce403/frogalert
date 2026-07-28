@@ -39,7 +39,11 @@ BIN, and their failed SHA remains permanently quarantined.
 The replacement USB-C path inherits the calibrated internal-LSI, USB,
 BadgeMagic, display, button, and recovery systems from FOSSASIA source
 `9ce885d`. Do not publish its C-only or Rust-ABI canaries until the exact bytes
-pass the complete gate above.
+pass the complete gate above. `B1144C_260404_USB_C` and
+`B1144C_250901_USB_C` are separate release targets even though their LED
+matrix mapping is identical: KEY1 pull, pressed polarity, and shutdown wake
+edge differ. Evidence for one artifact/profile/PCB marking cannot approve the
+other, and an untouched KEY1 is not an automatic profile detector.
 
 ## Commit-driven publication
 
@@ -51,18 +55,22 @@ publish whatever firmware happened to build in that commit.
 Active firmware inputs have a separate candidate lane inside CI. After the
 ordinary repository contract passes, a `main` push that changes the portable
 policy core, the FOSSASIA USB-C shell or lock, or one of that shell's
-prepare/build/audit scripts performs the pinned `survey --check` build. CI then
-packages the audited BIN and symbol-bearing ELF with checksums and a
-machine-readable record under the deterministic version
-`0.0.0-candidate.<first-12-source-commit-hex>`. The Actions artifact is named
+prepare/build/audit scripts performs pinned `survey --check` builds for both
+`B1144C_260404_USB_C` and `B1144C_250901_USB_C`. CI packages both audited
+profile-specific BIN/ELF pairs with checksums and a machine-readable
+schema-v2 record under the deterministic version
+`0.0.0-candidate.<first-12-source-commit-hex>`. The metadata records
+`B1144C_260404_USB_C` as the build default, not an auto-detected or approved
+target. The Actions artifact is named
 `frogalert-candidate-<full-source-commit>` and expires after 30 days.
 
 That candidate artifact is deliberately outside every publication surface:
 
 - its metadata fixes `hardware_verified`, `flash_approved`, `publishable`, and
   `hosted_on_site` to `false`;
-- packaging rechecks the locked survey size/SHA-256, CH58x startup sentinel,
-  ELF identity, source commit, pinned upstream archive, and pinned toolchain;
+- packaging rechecks each profile's locked survey size/SHA-256, compiled
+  profile id, CH58x startup sentinel, ELF identity, source commit, pinned
+  upstream archive, and pinned toolchain;
 - output is permitted only below ignored repo-local `tmp/`;
 - the CI job has `contents: read` and cannot create a tag or GitHub Release;
 - neither site assembly nor the browser catalog consumes Actions artifacts;
@@ -71,9 +79,10 @@ That candidate artifact is deliberately outside every publication surface:
 This gives every successful active-firmware change a traceable compiler output
 without treating compilation as hardware evidence. Quarantined standalone Rust
 images retain their intentional no-BIN behavior and are not smuggled into the
-candidate lane. A candidate becomes a public release only through a later,
-separate commit containing its exact checked-in BIN/ELF, manifest descriptor,
-release notes, structured physical record, and bound transcript.
+candidate lane. A candidate profile becomes a public release only through a
+later, separate commit containing that profile's exact checked-in BIN/ELF,
+manifest descriptor, release notes, structured physical record, and bound
+transcript. The other profile remains unapproved.
 
 The workflow is deliberately ordered:
 
@@ -196,6 +205,13 @@ and every SHA in `firmware/quarantine.json`. The browser also checks that
 registry after hashing a manually selected local file, so a previously
 downloaded failed artifact cannot be reintroduced through the developer path.
 
+The web flasher may derive a local survey BIN by changing its CRC-protected
+built-in/custom monitoring block. That operation preserves the compiled
+hardware profile but changes the SHA-256. The configured bytes are explicitly
+`hardware_verified: false`; base-artifact evidence does not transfer across a
+configuration/hash change. Publishing such a variant would require its own
+exact descriptor, profile/PCB-bound evidence record, and transcript.
+
 The current `releases` and `lab_images` arrays are empty. The first USB-C
 pixel-walk build was withdrawn after a blank-boot hardware failure and failed
 KEY2 recovery. A build-only or failed FrogAlert artifact must remain under
@@ -211,6 +227,9 @@ Prepare and build the replacement shell only through its pinned scripts:
 
 ```sh
 ./scripts/prepare-fossasia-usbc --with-toolchain
+./scripts/build-fossasia-usbc baseline --check
+./scripts/build-fossasia-usbc canary --check
+./scripts/build-fossasia-usbc survey --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
@@ -218,16 +237,18 @@ FROGALERT_CANDIDATE_COMMIT="$(git rev-parse HEAD)" \
   node scripts/firmware-candidate.mjs tmp/firmware-candidate
 ```
 
-The baseline must reproduce the known-good 177,704-byte BIN at SHA-256
+The omitted profile builds the default `B1144C_260404_USB_C`; the explicit
+commands build legacy `B1144C_250901_USB_C`. The latter baseline must reproduce
+the known-good 177,704-byte BIN at SHA-256
 `2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2`.
 The canary adds only an inert retained metadata string. All three lanes
 preserve the FOSSASIA USB-C startup/linker/runtime and audit required symbols,
 startup marker, USB identity, KEY2-related runtime, and forbidden atomic
 instructions.
 The final Make-produced BIN must also match a fresh `objcopy -O binary -S` of
-the audited ELF, and baseline, canary, and survey size/SHA-256 values are locked.
-Everything remains under ignored `tmp/fossasia-usbc/`; the scripts neither
-flash nor copy bytes into a public directory.
+the audited ELF, and every profile/lane size/SHA-256 is locked independently.
+Output remains under `tmp/fossasia-usbc/build/<PROFILE>/<LANE>/`; the scripts
+neither flash nor copy bytes into a public directory.
 
 The old standalone Rust helpers are diagnostic quarantine checks only. They
 build an ELF, demonstrate the misplaced external table and wrong Timer 0

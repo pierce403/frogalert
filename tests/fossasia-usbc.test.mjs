@@ -33,6 +33,8 @@ function utf16LittleEndian(text) {
 
 test("FOSSASIA USB-C lock pins source, toolchain, and known-good baseline", async () => {
   const lock = await loadLock();
+  const legacyImages = lock.build.profile_images.B1144C_250901_USB_C;
+  const defaultImages = lock.build.profile_images.B1144C_260404_USB_C;
   assert.equal(
     lock.upstream.commit,
     "9ce885d682b5c56c3ac7595c09e009a210885221",
@@ -50,17 +52,22 @@ test("FOSSASIA USB-C lock pins source, toolchain, and known-good baseline", asyn
     "d5ad9627c1045e7c45e13a4ec909d6424ba0e2d9e42692e48208b78ad2886eef",
   );
   assert.equal(
-    lock.build.known_good_baseline_sha256,
+    legacyImages.baseline.sha256,
     "2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2",
   );
-  assert.equal(lock.build.known_good_baseline_size, 177704);
-  assert.equal(lock.build.known_good_canary_size, 177788);
-  assert.equal(lock.build.minimum_stack_headroom, 8192);
-  assert.equal(lock.build.known_good_survey_size, 201788);
-  assert.equal(
-    lock.build.known_good_survey_sha256,
-    "9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7",
+  assert.equal(lock.default_profile, "B1144C_260404_USB_C");
+  assert.equal(legacyImages.baseline.size, 177704);
+  assert.equal(legacyImages.canary.size, 177788);
+  assert.deepEqual(
+    lock.profiles.B1144C_250901_USB_C.display_pin_map,
+    lock.profiles.B1144C_260404_USB_C.display_pin_map,
   );
+  assert.equal(lock.profiles.B1144C_250901_USB_C.key1.active, "high");
+  assert.equal(lock.profiles.B1144C_260404_USB_C.key1.active, "low");
+  assert.equal(lock.profiles.B1144C_260404_USB_C.key1.shutdown_wake_edge, "falling");
+  assert.equal(lock.build.minimum_stack_headroom, 8192);
+  assert.ok(Number.isSafeInteger(legacyImages.survey.size));
+  assert.ok(Number.isSafeInteger(defaultImages.survey.size));
   assert.deepEqual(lock.build.required_survey_ascii, [
     "COP DETECTED",
     "FLIPPER DETECTED",
@@ -72,12 +79,13 @@ test("FOSSASIA USB-C lock pins source, toolchain, and known-good baseline", asyn
     "led badge magic",
     "ray-ban",
     "ray ban",
+    "FROGALERTCFGv1",
   ]);
   assert.ok(
     lock.build.required_survey_symbols.includes("frogalert_survey_on_disconnect"),
   );
   assert.equal(
-    lock.build.known_good_canary_sha256,
+    legacyImages.canary.sha256,
     "6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87",
   );
   assert.deepEqual(lock.known_good_upstream_elf, {
@@ -310,7 +318,7 @@ test("canary BIN audit requires the exact reproducible image, not marker fragmen
     await writeFile(file, evidence);
     await assert.rejects(
       verifyBinary(file, "canary", lock),
-      /locked FOSSASIA USB-C canary size differs/,
+      /locked FOSSASIA USB-C B1144C_260404_USB_C canary size differs/,
     );
 
     evidence.fill(0, lock.build.startup_sentinel_offset, 24);

@@ -6,6 +6,13 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  ALL_BUILTIN_TARGETS,
+  HARDWARE_PROFILES,
+  decodeFirmwareConfig,
+  findUniqueFirmwareConfigBlock,
+} from "../site/firmware-config.js";
+
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(scriptDirectory, "..");
 export const lockPath = path.join(
@@ -14,8 +21,16 @@ export const lockPath = path.join(
 );
 export const canaryText =
   "FROGALERT:FOSSASIA-USB-C-BASE:9ce885d682b5c56c3ac7595c09e009a210885221:UNVERIFIED";
-export const surveyText =
-  "FROGALERT:SURVEY-MODES-RULES-KARR-FRAME48:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+export const supportedProfiles = Object.freeze([
+  "B1144C_250901_USB_C",
+  "B1144C_260404_USB_C",
+]);
+export const defaultProfile = "B1144C_260404_USB_C";
+export function surveyTextForProfile(profile) {
+  assert.ok(supportedProfiles.includes(profile), "unsupported hardware profile");
+  return `FROGALERT:SURVEY-CONFIG-V1:FOSSASIA-9ce885d:${profile}:UNVERIFIED`;
+}
+export const surveyText = surveyTextForProfile(defaultProfile);
 
 function validateMode(mode) {
   assert.ok(
@@ -31,9 +46,43 @@ export async function loadLock(file = lockPath) {
 }
 
 export function validateLock(lock) {
-  assert.equal(lock.schema_version, 1, "unsupported FOSSASIA lock schema");
-  assert.equal(lock.profile, "B1144C_250901_USB_C");
+  assert.equal(lock.schema_version, 2, "unsupported FOSSASIA lock schema");
+  assert.equal(lock.default_profile, defaultProfile);
   assert.equal(lock.hardware_status, "build-evidence-only");
+  assert.deepEqual(Object.keys(lock.profiles), supportedProfiles);
+  const expectedPinMap = [
+    "PA15", "PB18", "PB0", "PB7", "PA12", "PA10", "PA11", "PB9",
+    "PB8", "PB15", "PB14", "PB13", "PB12", "PB5", "PA4", "PB3",
+    "PB4", "PB2", "PB1", "PB6", "PB21", "PB20", "PB19",
+  ];
+  for (const [index, profile] of supportedProfiles.entries()) {
+    const descriptor = lock.profiles[profile];
+    assert.equal(descriptor.id, index + 1);
+    assert.equal(descriptor.pcb_marking, profile.split("_USB_C")[0]);
+    assert.equal(descriptor.connector, "USB-C");
+    assert.equal(descriptor.matrix, "11x44");
+    assert.deepEqual(descriptor.display_pin_map, expectedPinMap);
+    assert.equal(descriptor.key1.pin, "PA1");
+    assert.equal(descriptor.key2.pin, "PB22");
+    assert.equal(descriptor.key2.pull, "up");
+    assert.equal(descriptor.key2.active, "low");
+    assert.equal(
+      descriptor.key1.pull,
+      profile === defaultProfile ? "up" : "down",
+    );
+    assert.equal(
+      descriptor.key1.active,
+      profile === defaultProfile ? "low" : "high",
+    );
+    assert.equal(
+      descriptor.key1.shutdown_wake_edge,
+      profile === defaultProfile ? "falling" : "rising",
+    );
+  }
+  assert.equal(
+    lock.profiles[defaultProfile].provenance.commit,
+    "696bbd71b608a3f0db585cd0d8d828ce1f5dc0a3",
+  );
   assert.match(lock.upstream.commit, /^[0-9a-f]{40}$/);
   assert.ok(
     lock.upstream.archive_url.endsWith(lock.upstream.commit),
@@ -68,12 +117,38 @@ export function validateLock(lock) {
   assert.equal(lock.build.version_abbreviation, "v0.1");
   assert.equal(lock.build.startup_sentinel_offset, 0x14);
   assert.equal(lock.build.startup_sentinel_hex, "a9bdf9f5");
-  assert.equal(lock.build.known_good_baseline_size, 177704);
-  assert.match(lock.build.known_good_baseline_sha256, /^[0-9a-f]{64}$/);
-  assert.equal(lock.build.known_good_canary_size, 177788);
-  assert.match(lock.build.known_good_canary_sha256, /^[0-9a-f]{64}$/);
-  assert.ok(lock.build.known_good_survey_size > 177788);
-  assert.match(lock.build.known_good_survey_sha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual(Object.keys(lock.build.profile_images), supportedProfiles);
+  for (const profile of supportedProfiles) {
+    assert.deepEqual(
+      Object.keys(lock.build.profile_images[profile]),
+      ["baseline", "canary", "survey"],
+    );
+    for (const mode of ["baseline", "canary", "survey"]) {
+      const image = lock.build.profile_images[profile][mode];
+      assert.ok(
+        Number.isSafeInteger(image.size) && image.size > 0,
+        `invalid ${profile} ${mode} size`,
+      );
+      assert.match(image.sha256, /^[0-9a-f]{64}$/);
+      assert.notEqual(
+        image.sha256,
+        "0".repeat(64),
+        `invalid ${profile} ${mode} SHA-256`,
+      );
+    }
+  }
+  assert.equal(
+    lock.build.profile_images.B1144C_250901_USB_C.baseline.size,
+    177704,
+  );
+  assert.equal(
+    lock.build.profile_images.B1144C_250901_USB_C.baseline.sha256,
+    "2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2",
+  );
+  assert.equal(
+    lock.build.profile_images.B1144C_250901_USB_C.canary.size,
+    177788,
+  );
   assert.equal(lock.build.minimum_stack_headroom, 8192);
   assert.ok(lock.build.required_symbols.length >= 8);
   assert.ok(lock.build.required_survey_symbols.length >= 6);
@@ -88,6 +163,7 @@ export function validateLock(lock) {
     "led badge magic",
     "ray-ban",
     "ray ban",
+    "FROGALERTCFGv1",
   ]);
   assert.equal(
     lock.survey_reference.commit,
@@ -138,11 +214,11 @@ export function validateLock(lock) {
   ]);
   assert.equal(
     lock.known_good_upstream_elf.objcopy_output_size,
-    lock.build.known_good_baseline_size,
+    lock.build.profile_images.B1144C_250901_USB_C.baseline.size,
   );
   assert.equal(
     lock.known_good_upstream_elf.objcopy_output_sha256,
-    lock.build.known_good_baseline_sha256,
+    lock.build.profile_images.B1144C_250901_USB_C.baseline.sha256,
   );
   assert.ok(Object.keys(lock.critical_source_sha256).length >= 12);
 }
@@ -319,6 +395,14 @@ export function verifyDisassembly(disassembly) {
   );
 }
 
+export function lockedProfileImage(lock, profile, mode) {
+  assert.ok(supportedProfiles.includes(profile), "unsupported hardware profile");
+  validateMode(mode);
+  const image = lock.build.profile_images?.[profile]?.[mode];
+  assert.ok(image, `missing locked ${profile} ${mode} image`);
+  return image;
+}
+
 function utf16LittleEndian(text) {
   const result = Buffer.alloc(text.length * 2);
   for (let index = 0; index < text.length; index += 1) {
@@ -331,8 +415,9 @@ function contains(haystack, needle) {
   return haystack.indexOf(needle) !== -1;
 }
 
-export async function verifyBinary(file, mode, lock) {
+export async function verifyBinary(file, mode, lock, profile = lock.default_profile) {
   validateMode(mode);
+  assert.ok(supportedProfiles.includes(profile), "unsupported hardware profile");
   const image = await readFile(file);
   assert.ok(image.length > 0, "firmware BIN is empty");
   assert.ok(image.length <= 448 * 1024, "firmware BIN exceeds CH582 flash");
@@ -367,7 +452,7 @@ export async function verifyBinary(file, mode, lock) {
     `canary marker mismatch for ${mode} build`,
   );
   assert.equal(
-    contains(image, Buffer.from(surveyText, "ascii")),
+    contains(image, Buffer.from(surveyTextForProfile(profile), "ascii")),
     mode === "survey",
     `survey marker mismatch for ${mode} build`,
   );
@@ -382,26 +467,31 @@ export async function verifyBinary(file, mode, lock) {
       contains(image, Buffer.from([0xe0, 0xfe])),
       "embedded BadgeMagic FEE0 service signature missing from BIN",
     );
+    const configOffset = findUniqueFirmwareConfigBlock(image);
+    const config = decodeFirmwareConfig(
+      image.subarray(configOffset, configOffset + 384),
+    );
+    assert.equal(
+      config.hardwareProfile,
+      HARDWARE_PROFILES[profile],
+      "embedded monitor config does not match the compiled hardware profile",
+    );
+    assert.equal(
+      config.builtInTargets,
+      ALL_BUILTIN_TARGETS,
+      "locked survey image must enable every built-in target by default",
+    );
+    assert.deepEqual(
+      config.customRules,
+      [],
+      "locked survey image must contain no custom monitoring rules",
+    );
   }
 
-  const lockedImages = {
-    baseline: {
-      size: lock.build.known_good_baseline_size,
-      sha256: lock.build.known_good_baseline_sha256,
-    },
-    canary: {
-      size: lock.build.known_good_canary_size,
-      sha256: lock.build.known_good_canary_sha256,
-    },
-    survey: {
-      size: lock.build.known_good_survey_size,
-      sha256: lock.build.known_good_survey_sha256,
-    },
-  };
   await verifyLockedFile(
     file,
-    lockedImages[mode],
-    `locked FOSSASIA USB-C ${mode}`,
+    lockedProfileImage(lock, profile, mode),
+    `locked FOSSASIA USB-C ${profile} ${mode}`,
   );
 }
 
@@ -420,8 +510,13 @@ async function main(argv) {
       break;
     }
     case "binary": {
-      assert.equal(parameters.length, 2, "binary requires MODE and BIN");
-      await verifyBinary(path.resolve(parameters[1]), parameters[0], lock);
+      assert.equal(parameters.length, 3, "binary requires PROFILE, MODE, and BIN");
+      await verifyBinary(
+        path.resolve(parameters[2]),
+        parameters[1],
+        lock,
+        parameters[0],
+      );
       break;
     }
     case "symbols": {
@@ -449,7 +544,7 @@ async function main(argv) {
     }
     default:
       throw new Error(
-        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary MODE BIN|symbols MODE NM|disassembly FILE|vectors HIGHCODE NM|ram NM}",
+        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary PROFILE MODE BIN|symbols MODE NM|disassembly FILE|vectors HIGHCODE NM|ram NM}",
       );
   }
 }

@@ -27,6 +27,25 @@ refresh. The WCH GCC/linker path performs the final link. This preserves known
 working behavior while still allowing most FrogAlert policy to be written and
 tested in Rust.
 
+## USB-C profile boundary
+
+The FOSSASIA shell is compiled into one of two exact board profiles:
+
+| Profile | KEY1 pull and pressed level | Shutdown wake |
+| --- | --- | --- |
+| `B1144C_260404_USB_C` (default) | pull-up, active low | falling edge |
+| `B1144C_250901_USB_C` | pull-down, active high | rising edge |
+
+Both profiles retain the same `USBC_VERSION=1` 23-net LED matrix and
+KEY2/PB22 active-low path. The newer profile applies only the three pinned
+KEY1 source transformations before compilation.
+
+There is no passive boot-time profile probe. An untouched KEY1 switch is open
+on both boards, and PA1 follows whichever internal pull the firmware chooses.
+The first press can reveal a transition only after boot and initial button/wake
+semantics have already been selected. Separate artifacts, exact printed board
+markings, and profile-bound checks are therefore part of the architecture.
+
 ## Replacement-image progression
 
 The old `frogalert-pixel-walk` and `frogalert-count` standalone runtime images
@@ -80,22 +99,40 @@ compatible device that advertises `0xFEE0`.
 This bounded C mirror makes the full policy inspectable in the current hardware
 shell; it does not skip the separate Rust ABI-canary gate. The display hook
 stops the original animation only when an overlay or selected counter takes
-ownership, then resumes the uploaded nametag without modifying it. FOSSASIA's
-underlying roughly 45 Hz matrix refresh is unchanged.
+ownership. The original animation tasks may already have queued their next
+events, so the patched handlers also consume marquee, flash, fixed-animation,
+and Bluetooth animation steps while FrogAlert owns the panel. They do not
+reschedule until the three-second overlay releases ownership and restores the
+selected nametag/count view. FOSSASIA's underlying roughly 45 Hz matrix refresh
+is unchanged.
 
-The C-only canary now builds as 177,788 bytes at SHA-256
-`6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
-It is intentionally absent from the public manifest pending physical evidence.
-The survey candidate builds as 201,788 bytes at SHA-256
-`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
-Its audited section sizes are 193,296 bytes of text, 8,492 bytes of data, and
-4,588 bytes of BSS, with 9,788 bytes of measured stack/runtime headroom. It is
-likewise private, hardware-unverified, and not flash-approved.
+Each profile/lane combination has an independent audited size and SHA-256 lock.
+All derived images are intentionally absent from the public manifest pending
+profile-specific physical evidence.
 
 Each stage must retain USB `0416:5020` HID+CDC enumeration, BadgeMagic app
 uploads, ordinary buttons, the visible KEY2 dot cue, and ISP enumeration as
 `4348:55e0`/`1a86:55e0` after a power cycle. No stage is copied from `tmp/` to
 the public site before that exact artifact has hash-bound evidence.
+
+## Monitoring configuration boundary
+
+The survey image retains one 384-byte, fixed-layout configuration block in
+read-only image data. It contains:
+
+- magic/schema/size and a CRC32;
+- the compiled hardware-profile id;
+- a bit mask for police, Flipper, KARR, Ray-Ban, and BadgeMagic built-ins; and
+- up to eight custom name-contains, name-prefix, name-exact, public-OUI, or
+  16-bit-service rules with bounded ASCII values and display messages.
+
+Custom rules run before enabled built-ins; the first match wins. A malformed
+block, unknown bit/type, nonzero padding, CRC failure, or profile mismatch
+disables alerts while leaving the scan/count path available. The static web
+flasher finds exactly one block, validates it, and patches a copy without
+changing the embedded profile. The configured copy receives a new SHA-256,
+loses any inherited verification status, and remains a local developer
+artifact.
 
 ## Release and website publication
 
@@ -119,6 +156,12 @@ BIN and hashes it again locally. An empty release collection is a successful
 no-op, so ordinary commits cannot accidentally promote the private survey
 candidate. Published tags and assets are immutable under the reconciler:
 metadata or byte drift fails the workflow rather than overwriting a release.
+
+The separate Actions candidate is schema-v2 build evidence containing both
+profile-specific survey BIN/ELF pairs, their checksums, and the
+`B1144C_260404_USB_C` default declaration. Its metadata fixes every approval
+and publication flag to false. It is not the GitHub Release step in the diagram
+above and never enters Pages.
 
 ## Quarantined standalone count prototype
 
@@ -153,11 +196,11 @@ The historical lab source is observer-only and was enabled only for
 does not advertise as `LED Badge Magic` or `LSLED`, and cannot receive nametag
 content from the BadgeMagic app. It must not be packaged or flashed.
 
-The exact `B1144C_250901_USB_C` profile remains unavailable for this old
-wrapper. Its vendored Rust BLE initializer hardcodes external LSE. Replacement
-scan work instead stays inside the FOSSASIA C BLE/TMOS shell, which already
-selects and calibrates the CH582 internal low-speed oscillator; role switching
-and radio behavior still require physical validation.
+Neither exact USB-C profile is available for this old wrapper. Its vendored
+Rust BLE initializer hardcodes external LSE. Replacement scan work instead
+stays inside the FOSSASIA C BLE/TMOS shell, which already selects and
+calibrates the CH582 internal low-speed oscillator; role switching and radio
+behavior still require physical validation.
 
 ## Survey candidate and target combined firmware
 
@@ -213,8 +256,10 @@ small and explainable:
   case-insensitive name.
 - observations are discarded after classification. The badge has no scan log,
   network client, or telemetry.
-- the first match wins. A future rule table stored in data flash can add
-  priorities and app-side configuration.
+- custom rules are evaluated in their encoded order before enabled built-ins;
+  the first match wins. The current browser customization rewrites a bounded
+  block in a local firmware copy; it does not add runtime GATT configuration or
+  writable data-flash ownership.
 
 ## Firmware milestones
 

@@ -123,7 +123,7 @@ source_directory="$source_root/$source_directory_name"
 source_staging="$source_root/.extract-$source_directory_name"
 rm -rf "$source_directory" "$source_staging"
 mkdir -p "$source_staging"
-tar -xzf "$source_archive" -C "$source_staging"
+tar --no-same-owner -xzf "$source_archive" -C "$source_staging"
 if [[ ! -d "$source_staging/$source_directory_name" ]]; then
   echo "source archive did not contain $source_directory_name" >&2
   exit 1
@@ -178,7 +178,7 @@ if ! verify_toolchain; then
   toolchain_staging="$toolchain_root/.extract-$toolchain_name"
   rm -rf "$toolchain_directory" "$toolchain_staging"
   mkdir -p "$toolchain_staging"
-  tar -xJf "$toolchain_archive" -C "$toolchain_staging"
+  tar --no-same-owner -xJf "$toolchain_archive" -C "$toolchain_staging"
   if [[ ! -d "$toolchain_staging/$toolchain_name" ]]; then
     echo "toolchain archive did not contain $toolchain_name" >&2
     exit 1

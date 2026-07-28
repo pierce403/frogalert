@@ -1,8 +1,10 @@
 # Pinned FOSSASIA USB-C hardware shell
 
-This directory defines FrogAlert's replacement firmware base for the exact
-`B1144C_250901_USB_C` profile. It pins the FOSSASIA source that has already
-booted on the physical badge and the same MRS V1.92 compiler used upstream.
+This directory defines FrogAlert's replacement firmware base for exact
+`B1144C_260404_USB_C` and `B1144C_250901_USB_C` profiles. It pins the
+FOSSASIA source that has already booted on the physical `250901` badge and the
+same MRS V1.92 compiler used upstream. The newer Nyx `260404` profile is the
+build default; neither profile is hardware-verified for FrogAlert.
 
 The architecture boundary is deliberate: FOSSASIA C continues to own reset,
 vectors, the linker layout, clock setup, display refresh, USB HID plus CDC,
@@ -10,16 +12,41 @@ BadgeMagic-compatible BLE services, internal-LSI calibration, buttons, power,
 and the KEY2-to-ROM-ISP hook. Rust may later enter only as a small C-ABI
 library for portable FrogAlert policy. Rust must not own the hardware shell.
 
+## Hardware profiles
+
+Both USB-C profiles use the same `USBC_VERSION=1` 23-net display table and
+KEY2/PB22 active-low input. The build-time difference is limited to KEY1/PA1:
+
+| Profile | Input pull | Pressed | Shutdown wake |
+| --- | --- | --- | --- |
+| `B1144C_260404_USB_C` (default) | up | low | falling edge |
+| `B1144C_250901_USB_C` | down | high | rising edge |
+
+An untouched KEY1 is an open switch on both boards and only reflects the
+firmware-selected pull, so it cannot safely auto-detect the board before first
+use. The build and embedded monitor configuration carry an explicit profile id.
+
 ## Build lanes
 
-The exact baseline contains no FrogAlert source. Its resulting BIN must match
-the known-good 177,704-byte FOSSASIA image byte-for-byte:
+Omit the profile for the default `260404` board:
+
+```bash
+./scripts/build-fossasia-usbc baseline --check
+./scripts/build-fossasia-usbc canary --check
+./scripts/build-fossasia-usbc survey --check
+```
+
+Name the legacy board explicitly:
 
 ```bash
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-The lock also records FOSSASIA bin commit `b56cd949`, its 250,072-byte
+The legacy baseline contains no FrogAlert source and must match the known-good
+177,704-byte FOSSASIA image byte-for-byte. The lock also records FOSSASIA bin
+commit `b56cd949`, its 250,072-byte
 `usb-c/badgemagic-ch582.elf`, and the ELF's SHA-256. Running the pinned
 toolchain's `objcopy -O binary -S` on that exact ELF has been verified to
 produce the same 177,704-byte known-good BIN and SHA-256 as the local baseline.
@@ -27,18 +54,9 @@ The locally rebuilt ELF itself need not be byte-identical because ELF metadata
 can carry build-path differences; the loadable raw image is the exact gate.
 
 The first integration canary adds only `frogalert-canary.c`, a retained build
-identity string with no functions or hardware references:
-
-```bash
-./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
-```
-
-The private survey candidate keeps that same C hardware shell and adds a
-bounded passive counter for the exact USB-C profile:
-
-```bash
-./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
-```
+identity string with no functions or hardware references. The private survey
+candidate keeps that same C hardware shell and adds a bounded passive counter
+and classifier for the selected profile.
 
 This diagnostic lane starts in normal nametag view. Short KEY2 presses extend
 FOSSASIA's existing display selection with a virtual counter:
@@ -70,6 +88,14 @@ AD-structure classifier mirrors every README detector row:
 - an exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
   service runs a two-frame, three-frog animation.
 
+The default 384-byte `FROGALERTCFGv1` block enables all five built-in groups
+and no custom rules. Its CRC covers the schema, compiled hardware-profile id,
+built-in mask, and eight bounded rule slots. The browser may derive a local BIN
+with custom name contains/prefix/exact, public-OUI, or 16-bit-service rules.
+Firmware rejects malformed, mismatched-profile, or bad-CRC configuration and
+disables alerts rather than guessing. Scanning and the count view remain
+available in that failure mode.
+
 Cop, Flipper, KARR, and frog overlays each last three seconds. Each then
 restores the selected nametag or latest `BT 00` through
 `BT 64+` counter view without modifying uploaded content. Passive discovery
@@ -92,9 +118,13 @@ The hardware survey still uses the C shell for advertisement extraction and
 the bounded rule mirror. Moving classification behind the Rust ABI remains
 gated on the separate ABI-only canary even though the behavior now matches the
 documented table. The display hook stops FOSSASIA's animation tasks only when
-an overlay or selected counter first takes panel ownership, then resumes the
-selected uploaded name. This removes the diagnostic's added blank-frame flicker
-but does not change FOSSASIA's roughly 45 Hz matrix refresh. For fixed and
+an overlay or selected counter first takes panel ownership. Because those
+tasks may already have queued a next event, the patched marquee, flash, fixed,
+and Bluetooth-animation handlers consume their event while FrogAlert owns the
+panel instead of rescheduling. The selected uploaded name/count view resumes
+only after the three-second overlay releases ownership. This removes both the
+diagnostic's added blank-frame flicker and the competing-scroll restart, but
+does not change FOSSASIA's roughly 45 Hz matrix refresh. For fixed and
 frame-animation modes only, a compatibility helper recognizes 48-column
 blocks with two blank columns at both edges and copies their inner 44 columns
 using the correct 48-column stride. Unqualified payloads retain the original
@@ -107,8 +137,10 @@ unverified on hardware.
 
 The first run downloads about 345 MB of pinned archives. Source, toolchain,
 objects, ELF, map, disassembly, and BIN files stay under ignored
-`tmp/fossasia-usbc/`. Nothing here copies a BIN into `firmware/releases/`,
-updates the website manifest, invokes `wchisp`, or authorizes a flash.
+`tmp/fossasia-usbc/`; build artifacts are separated as
+`build/<PROFILE>/<LANE>/`. Nothing here copies a BIN into
+`firmware/releases/`, updates the website manifest, invokes `wchisp`, or
+authorizes a flash.
 
 `scripts/prepare-fossasia-usbc` can prepare only the verified source archive
 or both source and compiler:
@@ -128,20 +160,19 @@ then re-hashed before compilation.
 A passing build establishes reproducible source/toolchain provenance, the
 USB-C compile flag, expected runtime symbols, the WCH startup sentinel, the
 absence of linked AMO/LR/SC instructions, expected USB descriptor strings, and
-the presence or absence of the canary and survey markers. It reconstructs a raw BIN from
-the audited ELF and requires byte identity with the Make-produced BIN. Both
-derived sizes and SHA-256 values are locked; the baseline also must
-match the already recovered FOSSASIA image exactly.
+the presence or absence of the canary and survey markers. It reconstructs a
+raw BIN from the audited ELF and requires byte identity with the Make-produced
+BIN. Every profile/lane size and SHA-256 is locked independently; the legacy
+baseline also must match the already recovered FOSSASIA image exactly.
 
 The survey lane additionally requires its passive-scan/cancel/suspend,
-display-view, bounded classifier, text-alert, and frog-render symbols plus at
-least 8 KiB between static RAM and the stack top. Its current locked BIN is
-201,788 bytes with SHA-256
-`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
-The audited section sizes are 193,296 bytes of text, 8,492 bytes of data, and
-4,588 bytes of BSS; measured stack/runtime headroom remains 9,788 bytes.
+display-view, configuration, bounded classifier, text-alert, frog-render, and
+animation-ownership symbols plus at least 8 KiB between static RAM and the
+stack top. The Actions candidate packager requires both profile-specific
+survey BIN/ELF pairs and produces one checksum/metadata bundle with every
+approval flag false.
 
 It does **not** prove that a derived image boots, scans, displays correctly,
 accepts a BadgeMagic upload, enters ISP on KEY2, or recovers after a failed
-write. Keep both candidates local until those checks pass on the exact physical
-badge.
+write. It also does not turn the Actions bundle into a GitHub firmware Release.
+Keep both candidates local until those checks pass on the exact physical badge.

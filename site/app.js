@@ -22,14 +22,26 @@ import {
   artifactBoardBinding,
   canEnableFlash,
   canProgramArtifact,
+  expectedPcbMarking,
   nextArtifactGeneration,
+  physicalMarkingMatchesProfiles,
   revisionInputTransition,
-} from "./flasher-state.js";
+} from "./flasher-state.js?v=2";
 import { programAndVerifyFirmware } from "./flash-session.js";
 import {
   assertFirmwareHashNotQuarantined,
   parseFirmwareQuarantineRegistry,
 } from "./firmware-quarantine.js";
+import {
+  BUILTIN_TARGET_BITS,
+  FIRMWARE_CONFIG_BLOCK_SIZE,
+  HARDWARE_PROFILES,
+  MATCH_TYPES,
+  MAX_CUSTOM_MONITORING_RULES,
+  decodeFirmwareConfig,
+  findUniqueFirmwareConfigBlock,
+  patchFirmwareConfig,
+} from "./firmware-config.js?v=2";
 import {
   ISP_ENTRY_PHASE,
   ISP_ENTRY_SEQUENCE,
@@ -84,6 +96,9 @@ const state = {
   ispEntryPhase: ISP_ENTRY_PHASE.CLOSED,
   ispEntryCountdownStartedAt: null,
   ispEntryCountdownTimer: null,
+  monitorBase: null,
+  monitorDownloadUrl: null,
+  monitorDirty: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -167,6 +182,16 @@ const elements = {
   selectedProfileStatus: $("#selected-profile-status"),
   firmwareProvenance: $("#firmware-provenance"),
   firmwareVerification: $("#firmware-verification"),
+  monitorTargets: $("#monitor-targets"),
+  monitorTargetInputs: $$("[data-monitor-target]"),
+  monitorAddRule: $("#monitor-add-rule"),
+  monitorCustomRules: $("#monitor-custom-rules"),
+  monitorApply: $("#monitor-apply"),
+  monitorReset: $("#monitor-reset"),
+  monitorStatus: $("#monitor-config-status"),
+  monitorBaseHash: $("#monitor-base-hash"),
+  monitorFinalHash: $("#monitor-final-hash"),
+  monitorDownload: $("#monitor-download"),
   flashPhrase: $("#flash-phrase"),
   armedStatus: $("#armed-status"),
   copyLogButton: $("#copy-log"),
@@ -1005,7 +1030,13 @@ function revisionMatchesArtifact() {
 
 function physicalMarkingMatchesArtifact() {
   const declaredMarkings = state.firmware?.pcbMarkings;
-  return !declaredMarkings || declaredMarkings.includes(elements.pcbMarking.value.trim());
+  if (declaredMarkings) {
+    return declaredMarkings.includes(elements.pcbMarking.value.trim());
+  }
+  return physicalMarkingMatchesProfiles({
+    hardwareRevisions: state.firmware?.hardwareRevisions,
+    physicalMarking: elements.pcbMarking.value,
+  });
 }
 
 function recoveryArtifactConfirmationComplete() {
@@ -1023,6 +1054,275 @@ function artifactProgrammingAllowed() {
   });
 }
 
+function profileNameForConfigId(profileId) {
+  return Object.entries(HARDWARE_PROFILES).find(([, id]) => id === profileId)?.[0] || null;
+}
+
+function inspectFirmwareConfig(raw) {
+  let offset;
+  try {
+    offset = findUniqueFirmwareConfigBlock(raw);
+  } catch (error) {
+    if (/does not contain a FrogAlert configuration block/.test(error.message)) {
+      return null;
+    }
+    throw error;
+  }
+  return {
+    offset,
+    config: decodeFirmwareConfig(
+      raw.subarray(offset, offset + FIRMWARE_CONFIG_BLOCK_SIZE),
+    ),
+  };
+}
+
+function clearMonitorDownload() {
+  if (state.monitorDownloadUrl) {
+    URL.revokeObjectURL(state.monitorDownloadUrl);
+    state.monitorDownloadUrl = null;
+  }
+  if (elements.monitorDownload) {
+    elements.monitorDownload.hidden = true;
+    elements.monitorDownload.removeAttribute("href");
+    elements.monitorDownload.removeAttribute("download");
+  }
+}
+
+function setMonitorControlsDisabled(disabled) {
+  if (elements.monitorTargets) elements.monitorTargets.disabled = disabled;
+  for (const input of elements.monitorTargetInputs) input.disabled = disabled;
+  if (elements.monitorAddRule) elements.monitorAddRule.disabled = disabled;
+  if (elements.monitorApply) elements.monitorApply.disabled = disabled;
+  if (elements.monitorReset) elements.monitorReset.disabled = disabled;
+  elements.monitorCustomRules?.querySelectorAll("input, select, button").forEach((control) => {
+    control.disabled = disabled;
+  });
+}
+
+function clearMonitorConfigurator() {
+  clearMonitorDownload();
+  state.monitorBase = null;
+  state.monitorDirty = false;
+  elements.monitorCustomRules?.replaceChildren();
+  for (const input of elements.monitorTargetInputs) input.checked = false;
+  setMonitorControlsDisabled(true);
+  if (elements.monitorBaseHash) elements.monitorBaseHash.textContent = "—";
+  if (elements.monitorFinalHash) elements.monitorFinalHash.textContent = "—";
+  setStatus(
+    elements.monitorStatus,
+    "Load a compatible local survey BIN to configure monitoring.",
+    "neutral",
+  );
+}
+
+const CUSTOM_MATCH_OPTIONS = Object.freeze([
+  [MATCH_TYPES.NAME_CONTAINS, "Name contains"],
+  [MATCH_TYPES.NAME_PREFIX, "Name starts with"],
+  [MATCH_TYPES.NAME_EXACT, "Name equals"],
+  [MATCH_TYPES.PUBLIC_OUI, "Public OUI"],
+  [MATCH_TYPES.SERVICE_16_BIT, "16-bit service"],
+]);
+
+function markMonitorOptionsDirty() {
+  if (!state.monitorBase) return;
+  state.monitorDirty = true;
+  if (elements.monitorApply) elements.monitorApply.disabled = false;
+  clearMonitorDownload();
+  resetConfirmations();
+  setStatus(
+    elements.monitorStatus,
+    "Options changed but are not applied. Apply them to calculate a new BIN and SHA-256.",
+    "warning",
+  );
+  updateFlashButton();
+}
+
+function addCustomMonitorRule(rule = null) {
+  if (
+    !elements.monitorCustomRules ||
+    elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES
+  ) {
+    return;
+  }
+  const row = document.createElement("div");
+  row.className = "custom-target-row";
+
+  const typeLabel = document.createElement("label");
+  typeLabel.textContent = "Match";
+  const type = document.createElement("select");
+  type.className = "monitor-rule-type";
+  for (const [value, label] of CUSTOM_MATCH_OPTIONS) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = label;
+    type.append(option);
+  }
+  type.value = String(rule?.type || MATCH_TYPES.NAME_CONTAINS);
+  typeLabel.append(type);
+
+  const valueLabel = document.createElement("label");
+  valueLabel.textContent = "Value";
+  const value = document.createElement("input");
+  value.className = "monitor-rule-value";
+  value.type = "text";
+  value.maxLength = 24;
+  value.autocomplete = "off";
+  value.spellcheck = false;
+  value.placeholder = "Example: MyTracker";
+  value.value = rule?.value || "";
+  valueLabel.append(value);
+
+  const messageLabel = document.createElement("label");
+  messageLabel.textContent = "Badge message";
+  const message = document.createElement("input");
+  message.className = "monitor-rule-message";
+  message.type = "text";
+  message.maxLength = 16;
+  message.autocomplete = "off";
+  message.spellcheck = false;
+  message.placeholder = "MAX 16 CHARS";
+  message.value = rule?.message || "";
+  messageLabel.append(message);
+
+  const remove = document.createElement("button");
+  remove.className = "text-button monitor-rule-remove";
+  remove.type = "button";
+  remove.textContent = "Remove";
+  remove.addEventListener("click", () => {
+    row.remove();
+    markMonitorOptionsDirty();
+    if (elements.monitorAddRule) {
+      elements.monitorAddRule.disabled =
+        elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+    }
+  });
+  for (const control of [type, value, message]) {
+    control.addEventListener("input", markMonitorOptionsDirty);
+    control.addEventListener("change", markMonitorOptionsDirty);
+  }
+
+  row.append(typeLabel, valueLabel, messageLabel, remove);
+  elements.monitorCustomRules.append(row);
+  if (elements.monitorAddRule) {
+    elements.monitorAddRule.disabled =
+      elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+  }
+}
+
+function renderMonitorOptions(config, { configuredHash = null } = {}) {
+  for (const input of elements.monitorTargetInputs) {
+    const bit = BUILTIN_TARGET_BITS[input.dataset.monitorTarget];
+    input.checked = Boolean(config.builtInTargets & bit);
+  }
+  elements.monitorCustomRules?.replaceChildren();
+  for (const rule of config.customRules) addCustomMonitorRule(rule);
+  setMonitorControlsDisabled(false);
+  if (elements.monitorApply) elements.monitorApply.disabled = true;
+  if (elements.monitorAddRule) {
+    elements.monitorAddRule.disabled =
+      elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+  }
+  state.monitorDirty = false;
+  if (elements.monitorBaseHash) {
+    elements.monitorBaseHash.textContent = state.monitorBase?.hash || "—";
+  }
+  if (elements.monitorFinalHash) {
+    elements.monitorFinalHash.textContent = configuredHash || state.monitorBase?.hash || "—";
+  }
+  setStatus(
+    elements.monitorStatus,
+    config.customRules.length
+      ? `${config.customRules.length} custom target${config.customRules.length === 1 ? "" : "s"} and selected built-ins are encoded in the currently loaded BIN.`
+      : "The currently loaded BIN uses the selected built-in targets and no custom targets.",
+    "good",
+  );
+}
+
+function collectMonitorOptions() {
+  if (!state.monitorBase) throw new Error("no configurable FrogAlert BIN is loaded");
+  let builtInTargets = 0;
+  for (const input of elements.monitorTargetInputs) {
+    if (input.checked) builtInTargets |= BUILTIN_TARGET_BITS[input.dataset.monitorTarget];
+  }
+  const customRules = [...(elements.monitorCustomRules?.children || [])].map((row) => {
+    const type = Number.parseInt(row.querySelector(".monitor-rule-type").value, 10);
+    return {
+      type,
+      value: row.querySelector(".monitor-rule-value").value,
+      message: row.querySelector(".monitor-rule-message").value.trim(),
+    };
+  });
+  return {
+    hardwareProfile: HARDWARE_PROFILES[state.monitorBase.profile],
+    builtInTargets,
+    customRules,
+  };
+}
+
+async function applyMonitorOptions() {
+  if (state.flashing || !state.monitorBase) return;
+  try {
+    const config = collectMonitorOptions();
+    const configured = patchFirmwareConfig(state.monitorBase.raw, config);
+    const generation = beginArtifactPreparation();
+    resetConfirmations();
+    setMonitorControlsDisabled(true);
+    setStatus(
+      elements.monitorStatus,
+      "Applying monitoring options and calculating the resulting SHA-256…",
+      "working",
+    );
+    const baseName = state.monitorBase.name.replace(/\.bin$/i, "");
+    const name = `${baseName}.configured.bin`;
+    const loaded = await setFirmware(configured, name, "local monitoring configuration", {
+      generation,
+      hardwareRevisions: [state.monitorBase.profile],
+      monitorBase: state.monitorBase,
+      metadata: {
+        artifactKind: "local-developer",
+        hardwareVerified: false,
+        provenance: `Locally configured from ${state.monitorBase.name} · base SHA-256 ${state.monitorBase.hash}`,
+        hardwareEvidence:
+          "Locally prepared configuration with a calculated SHA-256; does not inherit hardware verification from its base image",
+      },
+    });
+    if (!loaded) return;
+    clearMonitorDownload();
+    const blob = new Blob([configured], { type: "application/octet-stream" });
+    state.monitorDownloadUrl = URL.createObjectURL(blob);
+    elements.monitorDownload.href = state.monitorDownloadUrl;
+    elements.monitorDownload.download = name;
+    elements.monitorDownload.hidden = false;
+    elements.monitorFinalHash.textContent = state.firmware.hash;
+    setStatus(
+      elements.monitorStatus,
+      "Monitoring options applied locally. Review the resulting SHA-256, download if desired, and repeat every flash confirmation.",
+      "warning",
+    );
+    log(`Applied bounded monitoring configuration; resulting local SHA-256 ${state.firmware.hash}.`);
+  } catch (error) {
+    state.monitorDirty = true;
+    setStatus(elements.monitorStatus, `Monitoring options not applied: ${error.message}`, "bad");
+    log(`Monitoring configuration rejected: ${error.message}`, "error");
+    updateFlashButton();
+  } finally {
+    setMonitorControlsDisabled(state.flashing || !state.monitorBase);
+    if (state.monitorBase && elements.monitorAddRule) {
+      elements.monitorAddRule.disabled =
+        elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+    }
+    if (state.monitorBase && elements.monitorApply) {
+      elements.monitorApply.disabled = !state.monitorDirty;
+    }
+  }
+}
+
+function restoreBaseMonitorOptions() {
+  if (!state.monitorBase) return;
+  renderMonitorOptions(state.monitorBase.config, { configuredHash: state.firmware?.hash });
+  markMonitorOptionsDirty();
+}
+
 function updateFlashButton() {
   const programmingBlocked = Boolean(state.firmware) && !artifactProgrammingAllowed();
   const enabled = canEnableFlash({
@@ -1030,7 +1330,7 @@ function updateFlashButton() {
     hasUsbDevice: Boolean(state.usbDevice),
     hasChipIdentity: Boolean(state.chip),
     hasConfig: Boolean(state.config),
-    hasFirmware: Boolean(state.firmware),
+    hasFirmware: Boolean(state.firmware) && !state.monitorDirty,
     hasBoardRecord: hasBoardRecord() && physicalMarkingMatchesArtifact(),
     artifactMatchesRevision: revisionMatchesArtifact(),
     confirmationsComplete: confirmationsComplete(),
@@ -1050,9 +1350,25 @@ function updateFlashButton() {
     enabled || programmingBlocked ? "warning" : "neutral",
   );
   if (elements.pcbMarkingStatus) {
-    elements.pcbMarkingStatus.textContent = hasBoardRecord()
-      ? "Recorded locally for this session"
-      : "Not recorded";
+    const selectedMarking = expectedPcbMarking(selectedRevision());
+    let markingStatus = "Recorded locally for this session";
+    if (!hasBoardRecord()) {
+      markingStatus = "Not recorded";
+    } else if (state.firmware) {
+      markingStatus = physicalMarkingMatchesArtifact()
+        ? "Recorded and consistent with the selected profile"
+        : selectedMarking
+          ? `Does not contain the required ${selectedMarking} marking`
+          : "Does not match the loaded artifact's required PCB marking";
+    } else if (selectedMarking) {
+      markingStatus = physicalMarkingMatchesProfiles({
+        hardwareRevisions: [selectedRevision()],
+        physicalMarking: elements.pcbMarking?.value,
+      })
+        ? "Recorded and consistent with the selected profile"
+        : `Does not contain the required ${selectedMarking} marking`;
+    }
+    elements.pcbMarkingStatus.textContent = markingStatus;
   }
   if (elements.selectedProfileStatus) {
     elements.selectedProfileStatus.textContent = selectedRevision() || "Not selected";
@@ -1067,6 +1383,7 @@ function updateFlashButton() {
 function clearFirmware() {
   resetConfirmations();
   state.firmware = null;
+  clearMonitorConfigurator();
   clearReleaseLinks();
   elements.firmwareName.textContent = "not loaded";
   elements.firmwareSize.textContent = "—";
@@ -1088,11 +1405,29 @@ async function setFirmware(
   bytes,
   name,
   source,
-  { expectedHash = null, generation, hardwareRevisions, pcbMarkings = null, metadata = {} } = {},
+  {
+    expectedHash = null,
+    generation,
+    hardwareRevisions,
+    pcbMarkings = null,
+    metadata = {},
+    monitorBase = null,
+  } = {},
 ) {
   const raw = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const validated = validateFirmware(raw, name);
   const hash = await sha256Hex(raw);
+  const embeddedConfig = inspectFirmwareConfig(raw);
+  if (embeddedConfig) {
+    const embeddedProfile = profileNameForConfigId(
+      embeddedConfig.config.hardwareProfile,
+    );
+    if (!embeddedProfile || !hardwareRevisions?.includes(embeddedProfile)) {
+      throw new Error(
+        `embedded monitor configuration is built for ${embeddedProfile || "an unknown profile"}, not the selected firmware profile`,
+      );
+    }
+  }
   if (generation !== state.artifactGeneration) return false;
   assertFirmwareHashNotQuarantined(hash, state.quarantinedFirmwareHashes);
   if (expectedHash && hash.toLowerCase() !== expectedHash.toLowerCase()) {
@@ -1119,6 +1454,18 @@ async function setFirmware(
     elements.firmwareVerification.textContent =
       metadata.hardwareEvidence ||
       (source === "local file" ? "No release or hardware evidence supplied" : "Not reported");
+  }
+  if (embeddedConfig) {
+    state.monitorBase = monitorBase || {
+      raw: Uint8Array.from(raw),
+      hash,
+      name,
+      profile: profileNameForConfigId(embeddedConfig.config.hardwareProfile),
+      config: embeddedConfig.config,
+    };
+    renderMonitorOptions(embeddedConfig.config, { configuredHash: hash });
+  } else {
+    clearMonitorConfigurator();
   }
   log(`Loaded ${name} from ${source}; SHA-256 calculated locally.`);
   updateFlashButton();
@@ -1549,6 +1896,7 @@ async function flashFirmware() {
   elements.releaseSelect.disabled = true;
   elements.labImageSelect.disabled = true;
   elements.recoveryButton.disabled = true;
+  setMonitorControlsDisabled(true);
   if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = true;
   const { padded, eraseSectors } = state.firmware;
   await acquireWakeLock();
@@ -1669,6 +2017,14 @@ async function flashFirmware() {
     if (elements.flashPhrase) elements.flashPhrase.disabled = false;
     elements.releaseSelect.disabled = elements.releaseSelect.options.length <= 1;
     elements.labImageSelect.disabled = elements.labImageSelect.options.length <= 1;
+    setMonitorControlsDisabled(!state.monitorBase);
+    if (state.monitorBase && elements.monitorAddRule) {
+      elements.monitorAddRule.disabled =
+        elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+    }
+    if (state.monitorBase && elements.monitorApply) {
+      elements.monitorApply.disabled = !state.monitorDirty;
+    }
     elements.usbButton.disabled = !canUseWebUsbChooser() || Boolean(state.usbDevice);
     if (elements.usbDisconnectButton) {
       elements.usbDisconnectButton.disabled = !state.usbDevice;
@@ -1732,20 +2088,27 @@ function bindEvents() {
   elements.pcbMarking.addEventListener("input", () => {
     state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
     resetConfirmations();
+    elements.firmwareInput.value = "";
+    elements.releaseSelect.value = "";
     elements.labImageSelect.value = "";
     clearLabImageDownload();
+    clearReleaseLinks();
+    restoreReleaseSummary();
     if (state.firmware) {
-      elements.releaseSelect.value = "";
-      elements.labImageSelect.value = "";
       clearFirmware();
       log("Cleared the prepared artifact because the opened-board record changed.", "warning");
     }
     updateFlashButton();
   });
-  elements.pcbRevision.addEventListener("input", () => {
+  elements.pcbRevision.addEventListener("change", () => {
     elements.recoveryBoardConfirmation.checked = false;
+    elements.firmwareInput.value = "";
+    elements.releaseSelect.value = "";
     elements.labImageSelect.value = "";
     clearLabImageDownload();
+    clearReleaseLinks();
+    restoreReleaseSummary();
+    const hadFirmware = Boolean(state.firmware);
     const transition = revisionInputTransition({
       artifactGeneration: state.artifactGeneration,
       isRecoveryArtifact: state.firmware?.artifactKind === "open-badgemagic-recovery",
@@ -1753,9 +2116,9 @@ function bindEvents() {
     });
     state.artifactGeneration = transition.artifactGeneration;
     resetConfirmations();
-    if (transition.clearFirmware) {
+    if (hadFirmware) {
       clearFirmware();
-      log("Cleared the prepared open BadgeMagic image because the exact PCB revision changed.", "warning");
+      log("Cleared the prepared artifact and monitoring options because the exact firmware profile changed.", "warning");
     }
     updateFlashButton();
     updateRecoveryButton();
@@ -1767,6 +2130,15 @@ function bindEvents() {
     updateRecoveryButton();
     updateFlashButton();
   });
+  for (const input of elements.monitorTargetInputs) {
+    input.addEventListener("change", markMonitorOptionsDirty);
+  }
+  elements.monitorAddRule?.addEventListener("click", () => {
+    addCustomMonitorRule();
+    markMonitorOptionsDirty();
+  });
+  elements.monitorApply?.addEventListener("click", applyMonitorOptions);
+  elements.monitorReset?.addEventListener("click", restoreBaseMonitorOptions);
   elements.confirmations.forEach((input) => input.addEventListener("change", updateFlashButton));
   elements.flashPhrase?.addEventListener("input", updateFlashButton);
   if (destructivePage && elements.flashButton) {

@@ -12,6 +12,10 @@ import {
 
 const SOURCE_COMMIT = "1234567890abcdef1234567890abcdef12345678";
 const TEST_SCRATCH_ROOT = fileURLToPath(new URL("../tmp/", import.meta.url));
+const PROFILES = [
+  "B1144C_260404_USB_C",
+  "B1144C_250901_USB_C",
+];
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -22,21 +26,45 @@ async function makeFixture(t) {
   const root = await mkdtemp(join(TEST_SCRATCH_ROOT, "firmware-candidate-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const lockRoot = join(root, "firmware", "fossasia-usbc");
-  const buildRoot = join(root, "tmp", "fossasia-usbc", "build", "survey");
   await mkdir(lockRoot, { recursive: true });
-  await mkdir(buildRoot, { recursive: true });
 
-  const bin = Buffer.alloc(8192);
-  for (let index = 0; index < bin.length; index++) bin[index] = index & 0xff;
-  bin.writeUInt32LE(0xf5f9bda9, 0x14);
-  const elf = Buffer.alloc(4096);
-  for (let index = 0; index < elf.length; index++) elf[index] = (index * 7) & 0xff;
-  elf.set([0x7f, 0x45, 0x4c, 0x46], 0);
+  const fixtures = {};
+  for (const [profileIndex, profile] of PROFILES.entries()) {
+    const buildRoot = join(
+      root,
+      "tmp",
+      "fossasia-usbc",
+      "build",
+      profile,
+      "survey",
+    );
+    await mkdir(buildRoot, { recursive: true });
+    const bin = Buffer.alloc(8192);
+    for (let index = 0; index < bin.length; index++) {
+      bin[index] = (index + profileIndex) & 0xff;
+    }
+    bin.writeUInt32LE(0xf5f9bda9, 0x14);
+    const elf = Buffer.alloc(4096);
+    for (let index = 0; index < elf.length; index++) {
+      elf[index] = (index * 7 + profileIndex) & 0xff;
+    }
+    elf.set([0x7f, 0x45, 0x4c, 0x46], 0);
+    await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
+    await writeFile(join(buildRoot, "badgemagic-ch582.elf"), elf);
+    await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
+    fixtures[profile] = { buildRoot, bin, elf };
+  }
 
   const lock = {
-    schema_version: 1,
-    profile: "B1144C_250901_USB_C",
+    schema_version: 2,
+    default_profile: PROFILES[0],
     hardware_status: "build-evidence-only",
+    profiles: Object.fromEntries(
+      PROFILES.map((profile) => [
+        profile,
+        { pcb_marking: profile.replace("_USB_C", "") },
+      ]),
+    ),
     upstream: {
       commit: "9ce885d682b5c56c3ac7595c09e009a210885221",
       archive_sha256: "a".repeat(64),
@@ -48,18 +76,24 @@ async function makeFixture(t) {
     },
     build: {
       usbc_version: 1,
-      known_good_survey_size: bin.byteLength,
-      known_good_survey_sha256: sha256(bin),
+      profile_images: Object.fromEntries(
+        PROFILES.map((profile) => [
+          profile,
+          {
+            survey: {
+              size: fixtures[profile].bin.byteLength,
+              sha256: sha256(fixtures[profile].bin),
+            },
+          },
+        ]),
+      ),
     },
   };
   await writeFile(
     join(lockRoot, "upstream-lock.json"),
     `${JSON.stringify(lock, null, 2)}\n`,
   );
-  await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
-  await writeFile(join(buildRoot, "badgemagic-ch582.elf"), elf);
-  await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
-  return { root, bin, elf, lock };
+  return { root, fixtures, lock };
 }
 
 test("candidate version is deterministic and commit-bound", () => {
@@ -71,7 +105,7 @@ test("candidate version is deterministic and commit-bound", () => {
 });
 
 test("candidate bundle records exact audited bytes and cannot imply release approval", async (t) => {
-  const { root, bin, elf, lock } = await makeFixture(t);
+  const { root, fixtures, lock } = await makeFixture(t);
   const outputRoot = join(root, "tmp", "candidate-output");
   const metadata = await buildFirmwareCandidateBundle({
     repositoryRoot: root,
@@ -86,14 +120,38 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
   assert.equal(metadata.flash_approved, false);
   assert.equal(metadata.publishable, false);
   assert.equal(metadata.hosted_on_site, false);
-  assert.equal(metadata.artifacts.firmware.bytes, bin.byteLength);
-  assert.equal(metadata.artifacts.firmware.sha256, lock.build.known_good_survey_sha256);
-  assert.equal(metadata.artifacts.debug_elf.bytes, elf.byteLength);
-  assert.equal(metadata.artifacts.debug_elf.sha256, sha256(elf));
+  assert.equal(metadata.default_hardware_profile, PROFILES[0]);
+  assert.deepEqual(metadata.hardware_profiles, PROFILES);
+  for (const profile of PROFILES) {
+    assert.equal(
+      metadata.artifacts[profile].firmware.bytes,
+      fixtures[profile].bin.byteLength,
+    );
+    assert.equal(
+      metadata.artifacts[profile].firmware.sha256,
+      lock.build.profile_images[profile].survey.sha256,
+    );
+    assert.equal(
+      metadata.artifacts[profile].debug_elf.bytes,
+      fixtures[profile].elf.byteLength,
+    );
+    assert.equal(
+      metadata.artifacts[profile].debug_elf.sha256,
+      sha256(fixtures[profile].elf),
+    );
+  }
 
   const checksums = await readFile(join(outputRoot, "SHA256SUMS"), "utf8");
-  assert.match(checksums, new RegExp(metadata.artifacts.firmware.sha256));
-  assert.match(checksums, new RegExp(metadata.artifacts.debug_elf.sha256));
+  for (const profile of PROFILES) {
+    assert.match(
+      checksums,
+      new RegExp(metadata.artifacts[profile].firmware.sha256),
+    );
+    assert.match(
+      checksums,
+      new RegExp(metadata.artifacts[profile].debug_elf.sha256),
+    );
+  }
   const readme = await readFile(join(outputRoot, "README.md"), "utf8");
   assert.match(readme, /hardware-unverified CI candidate/i);
   assert.match(readme, /not approved for flashing/i);
@@ -114,23 +172,11 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
 });
 
 test("candidate packaging rejects an image that differs from the audited lock", async (t) => {
-  const { root, bin } = await makeFixture(t);
+  const { root, fixtures } = await makeFixture(t);
+  const { bin, buildRoot } = fixtures[PROFILES[0]];
   bin[100] ^= 0xff;
-  await writeFile(
-    join(root, "tmp", "fossasia-usbc", "build", "survey", "badgemagic-ch582.bin"),
-    bin,
-  );
-  await writeFile(
-    join(
-      root,
-      "tmp",
-      "fossasia-usbc",
-      "build",
-      "survey",
-      "badgemagic-ch582.from-elf.bin",
-    ),
-    bin,
-  );
+  await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
+  await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
   await assert.rejects(
     buildFirmwareCandidateBundle({
       repositoryRoot: root,
@@ -142,17 +188,11 @@ test("candidate packaging rejects an image that differs from the audited lock", 
 });
 
 test("candidate packaging rejects a BIN that is not bound to the audited ELF", async (t) => {
-  const { root, bin } = await makeFixture(t);
+  const { root, fixtures } = await makeFixture(t);
+  const { bin, buildRoot } = fixtures[PROFILES[0]];
   bin[101] ^= 0xff;
   await writeFile(
-    join(
-      root,
-      "tmp",
-      "fossasia-usbc",
-      "build",
-      "survey",
-      "badgemagic-ch582.from-elf.bin",
-    ),
+    join(buildRoot, "badgemagic-ch582.from-elf.bin"),
     bin,
   );
   await assert.rejects(

@@ -105,6 +105,56 @@ export function applyMainHooks(source) {
   );
   result = replaceOnce(
     result,
+    `	if(events & ANI_NEXT_STEP) {
+
+		static int (*animations[])(bm_t *bm, uint16_t *fb) = {`,
+    `	if(events & ANI_NEXT_STEP) {
+#ifdef FROGALERT_SURVEY
+		if (frogalert_survey_display_active())
+			return events ^ ANI_NEXT_STEP;
+#endif
+
+		static int (*animations[])(bm_t *bm, uint16_t *fb) = {`,
+    "queued normal animation cannot reclaim an active survey overlay",
+  );
+  result = replaceOnce(
+    result,
+    `	if (events & ANI_MARQUE) {
+		bm_t *bm = bmlist_current();`,
+    `	if (events & ANI_MARQUE) {
+#ifdef FROGALERT_SURVEY
+		if (frogalert_survey_display_active())
+			return events ^ ANI_MARQUE;
+#endif
+		bm_t *bm = bmlist_current();`,
+    "queued marquee cannot reclaim an active survey overlay",
+  );
+  result = replaceOnce(
+    result,
+    `	if (events & ANI_FLASH) {
+		bm_t *bm = bmlist_current();`,
+    `	if (events & ANI_FLASH) {
+#ifdef FROGALERT_SURVEY
+		if (frogalert_survey_display_active())
+			return events ^ ANI_FLASH;
+#endif
+		bm_t *bm = bmlist_current();`,
+    "queued flash effect cannot reclaim an active survey overlay",
+  );
+  result = replaceOnce(
+    result,
+    `	if (events & BLE_NEXT_STEP) {
+		ani_xbm_next_frame(&bluetooth, fb, 10, 0);`,
+    `	if (events & BLE_NEXT_STEP) {
+#ifdef FROGALERT_SURVEY
+		if (frogalert_survey_display_active())
+			return events ^ BLE_NEXT_STEP;
+#endif
+		ani_xbm_next_frame(&bluetooth, fb, 10, 0);`,
+    "queued Bluetooth animation cannot reclaim an active survey overlay",
+  );
+  result = replaceOnce(
+    result,
     `static void bm_transition()
 {
 	if (is_play_sequentially) {

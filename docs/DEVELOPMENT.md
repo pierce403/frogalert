@@ -46,6 +46,16 @@ node --test tests/*.test.mjs
 These tests verify packet shapes and safety validation. They do not prove that
 the WCH ROM bootloader, an OS driver, or a real badge accepts the flow.
 
+The `/flash/` page can configure a locally loaded survey BIN entirely in the
+browser. Select the exact printed `260404` or `250901` profile first. The page
+requires the embedded configuration profile to match, preserves the immutable
+base bytes in memory, patches a copy, computes a new SHA-256, resets all
+destructive confirmations, and offers the configured BIN for download.
+Changing a checkbox or custom rule makes the current artifact dirty and blocks
+flashing until **Apply monitoring options** succeeds. Node tests cover the
+binary codec, CRC, exact-one-block rule, canonical values, profile mismatch,
+and source-buffer immutability.
+
 Prepare the same network-free firmware publication bundle used after CI:
 
 ```sh
@@ -72,28 +82,33 @@ Prepare the exact source and toolchain, or let the build script prepare them:
 ./scripts/prepare-fossasia-usbc --with-toolchain
 ```
 
-Build and audit the byte-identical known-good baseline:
+The default profile is the newer Nyx `B1144C_260404_USB_C` board:
+
+```sh
+./scripts/build-fossasia-usbc baseline --check
+./scripts/build-fossasia-usbc canary --check
+./scripts/build-fossasia-usbc survey --check
+```
+
+Build the legacy board by naming it explicitly:
 
 ```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
-```
-
-Build the first derived compatibility canary:
-
-```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
-```
-
-Build the later private passive-survey candidate:
-
-```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
+
+`B1144C_260404_USB_C` and `B1144C_250901_USB_C` use the same 23 display nets
+and KEY2/PB22 behavior. Their KEY1/PA1 profiles differ: the default uses
+pull-up/active-low/falling-edge wake; the legacy build uses
+pull-down/active-high/rising-edge wake. The build output is
+`tmp/fossasia-usbc/build/<PROFILE>/<LANE>/`. Do not collapse these artifacts
+into one hash or infer the profile from an untouched KEY1 input.
 
 The canary adds one retained C metadata string and owns no functions or
 hardware. The survey lane keeps the same shell, uses WCH's combined
 central/peripheral role pattern, and adds only a disconnected three-second
-passive scan plus a KEY2-selectable 100 ms aggregate-count scroll. Short KEY2
+passive scan plus a KEY2-selectable 50 ms aggregate-count scroll. Short KEY2
 rotates `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system behavior and
 the separate long-KEY2 ISP poll remain inherited. Scanning continues in either
 visible view. The counter suffix shows `I` initializing, `R` ready/waiting, `S`
@@ -111,21 +126,32 @@ After each three-second discovery, the next attempt waits about 17 seconds.
 That gives a roughly 20-second start-to-start cadence, and a continuously
 present match can retrigger once in each new window.
 
+Each survey contains one 384-byte `FROGALERTCFGv1` block. Its default enables
+the police, Flipper, KARR, Ray-Ban, and BadgeMagic target groups with no custom
+rules. The browser codec can encode at most eight custom rules using
+case-insensitive name contains/prefix/exact, canonical public OUI, or 16-bit
+service matching, with a 24-character value and 16-character badge message.
+The block includes the compiled profile id and CRC32. Firmware validates its
+schema, lengths, reserved bytes, padding, profile, and CRC before enabling
+alerts.
+
 The display hook stops the original animation only on ownership transition
-rather than clearing the framebuffer at every 100 ms step. It yields to app
+rather than clearing the framebuffer at every 50 ms step. More importantly,
+the patched original event handlers consume queued marquee, flash,
+fixed-animation, and Bluetooth animation steps while a FrogAlert overlay owns
+the panel. Those events therefore cannot restart a scroll behind the overlay;
+release resumes the selected view after three seconds. The survey yields to app
 streaming and non-normal modes, never initiates a connection, zeroes its fixed
 address table, restores prior advertising state, and cancels a stuck scan after
-five seconds. The complete C policy mirror remains temporary until the separate
-Rust ABI canary passes. All lanes use `USBC_VERSION=1`, validate pinned
-archive/tool hashes
-and critical sources, audit required runtime symbols and linked instructions,
-keep at least 8 KiB of stack/runtime RAM headroom, and keep everything under
-ignored `tmp/fossasia-usbc/`. The baseline must match the known-good
-177,704-byte image exactly. No build command flashes, publishes, or authorizes
-a physical test. The locked survey BIN is 201,788 bytes with SHA-256
-`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`;
-its audited text/data/BSS sizes are 193,296/8,492/4,588 bytes and it retains
-9,788 bytes of stack/runtime headroom.
+five seconds.
+
+The complete C policy mirror remains temporary until the separate Rust ABI
+canary passes. All lanes use `USBC_VERSION=1`, validate pinned archive/tool
+hashes and critical sources, audit required runtime symbols and linked
+instructions, keep at least 8 KiB of stack/runtime RAM headroom, and keep
+everything under ignored `tmp/fossasia-usbc/`. Profile-specific size/SHA-256
+locks are in `firmware/fossasia-usbc/upstream-lock.json`. No build command
+flashes, publishes, or authorizes a physical test.
 
 Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already
 populated verified cache. See `firmware/fossasia-usbc/upstream-lock.json` for
@@ -250,8 +276,11 @@ Before the first device write:
 1. Open the badge.
 2. Confirm the package marking is `CH582M`.
 3. Confirm an 11×44 LED matrix and record the PCB revision.
-4. Enter ISP read-only and run `wchisp info`.
-5. Compare the result to the expected CH582/type `0x16` target.
-6. Ask explicitly before performing the irreversible first flash.
+4. Select the exact `B1144C_260404_USB_C` or
+   `B1144C_250901_USB_C` profile from that marking; do not infer it from
+   an untouched button input.
+5. Enter ISP read-only and run `wchisp info`.
+6. Compare the result to the expected CH582/type `0x16` target.
+7. Ask explicitly before performing the irreversible first flash.
 
 See [HARDWARE.md](HARDWARE.md) and [RELEASE.md](RELEASE.md).

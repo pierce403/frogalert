@@ -39,8 +39,9 @@ The public site is a dependency-free static application. It separates:
 ## Source map
 
 - `crates/frogalert-core/` — tested, allocation-free detection logic
-- `firmware/fossasia-usbc/` — pinned known-good USB-C hardware shell,
-  metadata-only compatibility canary, and private passive-survey candidate
+- `firmware/fossasia-usbc/` — pinned USB-C hardware shell, exact `260404`
+  default and `250901` legacy profiles, monitor configuration, canary, and
+  private passive-survey candidates
 - `firmware/frogalert-display/` — quarantined standalone Rust display research
 - `firmware/frogalert-pixel-walk/` — failed image retained for vector forensics
 - `firmware/frogalert-count/` — quarantined wrapper around reusable count logic
@@ -49,12 +50,16 @@ The public site is a dependency-free static application. It separates:
 - `firmware/vendor/ch58x-hal/` — pinned HAL `611954e` with documented local
   patches in `FROGALERT-VENDORING.md`
 - `firmware/quarantine.json` — permanent failed-artifact SHA denylist
-- `scripts/build-fossasia-usbc` — pinned baseline/canary/survey build path
+- `scripts/build-fossasia-usbc` — pinned profile-specific
+  baseline/canary/survey build path
+- `scripts/apply-fossasia-hardware-profile.mjs` — exact KEY1 pull,
+  polarity, and shutdown-wake patch for the selected USB-C board
 - `scripts/firmware-candidate.mjs` — packages an audited, commit-bound,
   explicitly unverified CI candidate under ignored `tmp/`
 - `scripts/audit-ch58x-vectors.mjs` — post-link standalone Rust regression gate
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
+- `site/firmware-config.js` — profile-bound survey configuration codec
 - `site/isp-entry-guide.js` — pure KEY2 guide transitions and advisory timer
 - `tests/` — browser-protocol and static-site tests
 - `docs/` — hardware, protocol, development, flashing, and release contracts
@@ -69,6 +74,11 @@ The public site is a dependency-free static application. It separates:
 - Target only a badge whose opened PCB is confirmed as CH582M with an 11×44
   matrix and recorded exact PCB revision. `LSLED` naming and enclosure
   appearance are not proof.
+- Treat `B1144C_260404_USB_C` and `B1144C_250901_USB_C` as separate exact
+  artifacts. They share the LED matrix and KEY2 mapping, but KEY1/PA1 uses
+  pull-up/active-low/falling wake on `260404` and
+  pull-down/active-high/rising wake on `250901`. An untouched open KEY1 cannot
+  auto-detect this; require the printed marking.
 - The OEM firmware is read-protected, unavailable, and cannot be backed up. A
   first flash is irreversible unless the owner already has a recoverable image.
 - The bundled FOSSASIA v0.1 image is an open BadgeMagic-compatible substitute,
@@ -149,22 +159,26 @@ The pinned firmware lanes are heavier, explicit checks rather than ordinary
 host verification:
 
 ```bash
+./scripts/build-fossasia-usbc baseline --check
+./scripts/build-fossasia-usbc canary --check
+./scripts/build-fossasia-usbc survey --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-An active-firmware `main` commit runs the survey lane after the ordinary CI
-contract and uploads an expiring `frogalert-candidate-<commit>` Actions
-artifact. Candidate metadata must keep `hardware_verified`, `flash_approved`,
-`publishable`, and `hosted_on_site` false; this build lane never edits the
-public manifest or creates a GitHub Release.
+The omitted profile selects default `B1144C_260404_USB_C`. An active-firmware
+`main` commit runs both survey profiles after the ordinary CI contract and
+uploads one expiring `frogalert-candidate-<commit>` Actions artifact containing
+both BIN/ELF pairs. Candidate metadata must keep `hardware_verified`,
+`flash_approved`, `publishable`, and `hosted_on_site` false; this build lane
+never edits the public manifest or creates a GitHub Release.
 
-The first live candidate run, Actions run `30069161224` for commit `af83fbb`,
-passed on 2026-07-23. Its downloaded bundle contained the locked 201,788-byte
-survey BIN at `9d35de6a…c51a7`; both BIN and ELF checksums passed. Downstream run
-`30069244999` correctly published no firmware release and deployed byte-exact
-site assets. This verifies the automation boundary, not the physical firmware.
+The first single-profile live candidate run, Actions run `30069161224` for
+commit `af83fbb`, passed on 2026-07-23. Downstream run `30069244999` correctly
+published no firmware release and deployed byte-exact site assets. This
+verifies the automation boundary, not the current dual-profile candidate or
+physical firmware.
 
 Preview the site locally:
 
@@ -186,6 +200,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   require byte identity with the Make-produced BIN. Lock baseline, canary, and
   survey size/SHA-256 values; marker strings alone are not an image audit.
 - Keep protocol encoders pure and unit-tested separately from WebUSB transport.
+- Keep the survey configuration fixed-size, CRC-protected, and bound to the
+  compiled profile. The browser must patch an immutable copy, recompute
+  SHA-256, clear flash confirmations, and mark every configured derivative
+  hardware-unverified. Never use configuration to change hardware profile.
+- When a FrogAlert overlay owns the display, consume already queued original
+  animation events without rescheduling them; release the selected base view
+  only after the three-second overlay expires.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
 - Keep `site/og-card.svg` as the editable social-card source and render the
@@ -244,11 +265,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   retain ELF/vector reports, demonstrate the vector failure, and exit before
   `objcopy`. `./scripts/verify` expects this failure. Do not bypass it.
 - The replacement base is exact FOSSASIA USB-C source `9ce885d`, pinned MRS
-  V1.92, and `USBC_VERSION=1`. The first C-only canary adds an inert identity
-  string and changes no runtime behavior. Its local BIN is 177,788 bytes with
-  SHA-256 `6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
-  It is build evidence only. Rust ABI integration comes only after that canary
-  passes USB/app/button/recovery/power-cycle testing.
+  V1.92, and `USBC_VERSION=1`. The `260404` default and `250901` legacy builds
+  have the same 23 display nets and KEY2 path; only KEY1 pull, pressed polarity,
+  and shutdown-wake edge differ. Their baseline/canary/survey sizes and hashes
+  are locked independently. All are build evidence only. Rust ABI integration
+  comes only after the profile-specific canary passes
+  USB/app/button/recovery/power-cycle testing.
 - The old count lab's intended passive three-second window counts up to 64
   unique advertiser addresses in ephemeral RAM, then displays the approximate
   result for seven seconds. That firmware is quarantined and does not implement
@@ -260,17 +282,18 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The likely software failure was startup ordering: FOSSASIA started Peripheral
   before the survey registered its Central callback, so a combined-role
   `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
-- The replacement private survey candidate is a locked 201,788-byte BIN at
-  SHA-256 `9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
-  It treats a successful Central start as ready instead of depending only on
-  that callback, consumes both live reports and the discovery completion list,
+- The replacement private survey is built as independently locked `260404`
+  and `250901` candidates. It treats a successful Central start as ready
+  instead of depending only on that callback, consumes both live reports and
+  the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
   no suffix for a completed result, `E` error, and `T` timeout. Short KEY2
   rotates `Name 1 → BT counter → Name 2 → BT counter`; KEY1 system/brightness
   behavior and the independent long-KEY2 ISP task remain inherited. Surveys
-  continue in either visible view. The bounded C mirror implements every
-  README OUI/name row; `COP DETECTED`, `FLIPPER DETECTED`, and `KARR DETECTED`
-  overlay either view for three seconds, then the selected view resumes. KARR
+  continue in either visible view. A CRC/profile-bound configuration enables
+  built-in groups and up to eight custom rules. The bounded C mirror implements
+  every README OUI/name row; built-in and custom messages overlay either view
+  for three seconds, then the selected view resumes. KARR
   requires a case-insensitive `QT ` prefix at the start plus a non-empty serial
   value. There is no unique Flipper
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
@@ -282,11 +305,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   ABI canary. The image starts a three-second passive window roughly every
   20 seconds while disconnected; a continuously present match can retrigger
   once in each new window. It caps and zeroes 64 addresses, restores
-  advertising, cancels a stuck scan after five seconds, and leaves 9,788 bytes of measured
-  stack/runtime headroom. Audited text/data/BSS sizes are
-  193,296/8,492/4,588 bytes. It preserves audited FOSSASIA
-  USB/BLE/display/KEY2 symbols but remains private under `tmp/`,
-  hardware-unverified, and not flash-approved or published.
+  advertising, cancels a stuck scan after five seconds, and preserves audited
+  FOSSASIA USB/BLE/display/KEY2 symbols. Original scrolling tasks can already
+  have queued work, so their marquee/flash/fixed/Bluetooth event handlers must
+  consume events without rescheduling while an overlay owns the panel. Both
+  candidates remain private under `tmp/`, hardware-unverified, and not
+  flash-approved or published.
 - On 2026-07-23 the user reported that the latest image they had flashed was
   working well. Treat this as encouraging physical feedback, not release
   evidence: the last explicitly requested-and-observed flash was likely the
@@ -304,7 +328,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   source phases at roughly 45 Hz, which can be visible. The survey hook also
   called `stop_all_animation()` every 100 ms, clearing the live framebuffer and
   adding periodic blank/partial frames. The replacement stops animation only
-  on display-ownership transition; it does not change the base refresh rate.
+  on display-ownership transition. Because original animation events may
+  already be queued, patched handlers also consume their events without
+  rescheduling while an overlay owns the panel. This addresses the competing
+  scroll, but does not change the base refresh rate.
 - The user observed an app-sent animation shifted two columns right with the
   first two columns blank. This is not evidence of a pin-map error. BadgeMagic
   stable `v1.18.15` and development `42c98bc` encode an untrimmed 44-column
@@ -335,6 +362,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   its embedded source is `9ce885d` and its `USBC_VERSION=1` map differs from
   Rev1 only at T: PB6 rather than PB23. The missing flash transcript prevents
   treating that provenance as proof of the exact bytes programmed.
+- Nyx documents newer marking `B1144C_260404`; FOSSASIA commit `696bbd71`
+  changes KEY1/PA1 to pull-up, active-low, and falling-edge shutdown wake while
+  retaining the exact `250901` USB-C display table and KEY2/PB22 behavior. An
+  untouched switch is open on both boards and cannot passively identify the
+  profile. Case color is only a heuristic; require the printed marking.
 - That board's pouch battery is soldered to PCB tabs; it has no removable
   connector. Leave the cell and its leads alone. The only documented first ISP
   entry from original/unknown firmware held KEY2 while a qualified operator

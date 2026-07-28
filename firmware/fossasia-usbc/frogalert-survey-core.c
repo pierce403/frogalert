@@ -10,6 +10,13 @@ typedef struct {
 	uint8_t length;
 } local_name_t;
 
+typedef struct {
+	local_name_t shortened;
+	local_name_t complete;
+	const uint8_t *data;
+	uint8_t data_length;
+} advertisement_t;
+
 static uint8_t ascii_lower(uint8_t value)
 {
 	if (value >= 'A' && value <= 'Z')
@@ -20,14 +27,15 @@ static uint8_t ascii_lower(uint8_t value)
 static uint8_t ascii_contains(const uint8_t *value, uint8_t value_length,
 			      const uint8_t *needle, uint8_t needle_length)
 {
-	if (!needle_length || value_length < needle_length)
+	if (!value || !needle_length || value_length < needle_length)
 		return 0;
 	for (uint8_t offset = 0;
 	     offset <= (uint8_t)(value_length - needle_length); offset++) {
 		uint8_t matches = 1;
 
 		for (uint8_t index = 0; index < needle_length; index++) {
-			if (ascii_lower(value[offset + index]) != needle[index]) {
+			if (ascii_lower(value[offset + index]) !=
+			    ascii_lower(needle[index])) {
 				matches = 0;
 				break;
 			}
@@ -49,7 +57,20 @@ static uint8_t ascii_equal_padded(const uint8_t *value, uint8_t value_length,
 	if (value_length != expected_length)
 		return 0;
 	for (uint8_t index = 0; index < expected_length; index++) {
-		if (ascii_lower(value[index]) != expected[index])
+		if (ascii_lower(value[index]) != ascii_lower(expected[index]))
+			return 0;
+	}
+	return 1;
+}
+
+static uint8_t ascii_starts_with(const uint8_t *value, uint8_t value_length,
+				 const uint8_t *prefix,
+				 uint8_t prefix_length)
+{
+	if (!value || value_length < prefix_length)
+		return 0;
+	for (uint8_t index = 0; index < prefix_length; index++) {
+		if (ascii_lower(value[index]) != ascii_lower(prefix[index]))
 			return 0;
 	}
 	return 1;
@@ -60,12 +81,9 @@ static uint8_t ascii_starts_with_value(const uint8_t *value,
 				       const uint8_t *prefix,
 				       uint8_t prefix_length)
 {
-	if (!value || value_length <= prefix_length)
+	if (!ascii_starts_with(value, value_length, prefix, prefix_length) ||
+	    value_length <= prefix_length)
 		return 0;
-	for (uint8_t index = 0; index < prefix_length; index++) {
-		if (ascii_lower(value[index]) != prefix[index])
-			return 0;
-	}
 	for (uint8_t index = prefix_length; index < value_length; index++) {
 		if (value[index] != 0 && value[index] != ' ' &&
 		    value[index] != '\t' && value[index] != '\r' &&
@@ -86,47 +104,24 @@ static uint8_t address_matches_oui(const uint8_t address[6],
 	       address[4] == prefix[1] && address[3] == prefix[2];
 }
 
-static frogalert_survey_alert_t classify_name(const uint8_t *name,
-					      uint8_t name_length)
+static uint8_t hex_value(uint8_t value)
 {
-	static const uint8_t axon[] = "axon body";
-	static const uint8_t taser[] = "taser";
-	static const uint8_t flipper[] = "flipper";
-	static const uint8_t karr_prefix[] = "qt ";
-	static const uint8_t badge_magic[] = "led badge magic";
-	static const uint8_t ray_ban_dash[] = "ray-ban";
-	static const uint8_t ray_ban_space[] = "ray ban";
-
-	if (ascii_contains(name, name_length, axon, sizeof(axon) - 1) ||
-	    ascii_contains(name, name_length, taser, sizeof(taser) - 1))
-		return FROGALERT_ALERT_COP;
-	if (ascii_contains(name, name_length, flipper,
-			   sizeof(flipper) - 1))
-		return FROGALERT_ALERT_FLIPPER;
-	if (ascii_starts_with_value(name, name_length, karr_prefix,
-				    sizeof(karr_prefix) - 1))
-		return FROGALERT_ALERT_KARR;
-	if (ascii_equal_padded(name, name_length, badge_magic,
-			       sizeof(badge_magic) - 1))
-		return FROGALERT_ALERT_FROG_DANCE;
-	if (ascii_contains(name, name_length, ray_ban_dash,
-			   sizeof(ray_ban_dash) - 1) ||
-	    ascii_contains(name, name_length, ray_ban_space,
-			   sizeof(ray_ban_space) - 1))
-		return FROGALERT_ALERT_COP;
-	return FROGALERT_ALERT_NONE;
+	if (value >= '0' && value <= '9')
+		return (uint8_t)(value - '0');
+	return (uint8_t)(value - 'A' + 10U);
 }
 
-static frogalert_survey_alert_t classify_advertisement(const uint8_t *data,
-						       uint8_t data_length)
+static advertisement_t parse_advertisement(const uint8_t *data,
+					    uint8_t data_length)
 {
-	local_name_t shortened = {0};
-	local_name_t complete = {0};
-	uint8_t badge_magic_service = 0;
+	advertisement_t advertisement = {
+		.data = data,
+		.data_length = data_length,
+	};
 	uint8_t offset = 0;
 
 	if (!data)
-		return FROGALERT_ALERT_NONE;
+		return advertisement;
 	while (offset < data_length) {
 		uint8_t field_length = data[offset++];
 		uint8_t remaining = (uint8_t)(data_length - offset);
@@ -135,37 +130,152 @@ static frogalert_survey_alert_t classify_advertisement(const uint8_t *data,
 
 		if (field_length == 0)
 			break;
-		if (field_length > remaining)
-			return FROGALERT_ALERT_NONE;
+		if (field_length > remaining) {
+			advertisement.data = 0;
+			advertisement.data_length = 0;
+			advertisement.shortened.value = 0;
+			advertisement.complete.value = 0;
+			return advertisement;
+		}
 		field_type = data[offset];
 		current.value = &data[offset + 1];
 		current.length = field_length > 1 ?
 			(uint8_t)(field_length - 1) : 0;
 		if (field_type == GAP_ADTYPE_LOCAL_NAME_COMPLETE)
-			complete = current;
+			advertisement.complete = current;
 		else if (field_type == GAP_ADTYPE_LOCAL_NAME_SHORT)
-			shortened = current;
-		else if (field_type == GAP_ADTYPE_16BIT_MORE ||
-			 field_type == GAP_ADTYPE_16BIT_COMPLETE) {
-			for (uint8_t index = 0;
-			     index + 1 < current.length; index += 2) {
-				if (current.value[index] == 0xe0 &&
-				    current.value[index + 1] == 0xfe)
-					badge_magic_service = 1;
+			advertisement.shortened = current;
+		offset = (uint8_t)(offset + field_length);
+	}
+	return advertisement;
+}
+
+static local_name_t advertisement_name(const advertisement_t *advertisement)
+{
+	return advertisement->complete.value ?
+		advertisement->complete : advertisement->shortened;
+}
+
+static uint8_t advertisement_has_service(
+	const advertisement_t *advertisement, uint16_t service)
+{
+	uint8_t offset = 0;
+
+	if (!advertisement->data)
+		return 0;
+	while (offset < advertisement->data_length) {
+		uint8_t field_length = advertisement->data[offset++];
+		uint8_t remaining =
+			(uint8_t)(advertisement->data_length - offset);
+		uint8_t field_type;
+
+		if (field_length == 0)
+			break;
+		if (field_length > remaining)
+			return 0;
+		field_type = advertisement->data[offset];
+		if (field_type == GAP_ADTYPE_16BIT_MORE ||
+		    field_type == GAP_ADTYPE_16BIT_COMPLETE) {
+			for (uint8_t index = 1; index + 1 < field_length;
+			     index += 2) {
+				uint16_t current =
+					(uint16_t)advertisement->data[offset + index] |
+					((uint16_t)advertisement->data[
+						offset + index + 1] << 8);
+				if (current == service)
+					return 1;
 			}
 		}
 		offset = (uint8_t)(offset + field_length);
 	}
-	{
-		frogalert_survey_alert_t named = classify_name(
-			complete.value ? complete.value : shortened.value,
-			complete.value ? complete.length : shortened.length);
+	return 0;
+}
 
-		if (named != FROGALERT_ALERT_NONE)
-			return named;
+static uint8_t custom_rule_matches(
+	const frogalert_monitor_rule_t *rule, const uint8_t address[6],
+	uint8_t public_address, const advertisement_t *advertisement)
+{
+	local_name_t name = advertisement_name(advertisement);
+
+	switch (rule->type) {
+	case FROGALERT_MATCH_NAME_CONTAINS:
+		return ascii_contains(name.value, name.length, rule->value,
+				      rule->value_length);
+	case FROGALERT_MATCH_NAME_PREFIX:
+		return ascii_starts_with(name.value, name.length, rule->value,
+					 rule->value_length);
+	case FROGALERT_MATCH_NAME_EXACT:
+		return ascii_equal_padded(name.value, name.length, rule->value,
+					  rule->value_length);
+	case FROGALERT_MATCH_PUBLIC_OUI:
+		if (public_address) {
+			uint8_t oui[3] = {
+				(uint8_t)((hex_value(rule->value[0]) << 4) |
+					  hex_value(rule->value[1])),
+				(uint8_t)((hex_value(rule->value[3]) << 4) |
+					  hex_value(rule->value[4])),
+				(uint8_t)((hex_value(rule->value[6]) << 4) |
+					  hex_value(rule->value[7])),
+			};
+			return address_matches_oui(address, oui);
+		}
+		return 0;
+	case FROGALERT_MATCH_SERVICE16: {
+		uint16_t service =
+			(uint16_t)(hex_value(rule->value[0]) << 12) |
+			(uint16_t)(hex_value(rule->value[1]) << 8) |
+			(uint16_t)(hex_value(rule->value[2]) << 4) |
+			hex_value(rule->value[3]);
+		return advertisement_has_service(
+			advertisement, service);
 	}
-	return badge_magic_service ?
-		FROGALERT_ALERT_FROG_DANCE : FROGALERT_ALERT_NONE;
+	default:
+		return 0;
+	}
+}
+
+static frogalert_survey_alert_t classify_builtins(
+	uint32_t targets, const uint8_t address[6], uint8_t public_address,
+	const advertisement_t *advertisement)
+{
+	static const uint8_t axon_oui[3] = {0x00, 0x25, 0xdf};
+	static const uint8_t flock_oui[3] = {0xb4, 0x1e, 0x52};
+	static const uint8_t axon[] = "axon body";
+	static const uint8_t taser[] = "taser";
+	static const uint8_t flipper[] = "flipper";
+	static const uint8_t karr_prefix[] = "qt ";
+	static const uint8_t badge_magic[] = "led badge magic";
+	static const uint8_t ray_ban_dash[] = "ray-ban";
+	static const uint8_t ray_ban_space[] = "ray ban";
+	local_name_t name = advertisement_name(advertisement);
+
+	if ((targets & FROGALERT_TARGET_POLICE) &&
+	    ((public_address &&
+	      (address_matches_oui(address, axon_oui) ||
+	       address_matches_oui(address, flock_oui))) ||
+	     ascii_contains(name.value, name.length, axon, sizeof(axon) - 1) ||
+	     ascii_contains(name.value, name.length, taser, sizeof(taser) - 1)))
+		return FROGALERT_ALERT_COP;
+	if ((targets & FROGALERT_TARGET_FLIPPER) &&
+	    ascii_contains(name.value, name.length, flipper,
+			   sizeof(flipper) - 1))
+		return FROGALERT_ALERT_FLIPPER;
+	if ((targets & FROGALERT_TARGET_KARR) &&
+	    ascii_starts_with_value(name.value, name.length, karr_prefix,
+				    sizeof(karr_prefix) - 1))
+		return FROGALERT_ALERT_KARR;
+	if ((targets & FROGALERT_TARGET_RAY_BAN) &&
+	    (ascii_contains(name.value, name.length, ray_ban_dash,
+			    sizeof(ray_ban_dash) - 1) ||
+	     ascii_contains(name.value, name.length, ray_ban_space,
+			    sizeof(ray_ban_space) - 1)))
+		return FROGALERT_ALERT_COP;
+	if ((targets & FROGALERT_TARGET_BADGEMAGIC) &&
+	    (ascii_equal_padded(name.value, name.length, badge_magic,
+				sizeof(badge_magic) - 1) ||
+	     advertisement_has_service(advertisement, 0xfee0)))
+		return FROGALERT_ALERT_FROG_DANCE;
+	return FROGALERT_ALERT_NONE;
 }
 
 static uint8_t address_equal(const uint8_t left[6], const uint8_t right[6])
@@ -208,16 +318,34 @@ uint8_t frogalert_survey_counter_observe(frogalert_survey_counter_t *counter,
 	return 1;
 }
 
-frogalert_survey_alert_t frogalert_survey_classify(
-	const uint8_t address[6], uint8_t public_address, const uint8_t *data,
-	uint8_t data_length)
+void frogalert_survey_classify(
+	const frogalert_monitor_config_t *config, const uint8_t address[6],
+	uint8_t public_address, const uint8_t *data, uint8_t data_length,
+	frogalert_survey_match_t *match)
 {
-	static const uint8_t axon_oui[3] = {0x00, 0x25, 0xdf};
-	static const uint8_t flock_oui[3] = {0xb4, 0x1e, 0x52};
+	advertisement_t advertisement;
 
-	if (public_address &&
-	    (address_matches_oui(address, axon_oui) ||
-	     address_matches_oui(address, flock_oui)))
-		return FROGALERT_ALERT_COP;
-	return classify_advertisement(data, data_length);
+	if (!match)
+		return;
+	match->alert = FROGALERT_ALERT_NONE;
+	match->message = 0;
+	match->message_length = 0;
+	if (!config)
+		return;
+
+	advertisement = parse_advertisement(data, data_length);
+	for (uint8_t index = 0; index < config->custom_rule_count; index++) {
+		const frogalert_monitor_rule_t *rule =
+			&config->custom_rules[index];
+
+		if (custom_rule_matches(rule, address, public_address,
+					&advertisement)) {
+			match->alert = FROGALERT_ALERT_CUSTOM;
+			match->message = rule->message;
+			match->message_length = rule->message_length;
+			return;
+		}
+	}
+	match->alert = classify_builtins(config->builtin_targets, address,
+					 public_address, &advertisement);
 }

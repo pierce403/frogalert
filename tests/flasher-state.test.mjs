@@ -5,7 +5,9 @@ import {
   artifactBoardBinding,
   canEnableFlash,
   canProgramArtifact,
+  expectedPcbMarking,
   nextArtifactGeneration,
+  physicalMarkingMatchesProfiles,
   revisionInputTransition,
 } from "../site/flasher-state.js";
 
@@ -35,6 +37,43 @@ test("every revision input transition invalidates an in-flight artifact generati
   assert.equal(transition.artifactGeneration, 6);
   assert.notEqual(transition.artifactGeneration, inFlightGeneration);
   assert.equal(transition.clearFirmware, false);
+});
+
+test("known USB-C profiles require exactly one matching physical PCB token", () => {
+  assert.equal(
+    expectedPcbMarking("B1144C_260404_USB_C"),
+    "B1144C_260404",
+  );
+  assert.equal(expectedPcbMarking("HARDWARE_REV1"), null);
+  assert.equal(
+    physicalMarkingMatchesProfiles({
+      hardwareRevisions: ["B1144C_260404_USB_C"],
+      physicalMarking: "BM1144-C / B1144C_260404",
+    }),
+    true,
+  );
+  for (const physicalMarking of [
+    "BM1144-C",
+    "B1144C_250901",
+    "B1144C_250901 and B1144C_260404",
+    "",
+  ]) {
+    assert.equal(
+      physicalMarkingMatchesProfiles({
+        hardwareRevisions: ["B1144C_260404_USB_C"],
+        physicalMarking,
+      }),
+      false,
+      physicalMarking,
+    );
+  }
+  assert.equal(
+    physicalMarkingMatchesProfiles({
+      hardwareRevisions: ["HARDWARE_REV1"],
+      physicalMarking: "none printed",
+    }),
+    true,
+  );
 });
 
 test("revision input clears a prepared recovery image only after it stops matching", () => {

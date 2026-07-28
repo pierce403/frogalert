@@ -23,6 +23,14 @@ test("successful active-firmware commits build a private candidate before CI com
   );
   assert.match(
     workflow,
+    /BASE_COMMIT: \$\{\{ github\.event_name == 'pull_request' && github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/,
+  );
+  assert.doesNotMatch(
+    workflow,
+    /Detect active firmware input changes[\s\S]{0,120}if: github\.event_name == 'push'/,
+  );
+  assert.match(
+    workflow,
     /\.\/scripts\/build-fossasia-usbc B1144C_250901_USB_C survey --check/,
   );
   assert.match(

@@ -73,6 +73,7 @@ test("landing page exposes the project and guarded device flow", async () => {
     "id=\"bluetooth-connect\"",
     "id=\"usb-connect\"",
     "id=\"firmware-file\"",
+    "id=\"pcb-revision\"",
     "id=\"release-download\"",
     "id=\"release-link\"",
     "id=\"pcb-marking\"",
@@ -94,7 +95,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Install open BadgeMagic firmware/);
   assert.match(html, /Prepare open BadgeMagic firmware/);
   assert.match(html, /PROTOTYPE \/ BADGE · HARDWARE-UNVERIFIED/);
-  assert.match(html, /Private two-mode survey BIN/);
+  assert.match(html, /Private dual-profile survey BINs/);
   assert.match(html, /short KEY2 press.*names.*BT 00/is);
   assert.match(html, /Scanning runs in either display mode/i);
   assert.match(html, /shows.*COP DETECTED.*for three seconds/is);
@@ -108,9 +109,12 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /QT [\s\S]*serial[\s\S]*KARR DETECTED/);
   assert.match(html, /Ray-Ban[\s\S]*Ray Ban[\s\S]*COP DETECTED/);
   assert.doesNotMatch(html, /HAX DETECTED/);
-  assert.match(html, /201,788-byte candidate/);
-  assert.match(html, /9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7/);
-  assert.match(html, /qualified 48-column app animations/);
+  assert.match(html, /203,988-byte .*260404.*250901.*candidates/is);
+  assert.match(html, /fa6c33bb46204d1d64608558d775d30000d281defffeb79673491e7d08ad4c0d/);
+  assert.match(html, /6cb96044bf4163e441884c71c1e055adb8fe52d8ad08bf2a734f836d43e161d9/);
+  assert.match(html, /display ownership while alerts scroll/);
+  assert.match(html, /active-low .*260404.*build default/is);
+  assert.match(html, /cannot be distinguished passively at boot/i);
   assert.match(html, /not hosted or released/i);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
   assert.match(html, /Preparation does not touch USB/i);
@@ -158,7 +162,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /sortReleaseCatalogNewestFirst\(/);
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
-  assert.match(html, /site\/app\.js\?v=5/);
+  assert.match(app, /firmware-config\.js\?v=2/);
+  assert.match(html, /site\/app\.js\?v=7/);
   assert.match(app, /latest approved/);
   assert.match(app, /Nothing is selected or loaded automatically/);
   assert.match(html, /newest semantic version.*never selected automatically/i);
@@ -199,6 +204,12 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     "id=\"current-firmware-status\"",
     "id=\"board-detection-status\"",
     "id=\"firmware-file\"",
+    "id=\"pcb-revision\"",
+    "id=\"monitor-targets\"",
+    "id=\"monitor-add-rule\"",
+    "id=\"monitor-custom-rules\"",
+    "id=\"monitor-apply\"",
+    "id=\"monitor-download\"",
     "id=\"release-download\"",
     "id=\"release-link\"",
     "id=\"lab-image-select\"",
@@ -213,7 +224,7 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=5/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=7/);
   assert.match(html, /iPhone.*WebUSB/is);
   assert.match(html, /B1144C_250901.*CH582M.*11×44/is);
   assert.match(html, /After compatible FOSSASIA.*FrogAlert firmware is installed/is);
@@ -246,15 +257,20 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
   assert.match(html, /Connecting alone never writes/i);
   assert.match(html, /Only hash-bound images with physical boot and recovery evidence may appear here/i);
-  assert.match(html, /current private survey candidate is 201,788 bytes/i);
+  assert.match(html, /separate, commit-bound.*260404.*250901.*survey candidates/is);
   assert.match(html, /not hosted, released, or hardware-approved/i);
   assert.match(html, /qualified bench testing only/i);
   assert.match(
     html,
-    /does not prove detector behavior, board compatibility, short-KEY2 mode switching, app-animation compatibility, or long-KEY2 recovery/i,
+    /does not prove detector behavior, board compatibility, button behavior, app-animation compatibility, or KEY2 recovery/i,
   );
-  assert.match(html, /9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7/);
   assert.match(html, /qualified 48-column app-animation cropping/);
+  assert.match(html, /B1144C_260404_USB_C/);
+  assert.match(html, /active-low KEY1 wiring/i);
+  assert.match(html, /Axon\/TASER\/Flock/);
+  assert.match(html, /Custom targets/);
+  assert.match(app, /patchFirmwareConfig/);
+  assert.match(app, /Locally prepared configuration with a calculated SHA-256/);
   assert.doesNotMatch(html, /factory reset/i);
   assert.match(html, /data-flash-mode="program"/);
   assert.match(html, /Content-Security-Policy/);

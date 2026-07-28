@@ -125,6 +125,60 @@ The withdrawn Rust pixel-walk image contained a recovery function but never
 reached it because its first Timer 0 interrupt entered the default handler.
 Symbol presence is no longer accepted as recovery evidence.
 
+## Hardware-profile selection
+
+The flashing page offers exact USB-C profile choices:
+
+- `B1144C_260404_USB_C` — printed `B1144C_260404`, Nyx KEY1
+  pull-up/active-low/falling-wake profile and firmware build default;
+- `B1144C_250901_USB_C` — printed `B1144C_250901`, legacy KEY1
+  pull-down/active-high/rising-wake profile; and
+- `HARDWARE_REV1` — the separate Micro-USB recovery-only path.
+
+The two USB-C boards use the same LED matrix and KEY2 pin mapping. Their KEY1
+switch is open while untouched, so there is no reliable read-only boot probe:
+PA1 simply follows the internal pull selected by firmware. The browser cannot
+infer the profile from CH582 identity, USB descriptors, case color, generic
+`BM1144-C` text, or an untouched button. It intentionally starts with no
+profile selected and requires the printed PCB marking.
+
+Every configurable survey BIN embeds its compiled profile id. The page rejects
+a mismatch between that id and the selected profile. Selecting a different
+profile clears the loaded artifact and its monitoring configuration rather
+than reinterpreting the same bytes.
+
+## Local monitoring customization
+
+After a compatible local FrogAlert survey BIN is loaded, `/flash/` exposes five
+built-in target groups:
+
+- Axon/TASER/Flock indicators;
+- Flipper names;
+- KARR `QT ` names;
+- Ray-Ban names; and
+- BadgeMagic/FrogAlert badges.
+
+The user may also add up to eight custom rules. A rule matches a
+case-insensitive name substring, prefix, or exact name; a canonical public OUI;
+or a 16-bit advertised service, then displays a printable message of at most
+16 characters. Public-OUI rules still ignore randomized/local addresses.
+These are spoofable signals, not device-identity proof.
+
+The browser locates exactly one 384-byte `FROGALERTCFGv1` block, validates its
+schema/profile/CRC/padding, and preserves an immutable copy of the original
+BIN. **Apply monitoring options** encodes the selected settings into a new
+copy, calculates a new SHA-256, resets every destructive confirmation, and
+offers the configured local BIN for download. Editing any option makes the
+current selection dirty and blocks flashing until it is applied. Restoring the
+base options derives again from the immutable source, not from a chain of
+previous patches.
+
+Configuration never changes the compiled hardware profile. The resulting
+bytes are labeled a local developer artifact with
+`hardware_verified: false`; they do not inherit a CI candidate's or future
+release's physical evidence. A customized hash needs its own exact-board
+program/verify and full smoke record before it could ever become public.
+
 ## Browser safety state machine
 
 The browser page must progress through these states:
@@ -133,9 +187,10 @@ The browser page must progress through these states:
 2. `permission` — user explicitly chooses a WCH ISP device.
 3. `identified` — descriptor/endpoint validation and a read-only probe confirm
    chip `0x82`, type `0x16`; raw UID and serial data are not logged.
-4. `artifact-ready` — a revision-bound local or released raw BIN passes size
-   and SHA-256 checks. Preparing an open BadgeMagic image stops here and sends
-   no USB commands.
+4. `artifact-ready` — a revision-bound local or released raw BIN passes size,
+   profile, configuration, and SHA-256 checks. Unapplied monitoring edits block
+   this state. Preparing an open BadgeMagic image stops here and sends no USB
+   commands.
 5. `armed` — user records the observed physical PCB marking separately from the
    firmware profile and confirms CH582M, 11×44 matrix,
    configuration reset, the unavailable and unrecoverable OEM image, and
@@ -243,7 +298,9 @@ the public site.
 The reviewed FOSSASIA v0.1 substitute may appear in `recovery_images` while
 retaining `hardware_verified_by_frogalert: false`. The experimental page also
 accepts a developer-selected local BIN, labels that path unverified, and binds
-it to the PCB revision entered at selection time. That explicitly local route
+it to the PCB revision selected before loading. If the BIN has a FrogAlert
+configuration block, the embedded profile must match and any monitoring patch
+creates a newly hashed, unverified derivative. That explicitly local route
 remains distinct from manifest-managed write locks. Firmware bytes and device
 identifiers never leave the browser. The local validator rejects wrong
 extensions, implausibly short images, uniform blank/fill images, unaligned

@@ -26,7 +26,7 @@
     <title>FrogAlert — Bluetooth alerts on a BadgeMagic nametag</title>
     <link rel="canonical" href="https://frogalert.org/">
     <link rel="stylesheet" href="./site/styles.css">
-    <script type="module" src="./site/app.js?v=5"></script>
+    <script type="module" src="./site/app.js?v=7"></script>
   </head>
   <body data-flash-mode="inspect">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -143,15 +143,16 @@
           </article>
           <article class="evidence-card prototype">
             <p class="evidence-state">PROTOTYPE / BADGE · HARDWARE-UNVERIFIED</p>
-            <h3>Private two-mode survey BIN</h3>
-            <p>The 201,788-byte candidate retains FOSSASIA's USB, BLE, display, uploaded entries, buttons, and KEY2 recovery source while adding the counter, three-second text/frog overlays on a roughly 20-second survey cadence, and a narrow fix for qualified 48-column app animations. It is not hosted or released.</p>
-            <code class="command">SHA-256 9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7</code>
+            <h3>Private dual-profile survey BINs</h3>
+            <p>The separate 203,988-byte <code>260404</code> and <code>250901</code> candidates retain FOSSASIA's USB, BLE, display, uploaded entries, buttons, and KEY2 recovery source while adding configurable targets, three-second text/frog overlays on a roughly 20-second survey cadence, and display ownership while alerts scroll. The active-low <code>260404</code> profile is the build default. These candidates are Actions artifacts only; they are not hosted or released.</p>
+            <code class="command">260404 SHA-256 fa6c33bb46204d1d64608558d775d30000d281defffeb79673491e7d08ad4c0d</code>
+            <code class="command">250901 SHA-256 6cb96044bf4163e441884c71c1e055adb8fe52d8ad08bf2a734f836d43e161d9</code>
           </article>
         </div>
 
         <div class="rule-table-wrap">
           <table>
-            <caption>Rules embedded in the private, hardware-unverified survey BIN</caption>
+            <caption>Default rules in the private, hardware-unverified survey BINs</caption>
             <thead><tr><th>Signal</th><th>Source</th><th>Result</th><th>Guardrail</th></tr></thead>
             <tbody>
               <tr><td><code>00:25:DF</code></td><td>Axon public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
@@ -173,7 +174,7 @@
           <p class="section-kicker">Browser tools</p>
           <h2 id="flash-title">This page is read-only. Flashing lives at <code>/flash/</code>.</h2>
           <p>Web Bluetooth checks the running BadgeMagic service. WebUSB identifies a CH582 bootloader. This page can also inspect a BIN, but it cannot reset configuration, erase, or program the badge.</p>
-          <p class="honesty-note"><strong>Known USB-C board:</strong> the opened PCB marked <code>B1144C_250901</code> is confirmed as a WCH <code>CH582M</code> with an 11×44 display. Ordinary KEY2 entry works only after compatible FOSSASIA or hardware-approved FrogAlert firmware supplies that hook. Original or unknown firmware on this soldered-battery board required hazardous, expert-only C3 bench recovery; RESET plus KEY2 did not work.</p>
+          <p class="honesty-note"><strong>USB-C profiles:</strong> the opened PCB marked <code>B1144C_250901</code> is physically confirmed as a WCH <code>CH582M</code> with an 11×44 display. The new default <code>B1144C_260404</code> profile applies FOSSASIA's documented KEY1 change from active-high to active-low while leaving the LED matrix pin map unchanged; it still needs hash-bound badge testing. The open switch cannot be distinguished passively at boot, so select the printed PCB marking instead of relying on auto-detection. Ordinary KEY2 entry works only after compatible FOSSASIA or hardware-approved FrogAlert firmware supplies that hook. Original or unknown firmware on this soldered-battery board required hazardous, expert-only C3 bench recovery; RESET plus KEY2 did not work.</p>
           <p><a class="button button-primary" href="./flash/">Open flasher and recovery steps</a></p>
           <div id="capability-status" class="capability-pill" role="status">Checking browser capabilities…</div>
           <noscript><p class="device-status" data-tone="bad">JavaScript is required for browser hardware access. The project documentation remains available without it.</p></noscript>

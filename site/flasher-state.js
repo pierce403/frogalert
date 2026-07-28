@@ -33,6 +33,36 @@ export function artifactBoardBinding({ hardwareRevisions, pcbMarkings = null } =
   return binding;
 }
 
+const PCB_MARKING_BY_PROFILE = Object.freeze({
+  B1144C_250901_USB_C: "B1144C_250901",
+  B1144C_260404_USB_C: "B1144C_260404",
+});
+
+export function expectedPcbMarking(profile) {
+  return PCB_MARKING_BY_PROFILE[profile] || null;
+}
+
+export function physicalMarkingMatchesProfiles({
+  hardwareRevisions,
+  physicalMarking,
+} = {}) {
+  if (!Array.isArray(hardwareRevisions) || hardwareRevisions.length === 0) {
+    return false;
+  }
+  const expected = new Set(
+    hardwareRevisions
+      .map((profile) => expectedPcbMarking(profile))
+      .filter(Boolean),
+  );
+  if (expected.size === 0) return true;
+
+  const normalized = String(physicalMarking || "").toUpperCase();
+  const observed = Object.values(PCB_MARKING_BY_PROFILE).filter((marking) =>
+    normalized.includes(marking),
+  );
+  return observed.length === 1 && expected.has(observed[0]);
+}
+
 export function canProgramArtifact({
   artifactKind = "unknown",
   hardwareVerified = false,

@@ -1,6 +1,6 @@
 # Upstream research snapshot
 
-Research performed 2026-07-17 and refreshed on 2026-07-22. The project records
+Research performed 2026-07-17 and refreshed on 2026-07-28. The project records
 exact upstream links and only vendors the build-required HAL subset and the
 explicitly attributed recovery artifact.
 
@@ -74,6 +74,41 @@ Rust does not provide the entry point, interrupt vectors, clocks, USB, BLE role
 setup, or display refresh. The first derived artifact is a C-only metadata
 canary, followed by an ABI-only Rust canary, before any scan or panel change.
 
+### Nyx `260404` board delta
+
+Nyx documents how to distinguish the newer PCB marking `B1144C_260404` from
+the older `B1144C_250901`:
+
+- <https://badge.nyx.ms/>
+
+The corresponding FOSSASIA change is commit
+[`696bbd71`](https://github.com/fossasia/badgemagic-firmware/commit/696bbd71b608a3f0db585cd0d8d828ce1f5dc0a3).
+Its relevant hardware change keeps KEY1 on PA1 but changes its electrical
+semantics:
+
+| Board | KEY1 input | Press test | Shutdown wake |
+| --- | --- | --- | --- |
+| `250901` | pull-down | active high | rising edge |
+| `260404` | pull-up | active low | falling edge |
+
+KEY2 remains PB22/pull-up/active-low. Comparing the pinned `9ce885d`
+`USBC_VERSION=1` display table with the `260404` port shows the same 23 LED
+nets in the same order. FrogAlert therefore does not apply an LED matrix patch
+for `260404`; it applies only the exact KEY1 input, pressed-polarity, and
+shutdown-wake edits.
+
+The later upstream aux-button commit
+[`76bfa5e3`](https://github.com/fossasia/badgemagic-firmware/commit/76bfa5e383df7aa11f60fd9b76485b65554f8bde)
+does not change FrogAlert's pinned two-button `9ce885d` shell and is not folded
+into these profiles.
+
+An untouched KEY1 cannot serve as a boot-time profile detector. Its switch is
+open on both boards, so the input follows the firmware-selected internal pull.
+Only a physical actuation can expose the opposite rail, and by that time the
+firmware has already selected its first-button and shutdown-wake behavior.
+Separate profile builds and the printed PCB marking are the conservative
+boundary.
+
 ## Quarantined Rust runtime snapshot
 
 The count prototype pins `ch58x-hal` commit
@@ -122,10 +157,11 @@ walk:
 For the exact downloaded USB-C artifact, the clean source map is the same as
 Micro-USB except T is PB6 rather than PB23; J remains PB15 and K PB14. FrogAlert
 names that candidate `B1144C_250901_USB_C` after the observed board marking and
-does not alias it to generic `BM1144-C`, Rev2, or Rev3. The later `eb6e9da`
+does not alias it to generic `BM1144-C`, Rev2, or Rev3. The exact
+`B1144C_260404_USB_C` profile uses this same display table. The later `eb6e9da`
 revision scheme maps neither Rev2 nor Rev3 exactly to those three pins and also
 contains duplicate I/K initializers. A physical 484-position pixel walk remains
-required before approving the candidate map.
+required before approving either board profile for FrogAlert.
 
 The pinned USB-C FOSSASIA source disables external 32 kHz selection, powers the
 internal LSI, and registers calibration. Upstream commit `4d0521a` later states

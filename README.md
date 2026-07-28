@@ -18,14 +18,15 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - host observation/count simulator: tested
 - standalone Rust display/count images: quarantined; the PAC/runtime vector
   mismatch makes both interrupt-driven builds unsafe to flash
-- replacement firmware base: pinned FOSSASIA USB-C C hardware shell reproduces
-  the known-good image byte-for-byte; the 177,788-byte metadata-only canary
-  builds and audits but remains local and hardware-unverified
-- private survey candidate: a locked 201,788-byte local BIN adds passive
-  counting, normal-nametag/count view rotation, the bounded detection table
-  below, three-second overlays on a roughly 20-second survey cadence, and a
-  BadgeMagic frog animation; it remains
-  hardware-unverified and is neither published nor flash-approved
+- replacement firmware base: pinned FOSSASIA USB-C C hardware shell supports
+  exact `B1144C_260404_USB_C` and `B1144C_250901_USB_C` build profiles; the
+  Nyx `260404` KEY1 wiring is the build default, while both remain
+  hardware-unverified FrogAlert targets
+- private survey candidates: CI builds and audits one profile-bound BIN/ELF
+  pair for each USB-C board profile, with passive counting, configurable
+  built-in/custom monitoring, three-second overlays on a roughly 20-second
+  survey cadence, and a BadgeMagic frog animation; these Actions artifacts are
+  build evidence only and are neither GitHub Releases nor flash-approved
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
@@ -38,7 +39,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - commit-driven release publication: successful `main` commits reconcile only
   physically approved manifest entries into draft-then-verified GitHub
   Releases, then deploy the same-origin website catalog; ordinary commits and
-  the current private survey BIN create no firmware release
+  the current private survey BINs create no firmware release
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -53,7 +54,10 @@ status and acceptance evidence.
 
 ## Detection rules
 
-The Rust detection core currently contains these rules:
+The Rust detection core contains these rules. The survey firmware enables the
+same built-in target groups by default, and the local web flasher can disable
+groups or add bounded custom name, public-OUI, and 16-bit-service rules before
+producing a new local BIN and SHA-256:
 
 | Signal | Match | Rule label | Badge alert |
 | --- | --- | --- | --- |
@@ -76,7 +80,7 @@ does not apply them to randomized or locally administered addresses. These are
 explainable hints rather than proof of device identity: names can be changed or
 spoofed, and vendor prefixes can cover unrelated products.
 
-The current private hardware survey candidate mirrors every row in this table
+The current private hardware survey candidates mirror every row in this table
 in a bounded C classifier. That lets the behavior be built and inspected while
 the separately gated Rust ABI canary remains pending; it does not waive that
 gate or make the BIN hardware-verified. Passive discovery does not guarantee
@@ -84,7 +88,12 @@ that a scan-response-only local name will be delivered, so the advertised
 `0xFEE0` service is a deliberately broad BadgeMagic fallback and can animate
 for compatible non-BadgeMagic devices that reuse that UUID.
 
-In this candidate, a short KEY2 press rotates the visible content as
+Each survey BIN contains one CRC-protected configuration block bound to its
+compiled hardware profile. The browser will not rewrite a `250901` image as a
+`260404` image or vice versa. A customized download is a newly derived,
+hardware-unverified local artifact even when its base BIN came from CI.
+
+In these candidates, a short KEY2 press rotates the visible content as
 `Name 1 → BT counter → Name 2 → BT counter → …`. KEY1 retains FOSSASIA's
 normal download/power behavior, KEY1 long press still changes brightness, and
 the independent long-KEY2 ISP path remains in the inherited shell. Passive
@@ -93,16 +102,33 @@ surveys continue in both nametag and counter views. `COP DETECTED`,
 three seconds, then the selected view resumes without changing the uploaded
 nametag data. Survey
 windows start roughly every 20 seconds, so a continuously present match can
-retrigger once in each new window.
+retrigger once in each new window. While an overlay owns the panel, already
+queued marquee, flash, fixed-animation, and Bluetooth-stream animation events
+are consumed instead of being allowed to restart the normal scroll underneath
+it. Normal content resumes only when the overlay releases display ownership.
 
 ## Hardware warning
 
 The photographed USB-C reference is PCB `B1144C_250901`, confirmed as a WCH
-`CH582M` with an 11×44 display. Once compatible FOSSASIA firmware is installed,
-holding KEY2 for about 2.2 seconds shows one dot near the middle and exposes WCH
-ISP as `4348:55e0` or `1a86:55e0` for roughly 9–13 seconds. That convenient
-entry is an application hook, so it is not available on original or unknown
-firmware. The first documented entry on this soldered-battery board required a
+`CH582M` with an 11×44 display. Nyx documents the newer
+`B1144C_260404` USB-C board. Both use the same 23-net LED matrix mapping and
+KEY2/PB22 behavior. The relevant difference is KEY1/PA1: `250901` uses an
+internal pull-down with active-high presses and rising-edge shutdown wake;
+`260404` connects the switch to ground and needs an internal pull-up,
+active-low presses, and falling-edge wake.
+
+There is no safe passive boot-time auto-detection for that distinction. With
+KEY1 untouched, the switch is open on both boards and the input simply follows
+whichever internal pull the firmware selected. A later button press could
+provide a polarity clue, but that is too late to guarantee correct boot,
+power-off wake, and first-button behavior. Select the exact printed PCB
+marking; the build default does not replace this check.
+
+Once compatible FOSSASIA firmware is installed, holding KEY2 for about
+2.2 seconds shows one dot near the middle and exposes WCH ISP as `4348:55e0`
+or `1a86:55e0` for roughly 9–13 seconds. That convenient entry is an
+application hook, so it is not available on original or unknown firmware. The
+first documented entry on the soldered-battery `250901` board required a
 qualified operator to hold KEY2 while momentarily bridging both ends of PCB
 capacitor `C3`; RESET plus KEY2 did not work. C3 rail-collapse recovery is
 hazardous expert bench work, not a routine website step. Leave the cell and its
@@ -122,8 +148,9 @@ substitute for its Micro-USB `HARDWARE_REV1` target, but that is not the
 original firmware. A separate FOSSASIA USB-C development image has now booted
 and provided KEY2 long-press recovery on the photographed `B1144C_250901`
 badge, but its generic `BM1144-C` descriptor does not identify a unique pin
-map. FrogAlert therefore uses the exact lab token `B1144C_250901_USB_C`, and
-neither that candidate map nor the bundled Micro-USB image is flash-approved.
+map. FrogAlert therefore uses the exact tokens `B1144C_250901_USB_C` and
+`B1144C_260404_USB_C`; neither FrogAlert profile nor the bundled Micro-USB
+image is flash-approved.
 Similar-looking badges can use different controllers or matrix sizes and may
 be permanently damaged by an incompatible image. Read
 [docs/HARDWARE.md](docs/HARDWARE.md) before device work.
@@ -159,28 +186,34 @@ entry. Rust will be linked later only for pure detection logic behind a small C
 ABI.
 
 The first build downloads and verifies the pinned source and MRS V1.92
-toolchain (about 345 MB), then reproduces the known-good baseline:
+toolchain (about 345 MB). Omitting a profile selects the newer Nyx
+`B1144C_260404_USB_C` default:
+
+```sh
+./scripts/build-fossasia-usbc baseline --check
+./scripts/build-fossasia-usbc canary --check
+./scripts/build-fossasia-usbc survey --check
+```
+
+Pass the legacy profile explicitly when building for the older board:
 
 ```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
-```
-
-The first derived canary adds only an inert identifying string—no new function,
-radio, display, USB, button, or recovery behavior:
-
-```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
-```
-
-The later private survey candidate is built and audited separately:
-
-```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
-Its locked local BIN is 201,788 bytes with SHA-256
-`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
-Those are reproducible build facts, not physical-test or release evidence.
+The default may also be named explicitly:
+
+```sh
+./scripts/build-fossasia-usbc B1144C_260404_USB_C survey --check
+```
+
+The first derived canary adds only an inert identifying string. The survey lane
+adds the passive detector and embeds the compiled profile id. Every
+profile/lane pair has its own locked size and SHA-256 in
+`firmware/fossasia-usbc/upstream-lock.json`; a hash for one profile is never
+evidence for the other.
 
 All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts
 never invoke `wchisp`, copy a BIN into `firmware/releases/`, or update the site
@@ -225,6 +258,14 @@ The landing-page lab permits only inspection and artifact preparation. Its
 legacy program controls are absent, and the controller also requires explicit
 program-page mode; all destructive browser actions exist only on `/flash/`.
 
+On `/flash/`, choose the exact `260404` or `250901` hardware profile before
+loading a local survey BIN. Compatible images expose local monitoring controls
+for the five built-in target groups and up to eight custom rules. Applying the
+options rewrites only the checked configuration block, calculates and displays
+a new SHA-256, resets destructive confirmations, and offers the derived BIN for
+download. It never changes the image's compiled hardware profile or inherits
+hardware approval from the base.
+
 The manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and third-party
 `recovery_images` separate. Both FrogAlert collections are empty. The former
 USB-C pixel-walk artifact was removed after a physical flash produced no panel
@@ -267,8 +308,9 @@ checks. A passing local suite does not replace a physical badge test.
 - [`firmware/vendor/ch58x-hal/`](firmware/vendor/ch58x-hal/) — pinned,
   provenance-documented HAL subset used by the prototype
 - [`tools/simulator/`](tools/simulator/) — desktop observation simulator
-- [`scripts/build-fossasia-usbc`](scripts/build-fossasia-usbc) — pinned baseline
-  and metadata-canary build/audit path with ignored output only
+- [`scripts/build-fossasia-usbc`](scripts/build-fossasia-usbc) — pinned,
+  profile-specific baseline/canary/survey build and audit path with ignored
+  output only
 - [`scripts/audit-ch58x-vectors.mjs`](scripts/audit-ch58x-vectors.mjs) —
   post-link regression guard for the failed standalone Rust layout
 - [`site/`](site/) — static website and browser device implementation
@@ -296,8 +338,8 @@ checks. A passing local suite does not replace a physical badge test.
    count while preserving KEY1's system behavior and long-KEY2 recovery.
 3. When no app is connected, briefly pause advertising and passively scan BLE
    in either visible view.
-4. Match public-address OUIs, advertised names, and the narrow BadgeMagic
-   service hint locally.
+4. Match the enabled built-in groups and bounded custom public-address OUI,
+   advertised-name, and 16-bit-service rules locally.
 5. Temporarily show an alert or frog animation, then restore the selected view
    and resume advertising without changing saved nametag content.
 
@@ -320,6 +362,8 @@ and dated lessons that survive individual sessions.
 - [CH582 hardware notes and reference photos](https://github.com/fossasia/badgemagic-firmware/blob/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8/CH582.md)
 - [Pinned FOSSASIA USB-C development artifact](https://github.com/fossasia/badgemagic-firmware/blob/b56cd9495738e8e3170bf723e70b445de936a5d2/usb-c/badgemagic-ch582.bin)
 - [Its embedded source commit `9ce885d`](https://github.com/fossasia/badgemagic-firmware/commit/9ce885d682b5c56c3ac7595c09e009a210885221)
+- [Nyx `260404` badge notes](https://badge.nyx.ms/)
+- [FOSSASIA `260404` KEY1 wiring change](https://github.com/fossasia/badgemagic-firmware/commit/696bbd71b608a3f0db585cd0d8d828ce1f5dc0a3)
 - [“How to Burn Your LED Badge: Flash & Develop Custom Animation” — Dien-Nhung Nguyen, FOSSASIA Summit 2025](https://www.youtube.com/watch?v=X84YQFNjkmw)
   — practical teardown and WCH ISP demonstration; treat the shown board-short
   recovery technique as a hazardous bench method

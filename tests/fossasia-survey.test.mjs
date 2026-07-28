@@ -8,7 +8,7 @@ import {
   applyMainHooks,
   applyPeripheralHooks,
 } from "../scripts/apply-fossasia-survey.mjs";
-import { loadLock, surveyText } from "../scripts/audit-fossasia-usbc.mjs";
+import { loadLock } from "../scripts/audit-fossasia-usbc.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const firmwareDirectory = path.join(
@@ -49,6 +49,15 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   const main = [
     '#include "ble/setup.h"',
     '#include "ble/profile.h"',
+    "\tif(events & ANI_NEXT_STEP) {",
+    "",
+    "\t\tstatic int (*animations[])(bm_t *bm, uint16_t *fb) = {",
+    "\tif (events & ANI_MARQUE) {",
+    "\t\tbm_t *bm = bmlist_current();",
+    "\tif (events & ANI_FLASH) {",
+    "\t\tbm_t *bm = bmlist_current();",
+    "\tif (events & BLE_NEXT_STEP) {",
+    "\t\tani_xbm_next_frame(&bluetooth, fb, 10, 0);",
     "static void bm_transition()",
     "{",
     "\tif (is_play_sequentially) {",
@@ -119,6 +128,19 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     /GAPRole_TerminateLink\([^;]+;[\s\S]{0,80}enable_advertising\(TRUE\);/,
   );
   assert.match(patchedMain, /peripheral_init\(\);[\s\S]*frogalert_survey_init\(\);/);
+  for (const event of [
+    "ANI_NEXT_STEP",
+    "ANI_MARQUE",
+    "ANI_FLASH",
+    "BLE_NEXT_STEP",
+  ]) {
+    assert.match(
+      patchedMain,
+      new RegExp(
+        `events & ${event}[\\s\\S]*frogalert_survey_display_active\\(\\)[\\s\\S]*events \\^ ${event}`,
+      ),
+    );
+  }
   assert.match(patchedMain, /mode == NORMAL && !streaming_enabled/);
   assert.match(patchedMain, /static uint8_t frogalert_counter_view/);
   assert.match(patchedMain, /frogalert_view_transition/);
@@ -251,7 +273,14 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
       readFile(path.join(repositoryRoot, "scripts/build-fossasia-usbc"), "utf8"),
     ]);
 
-  assert.match(survey, new RegExp(surveyText));
+  assert.match(
+    survey,
+    /FROGALERT:SURVEY-CONFIG-V1:FOSSASIA-9ce885d:/,
+  );
+  assert.match(
+    survey,
+    /FROGALERT_HARDWARE_PROFILE_NAME ":UNVERIFIED"/,
+  );
   assert.match(
     survey,
     /GAPRole_CentralStartDiscovery\(DEVDISC_MODE_ALL, FALSE,\s*FALSE\)/,
@@ -262,13 +291,13 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(survey, /SURVEY_SCAN_TIME_MS\s+3000U/);
   assert.match(
     survey,
-    /SURVEY_NEXT_DELAY\s+TMOS_TICKS_FROM_MS\(\s*\\\s*\n\s*SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS\)/,
+    /SURVEY_NEXT_DELAY\s+TMOS_TICKS_FROM_MS\(\s*\\\s*\n\s*SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS - SURVEY_RADIO_QUIET_MS\)/,
   );
   assert.match(
     survey,
     /SURVEY_SCAN_TICKS\s+TMOS_TICKS_FROM_MS\(SURVEY_SCAN_TIME_MS\)/,
   );
-  assert.match(survey, /SURVEY_SCROLL_TIME\s+TMOS_TICKS_FROM_MS\(100U\)/);
+  assert.match(survey, /SURVEY_SCROLL_TIME\s+TMOS_TICKS_FROM_MS\(50U\)/);
   assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
   assert.match(survey, /SURVEY_ALERT_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
   assert.match(survey, /SURVEY_FROG_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
@@ -337,7 +366,7 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.doesNotMatch(survey, /PRINT\([^\n]*(addr|address)/i);
   assert.match(core, /volatile uint8_t \*bytes/);
   assert.match(core, /uint8_t frogalert_survey_counter_observe/);
-  assert.match(core, /frogalert_survey_alert_t frogalert_survey_classify/);
+  assert.match(core, /void frogalert_survey_classify/);
   assert.match(core, /address\[5\] == prefix\[0\]/);
   assert.doesNotMatch(core, /address\[0\] == prefix\[0\]/);
   assert.match(core, /"axon body"/);
@@ -347,8 +376,10 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(core, /ascii_starts_with_value/);
   assert.match(core, /"led badge magic"/);
   assert.match(core, /ascii_equal_padded/);
-  assert.match(core, /current\.value\[index\] == 0xe0/);
-  assert.match(core, /current\.value\[index \+ 1\] == 0xfe/);
+  assert.match(core, /advertisement_has_service\(advertisement, 0xfee0\)/);
+  assert.match(core, /config->custom_rule_count/);
+  assert.match(core, /FROGALERT_MATCH_PUBLIC_OUI/);
+  assert.match(core, /FROGALERT_MATCH_SERVICE16/);
   assert.match(core, /"ray-ban"/);
   assert.match(core, /"ray ban"/);
   assert.match(core, /GAP_ADTYPE_LOCAL_NAME_COMPLETE/);

@@ -10,7 +10,11 @@ import { assertCh58xUserOptionMagic } from "./firmware-image.mjs";
 
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const PROFILE = "B1144C_250901_USB_C";
+const PROFILES = Object.freeze([
+  "B1144C_260404_USB_C",
+  "B1144C_250901_USB_C",
+]);
+const DEFAULT_PROFILE = PROFILES[0];
 const BUILD_LANE = "survey";
 
 function sha256(bytes) {
@@ -43,6 +47,10 @@ function assertElf(bytes) {
   }
 }
 
+function profileStem(profile) {
+  return profile.toLowerCase().replaceAll("_", "-");
+}
+
 export function firmwareCandidateVersion(sourceCommit) {
   return `0.0.0-candidate.${requireCommit(sourceCommit).slice(0, 12)}`;
 }
@@ -63,49 +71,88 @@ export async function buildFirmwareCandidateBundle({
   const commit = requireCommit(sourceCommit);
   const githubRepository = requireRepository(repository);
   const version = firmwareCandidateVersion(commit);
-  const stem = `frogalert-${version}-b1144c-250901-usbc`;
-  const binName = `${stem}.bin`;
-  const elfName = `${stem}.elf`;
-
   const lock = JSON.parse(
     await readFile(join(root, "firmware", "fossasia-usbc", "upstream-lock.json"), "utf8"),
   );
   if (
-    lock.schema_version !== 1 ||
-    lock.profile !== PROFILE ||
+    lock.schema_version !== 2 ||
+    lock.default_profile !== DEFAULT_PROFILE ||
     lock.hardware_status !== "build-evidence-only" ||
     !lock.upstream?.commit ||
-    !lock.toolchain?.archive_sha256 ||
-    !Number.isSafeInteger(lock.build?.known_good_survey_size) ||
-    typeof lock.build?.known_good_survey_sha256 !== "string"
+    !lock.toolchain?.archive_sha256
   ) {
     throw new Error("candidate build lock is invalid");
   }
 
-  const buildRoot = join(root, "tmp", "fossasia-usbc", "build", BUILD_LANE);
-  const bin = await readFile(join(buildRoot, "badgemagic-ch582.bin"));
-  const elf = await readFile(join(buildRoot, "badgemagic-ch582.elf"));
-  const binFromElf = await readFile(
-    join(buildRoot, "badgemagic-ch582.from-elf.bin"),
-  );
-  assertCh58xUserOptionMagic(bin);
-  assertElf(elf);
-  if (!bin.equals(binFromElf)) {
-    throw new Error("candidate BIN is not the audited ELF's exact loadable bytes");
-  }
+  const artifacts = {};
+  const copies = [];
+  const checksumLines = [];
+  for (const profile of PROFILES) {
+    const lockedImage = lock.build?.profile_images?.[profile]?.[BUILD_LANE];
+    if (
+      !Number.isSafeInteger(lockedImage?.size) ||
+      typeof lockedImage?.sha256 !== "string"
+    ) {
+      throw new Error(`candidate build lock is missing ${profile}`);
+    }
+    const buildRoot = join(
+      root,
+      "tmp",
+      "fossasia-usbc",
+      "build",
+      profile,
+      BUILD_LANE,
+    );
+    const bin = await readFile(join(buildRoot, "badgemagic-ch582.bin"));
+    const elf = await readFile(join(buildRoot, "badgemagic-ch582.elf"));
+    const binFromElf = await readFile(
+      join(buildRoot, "badgemagic-ch582.from-elf.bin"),
+    );
+    assertCh58xUserOptionMagic(bin);
+    assertElf(elf);
+    if (!bin.equals(binFromElf)) {
+      throw new Error(`${profile} candidate BIN is not the audited ELF's exact loadable bytes`);
+    }
 
-  const binSha256 = sha256(bin);
-  const elfSha256 = sha256(elf);
-  if (
-    bin.byteLength !== lock.build.known_good_survey_size ||
-    binSha256 !== lock.build.known_good_survey_sha256
-  ) {
-    throw new Error("candidate BIN does not match the audited survey lock");
+    const binSha256 = sha256(bin);
+    const elfSha256 = sha256(elf);
+    if (
+      bin.byteLength !== lockedImage.size ||
+      binSha256 !== lockedImage.sha256
+    ) {
+      throw new Error(`${profile} candidate BIN does not match the audited survey lock`);
+    }
+
+    const stem = `frogalert-${version}-${profileStem(profile)}`;
+    const binName = `${stem}.bin`;
+    const elfName = `${stem}.elf`;
+    artifacts[profile] = {
+      hardware_profile: profile,
+      pcb_marking: lock.profiles[profile].pcb_marking,
+      firmware: {
+        file: binName,
+        bytes: bin.byteLength,
+        sha256: binSha256,
+      },
+      debug_elf: {
+        file: elfName,
+        bytes: elf.byteLength,
+        sha256: elfSha256,
+      },
+    };
+    copies.push(
+      [join(buildRoot, "badgemagic-ch582.bin"), binName],
+      [join(buildRoot, "badgemagic-ch582.elf"), elfName],
+    );
+    checksumLines.push(
+      `${binSha256}  ${binName}`,
+      `${elfSha256}  ${elfName}`,
+    );
   }
 
   const metadata = {
-    schema_version: 1,
-    id: `${stem}-${commit}`,
+    schema_version: 2,
+    id: `frogalert-${version}-${commit}`,
     kind: "frogalert-candidate",
     label: "FrogAlert CI candidate",
     version,
@@ -113,7 +160,8 @@ export async function buildFirmwareCandidateBundle({
     source_commit: commit,
     github_repository: githubRepository,
     target: "ch582m-badgemagic-11x44",
-    hardware_profile: PROFILE,
+    default_hardware_profile: DEFAULT_PROFILE,
+    hardware_profiles: [...PROFILES],
     build_lane: BUILD_LANE,
     hardware_verified: false,
     flash_approved: false,
@@ -127,18 +175,7 @@ export async function buildFirmwareCandidateBundle({
       compiler_sha256: lock.toolchain.compiler_sha256,
       usbc_version: lock.build.usbc_version,
     },
-    artifacts: {
-      firmware: {
-        file: binName,
-        bytes: bin.byteLength,
-        sha256: binSha256,
-      },
-      debug_elf: {
-        file: elfName,
-        bytes: elf.byteLength,
-        sha256: elfSha256,
-      },
-    },
+    artifacts,
     warning:
       "Hardware-unverified CI build evidence only. Not a FrogAlert release, not approved for flashing, and never served by the website.",
   };
@@ -148,26 +185,26 @@ export async function buildFirmwareCandidateBundle({
     "",
     `Version: ${version}`,
     `Source commit: ${commit}`,
-    `Target profile: ${PROFILE}`,
-    `Firmware SHA-256: ${binSha256}`,
+    `Default target profile: ${DEFAULT_PROFILE}`,
+    `Included profiles: ${PROFILES.join(", ")}`,
+    "",
+    ...PROFILES.flatMap((profile) => [
+      `- ${profile} (${artifacts[profile].pcb_marking}): \`${artifacts[profile].firmware.sha256}\``,
+    ]),
     "",
     "This archive is build evidence only. It is not a FrogAlert release, has not passed exact-board physical testing, is not approved for flashing, and is never copied into the website firmware catalog.",
     "",
     "Only a separately reviewed manifest entry with complete hash-bound physical evidence may reach GitHub Releases or frogalert.org/flash/.",
     "",
   ].join("\n");
-  const checksums = [
-    `${binSha256}  ${binName}`,
-    `${elfSha256}  ${elfName}`,
-    "",
-  ].join("\n");
 
   await rm(output, { recursive: true, force: true });
   await mkdir(output, { recursive: true });
-  await copyFile(join(buildRoot, "badgemagic-ch582.bin"), join(output, binName));
-  await copyFile(join(buildRoot, "badgemagic-ch582.elf"), join(output, elfName));
+  for (const [source, destination] of copies) {
+    await copyFile(source, join(output, destination));
+  }
   await writeFile(join(output, "candidate.json"), `${JSON.stringify(metadata, null, 2)}\n`);
-  await writeFile(join(output, "SHA256SUMS"), checksums);
+  await writeFile(join(output, "SHA256SUMS"), `${checksumLines.join("\n")}\n`);
   await writeFile(join(output, "README.md"), readme);
 
   return metadata;

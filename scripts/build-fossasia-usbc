@@ -2,21 +2,45 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-profile="${1:-}"
-build_mode="${2:-}"
-check_mode="${3:-}"
+mkdir -p "$repo_root/tmp/fossasia-usbc"
+command -v flock >/dev/null 2>&1 || {
+  echo "flock is required to serialize profile builds" >&2
+  exit 1
+}
+exec 9>"$repo_root/tmp/fossasia-usbc/.build.lock"
+flock 9
 
-if [[ "$#" -lt 2 || "$#" -gt 3 ]] ||
-  [[ "$profile" != "B1144C_250901_USB_C" ]] ||
+default_profile="B1144C_260404_USB_C"
+profile=""
+build_mode=""
+check_mode=""
+
+case "${1:-}" in
+  baseline|canary|survey)
+    profile="$default_profile"
+    build_mode="$1"
+    check_mode="${2:-}"
+    [[ "$#" -le 2 ]] || build_mode=""
+    ;;
+  *)
+    profile="${1:-}"
+    build_mode="${2:-}"
+    check_mode="${3:-}"
+    [[ "$#" -ge 2 && "$#" -le 3 ]] || build_mode=""
+    ;;
+esac
+
+if [[ "$profile" != "B1144C_250901_USB_C" &&
+      "$profile" != "B1144C_260404_USB_C" ]] ||
   [[ "$build_mode" != "baseline" && "$build_mode" != "canary" &&
     "$build_mode" != "survey" ]] ||
   [[ -n "$check_mode" && "$check_mode" != "--check" ]]; then
-  echo "usage: ./scripts/build-fossasia-usbc B1144C_250901_USB_C {baseline|canary|survey} [--check]" >&2
-  echo "Refusing a generic build: this shell is pinned to the exact USB-C profile." >&2
+  echo "usage: ./scripts/build-fossasia-usbc [B1144C_250901_USB_C|B1144C_260404_USB_C] {baseline|canary|survey} [--check]" >&2
+  echo "Omit the profile to build the default B1144C_260404_USB_C profile." >&2
   exit 2
 fi
 
-build_directory="$repo_root/tmp/fossasia-usbc/build/$build_mode"
+build_directory="$repo_root/tmp/fossasia-usbc/build/$profile/$build_mode"
 bin="$build_directory/badgemagic-ch582.bin"
 elf_bin="$build_directory/badgemagic-ch582.from-elf.bin"
 audit_complete=0
@@ -38,8 +62,9 @@ mapfile -t lock_values < <(
       lock.toolchain.prefix,
       lock.build.version,
       lock.build.version_abbreviation,
+      lock.profiles[process.argv[2]].id,
     ]) console.log(value);
-  ' "$lock_file"
+  ' "$lock_file" "$profile"
 )
 
 source_directory="$repo_root/tmp/fossasia-usbc/source/${lock_values[0]}"
@@ -47,8 +72,11 @@ toolchain_directory="$repo_root/tmp/fossasia-usbc/toolchains/${lock_values[1]}"
 toolchain_prefix="$toolchain_directory/${lock_values[2]}"
 version="${lock_values[3]}"
 version_abbreviation="${lock_values[4]}"
+profile_id="${lock_values[5]}"
 
 "$repo_root/scripts/prepare-fossasia-usbc" --with-toolchain
+node "$repo_root/scripts/apply-fossasia-hardware-profile.mjs" \
+  "$source_directory" "$profile"
 rm -rf "$build_directory"
 mkdir -p "$build_directory"
 
@@ -73,6 +101,12 @@ elif [[ "$build_mode" == "survey" ]]; then
   cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-survey-core.h" \
     "$source_directory/src/ble/frogalert-survey-core.h"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-monitor-config.c" \
+    "$source_directory/src/ble/frogalert_monitor_config.c"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-monitor-config.h" \
+    "$source_directory/src/ble/frogalert-monitor-config.h"
   cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-animation-compat.c" \
     "$source_directory/src/frogalert_animation_compat.c"
@@ -102,6 +136,8 @@ fi
     "${makefiles[@]}" \
     BUILD_DIR="$build_directory" \
     USBC_VERSION=1 \
+    FROGALERT_HARDWARE_PROFILE_ID="$profile_id" \
+    FROGALERT_HARDWARE_PROFILE_NAME="$profile" \
     VERSION="$version" \
     VERSION_ABBR="$version_abbreviation" \
     PREFIX="$toolchain_prefix"
@@ -133,7 +169,8 @@ node "$repo_root/scripts/audit-fossasia-usbc.mjs" symbols "$build_mode" "$nm_out
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" vectors "$highcode" "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" ram "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" disassembly "$disassembly"
-node "$repo_root/scripts/audit-fossasia-usbc.mjs" binary "$build_mode" "$bin"
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" binary \
+  "$profile" "$build_mode" "$bin"
 audit_complete=1
 
 "$size_tool" "$elf"
@@ -143,12 +180,17 @@ echo "FOSSASIA runtime audit passed: reset/vector, USB, BLE, display, and KEY2 s
 echo "ELF/BIN binding passed: final BIN exactly matches objcopy of the audited ELF"
 echo "RAM gate passed: at least 8192 bytes remain for stack and runtime use"
 if [[ "$build_mode" == "baseline" ]]; then
-  echo "baseline gate passed: BIN is byte-identical to the known-good FOSSASIA USB-C image"
+  if [[ "$profile" == "B1144C_250901_USB_C" ]]; then
+    echo "baseline gate passed: BIN is byte-identical to the known-good pinned upstream image"
+  else
+    echo "baseline gate passed: BIN matches the exact locked $profile profile image"
+  fi
 elif [[ "$build_mode" == "canary" ]]; then
   echo "canary gate passed: only the C metadata overlay was requested"
 else
   echo "survey candidate gate passed: bounded passive scan with persistent count requested"
 fi
+echo "hardware profile: $profile"
 echo "build evidence: $bin"
 echo "HARDWARE UNVERIFIED: build evidence only; not a public release or approved for flashing"
 

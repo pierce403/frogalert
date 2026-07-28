@@ -10,10 +10,42 @@ FrogAlert targets only the FOSSASIA-supported BadgeMagic variant:
 | Battery | nominal 3.7 V Li-ion |
 | BLE low-speed clock | exact-profile clock source proven before radio use |
 | Bootloader USB ID | `4348:55e0` or `1a86:55e0` |
-| Display-lab selectors | `HARDWARE_REV1` or exact USB-C `B1144C_250901_USB_C` |
+| Firmware profiles | exact USB-C `B1144C_260404_USB_C` or `B1144C_250901_USB_C`; Micro-USB recovery-only `HARDWARE_REV1` |
 
 Badges sold under similar names can contain different controllers or 11x55
 matrices. The enclosure and the OEM BLE name `LSLED` are not sufficient proof.
+
+## USB-C hardware profiles
+
+FrogAlert keeps two explicit USB-C profiles. The newer Nyx board is the build
+default, not an automatically detected target:
+
+| Profile | Printed PCB marking | KEY1/PA1 input | Pressed level | Shutdown wake |
+| --- | --- | --- | --- | --- |
+| `B1144C_260404_USB_C` (default) | `B1144C_260404` | pull-up | low | falling edge |
+| `B1144C_250901_USB_C` (legacy) | `B1144C_250901` | pull-down | high | rising edge |
+
+The 23 display nets are identical between these two USB-C profiles:
+
+```text
+PA15 PB18 PB0 PB7 PA12 PA10 PA11 PB9 PB8 PB15 PB14 PB13
+PB12 PB5 PA4 PB3 PB4 PB2 PB1 PB6 PB21 PB20 PB19
+```
+
+KEY2 remains PB22 with a pull-up and active-low press on both profiles. The
+profile change is therefore a KEY1 electrical-polarity and wake-edge change,
+not a shifted LED matrix. The `260404` values come from Nyx's board notes and
+FOSSASIA commit `696bbd71`; they are source-level evidence and still require
+an exact-board FrogAlert smoke test.
+
+Safe passive boot-time auto-detection is not available. Before KEY1 has been
+pressed, its switch is open on both boards, so PA1 only reflects the internal
+pull selected by the running firmware. Reconfiguring that pull merely changes
+the reading the firmware created; it does not reveal which rail the untouched
+switch will connect when pressed. A first press could provide a clue, but by
+then boot behavior, the first button action, and shutdown-wake configuration
+have already depended on the profile. FrogAlert consequently requires the
+printed board marking and emits separate artifacts.
 
 ## Current physical badge evidence
 
@@ -29,7 +61,9 @@ and matches upstream git blob `18bffdb8f766ddfd818aecf102ac0df284ad1c07`
 from source `9ce885d`. That source's `USBC_VERSION=1` display map differs from
 the Micro-USB map only at T: PB6 instead of PB23. FrogAlert records that
 candidate explicitly as `B1144C_250901_USB_C`; generic `BM1144-C` and upstream
-Rev2/Rev3 labels are not accepted substitutes. Holding KEY2 while pressing the
+Rev2/Rev3 labels are not accepted substitutes. The newer
+`B1144C_260404_USB_C` profile retains this exact display map and changes only
+KEY1 pull/polarity plus its shutdown wake edge. Holding KEY2 while pressing the
 board's populated `RESET` switch did not re-enumerate the OEM `0416:5020` USB
 device. In the documented expert bench recovery, a qualified operator held
 KEY2 while momentarily bridging both ends of PCB capacitor `C3`; that
@@ -75,18 +109,20 @@ procedure.
    recovery into a checklist.
 5. For `HARDWARE_REV1`, compare both sides with FOSSASIA's pinned
    [CH582 reference photos](https://github.com/fossasia/badgemagic-firmware/blob/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8/CH582.md#hardware-details),
-   and confirm the Micro-USB layout. For the photographed USB-C board, record
-   physical marking `B1144C_250901` and select only
-   `B1144C_250901_USB_C`. Port shape by itself is not proof.
-6. Do not run the historical standalone Rust count image. Pinned FOSSASIA USB-C source disables
-   external 32 kHz selection, powers/calibrates internal LSI, and a later
-   upstream commit explicitly says the board cannot use LSE. The quarantined
-   Rust count image and its HAL BLE initializer select external LSE. The newer
-   private survey candidate instead inherits FOSSASIA's internal-LSI setup, but
-   remains a separate hardware-unverified bench image.
+   and confirm the Micro-USB layout. For USB-C, record physical marking
+   `B1144C_260404` or `B1144C_250901` and select only its corresponding exact
+   profile. Port shape, case color, and generic `BM1144-C` text are not proof.
+6. Do not run the historical standalone Rust count image. Pinned FOSSASIA
+   USB-C source disables external 32 kHz selection, powers/calibrates internal
+   LSI, and a later upstream commit explicitly says the board cannot use LSE.
+   The quarantined Rust count image and its HAL BLE initializer select external
+   LSE. The newer profile-specific survey candidates instead inherit
+   FOSSASIA's internal-LSI setup, but remain separate hardware-unverified bench
+   images.
 7. Record the exact software profile only after all those checks. Build-profile
    tokens are not values discovered over USB, and chip identification cannot
-   prove the PCB layout or matrix wiring.
+   prove the PCB layout or matrix wiring. Do not treat the build default as
+   detection: an untouched KEY1 cannot distinguish the two USB-C profiles.
 8. Separately record the exact physical silkscreen/revision. If the PCB has no
    revision marking, record that fact and retain front/back photos. Do not
    substitute the `HARDWARE_REV1` software token for this physical record.
@@ -160,49 +196,34 @@ flashable BIN.
 
 ## Next physical image
 
-The next image must derive from the exact FOSSASIA USB-C source at `9ce885d` and
-preserve its startup, linker layout, clocks, USB HID+CDC stack, BLE/TMOS stack,
-BadgeMagic service, display refresh, buttons, and KEY2 recovery task. The first
-canary changes only self-identifying metadata. It does not add Rust, scanning,
-or display behavior.
+Every next image derives from exact FOSSASIA USB-C source `9ce885d` and keeps
+its startup, linker layout, clocks, USB HID+CDC stack, BLE/TMOS stack,
+BadgeMagic service, display refresh, and KEY2 recovery task. Before
+compilation, the profile patch either preserves the legacy `250901` KEY1
+behavior or applies the `260404` pull-up, active-low test, and falling-edge
+shutdown wake. It does not change the common LED matrix table or KEY2.
 
-The current local canary is 177,788 bytes with SHA-256
-`6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87`.
-That identity is build evidence only: it remains under ignored `tmp/` and is
-not approved for public or end-user flashing. Its only permitted next use is an
-explicitly authorized, one-badge bench smoke by a qualified operator; that
-initial program/verify action begins the checklist below and must be captured.
+The canary changes only self-identifying metadata. The survey lane adds a
+three-second passive discovery on a roughly 20-second start-to-start cadence,
+the name/count view, built-in and custom rules, and temporary three-second
+alerts. A continuously present match can therefore retrigger once in each new
+survey window. The embedded configuration is CRC-protected and contains the
+compiled profile id; a mismatch or malformed block disables alerts rather than
+silently selecting another board profile.
 
-A later private survey candidate is also reproducibly built under
-`tmp/fossasia-usbc/build/survey/`. It is 201,788 bytes with SHA-256
-`9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7`.
-It retains the audited FOSSASIA reset/vector, USB, BLE, display, BadgeMagic, and
-KEY2 symbols; leaves 9,788 bytes between static RAM and the stack top; performs
-only a bounded three-second passive discovery; skips connected/streaming
-states; displays `I`, `R`, and `S` progress plus `E`/`T` failures; live-updates
-the count during scanning; consumes the completion list as a fallback; and
-mirrors the documented public-OUI and local-name rules in bounded C. Short KEY2
-rotates `Name 1 → BT counter → Name 2 → BT counter` without changing KEY1's
-system behavior. `COP DETECTED`, `FLIPPER DETECTED`, and `KARR DETECTED`
-overlay either view for three seconds, then the selected view resumes. KARR is
-a name-prefix hint requiring `QT ` at the beginning plus a non-empty serial
-value. An exact case-insensitive
-`LED Badge Magic` name or an advertised `0xFEE0` service shows two alternating
-frames of three frogs for three seconds. Survey windows start roughly every
-20 seconds, so a continuously present match can retrigger once per window.
-Passive discovery may not receive a
-name carried only in scan response; the `0xFEE0` fallback can therefore
-false-positive another compatible advertiser. A suffix-free `BT 00` through
-`BT 64+` is a completed result. The display hook no longer clears the
-framebuffer at each 100 ms scroll step, although the base roughly 45 Hz
-multiplex refresh is unchanged. Qualified 48-column fixed and animation frames
-are cropped to their inner 44 columns using the wire-frame stride; the original
-path remains for unqualified payloads. The audited section sizes are 193,296 bytes of
-text, 8,492 bytes of data, and 4,588 bytes of BSS. Those are build properties,
-not evidence that the badge tolerates repeated surveys. The image does not
-replace the metadata canary as the lower-risk first derived smoke and must not
-be published before the full checklist passes. The embedded C policy mirror
-does not bypass the separate Rust ABI canary.
+The overlay is the sole display owner for its three-second lifetime. Original
+marquee, flash, fixed-animation, and Bluetooth-stream events that were already
+queued are consumed while that ownership flag is active, so they cannot
+restart scrolling underneath an alert. Releasing the overlay restarts only the
+selected nametag/count view. This fixes a source-level scheduling conflict but
+still needs exact-artifact visual testing on each board.
+
+Each profile/lane pair has a separate locked BIN size and SHA-256 and lives
+under `tmp/fossasia-usbc/build/<PROFILE>/<LANE>/`. CI's candidate bundle
+contains both survey profiles and labels both hardware-unverified. Neither an
+Actions candidate nor a locally configured derivative is a public firmware
+release, flash approval, or evidence that either board tolerates repeated
+surveys.
 
 Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 
@@ -212,8 +233,9 @@ Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
 3. cold boot and power-cycle repetition;
 4. USB `0416:5020` HID and CDC enumeration;
 5. a BadgeMagic app nametag upload and visible display;
-6. unchanged KEY1 behavior plus the complete short-KEY2
-   name/count/name rotation and restoration after every text/frog overlay;
+6. the profile-appropriate KEY1 press/brightness/power/wake behavior, plus the
+   complete short-KEY2 name/count/name rotation and restoration after every
+   text/frog/custom overlay;
 7. long KEY2 with the dot cue and ISP `4348:55e0`/`1a86:55e0` enumeration;
 8. reflash of the known-good FOSSASIA image through that normal path.
 

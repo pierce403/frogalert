@@ -32,19 +32,18 @@ jobs:
       - name: Verify repository contract
         run: ./scripts/verify
       - name: Detect active firmware input changes
-        if: github.event_name == 'push'
         id: firmware_candidate_scope
         shell: bash
         env:
-          BEFORE_COMMIT: ${{ github.event.before }}
+          BASE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           CURRENT_COMMIT: ${{ github.sha }}
         run: |
           changed_file_list="tmp/firmware-candidate-changed-files.txt"
           mkdir -p tmp
-          if [[ "$BEFORE_COMMIT" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE_COMMIT^{commit}" 2>/dev/null; then
+          if [[ "$BASE_COMMIT" =~ ^0+$ ]] || ! git cat-file -e "$BASE_COMMIT^{commit}" 2>/dev/null; then
             git diff-tree --no-commit-id --name-only -r "$CURRENT_COMMIT" >"$changed_file_list"
           else
-            git diff --name-only "$BEFORE_COMMIT" "$CURRENT_COMMIT" >"$changed_file_list"
+            git diff --name-only "$BASE_COMMIT" "$CURRENT_COMMIT" >"$changed_file_list"
           fi
 
           required=false
@@ -54,6 +53,7 @@ jobs:
               crates/frogalert-core/*|\
               firmware/fossasia-usbc/*|\
               scripts/apply-fossasia-survey.mjs|\
+              scripts/apply-fossasia-hardware-profile.mjs|\
               scripts/audit-fossasia-usbc.mjs|\
               scripts/build-fossasia-usbc|\
               scripts/firmware-candidate.mjs|\
@@ -87,8 +87,10 @@ jobs:
             tmp/fossasia-usbc/cache
             tmp/fossasia-usbc/toolchains
           key: frogalert-fossasia-usbc-${{ runner.os }}-${{ hashFiles('firmware/fossasia-usbc/upstream-lock.json') }}
-      - name: Build and audit the private survey candidate
-        run: ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+      - name: Build and audit both private survey candidates
+        run: |
+          ./scripts/build-fossasia-usbc survey --check
+          ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
       - name: Package commit-bound candidate evidence
         env:
           FROGALERT_CANDIDATE_COMMIT: ${{ github.sha }}

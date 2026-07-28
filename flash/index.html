@@ -390,8 +390,13 @@
             </div>
             <div class="field-group">
               <label for="pcb-revision">Firmware hardware profile</label>
-              <input id="pcb-revision" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="Example: HARDWARE_REV1">
-              <p class="field-help"><code>HARDWARE_REV1</code> is a software build token, not text expected on the PCB.</p>
+              <select id="pcb-revision">
+                <option value="">Select after opening the badge</option>
+                <option value="B1144C_260404_USB_C">Nyx 260404 · active-low KEY1 wiring (build default)</option>
+                <option value="B1144C_250901_USB_C">Legacy 250901 · active-high KEY1 wiring</option>
+                <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1 recovery only</option>
+              </select>
+              <p class="field-help">Match the printed <code>B1144C_260404</code> or <code>B1144C_250901</code> marking. Color and the generic <code>BM1144-C</code> name are not enough.</p>
             </div>
           </div>
 
@@ -443,7 +448,36 @@
               <h3>Local raw BIN</h3>
               <label for="firmware-file">Choose a local firmware file</label>
               <input id="firmware-file" type="file" accept=".bin,application/octet-stream">
-              <p class="field-help">Bytes stay in this browser and are never a compatibility signal by themselves. The current private survey candidate is 201,788 bytes with SHA-256 <code>9d35de6a3bf7cdf90b2a4fe05fa25d0a85a3f9b18da42228b5e25908a92c51a7</code>; it uses three-second overlays, a roughly 20-second survey cadence, and qualified 48-column app-animation cropping, but it is not hosted, released, or hardware-approved. Selecting a locally built copy is qualified bench testing only and does not prove detector behavior, board compatibility, short-KEY2 mode switching, app-animation compatibility, or long-KEY2 recovery.</p>
+              <p class="field-help">Bytes stay in this browser and are never a compatibility signal by themselves. CI produces separate, commit-bound <code>260404</code> and <code>250901</code> survey candidates with their SHA-256 values in <code>candidate.json</code>; they use three-second overlays, a roughly 20-second survey cadence, and qualified 48-column app-animation cropping, but are not hosted, released, or hardware-approved. Selecting a locally built copy is qualified bench testing only and does not prove detector behavior, board compatibility, button behavior, app-animation compatibility, or KEY2 recovery.</p>
+            </article>
+
+            <article class="artifact-option monitor-config-card">
+              <p class="terminal-label">LOCAL MONITORING OPTIONS</p>
+              <h3>Choose nearby-device alerts</h3>
+              <p class="field-help">Available after loading a compatible FrogAlert survey BIN. Names, OUIs, and services are spoofable hints—not device identity proof. Passive scanning does not request scan responses, so a target advertised only there will be missed.</p>
+              <fieldset id="monitor-targets" class="monitor-targets" disabled>
+                <legend>Built-in targets</legend>
+                <label><input type="checkbox" data-monitor-target="POLICE"><span>Axon/TASER/Flock indicators</span></label>
+                <label><input type="checkbox" data-monitor-target="FLIPPER"><span>Flipper names</span></label>
+                <label><input type="checkbox" data-monitor-target="KARR"><span>KARR <code>QT </code> names</span></label>
+                <label><input type="checkbox" data-monitor-target="RAY_BAN"><span>Ray-Ban names</span></label>
+                <label><input type="checkbox" data-monitor-target="BADGEMAGIC"><span>BadgeMagic / FrogAlert badges</span></label>
+              </fieldset>
+              <div class="custom-target-heading">
+                <h4>Custom targets</h4>
+                <button id="monitor-add-rule" class="button button-secondary" type="button" disabled>Add custom target</button>
+              </div>
+              <div id="monitor-custom-rules" class="monitor-custom-rules"></div>
+              <div class="button-row">
+                <button id="monitor-apply" class="button button-primary" type="button" disabled>Apply monitoring options</button>
+                <button id="monitor-reset" class="button button-secondary" type="button" disabled>Restore base options</button>
+              </div>
+              <p id="monitor-config-status" class="field-help" role="status" aria-live="polite">Load a compatible local survey BIN to configure monitoring.</p>
+              <dl class="monitor-config-facts">
+                <div><dt>Base BIN SHA-256</dt><dd id="monitor-base-hash">—</dd></div>
+                <div><dt>Configured SHA-256</dt><dd id="monitor-final-hash">—</dd></div>
+              </dl>
+              <a id="monitor-download" class="text-link" hidden download>Download configured local BIN</a>
             </article>
           </div>
 
@@ -547,6 +581,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=5"></script>
+    <script type="module" src="../site/app.js?v=7"></script>
   </body>
 </html>

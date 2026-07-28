@@ -1,5 +1,5 @@
 /*
- * Private hardware-survey candidate for the exact B1144C_250901 USB-C badge.
+ * Private hardware-survey candidate for one exact B1144C USB-C profile.
  *
  * WCH's official CentPeri example initializes Central and Peripheral roles
  * together before starting either application task. This module follows that
@@ -14,6 +14,13 @@
 #include "frogalert-survey-core.h"
 #include "frogalert-survey.h"
 
+#ifndef FROGALERT_HARDWARE_PROFILE_ID
+#error "survey build must bind one exact FrogAlert hardware profile id"
+#endif
+#ifndef FROGALERT_HARDWARE_PROFILE_NAME
+#error "survey build must bind one exact FrogAlert hardware profile name"
+#endif
+
 #define SURVEY_START_DEVICE_EVENT (1U << 0)
 #define SURVEY_PREPARE_EVENT      (1U << 1)
 #define SURVEY_BEGIN_EVENT        (1U << 2)
@@ -24,12 +31,13 @@
 #define TMOS_TICKS_FROM_MS(ms) ((uint32_t)(ms) * 1000U / 625U)
 #define SURVEY_CYCLE_TIME_MS  20000U
 #define SURVEY_SCAN_TIME_MS   3000U
+#define SURVEY_RADIO_QUIET_MS 250U
 #define SURVEY_FIRST_DELAY    TMOS_TICKS_FROM_MS(15000U)
 #define SURVEY_RETRY_DELAY    TMOS_TICKS_FROM_MS(10000U)
-#define SURVEY_RADIO_QUIET    TMOS_TICKS_FROM_MS(250U)
+#define SURVEY_RADIO_QUIET    TMOS_TICKS_FROM_MS(SURVEY_RADIO_QUIET_MS)
 #define SURVEY_NEXT_DELAY     TMOS_TICKS_FROM_MS( \
-	SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS)
-#define SURVEY_SCROLL_TIME    TMOS_TICKS_FROM_MS(100U)
+	SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS - SURVEY_RADIO_QUIET_MS)
+#define SURVEY_SCROLL_TIME    TMOS_TICKS_FROM_MS(50U)
 #define SURVEY_WATCHDOG_TIME  TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_ALERT_TIME     TMOS_TICKS_FROM_MS(3000U)
 #define SURVEY_FROG_TIME      TMOS_TICKS_FROM_MS(3000U)
@@ -49,7 +57,8 @@
 
 __attribute__((used, section(".rodata.frogalert")))
 const char frogalert_survey_identity[] =
-	"FROGALERT:SURVEY-MODES-RULES-KARR-FRAME48:FOSSASIA-9ce885d:B1144C_250901_USB_C:UNVERIFIED";
+	"FROGALERT:SURVEY-CONFIG-V1:FOSSASIA-9ce885d:"
+	FROGALERT_HARDWARE_PROFILE_NAME ":UNVERIFIED";
 
 static const char cop_alert[] = "COP DETECTED";
 static const char flipper_alert[] = "FLIPPER DETECTED";
@@ -71,6 +80,9 @@ static uint8_t completed_phase = SURVEY_PHASE_INITIALIZING;
 static uint8_t alert_visible;
 static uint8_t frog_frame;
 static frogalert_survey_alert_t detected_alert;
+static const uint8_t *detected_custom_message;
+static uint8_t detected_custom_message_length;
+static const frogalert_monitor_config_t *active_monitor_config;
 static bStatus_t central_init_status = SUCCESS;
 
 static void survey_central_event(gapRoleEvent_t *event);
@@ -120,6 +132,11 @@ static void render_alert(frogalert_survey_alert_t alert)
 	case FROGALERT_ALERT_FROG_DANCE:
 		frogalert_display_frog_dance(frog_frame++);
 		break;
+	case FROGALERT_ALERT_CUSTOM:
+		frogalert_display_survey_message(
+			(const char *)detected_custom_message,
+			detected_custom_message_length);
+		break;
 	default:
 		break;
 	}
@@ -164,8 +181,10 @@ static void show_survey(uint8_t phase)
 	save_survey_view(survey_counter.count, survey_counter.saturated, phase);
 }
 
-static void show_alert(frogalert_survey_alert_t alert)
+static void show_alert(const frogalert_survey_match_t *match)
 {
+	frogalert_survey_alert_t alert = match->alert;
+
 	if (alert == FROGALERT_ALERT_NONE || alert == detected_alert ||
 	    (detected_alert != FROGALERT_ALERT_NONE &&
 	     detected_alert != FROGALERT_ALERT_FROG_DANCE))
@@ -177,6 +196,8 @@ static void show_alert(frogalert_survey_alert_t alert)
 	 * stable for the remainder of the short survey window.
 	 */
 	detected_alert = alert;
+	detected_custom_message = match->message;
+	detected_custom_message_length = match->message_length;
 	alert_visible = 1;
 	frog_frame = 0;
 	render_alert(alert);
@@ -249,14 +270,15 @@ static void observe_advertisement(uint8_t address_type,
 				  const uint8_t *data, uint8_t data_length)
 {
 	uint8_t count_changed;
-	frogalert_survey_alert_t alert;
+	frogalert_survey_match_t match;
 
 	if (!scan_active || cancel_reason != SURVEY_CANCEL_NONE ||
 	    !frogalert_survey_allowed() || peripheral_is_connected())
 		return;
-	alert = frogalert_survey_classify(
-		address, address_type == ADDRTYPE_PUBLIC, data, data_length);
-	show_alert(alert);
+	frogalert_survey_classify(
+		active_monitor_config, address, address_type == ADDRTYPE_PUBLIC,
+		data, data_length, &match);
+	show_alert(&match);
 	count_changed = frogalert_survey_counter_observe(&survey_counter, address);
 	if (count_changed)
 		show_survey(SURVEY_PHASE_SCANNING);
@@ -373,6 +395,8 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 
 		frogalert_survey_counter_reset(&survey_counter);
 		detected_alert = FROGALERT_ALERT_NONE;
+		detected_custom_message = NULL;
+		detected_custom_message_length = 0;
 		alert_visible = 0;
 		tmos_stop_task(survey_task_id, SURVEY_ALERT_END_EVENT);
 		status = GAPRole_GetParameter(GAPROLE_ADVERT_ENABLED,
@@ -517,6 +541,13 @@ void frogalert_survey_init(void)
 
 	survey_task_id = TMOS_ProcessEventRegister(survey_task);
 	frogalert_survey_counter_reset(&survey_counter);
+	if (frogalert_monitor_config_validate(
+		    &frogalert_monitor_config, FROGALERT_HARDWARE_PROFILE_ID)) {
+		active_monitor_config = &frogalert_monitor_config;
+	} else {
+		active_monitor_config = NULL;
+		PRINT("FrogAlert monitor config invalid; alerts disabled\n");
+	}
 	GAP_SetParamValue(TGAP_DISC_SCAN, SURVEY_SCAN_TICKS);
 	GAP_SetParamValue(TGAP_DISC_SCAN_INT, 16);
 	GAP_SetParamValue(TGAP_DISC_SCAN_WIND, 16);

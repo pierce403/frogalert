@@ -62,6 +62,10 @@ on chat context or filenames alone.
 - [`2026-07-28-wide-og-card.md`](agent-memory/logs/2026-07-28-wide-og-card.md)
   — horizontal 11×44 social-card geometry, versioned unfurl cache busting, and
   the repeatable SVG-to-JPEG render command.
+- [`2026-07-28-nyx-profiles-and-monitor-config.md`](agent-memory/logs/2026-07-28-nyx-profiles-and-monitor-config.md)
+  — identical USB-C matrix mapping, `260404`/`250901` KEY1 profiles,
+  no safe untouched-button auto-detection, bounded web monitoring config,
+  display-event ownership, and dual-profile candidate boundaries.
 
 ## People
 

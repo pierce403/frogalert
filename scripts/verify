@@ -14,6 +14,15 @@ cc -std=c11 -Wall -Wextra -Werror \
   tests/fossasia-survey-core.c \
   -o tmp/c-tests/fossasia-survey-core
 tmp/c-tests/fossasia-survey-core
+for profile_id in 1 2; do
+  cc -std=c11 -Wall -Wextra -Werror \
+    -DFROGALERT_HARDWARE_PROFILE_ID="$profile_id" \
+    -Ifirmware/fossasia-usbc \
+    firmware/fossasia-usbc/frogalert-monitor-config.c \
+    tests/fossasia-monitor-config.c \
+    -o "tmp/c-tests/fossasia-monitor-config-$profile_id"
+  "tmp/c-tests/fossasia-monitor-config-$profile_id"
+done
 cc -std=c11 -Wall -Wextra -Werror \
   -Ifirmware/fossasia-usbc \
   firmware/fossasia-usbc/frogalert-animation-compat.c \
