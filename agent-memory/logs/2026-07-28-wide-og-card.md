@@ -20,3 +20,11 @@ existing unfurls. Regenerate the current JPEG from the SVG with:
 ```bash
 ./scripts/render-og-card
 ```
+
+## Physical-face correction
+
+The first horizontal redraw still invented a left-side control rail with a
+visible `11×44` label and left a wide section of the shell without LEDs. The
+physical badge face is almost entirely matrix. The corrected v3 card removes
+all face labels and controls, expands the exact 4:1 matrix to 1064×266 inside a
+1092×270 shell, and keeps only the message in the LED field.

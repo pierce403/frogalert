@@ -184,7 +184,7 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | No analytics or telemetry | **SHIPPED** | Static source inspection | Device data never leaves browser. |
 | Link to source and feature tracker | **SHIPPED** | Public navigation | Keep GitHub URLs current. |
 | Open BadgeMagic recovery explanation | **PROTOTYPE** | Local and live browser smokes confirm exact-Rev1 refusal/preparation states, pinned metadata, hash verification, and a locked destructive button | Physical-device usability remains pending. |
-| Social preview image | **SHIPPED** at static-site layer | Both routes expose complete Open Graph and large-card metadata for a cache-busting 1200×630 JPEG; tests require a horizontal shell and exact 4:1 44×11 matrix | Confirm a real link unfurl after deployment. |
+| Social preview image | **SHIPPED** at static-site layer | Both routes expose complete Open Graph and large-card metadata for a cache-busting 1200×630 JPEG; tests require a horizontal shell and an edge-to-edge exact 4:1 44×11 matrix without a dimension label on the badge face | Confirm a real link unfurl after deployment. |
 
 ## Browser BadgeMagic connection
 

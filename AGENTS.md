@@ -193,7 +193,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the same absolute 1200×630 URL. When artwork changes materially, advance the
   JPEG filename to invalidate unfurl caches while retaining the prior file for
   existing links. Tests must verify encoded dimensions, a long horizontal
-  shell, and the exact 4:1 geometry of the illustrated 44×11 matrix.
+  shell, and the exact 4:1 geometry of the illustrated 44×11 matrix. The
+  physical badge face is almost entirely LEDs: keep the matrix near the bezel,
+  without a fake side control rail or a visible `11×44` dimension label.
 - This dependency-free site relies on explicit module query versions for cache
   invalidation. When an app dependency changes exports or state contracts, bump
   both pages' `app.js` query and the changed dependency query in `site/app.js`;
