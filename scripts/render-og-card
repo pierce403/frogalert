@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source_svg="$repo_root/site/og-card.svg"
+output_arg="${1:-site/og-card-v2.jpg}"
+
+if [[ "$output_arg" = /* ]]; then
+  output_jpeg="$output_arg"
+else
+  output_jpeg="$repo_root/$output_arg"
+fi
+
+case "$output_jpeg" in
+  "$repo_root"/site/og-card*.jpg) ;;
+  *)
+    echo "output must be a site/og-card*.jpg path inside the repository" >&2
+    exit 1
+    ;;
+esac
+
+command -v ffmpeg >/dev/null
+command -v ffprobe >/dev/null
+xmllint --noout "$source_svg"
+
+ffmpeg \
+  -nostdin \
+  -hide_banner \
+  -loglevel error \
+  -y \
+  -i "$source_svg" \
+  -frames:v 1 \
+  -q:v 2 \
+  -pix_fmt yuvj420p \
+  "$output_jpeg"
+
+dimensions="$(
+  ffprobe \
+    -v error \
+    -select_streams v:0 \
+    -show_entries stream=width,height \
+    -of csv=s=x:p=0 \
+    "$output_jpeg"
+)"
+
+if [[ "$dimensions" != "1200x630" ]]; then
+  echo "rendered social card has unexpected dimensions: $dimensions" >&2
+  exit 1
+fi
+
+echo "rendered ${output_jpeg#"$repo_root"/} ($dimensions)"

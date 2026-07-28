@@ -188,9 +188,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - Keep protocol encoders pure and unit-tested separately from WebUSB transport.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
-- Keep `site/og-card.svg` as the editable source for the checked-in
-  `site/og-card.jpg`; both pages use the same absolute 1200×630 social image,
-  and tests must verify its encoded dimensions.
+- Keep `site/og-card.svg` as the editable social-card source and render the
+  current versioned JPEG with `./scripts/render-og-card`. Both pages must use
+  the same absolute 1200×630 URL. When artwork changes materially, advance the
+  JPEG filename to invalidate unfurl caches while retaining the prior file for
+  existing links. Tests must verify encoded dimensions, a long horizontal
+  shell, and the exact 4:1 geometry of the illustrated 44×11 matrix.
 - This dependency-free site relies on explicit module query versions for cache
   invalidation. When an app dependency changes exports or state contracts, bump
   both pages' `app.js` query and the changed dependency query in `site/app.js`;

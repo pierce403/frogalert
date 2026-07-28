@@ -59,6 +59,9 @@ on chat context or filenames alone.
 - [`2026-07-23-commit-release-pipeline.md`](agent-memory/logs/2026-07-23-commit-release-pipeline.md)
   — schema-v4 catalog, gated commit-driven GitHub Release reconciliation, and
   release-before-Pages ordering without publishing private firmware.
+- [`2026-07-28-wide-og-card.md`](agent-memory/logs/2026-07-28-wide-og-card.md)
+  — horizontal 11×44 social-card geometry, versioned unfurl cache busting, and
+  the repeatable SVG-to-JPEG render command.
 
 ## People
 

@@ -10,19 +10,26 @@ const readBytes = (path) => readFile(new URL(path, root));
 function assertSocialPreview(html) {
   assert.match(
     html,
-    /property="og:image" content="https:\/\/frogalert\.org\/site\/og-card\.jpg"/,
+    /property="og:image" content="https:\/\/frogalert\.org\/site\/og-card-v2\.jpg"/,
   );
   assert.match(html, /property="og:image:type" content="image\/jpeg"/);
   assert.match(html, /property="og:image:width" content="1200"/);
   assert.match(html, /property="og:image:height" content="630"/);
-  assert.match(html, /property="og:image:alt" content="[^"]+"/);
+  assert.match(
+    html,
+    /property="og:image:alt" content="[^"]*long horizontal 11×44 LED nametag[^"]*"/,
+  );
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.match(
     html,
-    /name="twitter:image" content="https:\/\/frogalert\.org\/site\/og-card\.jpg"/,
+    /name="twitter:image" content="https:\/\/frogalert\.org\/site\/og-card-v2\.jpg"/,
   );
-  assert.match(html, /name="twitter:image:alt" content="[^"]+"/);
+  assert.match(
+    html,
+    /name="twitter:image:alt" content="[^"]*long horizontal 11×44 LED nametag[^"]*"/,
+  );
   assert.doesNotMatch(html, /og-card\.png/);
+  assert.doesNotMatch(html, /\/site\/og-card\.jpg/);
 }
 
 function jpegDimensions(bytes) {
@@ -295,12 +302,30 @@ test("first-entry guidance defaults unknown firmware to a safe stop", async () =
 });
 
 test("social preview card is a 1200 by 630 JPEG", async () => {
-  const bytes = await readBytes("site/og-card.jpg");
+  const bytes = await readBytes("site/og-card-v2.jpg");
   assert.deepEqual(jpegDimensions(bytes), { width: 1200, height: 630 });
   assert.ok(bytes.length > 40_000, "social card should contain rendered artwork");
   const source = await read("site/og-card.svg");
   assert.match(source, /width="1200" height="630"/);
   assert.match(source, /Bluetooth alerts on a nametag/);
+  const shell = source.match(
+    /<rect id="badge-shell"[^>]*width="([0-9.]+)"[^>]*height="([0-9.]+)"/,
+  );
+  const matrix = source.match(
+    /<rect id="badge-matrix"[^>]*width="([0-9.]+)"[^>]*height="([0-9.]+)"/,
+  );
+  assert.ok(shell, "social card should identify the illustrated badge shell");
+  assert.ok(matrix, "social card should identify the illustrated LED matrix");
+  assert.ok(
+    Number(shell[1]) / Number(shell[2]) >= 4,
+    "illustrated badge shell should read as a long horizontal nametag",
+  );
+  assert.equal(
+    Number(matrix[1]) / Number(matrix[2]),
+    4,
+    "illustrated 44×11 LED matrix should have a 4:1 aspect ratio",
+  );
+  assert.match(source, />COP DETECTED<\/text>/);
   await assert.rejects(readBytes("site/og-card.png"), /ENOENT/);
 });
 
