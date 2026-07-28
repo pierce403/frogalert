@@ -196,6 +196,11 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain,
     /start = \(uint8_t\)\(\(LED_COLS - width\) \/ 2\);/,
   );
+  assert.match(patchedMain, /\[column \+ 1\] << 2/);
+  assert.doesNotMatch(
+    patchedMain,
+    /frogalert_survey_text\[[\s\S]{0,100}\]\s*\[column\] << 2/,
+  );
   assert.match(
     patchedMain,
     /!frogalert_survey_display_owned \|\|\s*frogalert_survey_page_count <= 1/,

@@ -314,9 +314,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
   short press retains the normal system action and KEY2 long press retains ISP
   entry. The locked `260404` candidate is 204,364 bytes at SHA-256
-  `07b32a578d308b6db52e620130d5c4a700fb6fa77d0d9ca0c3ce29cc3ca91995`;
+  `5d32ca8e15c5091ffaa5c9f3ee1be18a1f28c8cae89665e2aa0d50663081b477`;
   the `250901` candidate is 204,332 bytes at SHA-256
-  `ca5140869aeeebf291dffbfb448142ac9a3e7bb66bf88509f507329a01a97f65`.
+  `bf3cfadb5d7b247bcf10949208a912dee19b9ee60497ff529fb56d923acffa1f`.
   Original scrolling tasks can already
   have queued work, so their marquee/flash/fixed/Bluetooth event handlers must
   consume events without rescheduling while an overlay owns the panel. Both
@@ -343,6 +343,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   already be queued, patched handlers also consume their events without
   rescheduling while an overlay owns the panel. This addresses the competing
   scroll, but does not change the base refresh rate.
+- The first fixed-page candidate physically rendered `FLIPPER` as
+  `FLIFFER`-like text and produced malformed digits. FOSSASIA's `font5x7`
+  table stores six columns: a blank lead-in at index 0 followed by five actual
+  glyph columns. The initial static renderer copied indices 0–4 and therefore
+  dropped the right edge of every glyph. The replacement copies indices 1–5;
+  keep the regression assertion and re-prove text/count readability on the
+  exact replacement hash.
 - The user observed an app-sent animation shifted two columns right with the
   first two columns blank. This is not evidence of a pin-map error. BadgeMagic
   stable `v1.18.15` and development `42c98bc` encode an untrimmed 44-column

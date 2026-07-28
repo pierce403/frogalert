@@ -277,7 +277,7 @@ static void frogalert_display_survey_render_page(void)
 				(uint16_t)(font5x7[
 					frogalert_survey_text[
 						text_start + character] - ' ']
-					[column] << 2);
+					[column + 1] << 2);
 	}
 }
 

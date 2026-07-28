@@ -26,9 +26,9 @@ Both profiles passed the FOSSASIA runtime, vector, ELF/BIN identity, radio
 survey, and minimum-RAM-headroom gates. They are local/CI candidates only:
 
 - `B1144C_260404_USB_C`: 204,364 bytes, SHA-256
-  `07b32a578d308b6db52e620130d5c4a700fb6fa77d0d9ca0c3ce29cc3ca91995`
+  `5d32ca8e15c5091ffaa5c9f3ee1be18a1f28c8cae89665e2aa0d50663081b477`
 - `B1144C_250901_USB_C`: 204,332 bytes, SHA-256
-  `ca5140869aeeebf291dffbfb448142ac9a3e7bb66bf88509f507329a01a97f65`
+  `bf3cfadb5d7b247bcf10949208a912dee19b9ee60497ff529fb56d923acffa1f`
 
 Neither exact artifact has a hash-bound physical flash, display, radio,
 BadgeMagic upload, or KEY2 recovery transcript. Keep both
@@ -39,3 +39,13 @@ nearest USB, so it matches the `250901` user's physical muscle memory. Its
 farther KEY2 keeps short system-mode control and the independent long-press ISP
 hook. The `250901` application retains its existing KEY1 system and KEY2 view
 actions.
+
+## Physical glyph failure and correction
+
+The first flashed fixed-page image showed `FLIPPER` as `FLIFFER`-like text and
+made the count digits look malformed. Inspection confirmed that FOSSASIA's
+`font5x7[][6]` stores a blank lead-in column at index 0 followed by five real
+glyph columns. The static renderer copied indices 0–4, retaining the blank and
+dropping the right edge of every glyph. The replacement copies indices 1–5.
+This source-level cause exactly fits the observed P/F and digit failures, but
+the corrected replacement hashes still require physical confirmation.

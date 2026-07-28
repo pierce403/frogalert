@@ -110,8 +110,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Ray-Ban[\s\S]*Ray Ban[\s\S]*COP DETECTED/);
   assert.doesNotMatch(html, /HAX DETECTED/);
   assert.match(html, /profile-specific .*260404.*250901.*candidates/is);
-  assert.match(html, /204,364 bytes.*07b32a578d308b6db52e620130d5c4a700fb6fa77d0d9ca0c3ce29cc3ca91995/);
-  assert.match(html, /ca5140869aeeebf291dffbfb448142ac9a3e7bb66bf88509f507329a01a97f65/);
+  assert.match(html, /204,364 bytes.*5d32ca8e15c5091ffaa5c9f3ee1be18a1f28c8cae89665e2aa0d50663081b477/);
+  assert.match(html, /204,332 bytes.*bf3cfadb5d7b247bcf10949208a912dee19b9ee60497ff529fb56d923acffa1f/);
   assert.match(html, /a fixed counter, fixed-page three-second text alerts/);
   assert.match(html, /active-low .*260404.*build default/is);
   assert.match(html, /cannot be distinguished passively at boot/i);
