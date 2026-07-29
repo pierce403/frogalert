@@ -96,7 +96,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Prepare open BadgeMagic firmware/);
   assert.match(html, /PROTOTYPE \/ BADGE · HARDWARE-UNVERIFIED/);
   assert.match(html, /Private dual-profile survey BINs/);
-  assert.match(html, /view button.*names.*BT 00.*nearest USB.*260404/is);
+  assert.match(html, /view button.*names.*Bluetooth-rune.*00.*nearest USB.*260404/is);
   assert.match(html, /Scanning runs in either display mode/i);
   assert.match(html, /shows.*COP DETECTED.*one second each/is);
   assert.match(html, /dancing-frog frames/i);
@@ -111,8 +111,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.doesNotMatch(html, /HAX DETECTED/);
   assert.match(html, /profile-specific .*260404.*250901.*candidates/is);
   assert.match(html, /double-buffered output overlay.*blink.*marquee.*base animations/is);
-  assert.match(html, /204,760 bytes.*87d11900921cc33e20463ff2ce828cc4a4a2e3a967e33593518f074abd0eeeeb/);
-  assert.match(html, /204,736 bytes.*d9ce4edb5093058fecbad09eb3e594ee8c4a7c1d113f99bb4764043ae02c5b9d/);
+  assert.match(html, /205,152 bytes.*c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9/);
+  assert.match(html, /205,128 bytes.*f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9/);
   assert.match(html, /complete-frame refresh from roughly 45 Hz to 182 Hz/);
   assert.match(html, /a fixed counter, one-second-per-frame fixed alerts/);
   assert.match(html, /active-low .*260404.*build default/is);

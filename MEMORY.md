@@ -76,6 +76,9 @@ on chat context or filenames alone.
 - [`2026-07-28-display-refresh.md`](agent-memory/logs/2026-07-28-display-refresh.md)
   — pinned bkero PWM timing port, 182 Hz survey refresh, dual-profile build
   hashes, and physical BLE/current/display acceptance boundary.
+- [`2026-07-28-bluetooth-counter-logo.md`](agent-memory/logs/2026-07-28-bluetooth-counter-logo.md)
+  — FOSSASIA-derived fixed Bluetooth rune, centered count layout, locked
+  dual-profile candidate hashes, and remaining physical display gate.
 
 ## People
 

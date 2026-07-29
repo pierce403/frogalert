@@ -213,9 +213,26 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /FROGALERT_SURVEY_PAGE_MAX\s+2/);
   assert.match(patchedMain, /FROGALERT_SURVEY_TEXT_MAX\s+16/);
   assert.match(patchedMain, /frogalert_display_survey_message/);
+  assert.match(patchedMain, /FROGALERT_SURVEY_BT_LOGO_WIDTH\s+6/);
   assert.match(
     patchedMain,
-    /frogalert_display_survey_text\(\s*text, text_length, FALSE\)/,
+    /0x088, 0x050, 0x7ff, 0x222, 0x154, 0x088/,
+  );
+  assert.match(
+    patchedMain,
+    /bluetooth_logo\[column\]/,
+  );
+  assert.match(
+    patchedMain,
+    /result_length = saturated \? 3 : 2/,
+  );
+  assert.match(
+    patchedMain,
+    /result_length \* FROGALERT_SURVEY_GLYPH_STRIDE/,
+  );
+  assert.match(
+    patchedMain,
+    /phase != ' ' && \(phase < ' ' \|\| phase > '~'\)/,
   );
   assert.match(
     patchedMain,
@@ -241,8 +258,11 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.doesNotMatch(patchedMain, /frogalert_survey_offset/);
   assert.doesNotMatch(patchedMain, /frogalert_survey_bitmap/);
-  assert.match(patchedMain, /text\[5\] = '\+'/);
-  assert.match(patchedMain, /\(char\)phase/);
+  assert.doesNotMatch(
+    patchedMain,
+    /char text\[FROGALERT_SURVEY_COUNT_LENGTH\]/,
+  );
+  assert.match(patchedMain, /font5x7\[phase - ' '\]/);
   assert.match(
     patchedMain,
     /if \(!frogalert_survey_display_owned\)[\s\S]*stop_all_animation\(\)/,

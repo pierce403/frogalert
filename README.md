@@ -94,7 +94,7 @@ compiled hardware profile. The browser will not rewrite a `250901` image as a
 hardware-unverified local artifact even when its base BIN came from CI.
 
 In these candidates, the physical button nearest USB rotates the visible
-content as `Name 1 → BT counter → Name 2 → BT counter → …`: that is KEY2 on
+content as `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`: that is KEY2 on
 `250901`, but KEY1 on the reversed `260404` layout. The other short press keeps
 FOSSASIA's normal system-mode action. KEY1 long press still changes brightness,
 and the independent farther-button long-KEY2 ISP path remains in the inherited
@@ -103,7 +103,8 @@ surveys continue in both nametag and counter views. `COP DETECTED`,
 `FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
 one second per generated frame, then the selected view resumes without
 changing the uploaded nametag data. The current built-ins use two frames and
-therefore last two seconds. The counter is one centered, fixed frame (`BT 04`, with a
+therefore last two seconds. The counter is one centered, fixed frame (the
+Bluetooth rune followed by `04`, with a
 one-letter phase suffix while a survey is in progress). Text alerts use at
 most two fixed pages held for one second each—such as `COP` followed by
 `DETECTED`—rather than scrolling pixel by pixel. Survey

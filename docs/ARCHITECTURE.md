@@ -70,7 +70,7 @@ arms the first scan.
 
 The physical button nearest USB extends FOSSASIA's display-selection behavior
 with a virtual counter view:
-`Name 1 → BT counter → Name 2 → BT counter → …`. That input is KEY1 on the
+`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. That input is KEY1 on the
 reversed `260404` layout and KEY2 on `250901`; the other short press retains
 the upstream system-mode action. KEY1 keeps its long-press brightness action. The
 separate roughly 2.2-second KEY2-to-ISP poll is unchanged. The view choice is
@@ -88,7 +88,7 @@ still deliberately suspend FrogAlert and return the panel to FOSSASIA.
 
 The counter's final character shows `I` for initialization, `R` for
 ready/waiting, `S` for active scan, `E` for error, or `T` for watchdog timeout.
-The suffix disappears for a completed `BT 00` to `BT 64+` result. Live report
+The suffix disappears for a completed Bluetooth-rune `00` to `64+` result. Live report
 events update the count during `S`, and the final discovery list is consumed as
 a fallback. Each survey temporarily stops advertising, scans for three
 seconds, restores the prior advertising state, and waits about 17 seconds.

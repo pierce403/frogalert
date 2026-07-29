@@ -60,7 +60,7 @@ and classifier for the selected profile.
 
 This diagnostic lane starts in normal nametag view. The physical button nearest
 USB extends FOSSASIA's existing display selection with a virtual counter:
-`Name 1 → BT counter → Name 2 → BT counter → …`. That is KEY1 on `260404`
+`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. That is KEY1 on `260404`
 and KEY2 on `250901`. The other short press retains normal system/power
 behavior, KEY1 retains long-press brightness, and the separate long-KEY2 ISP
 task remains unchanged. Passive surveys run in either visible
@@ -71,8 +71,8 @@ In counter view, the final character exposes progress: `I` means Central
 initialization, `R` means ready/waiting, and `S` means the three-second passive
 scan is active. A completed result has no suffix; `E` means an
 initialization/start error and `T` means the five-second watchdog expired. For
-example, a normal first cycle is `BT 00  I`, `BT 00  R`, `BT 00  S` (with live
-updates), then `BT 04`.
+example, a normal first cycle is the Bluetooth rune plus `00  I`, `00  R`, and
+`00  S` (with live updates), then the rune plus `04`.
 
 The first scan begins 15 seconds after readiness, so the first completed result
 normally appears about 18 seconds after startup. The lane skips scan work while
@@ -98,8 +98,8 @@ disables alerts rather than guessing. Scanning and the count view remain
 available in that failure mode.
 
 Cop, Flipper, KARR, and frog overlays show every generated frame exactly once
-for one second. Each then restores the selected nametag or latest `BT 00` through
-`BT 64+` counter view without modifying uploaded content. Passive discovery
+for one second. Each then restores the selected nametag or latest Bluetooth-rune
+`00` through `64+` counter view without modifying uploaded content. Passive discovery
 does not guarantee delivery of a local name carried only in scan response, so
 the advertised-`0xFEE0` branch is a deliberately broad fallback and may animate
 for another compatible device that reuses that service UUID. OUI rules run only

@@ -227,10 +227,14 @@ void play_splash`,
 {
 `,
     `#ifdef FROGALERT_SURVEY
-#define FROGALERT_SURVEY_COUNT_LENGTH 7
 #define FROGALERT_SURVEY_TEXT_MAX     16
 #define FROGALERT_SURVEY_PAGE_CHARS   8
 #define FROGALERT_SURVEY_PAGE_MAX     2
+#define FROGALERT_SURVEY_BT_LOGO_WIDTH 6
+#define FROGALERT_SURVEY_GLYPH_WIDTH   5
+#define FROGALERT_SURVEY_GLYPH_STRIDE  6
+#define FROGALERT_SURVEY_ICON_GAP      2
+#define FROGALERT_SURVEY_PHASE_GAP     2
 
 static char frogalert_survey_text[FROGALERT_SURVEY_TEXT_MAX];
 static uint8_t frogalert_survey_page_start[FROGALERT_SURVEY_PAGE_MAX];
@@ -347,25 +351,71 @@ static uint8_t frogalert_display_survey_text(const char *text,
 uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
 				       uint8_t phase)
 {
-	char text[FROGALERT_SURVEY_COUNT_LENGTH] = {
-		'B',
-		'T',
-		' ',
+	/* First-frame rune from FOSSASIA's pinned 24x66 bluetooth.xbm. */
+	static const uint16_t bluetooth_logo[FROGALERT_SURVEY_BT_LOGO_WIDTH] = {
+		0x088, 0x050, 0x7ff, 0x222, 0x154, 0x088,
+	};
+	char result[3] = {
 		(char)('0' + ((count / 10) % 10)),
 		(char)('0' + (count % 10)),
-		' ',
-		(char)phase,
+		'+',
 	};
-	uint8_t text_length = 5;
+	uint8_t result_length = saturated ? 3 : 2;
+	uint8_t width = FROGALERT_SURVEY_BT_LOGO_WIDTH +
+			FROGALERT_SURVEY_ICON_GAP +
+			result_length * FROGALERT_SURVEY_GLYPH_STRIDE - 1;
+	uint8_t start;
+	uint8_t glyph_start;
+	uint8_t target_index;
 
-	if (saturated) {
-		text[5] = '+';
-		text_length = 6;
-	}
+	if (phase != ' ' && (phase < ' ' || phase > '~'))
+		return FALSE;
 	if (phase != ' ')
-		text_length = FROGALERT_SURVEY_COUNT_LENGTH;
-	return frogalert_display_survey_text(
-		text, text_length, FALSE);
+		width += FROGALERT_SURVEY_PHASE_GAP +
+			 FROGALERT_SURVEY_GLYPH_WIDTH;
+	if (!frogalert_survey_display_active()) {
+		frogalert_display_survey_release();
+		return FALSE;
+	}
+	if (!frogalert_survey_display_owned)
+		stop_all_animation();
+
+	start = (uint8_t)((LED_COLS - width) / 2);
+	glyph_start = start + FROGALERT_SURVEY_BT_LOGO_WIDTH +
+		      FROGALERT_SURVEY_ICON_GAP;
+	target_index = frogalert_survey_overlay_index ^ 1U;
+	for (uint8_t column = 0; column < LED_COLS; column++)
+		frogalert_survey_overlay_fb[target_index][column] = 0;
+	for (uint8_t column = 0;
+	     column < FROGALERT_SURVEY_BT_LOGO_WIDTH; column++)
+		frogalert_survey_overlay_fb[target_index][start + column] =
+			bluetooth_logo[column];
+	for (uint8_t character = 0; character < result_length; character++) {
+		for (uint8_t column = 0;
+		     column < FROGALERT_SURVEY_GLYPH_WIDTH; column++)
+			frogalert_survey_overlay_fb[target_index]
+				[glyph_start +
+				 character * FROGALERT_SURVEY_GLYPH_STRIDE +
+				 column] =
+				(uint16_t)(font5x7[result[character] - ' ']
+					[column + 1] << 2);
+	}
+	if (phase != ' ') {
+		uint8_t phase_start =
+			glyph_start +
+			result_length * FROGALERT_SURVEY_GLYPH_STRIDE +
+			FROGALERT_SURVEY_PHASE_GAP - 1;
+		for (uint8_t column = 0;
+		     column < FROGALERT_SURVEY_GLYPH_WIDTH; column++)
+			frogalert_survey_overlay_fb[target_index]
+				[phase_start + column] =
+				(uint16_t)(font5x7[phase - ' ']
+					[column + 1] << 2);
+	}
+	frogalert_survey_page_count = 0;
+	frogalert_survey_overlay_index = target_index;
+	frogalert_survey_display_owned = TRUE;
+	return TRUE;
 }
 
 uint8_t frogalert_display_survey_message(const char *message,

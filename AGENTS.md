@@ -289,7 +289,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the discovery completion list,
   and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
   no suffix for a completed result, `E` error, and `T` timeout. The nearest-USB
-  view button rotates `Name 1 → BT counter → Name 2 → BT counter`: KEY1 on
+  view button rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`: KEY1 on
   `260404`, KEY2 on `250901`. The other short press retains the system action;
   KEY1 long brightness and the independent long-KEY2 ISP task remain inherited. Surveys
   continue in either visible view. A CRC/profile-bound configuration enables
@@ -313,10 +313,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the physical button nearest USB as the
   counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
   short press retains the normal system action and KEY2 long press retains ISP
-  entry. The locked `260404` candidate is 204,760 bytes at SHA-256
-  `87d11900921cc33e20463ff2ce828cc4a4a2e3a967e33593518f074abd0eeeeb`;
-  the `250901` candidate is 204,736 bytes at SHA-256
-  `d9ce4edb5093058fecbad09eb3e594ee8c4a7c1d113f99bb4764043ae02c5b9d`.
+  entry. The locked `260404` candidate is 205,152 bytes at SHA-256
+  `c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9`;
+  the `250901` candidate is 205,128 bytes at SHA-256
+  `f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9`.
+  The fixed count frame uses the six-column, full-height Bluetooth rune from
+  the first frame of FOSSASIA's pinned `src/res/bluetooth.xbm`, followed by the
+  count and optional diagnostic phase.
   FrogAlert completes frames in one of two private buffers and the final TMR0
   refresh selects the committed buffer while an overlay owns the panel.
   Marquee/flash/fixed/Bluetooth event handlers also consume queued work without

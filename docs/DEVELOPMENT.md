@@ -109,7 +109,7 @@ The canary adds one retained C metadata string and owns no functions or
 hardware. The survey lane keeps the same shell, uses WCH's combined
 central/peripheral role pattern, and adds only a disconnected three-second
 passive scan plus a button-selectable fixed aggregate-count frame. The button
-nearest USB rotates `Name 1 → BT counter → Name 2 → BT counter`: KEY1 on
+nearest USB rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`: KEY1 on
 `260404`, KEY2 on `250901`. The other short press keeps the normal system
 action; KEY1 long brightness and the separate long-KEY2 ISP poll remain
 inherited. Scanning continues in either
