@@ -218,15 +218,15 @@ shutdown wake. It does not change the common LED matrix table or KEY2.
 
 The canary changes only self-identifying metadata. The survey lane adds a
 three-second passive discovery on a roughly 20-second start-to-start cadence,
-the name/count view, built-in and custom rules, and temporary three-second
-alerts. A continuously present match can therefore retrigger once in each new
+the name/count view, built-in and custom rules, and temporary one-second-per-
+frame alerts. A continuously present match can therefore retrigger once in each new
 survey window. The embedded configuration is CRC-protected and contains the
 compiled profile id; a mismatch or malformed block disables alerts rather than
 silently selecting another board profile.
 
-The overlay is the sole display owner for its three-second lifetime. Text
-alerts use at most two fixed pages held for 1.5 seconds each; the count is one
-centered fixed frame. Original
+The overlay is the sole display owner for its frame-count-derived lifetime.
+Text alerts use at most two fixed pages held for one second each; the count is
+one centered fixed frame. Original
 marquee, flash, fixed-animation, and Bluetooth-stream events that were already
 queued are consumed while that ownership flag is active, so they cannot
 restart scrolling underneath an alert. Releasing the overlay restarts only the

@@ -9,8 +9,8 @@ counts render as `BT 64+`.
 
 Text messages are limited to 16 characters and rendered as no more than two
 fixed pages. A space is used as the split point when both halves fit; otherwise
-the renderer splits after eight characters. Each page is held for 1.5 seconds,
-so the existing three-second alert lifetime shows both pages exactly once.
+the renderer splits after eight characters. The replacement timing holds every
+generated page for one second exactly once.
 Built-in alerts therefore appear as:
 
 - `COP`, then `DETECTED`
@@ -18,17 +18,17 @@ Built-in alerts therefore appear as:
 - `KARR`, then `DETECTED`
 
 The frog alert keeps its intentional two-pose animation, with each pose held
-for 1.5 seconds.
+for one second.
 
 ## Locked build evidence
 
 Both profiles passed the FOSSASIA runtime, vector, ELF/BIN identity, radio
 survey, and minimum-RAM-headroom gates. They are local/CI candidates only:
 
-- `B1144C_260404_USB_C`: 204,532 bytes, SHA-256
-  `ef144ee07f5138277ccc217541834a20c4a8660a36cfa7ab468db4d90b4fff20`
-- `B1144C_250901_USB_C`: 204,508 bytes, SHA-256
-  `36cca2721c2535df9eefd950e178c5f39d192a6f7f3f07c4683a03f2edb55af8`
+- `B1144C_260404_USB_C`: 204,748 bytes, SHA-256
+  `8e602591ce0d87c98c97d9147cfbc023d697a87c4a4797c020b85ba4d9b3ae9c`
+- `B1144C_250901_USB_C`: 204,724 bytes, SHA-256
+  `0e92b9b778398c59e7d1b07944c270c80d4d27b45d8d1f8094f7a0a204084b30`
 
 Neither exact artifact has a hash-bound physical flash, display, radio,
 BadgeMagic upload, or KEY2 recovery transcript. Keep both
@@ -64,3 +64,18 @@ FOSSASIA's `fb` otherwise. Blink, marquee, all nine base animation modes, and
 queued BLE animations can therefore continue writing shared state without
 changing the visible FrogAlert alert. Streaming and non-normal system modes
 still deliberately suspend FrogAlert and return the display to FOSSASIA.
+
+## Alert-relative frame timing
+
+Physical testing of the preceding image showed `FLIPPER`, `DETECTED`, then
+`FLIPPER` again. Its page change came from a free-running 1.5-second reload
+event that was not anchored to alert start, while the alert itself ended on a
+separate fixed three-second event. The page step also wrapped modulo page
+count, allowing a boundary event to redraw page zero.
+
+The replacement renders frame zero immediately, starts a one-shot page event
+relative to that alert, advances without wrap, and schedules another event only
+when an unshown frame remains. The end event is
+`one second × generated frame count`. Thus a one-page custom alert lasts one
+second; built-in two-page alerts and the two-pose frog animation last two
+seconds, with no repeated filler frame.

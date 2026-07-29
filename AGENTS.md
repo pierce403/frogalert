@@ -207,7 +207,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   hardware-unverified. Never use configuration to change hardware profile.
 - When a FrogAlert overlay owns the display, consume already queued original
   animation events without rescheduling them; release the selected base view
-  only after the three-second overlay expires.
+  only after the final one-second alert frame expires.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
 - Keep `site/og-card.svg` as the editable social-card source and render the
@@ -295,14 +295,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   continue in either visible view. A CRC/profile-bound configuration enables
   built-in groups and up to eight custom rules. The bounded C mirror implements
   every README OUI/name row. The counter is one centered fixed frame; built-in
-  and custom text alerts use at most two fixed pages held for 1.5 seconds each,
-  then the selected view resumes after three seconds. KARR
+  and custom text alerts use at most two fixed pages held for one second each,
+  then the selected view resumes after the last generated page. KARR
   requires a case-insensitive `QT ` prefix at the start plus a non-empty serial
   value. There is no unique Flipper
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
   OUI would overmatch, and custom firmware can rename or spoof the device.
   Exact case-insensitive `LED Badge Magic` or advertised `0xFEE0` triggers
-  three frogs in two alternating frames for three seconds. Passive scans may miss
+  three frogs in two alternating one-second frames. Passive scans may miss
   scan-response-only names, so the service fallback can false-positive another
   compatible `0xFEE0` advertiser. The C mirror remains temporary until the Rust
   ABI canary. The image starts a three-second passive window roughly every
@@ -313,10 +313,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the physical button nearest USB as the
   counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
   short press retains the normal system action and KEY2 long press retains ISP
-  entry. The locked `260404` candidate is 204,532 bytes at SHA-256
-  `ef144ee07f5138277ccc217541834a20c4a8660a36cfa7ab468db4d90b4fff20`;
-  the `250901` candidate is 204,508 bytes at SHA-256
-  `36cca2721c2535df9eefd950e178c5f39d192a6f7f3f07c4683a03f2edb55af8`.
+  entry. The locked `260404` candidate is 204,748 bytes at SHA-256
+  `8e602591ce0d87c98c97d9147cfbc023d697a87c4a4797c020b85ba4d9b3ae9c`;
+  the `250901` candidate is 204,724 bytes at SHA-256
+  `0e92b9b778398c59e7d1b07944c270c80d4d27b45d8d1f8094f7a0a204084b30`.
   FrogAlert completes frames in one of two private buffers and the final TMR0
   refresh selects the committed buffer while an overlay owns the panel.
   Marquee/flash/fixed/Bluetooth event handlers also consume queued work without
@@ -350,6 +350,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the panel. This covers all `ANI_NEXT_STEP` base modes, marquee, flash/blink,
   and queued BLE animation writes. Streaming and non-normal system modes still
   deliberately relinquish display ownership.
+- The user physically observed `FLIPPER`, `DETECTED`, then `FLIPPER` again.
+  The preceding pager used a free-running 1.5-second reload event alongside a
+  fixed three-second alert timer and wrapped its page index modulo page count,
+  so a boundary event could redraw page zero. Alert timing must be relative to
+  alert start: render frame zero immediately, schedule each later frame once at
+  one-second intervals, never wrap, and end at `frame_count * one second`.
 - The first fixed-page candidate physically rendered `FLIPPER` as
   `FLIFFER`-like text and produced malformed digits. FOSSASIA's `font5x7`
   table stores six columns: a blank lead-in at index 0 followed by five actual

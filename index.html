@@ -98,7 +98,7 @@
           <article>
             <span class="card-number">03</span>
             <h3>Temporary alerts</h3>
-            <p>A matching public OUI or advertised name shows <code>COP DETECTED</code>, <code>FLIPPER DETECTED</code>, or <code>KARR DETECTED</code> for three seconds. A BadgeMagic name or <code>FEE0</code> service shows three dancing frogs. The nametag or counter returns afterward.</p>
+            <p>A matching public OUI or advertised name shows <code>COP DETECTED</code>, <code>FLIPPER DETECTED</code>, or <code>KARR DETECTED</code> as fixed pages, one second each. A BadgeMagic name or <code>FEE0</code> service shows two one-second dancing-frog frames. The nametag or counter returns after the last frame.</p>
           </article>
         </div>
         <aside class="caveat">
@@ -115,7 +115,7 @@
         <ol class="cycle" aria-label="Private FrogAlert candidate operating cycle">
           <li><span>~17 s</span><strong>SELECTED MODE</strong><small>Uploaded name or latest BT count</small></li>
           <li><span>3 s</span><strong>SCAN</strong><small>Passive observer window</small></li>
-          <li><span>3 s</span><strong>OVERLAY</strong><small>Three frogs or rule-specific text when matched</small></li>
+          <li><span>1–2 s</span><strong>OVERLAY</strong><small>One second for each generated text or frog frame</small></li>
           <li><span>&lt;1 s</span><strong>RESTORE</strong><small>Resume the selected display mode</small></li>
         </ol>
       </section>
@@ -144,9 +144,9 @@
           <article class="evidence-card prototype">
             <p class="evidence-state">PROTOTYPE / BADGE · HARDWARE-UNVERIFIED</p>
             <h3>Private dual-profile survey BINs</h3>
-            <p>The profile-specific <code>260404</code> and <code>250901</code> candidates retain FOSSASIA's USB, BLE, display, uploaded entries, brightness control, system mode, and KEY2 recovery source while adding configurable targets, a fixed counter, fixed-page three-second text alerts, frog overlays, and a roughly 20-second survey cadence. A double-buffered output overlay keeps alerts above blink, marquee, base animations, and queued Bluetooth animation frames. The active-low <code>260404</code> profile is the build default. These candidates are Actions artifacts only; they are not hosted or released.</p>
-            <code class="command">260404 · 204,532 bytes · SHA-256 ef144ee07f5138277ccc217541834a20c4a8660a36cfa7ab468db4d90b4fff20</code>
-            <code class="command">250901 · 204,508 bytes · SHA-256 36cca2721c2535df9eefd950e178c5f39d192a6f7f3f07c4683a03f2edb55af8</code>
+            <p>The profile-specific <code>260404</code> and <code>250901</code> candidates retain FOSSASIA's USB, BLE, display, uploaded entries, brightness control, system mode, and KEY2 recovery source while adding configurable targets, a fixed counter, one-second-per-frame fixed alerts, frog overlays, and a roughly 20-second survey cadence. A double-buffered output overlay keeps alerts above blink, marquee, base animations, and queued Bluetooth animation frames. The active-low <code>260404</code> profile is the build default. These candidates are Actions artifacts only; they are not hosted or released.</p>
+            <code class="command">260404 · 204,748 bytes · SHA-256 8e602591ce0d87c98c97d9147cfbc023d697a87c4a4797c020b85ba4d9b3ae9c</code>
+            <code class="command">250901 · 204,724 bytes · SHA-256 0e92b9b778398c59e7d1b07944c270c80d4d27b45d8d1f8094f7a0a204084b30</code>
           </article>
         </div>
 
@@ -161,8 +161,8 @@
               <tr><td><code>Flipper</code></td><td>Advertised name</td><td><code>FLIPPER DETECTED</code></td><td>Case-insensitive hint</td></tr>
               <tr><td><code>QT </code> + serial</td><td>Advertised name prefix</td><td><code>KARR DETECTED</code></td><td>Case-insensitive; must start the name</td></tr>
               <tr><td><code>Ray-Ban</code> / <code>Ray Ban</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
-              <tr><td><code>LED Badge Magic</code></td><td>Advertised name</td><td>Three-frog dance · 3 s</td><td>Exact, case-insensitive hint</td></tr>
-              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic service</td><td>Three-frog dance · 3 s</td><td>Passive fallback; may false-positive</td></tr>
+              <tr><td><code>LED Badge Magic</code></td><td>Advertised name</td><td>Three-frog dance · 2 × 1 s</td><td>Exact, case-insensitive hint</td></tr>
+              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic service</td><td>Three-frog dance · 2 × 1 s</td><td>Passive fallback; may false-positive</td></tr>
             </tbody>
           </table>
           <p class="caveat"><strong>Passive scan limit:</strong> discovery does not request scan responses. A device name present only there cannot match, so advertised <code>FEE0</code> provides a broad BadgeMagic-compatible fallback without claiming device identity.</p>

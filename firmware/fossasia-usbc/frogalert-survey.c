@@ -37,10 +37,8 @@
 #define SURVEY_RADIO_QUIET    TMOS_TICKS_FROM_MS(SURVEY_RADIO_QUIET_MS)
 #define SURVEY_NEXT_DELAY     TMOS_TICKS_FROM_MS( \
 	SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS - SURVEY_RADIO_QUIET_MS)
-#define SURVEY_PAGE_TIME      TMOS_TICKS_FROM_MS(1500U)
+#define SURVEY_FRAME_TIME     TMOS_TICKS_FROM_MS(1000U)
 #define SURVEY_WATCHDOG_TIME  TMOS_TICKS_FROM_MS(5000U)
-#define SURVEY_ALERT_TIME     TMOS_TICKS_FROM_MS(3000U)
-#define SURVEY_FROG_TIME      TMOS_TICKS_FROM_MS(3000U)
 #define SURVEY_SCAN_TICKS     TMOS_TICKS_FROM_MS(SURVEY_SCAN_TIME_MS)
 
 #define SURVEY_PHASE_INITIALIZING 'I'
@@ -78,7 +76,8 @@ static uint8_t completed_count;
 static uint8_t completed_saturated;
 static uint8_t completed_phase = SURVEY_PHASE_INITIALIZING;
 static uint8_t alert_visible;
-static uint8_t frog_frame;
+static uint8_t alert_frame_count;
+static uint8_t alert_frame_index;
 static frogalert_survey_alert_t detected_alert;
 static const uint8_t *detected_custom_message;
 static uint8_t detected_custom_message_length;
@@ -114,38 +113,37 @@ static void schedule_survey(uint32_t delay)
 	tmos_start_task(survey_task_id, SURVEY_PREPARE_EVENT, delay);
 }
 
-static void render_alert(frogalert_survey_alert_t alert)
+static uint8_t render_alert(frogalert_survey_alert_t alert)
 {
 	switch (alert) {
 	case FROGALERT_ALERT_COP:
-		frogalert_display_survey_message(cop_alert,
-						 sizeof(cop_alert) - 1);
-		break;
+		return frogalert_display_survey_message(cop_alert,
+							sizeof(cop_alert) - 1);
 	case FROGALERT_ALERT_FLIPPER:
-		frogalert_display_survey_message(flipper_alert,
-						 sizeof(flipper_alert) - 1);
-		break;
+		return frogalert_display_survey_message(
+			flipper_alert, sizeof(flipper_alert) - 1);
 	case FROGALERT_ALERT_KARR:
-		frogalert_display_survey_message(karr_alert,
-						 sizeof(karr_alert) - 1);
-		break;
+		return frogalert_display_survey_message(karr_alert,
+							sizeof(karr_alert) - 1);
 	case FROGALERT_ALERT_FROG_DANCE:
-		frogalert_display_frog_dance(frog_frame++);
-		break;
+		frogalert_display_frog_dance(alert_frame_index);
+		return 2;
 	case FROGALERT_ALERT_CUSTOM:
-		frogalert_display_survey_message(
+		return frogalert_display_survey_message(
 			(const char *)detected_custom_message,
 			detected_custom_message_length);
-		break;
 	default:
-		break;
+		return 0;
 	}
 }
 
 static void display_selected_view(void)
 {
 	if (alert_visible) {
-		render_alert(detected_alert);
+		if (detected_alert == FROGALERT_ALERT_FROG_DANCE)
+			frogalert_display_frog_dance(alert_frame_index);
+		else
+			frogalert_display_survey_page_redraw();
 	} else if (frogalert_survey_counter_mode()) {
 		frogalert_display_survey_count(latest_count, latest_saturated,
 					       latest_phase);
@@ -199,12 +197,21 @@ static void show_alert(const frogalert_survey_match_t *match)
 	detected_custom_message = match->message;
 	detected_custom_message_length = match->message_length;
 	alert_visible = 1;
-	frog_frame = 0;
-	render_alert(alert);
+	alert_frame_count = 0;
+	alert_frame_index = 0;
+	tmos_stop_task(survey_task_id, SURVEY_DISPLAY_PAGE_EVENT);
 	tmos_stop_task(survey_task_id, SURVEY_ALERT_END_EVENT);
+	alert_frame_count = render_alert(alert);
+	if (!alert_frame_count) {
+		alert_visible = 0;
+		detected_alert = FROGALERT_ALERT_NONE;
+		return;
+	}
+	if (alert_frame_count > 1)
+		tmos_start_task(survey_task_id, SURVEY_DISPLAY_PAGE_EVENT,
+				SURVEY_FRAME_TIME);
 	tmos_start_task(survey_task_id, SURVEY_ALERT_END_EVENT,
-			alert == FROGALERT_ALERT_FROG_DANCE ?
-			SURVEY_FROG_TIME : SURVEY_ALERT_TIME);
+			(uint32_t)SURVEY_FRAME_TIME * alert_frame_count);
 }
 
 static void mark_central_ready(void)
@@ -360,9 +367,6 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 
 		/* Make every startup phase observable before the first scan. */
 		save_survey_view(0, FALSE, SURVEY_PHASE_INITIALIZING);
-		tmos_start_reload_task(survey_task_id,
-				       SURVEY_DISPLAY_PAGE_EVENT,
-				       SURVEY_PAGE_TIME);
 		if (central_init_status != SUCCESS) {
 			show_survey(SURVEY_PHASE_ERROR);
 			return events ^ SURVEY_START_DEVICE_EVENT;
@@ -398,6 +402,9 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		detected_custom_message = NULL;
 		detected_custom_message_length = 0;
 		alert_visible = 0;
+		alert_frame_count = 0;
+		alert_frame_index = 0;
+		tmos_stop_task(survey_task_id, SURVEY_DISPLAY_PAGE_EVENT);
 		tmos_stop_task(survey_task_id, SURVEY_ALERT_END_EVENT);
 		status = GAPRole_GetParameter(GAPROLE_ADVERT_ENABLED,
 					      &advertising_enabled);
@@ -470,17 +477,28 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 	}
 
 	if (events & SURVEY_ALERT_END_EVENT) {
+		tmos_stop_task(survey_task_id, SURVEY_DISPLAY_PAGE_EVENT);
 		alert_visible = 0;
+		alert_frame_count = 0;
+		alert_frame_index = 0;
 		display_selected_view();
 		return events ^ SURVEY_ALERT_END_EVENT;
 	}
 
 	if (events & SURVEY_DISPLAY_PAGE_EVENT) {
 		if (alert_visible &&
-		    detected_alert == FROGALERT_ALERT_FROG_DANCE)
-			frogalert_display_frog_dance(frog_frame++);
-		else
-			frogalert_display_survey_page_step();
+		    alert_frame_index + 1 < alert_frame_count) {
+			alert_frame_index++;
+			if (detected_alert == FROGALERT_ALERT_FROG_DANCE)
+				frogalert_display_frog_dance(alert_frame_index);
+			else
+				frogalert_display_survey_page_step();
+			if (alert_frame_index + 1 < alert_frame_count)
+				tmos_start_task(
+					survey_task_id,
+					SURVEY_DISPLAY_PAGE_EVENT,
+					SURVEY_FRAME_TIME);
+		}
 		return events ^ SURVEY_DISPLAY_PAGE_EVENT;
 	}
 

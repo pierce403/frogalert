@@ -98,8 +98,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /Private dual-profile survey BINs/);
   assert.match(html, /view button.*names.*BT 00.*nearest USB.*260404/is);
   assert.match(html, /Scanning runs in either display mode/i);
-  assert.match(html, /shows.*COP DETECTED.*for three seconds/is);
-  assert.match(html, /shows three dancing frogs/i);
+  assert.match(html, /shows.*COP DETECTED.*one second each/is);
+  assert.match(html, /dancing-frog frames/i);
   assert.match(html, /scan starts about every 20 seconds/i);
   assert.match(html, /LED Badge Magic/);
   assert.match(html, /Passive scan limit:.*does not request scan responses/is);
@@ -111,9 +111,9 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.doesNotMatch(html, /HAX DETECTED/);
   assert.match(html, /profile-specific .*260404.*250901.*candidates/is);
   assert.match(html, /double-buffered output overlay.*blink.*marquee.*base animations/is);
-  assert.match(html, /204,532 bytes.*ef144ee07f5138277ccc217541834a20c4a8660a36cfa7ab468db4d90b4fff20/);
-  assert.match(html, /204,508 bytes.*36cca2721c2535df9eefd950e178c5f39d192a6f7f3f07c4683a03f2edb55af8/);
-  assert.match(html, /a fixed counter, fixed-page three-second text alerts/);
+  assert.match(html, /204,748 bytes.*8e602591ce0d87c98c97d9147cfbc023d697a87c4a4797c020b85ba4d9b3ae9c/);
+  assert.match(html, /204,724 bytes.*0e92b9b778398c59e7d1b07944c270c80d4d27b45d8d1f8094f7a0a204084b30/);
+  assert.match(html, /a fixed counter, one-second-per-frame fixed alerts/);
   assert.match(html, /active-low .*260404.*build default/is);
   assert.match(html, /cannot be distinguished passively at boot/i);
   assert.match(html, /not hosted or released/i);

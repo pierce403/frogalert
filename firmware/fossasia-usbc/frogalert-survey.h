@@ -23,5 +23,6 @@ void frogalert_display_frog_dance(uint8_t frame);
 void frogalert_display_survey_relinquish(void);
 void frogalert_display_survey_release(void);
 void frogalert_display_survey_page_step(void);
+void frogalert_display_survey_page_redraw(void);
 
 #endif

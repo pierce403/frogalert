@@ -97,8 +97,8 @@ Firmware rejects malformed, mismatched-profile, or bad-CRC configuration and
 disables alerts rather than guessing. Scanning and the count view remain
 available in that failure mode.
 
-Cop, Flipper, KARR, and frog overlays each last three seconds. Each then
-restores the selected nametag or latest `BT 00` through
+Cop, Flipper, KARR, and frog overlays show every generated frame exactly once
+for one second. Each then restores the selected nametag or latest `BT 00` through
 `BT 64+` counter view without modifying uploaded content. Passive discovery
 does not guarantee delivery of a local name carried only in scan response, so
 the advertised-`0xFEE0` branch is a deliberately broad fallback and may animate
@@ -126,9 +126,9 @@ instead of FOSSASIA's shared animation framebuffer while the overlay owns the
 panel. This protects the visible alert from blink, marquee, all base animation
 modes, and queued Bluetooth animation writes. The patched handlers still
 consume already-queued work without rescheduling it. The selected uploaded
-name/count view resumes only after the three-second overlay releases ownership.
+name/count view resumes after the final one-second frame releases ownership.
 The count is a single centered fixed frame. Text alerts split into no more than
-two fixed pages held for 1.5 seconds each; only the frog alert deliberately
+two fixed pages held for one second each; only the frog alert deliberately
 changes pose. This removes both the diagnostic's added blank-frame flicker and
 the competing-animation overwrite, but does not change FOSSASIA's roughly
 45 Hz matrix refresh. For fixed and frame-animation modes only, a compatibility

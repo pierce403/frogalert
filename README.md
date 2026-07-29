@@ -24,7 +24,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   hardware-unverified FrogAlert targets
 - private survey candidates: CI builds and audits one profile-bound BIN/ELF
   pair for each USB-C board profile, with passive counting, configurable
-  built-in/custom monitoring, three-second overlays on a roughly 20-second
+  built-in/custom monitoring, one second per alert frame on a roughly 20-second
   survey cadence, and a BadgeMagic frog animation; these Actions artifacts are
   build evidence only and are neither GitHub Releases nor flash-approved
 - static project site: implemented
@@ -69,8 +69,8 @@ producing a new local BIN and SHA-256:
 | Advertised name starts with a non-empty serial prefix | `QT ` | KARR QT serial name | `KARR DETECTED` |
 | Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
 | Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
-| Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation for three seconds |
-| Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation for three seconds |
+| Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation, one second per frame |
+| Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation, one second per frame |
 
 Detection names use case-insensitive substring matching except for two narrow
 rules: KARR requires `QT ` at the beginning plus a non-empty serial value, and
@@ -101,10 +101,11 @@ and the independent farther-button long-KEY2 ISP path remains in the inherited
 shell on `260404`. Passive
 surveys continue in both nametag and counter views. `COP DETECTED`,
 `FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
-three seconds, then the selected view resumes without changing the uploaded
-nametag data. The counter is one centered, fixed frame (`BT 04`, with a
+one second per generated frame, then the selected view resumes without
+changing the uploaded nametag data. The current built-ins use two frames and
+therefore last two seconds. The counter is one centered, fixed frame (`BT 04`, with a
 one-letter phase suffix while a survey is in progress). Text alerts use at
-most two fixed pages held for 1.5 seconds each—such as `COP` followed by
+most two fixed pages held for one second each—such as `COP` followed by
 `DETECTED`—rather than scrolling pixel by pixel. Survey
 windows start roughly every 20 seconds, so a continuously present match can
 retrigger once in each new window. While an overlay owns the panel, already

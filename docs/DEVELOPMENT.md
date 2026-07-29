@@ -118,11 +118,12 @@ scanning, `E` error, or `T` timeout; it disappears for a completed result. The
 lane updates live while scanning, consumes the final discovery list, and feeds
 live public-address/name/service data into a bounded C mirror of every README
 detection row. Cop, Flipper, and KARR alerts use no more than two fixed
-1.5-second pages, last three seconds in total, and restore the selected view.
+pages, show each page exactly once for one second, and restore the selected
+view after the last page.
 KARR requires a case-insensitive `QT ` prefix at the start plus
 a non-empty serial value. An exact case-insensitive `LED Badge Magic` name or
 advertised `0xFEE0` service shows three frogs in two alternating frames for
-three seconds. Passive scans may omit scan-response-only names, so the service
+one second each. Passive scans may omit scan-response-only names, so the service
 fallback is deliberately broad and may false-positive.
 
 After each three-second discovery, the next attempt waits about 17 seconds.
@@ -140,13 +141,14 @@ alerts.
 
 The display hook stops the original animation only on ownership transition.
 It redraws the counter once per value/phase change and alert text only at the
-1.5-second page boundary. Each FrogAlert frame is completed in an inactive
+one-second page boundary. Each FrogAlert frame is completed in an inactive
 private buffer before an atomic index switch. The timer interrupt uses that
 committed buffer as the final LED source while FrogAlert owns the panel, so a
 blink, marquee, base animation, or queued Bluetooth animation cannot overwrite
 the visible alert through FOSSASIA's shared framebuffer. Patched original event
 handlers also consume queued work without rescheduling it while the overlay is
-active. Release resumes the selected view after three seconds. The survey
+active. A one-shot timer is anchored to alert start, never wraps the pager, and
+releases the selected view after `frame count × one second`. The survey
 yields to app streaming and non-normal modes, never initiates a connection,
 zeroes its fixed address table, restores prior advertising state, and cancels a
 stuck scan after five seconds.

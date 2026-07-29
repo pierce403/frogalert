@@ -71,8 +71,8 @@ on chat context or filenames alone.
   positions, wrong-button C3 reset evidence, correct-button ROM ISP
   enumeration, and the later FOSSASIA application boot.
 - [`2026-07-28-fixed-survey-pages.md`](agent-memory/logs/2026-07-28-fixed-survey-pages.md)
-  — non-scrolling count and two-page alert design, 1.5-second page timing, and
-  the locked dual-profile candidate hashes.
+  — non-scrolling count and two-page alert design, alert-relative one-second
+  frame timing, and locked dual-profile candidate hashes.
 
 ## People
 

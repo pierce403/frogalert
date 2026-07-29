@@ -205,6 +205,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain,
     /stride = text_length == FROGALERT_SURVEY_PAGE_CHARS \? 5 : 6;/,
   );
+  assert.match(patchedMain, /return frogalert_survey_page_count;/);
   assert.match(
     patchedMain,
     /start = \(uint8_t\)\(\(LED_COLS - width\) \/ 2\);/,
@@ -245,6 +246,18 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(
     patchedMain,
     /frogalert_survey_page_count <= 1[\s\S]*frogalert_survey_page \+ 1/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_survey_page \+ 1 >= frogalert_survey_page_count[\s\S]*frogalert_survey_page\+\+;/,
+  );
+  assert.doesNotMatch(
+    patchedMain,
+    /frogalert_survey_page =[\s\S]{0,120}%[\s\S]{0,120}frogalert_survey_page_count/,
+  );
+  assert.match(
+    patchedMain,
+    /void frogalert_display_survey_page_redraw\(void\)/,
   );
   assert.match(patchedMain, /frogalert_display_survey_render_page\(\);/);
   assert.match(patchedMain, /void frogalert_display_frog_dance/);
@@ -350,16 +363,39 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     survey,
     /SURVEY_SCAN_TICKS\s+TMOS_TICKS_FROM_MS\(SURVEY_SCAN_TIME_MS\)/,
   );
-  assert.match(survey, /SURVEY_PAGE_TIME\s+TMOS_TICKS_FROM_MS\(1500U\)/);
+  assert.match(survey, /SURVEY_FRAME_TIME\s+TMOS_TICKS_FROM_MS\(1000U\)/);
   assert.doesNotMatch(survey, /SURVEY_SCROLL_TIME|SURVEY_DISPLAY_STEP_EVENT/);
   assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
-  assert.match(survey, /SURVEY_ALERT_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
-  assert.match(survey, /SURVEY_FROG_TIME\s+TMOS_TICKS_FROM_MS\(3000U\)/);
+  assert.doesNotMatch(survey, /SURVEY_ALERT_TIME|SURVEY_FROG_TIME/);
   assert.match(
     survey,
     /save_survey_view\(0, FALSE, SURVEY_PHASE_INITIALIZING\)/,
   );
-  assert.match(survey, /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_PAGE_EVENT/);
+  assert.doesNotMatch(
+    survey,
+    /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_PAGE_EVENT/,
+  );
+  assert.match(
+    survey,
+    /alert_frame_count = render_alert\(alert\)[\s\S]*alert_frame_count > 1[\s\S]*SURVEY_DISPLAY_PAGE_EVENT[\s\S]*SURVEY_FRAME_TIME/,
+  );
+  assert.match(
+    survey,
+    /\(uint32_t\)SURVEY_FRAME_TIME \* alert_frame_count/,
+  );
+  assert.match(
+    survey,
+    /alert_frame_index \+ 1 < alert_frame_count[\s\S]*alert_frame_index\+\+;[\s\S]*frogalert_display_survey_page_step\(\)/,
+  );
+  assert.match(
+    survey,
+    /if \(alert_visible\)[\s\S]*frogalert_display_frog_dance\(alert_frame_index\)[\s\S]*frogalert_display_survey_page_redraw\(\)/,
+  );
+  assert.equal(
+    survey.match(/render_alert\(alert\)/g)?.length,
+    1,
+    "view redraws must preserve the current alert frame",
+  );
   assert.match(survey, /frogalert_display_survey_page_step\(\)/);
   assert.ok(
     survey.indexOf("save_survey_view(0, FALSE,") <

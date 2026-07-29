@@ -329,7 +329,7 @@ static uint8_t frogalert_display_survey_text(const char *text,
 			(uint8_t)(text_length - second_start);
 	}
 	frogalert_display_survey_render_page();
-	return TRUE;
+	return frogalert_survey_page_count;
 }
 
 uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
@@ -398,11 +398,15 @@ void frogalert_display_survey_page_step(void)
 		return;
 	}
 	if (!frogalert_survey_display_owned ||
-	    frogalert_survey_page_count <= 1)
+	    frogalert_survey_page_count <= 1 ||
+	    frogalert_survey_page + 1 >= frogalert_survey_page_count)
 		return;
-	frogalert_survey_page =
-		(uint8_t)((frogalert_survey_page + 1) %
-			  frogalert_survey_page_count);
+	frogalert_survey_page++;
+	frogalert_display_survey_render_page();
+}
+
+void frogalert_display_survey_page_redraw(void)
+{
 	frogalert_display_survey_render_page();
 }
 #endif

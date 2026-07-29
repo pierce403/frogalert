@@ -100,10 +100,11 @@ OUI rules run only for controller-reported public addresses. Complete and
 shortened local names are matched case-insensitively for `Axon Body`, `TASER`,
 `Flipper`, `Ray-Ban`, and `Ray Ban`. A name beginning with case-insensitive
 `QT ` and a non-empty serial value produces `KARR DETECTED`. The resulting
-text overlay lasts three seconds and then restores the selected nametag/count
-view. An exact case-insensitive `LED Badge Magic` name or an
-advertised `0xFEE0` service triggers two alternating frames of three frogs for
-three seconds. Passive scans may omit a name carried only in scan response, so
+text overlay shows each generated fixed page exactly once for one second and
+then restores the selected nametag/count view. An exact case-insensitive
+`LED Badge Magic` name or an advertised `0xFEE0` service triggers two
+one-second alternating frames of three frogs. Passive scans may omit a name
+carried only in scan response, so
 the service match is an intentional fallback and may false-positive another
 compatible device that advertises `0xFEE0`.
 
@@ -113,7 +114,7 @@ stops the original animation only when an overlay or selected counter takes
 ownership. The original animation tasks may already have queued their next
 events, so the patched handlers also consume marquee, flash, fixed-animation,
 and Bluetooth animation steps while FrogAlert owns the panel. They do not
-reschedule until the three-second overlay releases ownership and restores the
+reschedule until the frame-count-derived overlay releases ownership and restores the
 selected nametag/count view. FOSSASIA's underlying roughly 45 Hz matrix refresh
 is unchanged.
 
