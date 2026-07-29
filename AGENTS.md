@@ -183,6 +183,14 @@ published no firmware release and deployed byte-exact site assets. This
 verifies the automation boundary, not the current dual-profile candidate or
 physical firmware.
 
+The first public beta shipped from commit `8f1aeca` on 2026-07-29. CI run
+`30427180021` passed; release/Pages run `30427231242` published
+`v0.1.0-beta.1` and deployed both same-origin BINs. Post-deploy downloads
+matched the locked `260404` SHA `c6d06c59…face0d9` and `250901` SHA
+`f9367fe1…73d5c9`; the live flasher loaded both descriptors without console
+errors or a file input. This proves release/catalog delivery, not a physical
+WebUSB program/verify run.
+
 Preview the site locally:
 
 ```bash

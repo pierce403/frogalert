@@ -14,6 +14,7 @@ index: plain markdown and ripgrep
 - [2026-07-28 application-aware flasher wizard](agent-memory/logs/2026-07-28-application-usb-wizard.md)
 - [2026-07-28 automatic button image selection](agent-memory/logs/2026-07-28-automatic-button-image-selection.md)
 - [2026-07-28 FrogAlert beta 1 user confirmation](agent-memory/logs/2026-07-28-frogalert-beta1-user-confirmation.md)
+- [2026-07-29 FrogAlert beta 1 production release](agent-memory/logs/2026-07-29-beta1-production-release.md)
 
 Search this index and `agent-memory/` before important work instead of relying
 on chat context or filenames alone.

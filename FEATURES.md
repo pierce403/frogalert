@@ -171,7 +171,7 @@ also lacks the BadgeMagic GATT service and nametag preservation.
 | Firmware signing | **DEFERRED** | Threat model and key custody design | Hash/provenance first; do not invent security theater. |
 | Hardware compatibility matrix | **PLANNED** | Tested revision table | Default-deny unknown revisions. |
 | Release rollback/recovery documentation | **PROTOTYPE** | [`WEB_FLASHING.md`](docs/WEB_FLASHING.md) separates the open replacement from unavailable OEM bytes | Browser preparation is documented; destructive recovery and failed-flash handling remain hardware-unverified. |
-| Commit-driven GitHub release automation | **SHIPPED** at code/test layer | After successful same-repository `main` CI, a least-privilege workflow revalidates approved manifest entries, checks source ancestry, creates a draft, uploads and re-download-hashes the exact BIN/ELF/checksum/descriptor/evidence assets, publishes, then permits Pages deployment; published byte drift fails | `0.1.0-beta.1` is the first live release reconciliation; verify its live run and assets after this commit. |
+| Commit-driven GitHub release automation | **VERIFIED** in production | CI run `30427180021` passed and release/Pages run `30427231242` published `v0.1.0-beta.1`, re-download-verified both BIN/ELF/checksum/descriptor/evidence asset sets, then deployed Pages. Post-deploy same-origin BIN hashes matched the manifest | Existing release drift remains fail-closed; future versions follow the same reconciliation path. |
 
 ## Static website
 
