@@ -1817,7 +1817,7 @@ async function chooseLocalFirmware(event) {
   restoreLabImageSummary();
   clearFirmware();
   if (!revision) {
-    elements.firmwareInput.value = "";
+    if (elements.firmwareInput) elements.firmwareInput.value = "";
     log("Enter the exact PCB revision before selecting a developer BIN.", "error");
     setStatus(elements.wizardFirmwareStatus, "Choose the printed PCB revision before selecting a BIN.", "warning");
     return;
@@ -1845,7 +1845,7 @@ async function prepareOpenBadgeMagicFirmware() {
   }
   const recovery = recoveryDescriptor();
   const generation = beginArtifactPreparation();
-  elements.firmwareInput.value = "";
+  if (elements.firmwareInput) elements.firmwareInput.value = "";
   elements.releaseSelect.value = "";
   elements.labImageSelect.value = "";
   clearLabImageDownload();
@@ -2009,7 +2009,7 @@ async function fetchReleaseManifest() {
 async function loadReleaseArtifact(release) {
   if (state.flashing) return;
   const generation = beginArtifactPreparation();
-  elements.firmwareInput.value = "";
+  if (elements.firmwareInput) elements.firmwareInput.value = "";
   elements.labImageSelect.value = "";
   clearLabImageDownload();
   restoreLabImageSummary();
@@ -2110,7 +2110,7 @@ async function prepareAutomaticButtonFirmware() {
 async function chooseLabImage(event) {
   if (state.flashing) return;
   const generation = beginArtifactPreparation();
-  elements.firmwareInput.value = "";
+  if (elements.firmwareInput) elements.firmwareInput.value = "";
   elements.releaseSelect.value = "";
   clearLabImageDownload();
   restoreReleaseSummary();
@@ -2283,7 +2283,7 @@ async function flashFirmware() {
   updateFlashButton();
   elements.usbButton.disabled = true;
   renderIspEntryGuide();
-  elements.firmwareInput.disabled = true;
+  if (elements.firmwareInput) elements.firmwareInput.disabled = true;
   elements.pcbMarking.disabled = true;
   elements.pcbRevision.disabled = true;
   elements.recoveryBoardConfirmation.disabled = true;
@@ -2416,7 +2416,7 @@ async function flashFirmware() {
     state.activeFlashDevice = null;
     state.flashing = false;
     await releaseWakeLock();
-    elements.firmwareInput.disabled = false;
+    if (elements.firmwareInput) elements.firmwareInput.disabled = false;
     elements.pcbMarking.disabled = false;
     elements.pcbRevision.disabled = false;
     elements.recoveryBoardConfirmation.disabled = false;
@@ -2514,11 +2514,11 @@ function bindEvents() {
   elements.ispGuideConnect?.addEventListener("click", beginGuidedUsbConnection);
   elements.ispGuideRetry?.addEventListener("click", retryIspEntryGuide);
   elements.ispGuideCancel?.addEventListener("click", closeIspEntryGuide);
-  elements.firmwareInput.addEventListener("change", chooseLocalFirmware);
+  elements.firmwareInput?.addEventListener("change", chooseLocalFirmware);
   elements.pcbMarking.addEventListener("input", () => {
     state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
     resetConfirmations();
-    elements.firmwareInput.value = "";
+    if (elements.firmwareInput) elements.firmwareInput.value = "";
     elements.releaseSelect.value = "";
     elements.labImageSelect.value = "";
     clearLabImageDownload();
@@ -2532,7 +2532,7 @@ function bindEvents() {
   });
   elements.pcbRevision.addEventListener("change", () => {
     elements.recoveryBoardConfirmation.checked = false;
-    elements.firmwareInput.value = "";
+    if (elements.firmwareInput) elements.firmwareInput.value = "";
     elements.releaseSelect.value = "";
     elements.labImageSelect.value = "";
     clearLabImageDownload();

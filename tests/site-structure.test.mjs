@@ -176,7 +176,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=13/);
+  assert.match(html, /site\/app\.js\?v=14/);
   assert.match(app, /flash-support\.js\?v=2/);
   assert.match(app, /latest approved/);
   assert.match(app, /Nothing is selected or loaded automatically/);
@@ -217,7 +217,6 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     "id=\"runtime-firmware\"",
     "id=\"current-firmware-status\"",
     "id=\"board-detection-status\"",
-    "id=\"firmware-file\"",
     "id=\"pcb-revision\"",
     "id=\"monitor-targets\"",
     "id=\"monitor-add-rule\"",
@@ -238,7 +237,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=13/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=14/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   for (const step of ["firmware", "confirm", "flash", "success"]) {
@@ -276,6 +275,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /imageLabel: "bottom-button image"/);
   assert.match(app, /imageLabel: "top-button image"/);
   assert.match(html, /Preparing the update/);
+  assert.doesNotMatch(html, /type="file"|Choose a local firmware file|id="firmware-file"/);
   assert.doesNotMatch(
     html.slice(0, html.indexOf('class="legacy-flasher"')),
     /Choose the firmware|Choose a local firmware file|Printed PCB revision/,
@@ -323,14 +323,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
   assert.match(html, /Connecting alone never writes/i);
   assert.match(html, /Only hash-bound images with physical boot and recovery evidence may appear here/i);
-  assert.match(html, /separate, commit-bound.*260404.*250901.*survey candidates/is);
-  assert.match(html, /not hosted, released, or hardware-approved/i);
-  assert.match(html, /qualified bench testing only/i);
-  assert.match(
-    html,
-    /does not prove detector behavior, board compatibility, button behavior, app-animation compatibility, or KEY2 recovery/i,
-  );
-  assert.match(html, /qualified 48-column app-animation cropping/);
+  assert.match(html, /public flasher accepts only approved, same-origin images/i);
   assert.match(html, /B1144C_260404_USB_C/);
   assert.match(html, /active-low KEY1 wiring/i);
   assert.match(html, /Axon\/TASER\/Flock/);

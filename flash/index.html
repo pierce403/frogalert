@@ -91,7 +91,6 @@
             <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1</option>
           </select>
           <input id="pcb-marking" type="text" tabindex="-1">
-          <input id="firmware-file" type="file" accept=".bin,application/octet-stream" tabindex="-1">
         </div>
 
         <dl class="wizard-artifact-summary">
@@ -583,10 +582,8 @@
 
             <article class="artifact-option artifact-option-local">
               <p class="terminal-label">QUALIFIED DEVELOPMENT</p>
-              <h3>Local raw BIN</h3>
-              <label for="legacy-firmware-file">Choose a local firmware file</label>
-              <input id="legacy-firmware-file" type="file" accept=".bin,application/octet-stream">
-              <p class="field-help">Bytes stay in this browser and are never a compatibility signal by themselves. CI produces separate, commit-bound <code>260404</code> and <code>250901</code> survey candidates with their SHA-256 values in <code>candidate.json</code>; they show each alert frame once for one second, use a roughly 20-second survey cadence, and retain qualified 48-column app-animation cropping, but are not hosted, released, or hardware-approved. Selecting a locally built copy is qualified bench testing only and does not prove detector behavior, board compatibility, button behavior, app-animation compatibility, or KEY2 recovery.</p>
+              <h3>Developer tools</h3>
+              <p class="field-help">Local artifact inspection remains available on the project landing page. The public flasher accepts only approved, same-origin images selected automatically from the observed button path.</p>
             </article>
 
             <article class="artifact-option monitor-config-card">
@@ -723,6 +720,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=13"></script>
+    <script type="module" src="../site/app.js?v=14"></script>
   </body>
 </html>

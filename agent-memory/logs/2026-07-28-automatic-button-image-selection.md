@@ -16,5 +16,11 @@ separate; automatic artifact preparation is not permission to erase.
 
 At implementation time the public manifest had no approved USB-C release, so
 the safe production outcome for both button paths was the explicit no-release
-stop. The legacy hidden developer lab retains local-file tooling for qualified
-bench work.
+stop. Local-file inspection remains on the project landing page for qualified
+bench work, outside the updater.
+
+Follow-up browser feedback showed that merely hiding the controller file input
+and old dashboard input was not an acceptable removal. `/flash/` now contains
+no `type=file` element at all. The shared application treats that input as
+optional so the landing-page inspection lab can retain local analysis without
+leaking a file chooser into the updater.

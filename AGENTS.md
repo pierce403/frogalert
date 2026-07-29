@@ -229,7 +229,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   previously authorized WCH ISP badge; a new badge still needs an explicit
   chooser tap, and USB attach must never synthesize `requestDevice()`. Keep
   unrelated Bluetooth, catalog, and diagnostic surfaces out of the visible
-  flasher. Do not show file, profile, or marking controls in the public wizard.
+  flasher. Do not include a file input anywhere in `/flash/`, even hidden;
+  profile and marking controls must not be visible in the public wizard.
   If no approved image matches, or ISP was entered before the wizard observed
   a bottom/top button path, stop without offering a developer BIN.
 - Use semantic HTML, visible focus states, reduced-motion support, and readable

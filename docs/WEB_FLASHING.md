@@ -193,10 +193,10 @@ selection stops and asks the user to let the badge return to normal mode and
 repeat the guided entry.
 
 Every configurable survey BIN embeds its compiled profile id. The page rejects
-a mismatch between that id and the button-derived profile. The legacy
-developer lab retains manual local-file controls outside the visible wizard;
-those controls do not provide a public fallback when an approved release is
-missing.
+a mismatch between that id and the button-derived profile. `/flash/` contains
+no file input, including in hidden or legacy markup. Read-only local artifact
+inspection remains on the project landing page and cannot provide a fallback
+when an approved release is missing.
 
 ## Local monitoring customization
 
