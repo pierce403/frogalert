@@ -225,7 +225,9 @@ static uint8_t frogalert_survey_page_start[FROGALERT_SURVEY_PAGE_MAX];
 static uint8_t frogalert_survey_page_length[FROGALERT_SURVEY_PAGE_MAX];
 static uint8_t frogalert_survey_page_count;
 static uint8_t frogalert_survey_page;
-static uint8_t frogalert_survey_display_owned;
+static volatile uint16_t frogalert_survey_overlay_fb[2][LED_COLS];
+static volatile uint8_t frogalert_survey_overlay_index;
+static volatile uint8_t frogalert_survey_display_owned;
 
 uint8_t frogalert_survey_allowed(void)
 {
@@ -253,6 +255,7 @@ static void frogalert_display_survey_render_page(void)
 	uint8_t stride;
 	uint8_t width;
 	uint8_t start;
+	uint8_t target_index;
 
 	if (!frogalert_survey_display_active()) {
 		frogalert_display_survey_release();
@@ -262,7 +265,6 @@ static void frogalert_display_survey_render_page(void)
 		return;
 	if (!frogalert_survey_display_owned) {
 		stop_all_animation();
-		frogalert_survey_display_owned = TRUE;
 	}
 
 	text_start = frogalert_survey_page_start[frogalert_survey_page];
@@ -270,15 +272,20 @@ static void frogalert_display_survey_render_page(void)
 	stride = text_length == FROGALERT_SURVEY_PAGE_CHARS ? 5 : 6;
 	width = (uint8_t)(text_length * stride - (stride == 6 ? 1 : 0));
 	start = (uint8_t)((LED_COLS - width) / 2);
-	memset(fb, 0, sizeof(fb));
+	target_index = frogalert_survey_overlay_index ^ 1U;
+	for (uint8_t column = 0; column < LED_COLS; column++)
+		frogalert_survey_overlay_fb[target_index][column] = 0;
 	for (uint8_t character = 0; character < text_length; character++) {
 		for (uint8_t column = 0; column < 5; column++)
-			fb[start + character * stride + column] =
+			frogalert_survey_overlay_fb[target_index]
+				[start + character * stride + column] =
 				(uint16_t)(font5x7[
 					frogalert_survey_text[
 						text_start + character] - ' ']
 					[column + 1] << 2);
 	}
+	frogalert_survey_overlay_index = target_index;
+	frogalert_survey_display_owned = TRUE;
 }
 
 static uint8_t frogalert_display_survey_text(const char *text,
@@ -364,19 +371,24 @@ void frogalert_display_frog_dance(uint8_t frame)
 		 0x1f4, 0x27e, 0x136, 0x09c},
 	};
 	static const uint8_t starts[3] = {1, 17, 33};
+	uint8_t target_index;
 
 	if (!frogalert_survey_display_active())
 		return;
 	if (!frogalert_survey_display_owned) {
 		stop_all_animation();
-		frogalert_survey_display_owned = TRUE;
 	}
-	memset(fb, 0, sizeof(fb));
+	target_index = frogalert_survey_overlay_index ^ 1U;
+	for (uint8_t column = 0; column < LED_COLS; column++)
+		frogalert_survey_overlay_fb[target_index][column] = 0;
 	frame &= 1;
 	for (uint8_t frog = 0; frog < 3; frog++) {
 		for (uint8_t column = 0; column < 9; column++)
-			fb[starts[frog] + column] = frogs[frame][column];
+			frogalert_survey_overlay_fb[target_index]
+				[starts[frog] + column] = frogs[frame][column];
 	}
+	frogalert_survey_overlay_index = target_index;
+	frogalert_survey_display_owned = TRUE;
 }
 
 void frogalert_display_survey_page_step(void)
@@ -549,6 +561,28 @@ static void disp_charging()
 #endif
 	btn_onLongPress(KEY1, change_brightness);`,
     "initial KEY2 virtual counter-view registration",
+  );
+  result = replaceOnce(
+    result,
+    `			led_write2dcol(i >> 2, fb[i >> 1], fb[(i >> 1) + 1]);`,
+    `#ifdef FROGALERT_SURVEY
+			uint8_t column = i >> 1;
+			uint8_t overlay_index =
+				frogalert_survey_overlay_index;
+			if (frogalert_survey_display_owned)
+				led_write2dcol(i >> 2,
+					frogalert_survey_overlay_fb
+						[overlay_index][column],
+					frogalert_survey_overlay_fb
+						[overlay_index][column + 1]);
+			else
+				led_write2dcol(i >> 2, fb[column],
+					      fb[column + 1]);
+#else
+			led_write2dcol(i >> 2, fb[i >> 1],
+				      fb[(i >> 1) + 1]);
+#endif`,
+    "display ISR gives FrogAlert overlays absolute framebuffer priority",
   );
   return result;
 }

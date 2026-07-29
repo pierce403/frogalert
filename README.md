@@ -110,7 +110,10 @@ windows start roughly every 20 seconds, so a continuously present match can
 retrigger once in each new window. While an overlay owns the panel, already
 queued marquee, flash, fixed-animation, and Bluetooth-stream animation events
 are consumed instead of being allowed to restart the normal scroll underneath
-it. Normal content resumes only when the overlay releases display ownership.
+it. The LED refresh ISR also selects a separate double-buffered FrogAlert
+framebuffer while the overlay is active, so even an unexpected base-animation
+write cannot reach the panel. Normal content resumes only when the overlay
+releases display ownership.
 
 ## Hardware warning
 

@@ -25,10 +25,10 @@ for 1.5 seconds.
 Both profiles passed the FOSSASIA runtime, vector, ELF/BIN identity, radio
 survey, and minimum-RAM-headroom gates. They are local/CI candidates only:
 
-- `B1144C_260404_USB_C`: 204,364 bytes, SHA-256
-  `5d32ca8e15c5091ffaa5c9f3ee1be18a1f28c8cae89665e2aa0d50663081b477`
-- `B1144C_250901_USB_C`: 204,332 bytes, SHA-256
-  `bf3cfadb5d7b247bcf10949208a912dee19b9ee60497ff529fb56d923acffa1f`
+- `B1144C_260404_USB_C`: 204,532 bytes, SHA-256
+  `ef144ee07f5138277ccc217541834a20c4a8660a36cfa7ab468db4d90b4fff20`
+- `B1144C_250901_USB_C`: 204,508 bytes, SHA-256
+  `36cca2721c2535df9eefd950e178c5f39d192a6f7f3f07c4683a03f2edb55af8`
 
 Neither exact artifact has a hash-bound physical flash, display, radio,
 BadgeMagic upload, or KEY2 recovery transcript. Keep both
@@ -49,3 +49,18 @@ glyph columns. The static renderer copied indices 0–4, retaining the blank and
 dropping the right edge of every glyph. The replacement copies indices 1–5.
 This source-level cause exactly fits the observed P/F and digit failures, but
 the corrected replacement hashes still require physical confirmation.
+
+## Blink conflict and output-stage ownership
+
+The user then physically observed that a nametag configured for blink could
+still stomp on `FLIPPER DETECTED`. Guarding the animation task events was not a
+sufficient final boundary because all FOSSASIA modes share `fb`.
+
+The replacement renderer uses two private 44-column buffers. It draws a
+complete frame into the inactive buffer, switches the selected index, and only
+then claims display ownership. `TMR0_IRQHandler`, the final LED refresh path,
+uses the committed private buffer whenever FrogAlert owns the panel and uses
+FOSSASIA's `fb` otherwise. Blink, marquee, all nine base animation modes, and
+queued BLE animations can therefore continue writing shared state without
+changing the visible FrogAlert alert. Streaming and non-normal system modes
+still deliberately suspend FrogAlert and return the display to FOSSASIA.

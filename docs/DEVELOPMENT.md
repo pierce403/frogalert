@@ -140,14 +140,16 @@ alerts.
 
 The display hook stops the original animation only on ownership transition.
 It redraws the counter once per value/phase change and alert text only at the
-1.5-second page boundary. More importantly,
-the patched original event handlers consume queued marquee, flash,
-fixed-animation, and Bluetooth animation steps while a FrogAlert overlay owns
-the panel. Those events therefore cannot restart a scroll behind the overlay;
-release resumes the selected view after three seconds. The survey yields to app
-streaming and non-normal modes, never initiates a connection, zeroes its fixed
-address table, restores prior advertising state, and cancels a stuck scan after
-five seconds.
+1.5-second page boundary. Each FrogAlert frame is completed in an inactive
+private buffer before an atomic index switch. The timer interrupt uses that
+committed buffer as the final LED source while FrogAlert owns the panel, so a
+blink, marquee, base animation, or queued Bluetooth animation cannot overwrite
+the visible alert through FOSSASIA's shared framebuffer. Patched original event
+handlers also consume queued work without rescheduling it while the overlay is
+active. Release resumes the selected view after three seconds. The survey
+yields to app streaming and non-normal modes, never initiates a connection,
+zeroes its fixed address table, restores prior advertising state, and cancels a
+stuck scan after five seconds.
 
 The complete C policy mirror remains temporary until the separate Rust ABI
 canary passes. All lanes use `USBC_VERSION=1`, validate pinned archive/tool

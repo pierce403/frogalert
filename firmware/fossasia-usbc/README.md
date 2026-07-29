@@ -119,17 +119,20 @@ The hardware survey still uses the C shell for advertisement extraction and
 the bounded rule mirror. Moving classification behind the Rust ABI remains
 gated on the separate ABI-only canary even though the behavior now matches the
 documented table. The display hook stops FOSSASIA's animation tasks only when
-an overlay or selected counter first takes panel ownership. Because those
-tasks may already have queued a next event, the patched marquee, flash, fixed,
-and Bluetooth-animation handlers consume their event while FrogAlert owns the
-panel instead of rescheduling. The selected uploaded name/count view resumes
-only after the three-second overlay releases ownership. The count is a single
-centered fixed frame. Text alerts split into no more than two fixed pages held
-for 1.5 seconds each; only the frog alert deliberately changes pose. This
-removes both the
-diagnostic's added blank-frame flicker and the competing-scroll restart, but
-does not change FOSSASIA's roughly 45 Hz matrix refresh. For fixed and
-frame-animation modes only, a compatibility helper recognizes 48-column
+an overlay or selected counter first takes panel ownership. It completes each
+FrogAlert frame in the inactive one of two private 44-column buffers before
+switching the selected buffer. The final timer interrupt reads that buffer
+instead of FOSSASIA's shared animation framebuffer while the overlay owns the
+panel. This protects the visible alert from blink, marquee, all base animation
+modes, and queued Bluetooth animation writes. The patched handlers still
+consume already-queued work without rescheduling it. The selected uploaded
+name/count view resumes only after the three-second overlay releases ownership.
+The count is a single centered fixed frame. Text alerts split into no more than
+two fixed pages held for 1.5 seconds each; only the frog alert deliberately
+changes pose. This removes both the diagnostic's added blank-frame flicker and
+the competing-animation overwrite, but does not change FOSSASIA's roughly
+45 Hz matrix refresh. For fixed and frame-animation modes only, a compatibility
+helper recognizes 48-column
 blocks with two blank columns at both edges and copies their inner 44 columns
 using the correct 48-column stride. Unqualified payloads retain the original
 44-column path.

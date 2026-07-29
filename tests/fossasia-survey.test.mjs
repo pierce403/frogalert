@@ -110,6 +110,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\tbtn_onOnePress(KEY1, change_mode);",
     "\tbtn_onOnePress(KEY2, bm_transition);",
     "\tbtn_onLongPress(KEY1, change_brightness);",
+    "\t\t\tled_write2dcol(i >> 2, fb[i >> 1], fb[(i >> 1) + 1]);",
   ].join("\r\n");
 
   const patchedPeripheral = applyPeripheralHooks(peripheral);
@@ -176,6 +177,18 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     /Disable the profile-specific view button[\s\S]*btn_onOnePress\(KEY1, NULL\);[\s\S]*btn_onOnePress\(KEY2, change_mode\);[\s\S]*btn_onOnePress\(KEY2, NULL\);/,
   );
   assert.match(patchedMain, /frogalert_survey_text/);
+  assert.match(
+    patchedMain,
+    /volatile uint16_t frogalert_survey_overlay_fb\[2\]\[LED_COLS\]/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_survey_overlay_index \^ 1U[\s\S]*frogalert_survey_overlay_index = target_index;[\s\S]*frogalert_survey_display_owned = TRUE;/,
+  );
+  assert.match(
+    patchedMain,
+    /if \(frogalert_survey_display_owned\)[\s\S]*frogalert_survey_overlay_fb[\s\S]*else[\s\S]*led_write2dcol\(i >> 2, fb\[column\]/,
+  );
   assert.match(patchedMain, /FROGALERT_SURVEY_PAGE_CHARS\s+8/);
   assert.match(patchedMain, /FROGALERT_SURVEY_PAGE_MAX\s+2/);
   assert.match(patchedMain, /FROGALERT_SURVEY_TEXT_MAX\s+16/);

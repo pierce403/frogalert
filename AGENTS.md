@@ -309,19 +309,19 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   20 seconds while disconnected; a continuously present match can retrigger
   once in each new window. It caps and zeroes 64 addresses, restores
   advertising, cancels a stuck scan after five seconds, and preserves audited
-  FOSSASIA USB/BLE/display/KEY2 symbols. The locked fixed-page candidates are
-  profile-specific view control keeps the physical button nearest USB as the
+  FOSSASIA USB/BLE/display/KEY2 symbols. Profile-specific view control keeps
+  the physical button nearest USB as the
   counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
   short press retains the normal system action and KEY2 long press retains ISP
-  entry. The locked `260404` candidate is 204,364 bytes at SHA-256
-  `5d32ca8e15c5091ffaa5c9f3ee1be18a1f28c8cae89665e2aa0d50663081b477`;
-  the `250901` candidate is 204,332 bytes at SHA-256
-  `bf3cfadb5d7b247bcf10949208a912dee19b9ee60497ff529fb56d923acffa1f`.
-  Original scrolling tasks can already
-  have queued work, so their marquee/flash/fixed/Bluetooth event handlers must
-  consume events without rescheduling while an overlay owns the panel. Both
-  candidates remain private under `tmp/`, hardware-unverified, and not
-  flash-approved or published.
+  entry. The locked `260404` candidate is 204,532 bytes at SHA-256
+  `ef144ee07f5138277ccc217541834a20c4a8660a36cfa7ab468db4d90b4fff20`;
+  the `250901` candidate is 204,508 bytes at SHA-256
+  `36cca2721c2535df9eefd950e178c5f39d192a6f7f3f07c4683a03f2edb55af8`.
+  FrogAlert completes frames in one of two private buffers and the final TMR0
+  refresh selects the committed buffer while an overlay owns the panel.
+  Marquee/flash/fixed/Bluetooth event handlers also consume queued work without
+  rescheduling. Both candidates remain private under `tmp/`,
+  hardware-unverified, and not flash-approved or published.
 - On 2026-07-23 the user reported that the latest image they had flashed was
   working well. Treat this as encouraging physical feedback, not release
   evidence: the last explicitly requested-and-observed flash was likely the
@@ -343,6 +343,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   already be queued, patched handlers also consume their events without
   rescheduling while an overlay owns the panel. This addresses the competing
   scroll, but does not change the base refresh rate.
+- The user physically observed that FOSSASIA blink mode could still overwrite a
+  `FLIPPER DETECTED` overlay despite the per-event scheduler guards. The
+  replacement double-buffers FrogAlert's 44-column frames and switches the
+  final `TMR0_IRQHandler` output away from the shared `fb` while FrogAlert owns
+  the panel. This covers all `ANI_NEXT_STEP` base modes, marquee, flash/blink,
+  and queued BLE animation writes. Streaming and non-normal system modes still
+  deliberately relinquish display ownership.
 - The first fixed-page candidate physically rendered `FLIPPER` as
   `FLIFFER`-like text and produced malformed digits. FOSSASIA's `font5x7`
   table stores six columns: a blank lead-in at index 0 followed by five actual

@@ -77,6 +77,15 @@ separate roughly 2.2-second KEY2-to-ISP poll is unchanged. The view choice is
 presentation state rather than radio state, so disconnected passive surveys
 continue while either the nametag or counter is visible.
 
+FrogAlert renders fixed counts, alert pages, and frog frames into the inactive
+one of two private 44-column buffers, then switches buffers only after the
+frame is complete. The final timer interrupt selects that committed overlay
+instead of FOSSASIA's shared animation framebuffer while FrogAlert owns the
+panel. This output-stage boundary protects alerts from blink, marquee, every
+base animation mode, and queued Bluetooth animation work even if one of those
+tasks writes the shared framebuffer. App streaming and non-normal system modes
+still deliberately suspend FrogAlert and return the panel to FOSSASIA.
+
 The counter's final character shows `I` for initialization, `R` for
 ready/waiting, `S` for active scan, `E` for error, or `T` for watchdog timeout.
 The suffix disappears for a completed `BT 00` to `BT 64+` result. Live report
