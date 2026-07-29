@@ -14,6 +14,7 @@ const RELEASE_NOTES_PATTERN =
 const GITHUB_REPOSITORY_PATTERN = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
 const RELEASE_CHANNELS = new Set(["alpha", "beta", "stable"]);
 const RECOVERY_USB_IDS = new Set(["4348:55e0", "1a86:55e0"]);
+const USER_CONFIRMED_BETA_BASIS = "user-confirmed-beta";
 const KNOWN_GOOD_REFLASH_SHA256_BY_PROFILE = new Map([
   [
     "B1144C_250901_USB_C",
@@ -88,6 +89,38 @@ function validateHardwareEvidence(artifact, description) {
   ) {
     throw new Error(`${description} hardware evidence profile does not match the artifact`);
   }
+  requireNonemptyString(evidence.pcb_marking, `${description} hardware evidence PCB marking is missing`);
+  if (
+    Array.isArray(artifact.pcb_markings) &&
+    artifact.pcb_markings.length > 0 &&
+    !artifact.pcb_markings.includes(evidence.pcb_marking)
+  ) {
+    throw new Error(`${description} hardware evidence PCB marking does not match the artifact`);
+  }
+  if (evidence.verification_basis === USER_CONFIRMED_BETA_BASIS) {
+    if (artifact.kind !== "frogalert-release" || artifact.channel !== "beta") {
+      throw new Error(`${description} user-confirmed evidence is limited to beta releases`);
+    }
+    for (const check of [
+      "user_confirmed_working",
+      "boot_observed",
+      "display_passed",
+      "badgemagic_upload_passed",
+      "button_behavior_passed",
+      "key2_dot_observed",
+      "key2_recovery_passed",
+    ]) {
+      if (evidence[check] !== true) {
+        throw new Error(`${description} user-confirmed beta evidence does not confirm ${check}`);
+      }
+    }
+    if (evidence.transport_transcript_captured !== false) {
+      throw new Error(
+        `${description} user-confirmed beta evidence must state that transport transcripts are uncaptured`,
+      );
+    }
+    return;
+  }
   const knownGoodReflashSha = KNOWN_GOOD_REFLASH_SHA256_BY_PROFILE.get(
     evidence.hardware_profile,
   );
@@ -98,14 +131,6 @@ function validateHardwareEvidence(artifact, description) {
     throw new Error(
       `${description} hardware evidence is not bound to the known-good recovery image`,
     );
-  }
-  requireNonemptyString(evidence.pcb_marking, `${description} hardware evidence PCB marking is missing`);
-  if (
-    Array.isArray(artifact.pcb_markings) &&
-    artifact.pcb_markings.length > 0 &&
-    !artifact.pcb_markings.includes(evidence.pcb_marking)
-  ) {
-    throw new Error(`${description} hardware evidence PCB marking does not match the artifact`);
   }
   for (const check of [
     "cli_program_verified",
@@ -141,36 +166,61 @@ function validateHardwareEvidence(artifact, description) {
 
 export function validateHardwareEvidenceRecord(artifact, record, description = "FrogAlert artifact") {
   const evidence = artifact?.hardware_evidence;
-  if (!record || typeof record !== "object" || Array.isArray(record) || record.schema_version !== 1) {
+  const userConfirmedBeta = evidence?.verification_basis === USER_CONFIRMED_BETA_BASIS;
+  const expectedSchema = userConfirmedBeta ? 2 : 1;
+  if (
+    !record ||
+    typeof record !== "object" ||
+    Array.isArray(record) ||
+    record.schema_version !== expectedSchema
+  ) {
     throw new Error(`${description} structured hardware evidence record is invalid`);
   }
-  const boundFields = [
-    "artifact_sha256",
-    "source_commit",
-    "tested_at",
-    "hardware_profile",
-    "pcb_marking",
-    "transcript",
-    "cli_program_verified",
-    "cli_byte_verify_passed",
-    "webusb_program_verified",
-    "webusb_byte_verify_passed",
-    "boot_observed",
-    "power_cycle_passed",
-    "key1_behavior_passed",
-    "short_key2_behavior_passed",
-    "application_usb_id",
-    "application_hid_enumeration_passed",
-    "application_cdc_enumeration_passed",
-    "display_passed",
-    "badgemagic_upload_passed",
-    "key2_dot_observed",
-    "key2_recovery_passed",
-    "known_good_reflash_passed",
-    "known_good_reflash_sha256",
-    "recovery_method",
-    "recovery_usb_id",
-  ];
+  const boundFields = userConfirmedBeta
+    ? [
+        "artifact_sha256",
+        "source_commit",
+        "tested_at",
+        "hardware_profile",
+        "pcb_marking",
+        "transcript",
+        "verification_basis",
+        "user_confirmed_working",
+        "boot_observed",
+        "display_passed",
+        "badgemagic_upload_passed",
+        "button_behavior_passed",
+        "key2_dot_observed",
+        "key2_recovery_passed",
+        "transport_transcript_captured",
+      ]
+    : [
+        "artifact_sha256",
+        "source_commit",
+        "tested_at",
+        "hardware_profile",
+        "pcb_marking",
+        "transcript",
+        "cli_program_verified",
+        "cli_byte_verify_passed",
+        "webusb_program_verified",
+        "webusb_byte_verify_passed",
+        "boot_observed",
+        "power_cycle_passed",
+        "key1_behavior_passed",
+        "short_key2_behavior_passed",
+        "application_usb_id",
+        "application_hid_enumeration_passed",
+        "application_cdc_enumeration_passed",
+        "display_passed",
+        "badgemagic_upload_passed",
+        "key2_dot_observed",
+        "key2_recovery_passed",
+        "known_good_reflash_passed",
+        "known_good_reflash_sha256",
+        "recovery_method",
+        "recovery_usb_id",
+      ];
   for (const field of boundFields) {
     if (record[field] !== evidence?.[field]) {
       throw new Error(`${description} structured hardware evidence differs at ${field}`);
@@ -199,13 +249,45 @@ export function validateHardwareEvidenceTranscript(
     record.source_commit,
     record.hardware_profile,
     record.pcb_marking,
-    record.application_usb_id,
-    record.recovery_usb_id,
-    record.known_good_reflash_sha256,
+    ...(record.schema_version === 1
+      ? [
+          record.application_usb_id,
+          record.recovery_usb_id,
+          record.known_good_reflash_sha256,
+        ]
+      : []),
   ]) {
     if (!transcript.includes(fact)) {
       throw new Error(`${description} hardware evidence transcript is missing ${fact}`);
     }
+  }
+  if (record.schema_version === 2) {
+    const sectionRequirements = [
+      ["## User hardware confirmation", ["user", "confirmed", "working"]],
+      ["## Runtime and display", ["boot", "display", "bluetooth"]],
+      ["## BadgeMagic compatibility", ["badgemagic", "upload"]],
+      ["## Buttons and recovery", ["button", "key2", "dot"]],
+      ["## Uncaptured transport evidence", ["cli", "webusb", "not captured"]],
+    ];
+    for (const [heading, requiredTerms] of sectionRequirements) {
+      const headingStart = transcript.indexOf(heading);
+      if (headingStart === -1) {
+        throw new Error(`${description} hardware evidence transcript is missing ${heading}`);
+      }
+      const bodyStart = headingStart + heading.length;
+      const nextHeading = transcript.indexOf("\n## ", bodyStart);
+      const body = transcript.slice(bodyStart, nextHeading === -1 ? undefined : nextHeading).trim();
+      const normalizedBody = body.toLowerCase();
+      if (
+        body.length < 20 ||
+        requiredTerms.some((term) => !normalizedBody.includes(term.toLowerCase()))
+      ) {
+        throw new Error(
+          `${description} hardware evidence transcript has no captured evidence under ${heading}`,
+        );
+      }
+    }
+    return true;
   }
   const sectionRequirements = [
     ["## CLI program and byte verification", ["wchisp", "program", "verify"]],

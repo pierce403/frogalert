@@ -94,19 +94,18 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /id="usb-connect"[^>]+disabled/);
   assert.match(html, /Install open BadgeMagic firmware/);
   assert.match(html, /Prepare open BadgeMagic firmware/);
-  assert.match(html, /PROTOTYPE \/ BADGE · 260404 HARDWARE-TESTED/);
-  assert.match(html, /Private dual-profile survey BINs/);
+  assert.match(html, /BETA \/ BADGE · BOTH PROFILES HARDWARE-TESTED/);
+  assert.match(html, /Dual-profile survey firmware/);
   assert.match(
     html,
-    /href="https:\/\/github\.com\/pierce403\/frogalert\/actions\/runs\/30411963327\/artifacts\/8708751285"[^>]*>Download firmware bundle</,
+    /href="\.\/firmware\/releases\/frogalert-0\.1\.0-beta\.1-b1144c-260404-usb-c\.bin"[^>]*download[^>]*>Download top-button firmware</,
   );
   assert.match(
     html,
-    /frogalert-0\.0\.0-candidate\.e8787b850cc6-b1144c-260404-usb-c\.bin/,
+    /frogalert-0\.1\.0-beta\.1-b1144c-250901-usb-c\.bin/,
   );
-  assert.match(html, /GitHub sign-in is required.*expires August 28, 2026/is);
-  assert.match(html, /developer download, not yet a manifest-approved release/i);
-  assert.match(html, /260404 runtime hardware-tested/i);
+  assert.match(html, /available for both verified USB-C boards/i);
+  assert.match(html, /Two hardware-tested beta images/i);
   assert.match(html, /view button.*names.*Bluetooth-rune.*00.*nearest USB.*260404/is);
   assert.match(html, /Scanning runs in either display mode/i);
   assert.match(html, /shows.*COP DETECTED.*one second each/is);
@@ -120,15 +119,15 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /QT [\s\S]*serial[\s\S]*KARR DETECTED/);
   assert.match(html, /Ray-Ban[\s\S]*Ray Ban[\s\S]*COP DETECTED/);
   assert.doesNotMatch(html, /HAX DETECTED/);
-  assert.match(html, /profile-specific .*260404.*250901.*candidates/is);
+  assert.match(html, /profile-specific .*260404.*250901.*beta images/is);
   assert.match(html, /double-buffered output overlay.*blink.*marquee.*base animations/is);
   assert.match(html, /205,152 bytes.*c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9/);
   assert.match(html, /205,128 bytes.*f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9/);
   assert.match(html, /complete-frame refresh from roughly 45 Hz to 182 Hz/);
   assert.match(html, /a fixed counter, one-second-per-frame fixed alerts/);
-  assert.match(html, /active-low .*260404.*build default/is);
+  assert.match(html, /Both exact hashes have user-confirmed runtime.*KEY2 dot-to-ISP acceptance/is);
   assert.match(html, /cannot be distinguished passively at boot/i);
-  assert.match(html, /Neither image is release-approved.*CLI and WebUSB program\/byte-verify/is);
+  assert.match(html, /Captured CLI\/WebUSB transport logs remain a stable-release gate/is);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
   assert.match(html, /Preparation does not touch USB/i);
   assert.match(
@@ -176,10 +175,10 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=15/);
+  assert.match(html, /site\/app\.js\?v=16/);
   assert.match(app, /flash-support\.js\?v=2/);
   assert.match(app, /latest approved/);
-  assert.match(app, /Nothing is selected or loaded automatically/);
+  assert.match(app, /loads the matching image after it observes the button path/);
   assert.match(html, /newest semantic version.*never selected automatically/i);
   assert.match(app, /elements\.releaseDownload\.href = firmwareArtifactUrl\(release\.file/);
   assert.match(app, /elements\.releaseLink\.href = release\.release_url/);
@@ -237,7 +236,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=15/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=16/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   for (const step of ["firmware", "confirm", "flash", "success"]) {
@@ -454,7 +453,29 @@ test("release manifest separates releases, hosted labs, and pinned open recovery
   const manifest = JSON.parse(await read("firmware/releases/manifest.json"));
   assert.equal(manifest.schema_version, 4);
   assert.equal(manifest.github_repository, "pierce403/frogalert");
-  assert.deepEqual(manifest.releases, []);
+  assert.equal(manifest.releases.length, 2);
+  assert.deepEqual(
+    manifest.releases.map(({ version, channel, hardware_revisions, hardware_verified }) => ({
+      version,
+      channel,
+      hardware_revisions,
+      hardware_verified,
+    })),
+    [
+      {
+        version: "0.1.0-beta.1",
+        channel: "beta",
+        hardware_revisions: ["B1144C_260404_USB_C"],
+        hardware_verified: true,
+      },
+      {
+        version: "0.1.0-beta.1",
+        channel: "beta",
+        hardware_revisions: ["B1144C_250901_USB_C"],
+        hardware_verified: true,
+      },
+    ],
+  );
   assert.deepEqual(manifest.lab_images, []);
   await assert.rejects(
     readBytes("firmware/releases/frogalert-pixel-walk-b1144c-250901-usbc-f794974.bin"),

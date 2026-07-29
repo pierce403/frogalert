@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "artifact_sha256": "f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9",
+  "source_commit": "e8787b850cc64381b7d70889adab659997422959",
+  "tested_at": "2026-07-28",
+  "hardware_profile": "B1144C_250901_USB_C",
+  "pcb_marking": "B1144C_250901",
+  "transcript": "agent-memory/logs/2026-07-28-frogalert-beta1-user-confirmation.md",
+  "verification_basis": "user-confirmed-beta",
+  "user_confirmed_working": true,
+  "boot_observed": true,
+  "display_passed": true,
+  "badgemagic_upload_passed": true,
+  "button_behavior_passed": true,
+  "key2_dot_observed": true,
+  "key2_recovery_passed": true,
+  "transport_transcript_captured": false
+}

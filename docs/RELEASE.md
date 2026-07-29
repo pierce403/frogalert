@@ -10,8 +10,8 @@ cannot ship without hardware evidence.
 2. Run `./scripts/verify`.
 3. Perform a real local browser smoke at desktop and mobile widths.
 4. Commit and push the cohesive change.
-5. Verify the post-CI publication workflow prepares an empty firmware release
-   plan and GitHub Pages publishes the exact commit over HTTPS.
+5. Verify the post-CI publication workflow reconciles the unchanged approved
+   firmware catalog and GitHub Pages publishes the exact commit over HTTPS.
 6. Confirm `frogalert.org` and the firmware manifest load without mixed content.
 7. Record the deployed commit and any browser limitations in a dated log.
 
@@ -195,7 +195,11 @@ recovery, and known-good-reflash fact to match the manifest. It also reads the
 bound dated transcript and requires exact identifiers plus dedicated CLI,
 WebUSB, application USB, display/app, button, KEY2, and reflash sections. A
 C3-assisted ROM entry is useful recovery evidence but cannot satisfy the
-application KEY2 acceptance gate.
+application KEY2 acceptance gate. Stable releases continue to require this
+complete schema-1 record. Beta releases may use a schema-2
+`user-confirmed-beta` record for an exact hash that the owner confirms working
+on the exact board. That record must explicitly disclose uncaptured CLI/WebUSB
+transport logs and cannot be promoted to stable without them.
 
 A `lab_images` entry carries the same immutable identity and physical-evidence
 fields as a release. It differs in stability/support expectations, not in
@@ -212,10 +216,13 @@ hardware profile but changes the SHA-256. The configured bytes are explicitly
 configuration/hash change. Publishing such a variant would require its own
 exact descriptor, profile/PCB-bound evidence record, and transcript.
 
-The current `releases` and `lab_images` arrays are empty. The first USB-C
-pixel-walk build was withdrawn after a blank-boot hardware failure and failed
-KEY2 recovery. A build-only or failed FrogAlert artifact must remain under
-ignored `tmp/` paths and must never be copied into the public release directory.
+The `releases` array contains two exact `0.1.0-beta.1` USB-C artifacts: the
+top-button `B1144C_260404` image and bottom-button `B1144C_250901` image. Both
+use user-confirmed schema-2 beta evidence, while `lab_images` remains empty.
+The first USB-C pixel-walk build was withdrawn after a blank-boot hardware
+failure and failed KEY2 recovery. A build-only or failed FrogAlert artifact
+must remain under ignored `tmp/` paths and must never be copied into the public
+release directory.
 The one `recovery_images` entry is FOSSASIA's official open BadgeMagic firmware
 v0.1 substitute, constrained to exact `HARDWARE_REV1` and recorded as
 `hardware_verified_by_frogalert: false`. It is not a FrogAlert release and it is

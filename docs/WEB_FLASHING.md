@@ -342,13 +342,17 @@ Release before deploying the Pages artifact that exposes it.
 
 Site assembly rejects a FrogAlert release or lab image unless
 `hardware_verified` is true and its evidence is bound to the exact SHA-256,
-firmware profile, and PCB marking. The evidence must confirm program/verify,
-boot, power cycle, short-button safety, and long-press ROM-ISP recovery. It also
+firmware profile, and PCB marking. Stable schema-1 evidence must confirm
+program/verify, boot, power cycle, short-button safety, and long-press ROM-ISP
+recovery. Beta schema-2 evidence may instead bind an exact user-confirmed image
+while explicitly disclosing that CLI/WebUSB transport logs were not captured.
+It also
 rejects every hash in `firmware/quarantine.json`, even if a later descriptor
 claims that hash was verified. First-test images stay under ignored `tmp/`.
 
-Until a hardware-tested FrogAlert firmware release exists, `releases` and
-`lab_images` remain empty. The first display-only USB-C pixel-walk build was
+The manifest contains user-confirmed `0.1.0-beta.1` releases for both exact
+USB-C profiles; `lab_images` remains empty. The first display-only USB-C
+pixel-walk build was
 withdrawn after it booted blank and failed application-provided KEY2 recovery.
 No failed or merely build-audited FrogAlert bytes may remain downloadable from
 the public site.

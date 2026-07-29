@@ -2,9 +2,16 @@
 
 Every public FrogAlert release or lab image targets exactly one firmware
 profile and one physical PCB marking. Its manifest entry points to a JSON file
-in this directory. Site assembly reads that file and requires every safety fact
-to match the manifest exactly; an empty or unrelated Markdown log is not
+in this directory. Site assembly reads that file and requires every declared
+fact to match the manifest exactly; an empty or unrelated Markdown log is not
 evidence.
+
+Schema 1 below remains the stable-release gate. A beta release may instead use
+schema 2 with `verification_basis: "user-confirmed-beta"` when the owner has
+confirmed the exact hash on physical hardware but transport logs were not
+captured. Schema 2 must say `transport_transcript_captured: false` and confirm
+boot, display, BadgeMagic upload, profile-specific buttons, and KEY2 dot
+recovery. It cannot be used for stable releases or lab images.
 
 A record has this shape:
 
@@ -64,3 +71,17 @@ identifier-mismatched transcripts. Each section must contain the relevant
 command/output or observation terms; headings alone fail. For
 `B1144C_250901_USB_C`, the reflash section must name and verify the pinned
 177,704-byte FOSSASIA baseline SHA-256 shown above.
+
+Schema 2 transcripts contain the exact date, hash, source, profile, and marking
+plus these substantive sections:
+
+```markdown
+## User hardware confirmation
+## Runtime and display
+## BadgeMagic compatibility
+## Buttons and recovery
+## Uncaptured transport evidence
+```
+
+This beta path records missing CLI/WebUSB transcripts as a limitation instead
+of inventing evidence or deadlocking publication on a hosted browser image.

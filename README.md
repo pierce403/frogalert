@@ -20,29 +20,27 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   mismatch makes both interrupt-driven builds unsafe to flash
 - replacement firmware base: pinned FOSSASIA USB-C C hardware shell supports
   exact `B1144C_260404_USB_C` and `B1144C_250901_USB_C` build profiles; the
-  Nyx `260404` KEY1 wiring is the build default; exact SHA
-  `c6d06c59…face0d9` has user-confirmed runtime, display, BadgeMagic upload,
-  button, and KEY2 recovery behavior, while `250901` remains hardware-unverified
-- private survey candidates: CI builds and audits one profile-bound BIN/ELF
+  Nyx `260404` KEY1 wiring is the build default; exact `260404` SHA
+  `c6d06c59…face0d9` and `250901` SHA `f9367fe…73d5c9` have user-confirmed
+  runtime, display, BadgeMagic upload, button, and KEY2 recovery behavior
+- survey firmware: CI builds and audits one profile-bound BIN/ELF
   pair for each USB-C board profile, with passive counting, configurable
   built-in/custom monitoring, one second per alert frame on a roughly 20-second
   survey cadence, and a BadgeMagic frog animation; the current bundle is
-  linked from the project front page for developer download, but remains
-  outside GitHub Releases and the flash-approved manifest
+  published together as `0.1.0-beta.1` and available to the flasher
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
 - full BadgeMagic-compatible FrogAlert firmware: not implemented
-- downloadable FrogAlert developer BIN: the expiring, sign-in-gated Actions
-  bundle for commit `e8787b8` is linked from the front page; no manifest-approved
-  FrogAlert release or lab BIN exists yet
+- downloadable FrogAlert beta BINs: same-origin top-button (`260404`) and
+  bottom-button (`250901`) artifacts are linked on the front page and selected
+  automatically by `/flash/`
 - public artifact safety: failed SHA permanently quarantined; site assembly
   rejects every FrogAlert BIN without hash-bound physical smoke evidence, and
   the browser refuses the failed SHA even if it is manually reselected
 - commit-driven release publication: successful `main` commits reconcile only
   physically approved manifest entries into draft-then-verified GitHub
-  Releases, then deploy the same-origin website catalog; ordinary commits and
-  the current private survey BINs create no firmware release
+  Releases, then deploy the same-origin website catalog
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -83,10 +81,10 @@ does not apply them to randomized or locally administered addresses. These are
 explainable hints rather than proof of device identity: names can be changed or
 spoofed, and vendor prefixes can cover unrelated products.
 
-The current private hardware survey candidates mirror every row in this table
+The released beta firmware mirrors every row in this table
 in a bounded C classifier. That lets the behavior be built and inspected while
 the separately gated Rust ABI canary remains pending; it does not waive that
-gate or make the BIN hardware-verified. Passive discovery does not guarantee
+gate. Passive discovery does not guarantee
 that a scan-response-only local name will be delivered, so the advertised
 `0xFEE0` service is a deliberately broad BadgeMagic fallback and can animate
 for compatible non-BadgeMagic devices that reuse that UUID.
@@ -96,7 +94,7 @@ compiled hardware profile. The browser will not rewrite a `250901` image as a
 `260404` image or vice versa. A customized download is a newly derived,
 hardware-unverified local artifact even when its base BIN came from CI.
 
-In these candidates, the physical button nearest USB rotates the visible
+In these beta images, the physical button nearest USB rotates the visible
 content as `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`: that is KEY2 on
 `250901`, but KEY1 on the reversed `260404` layout. The other short press keeps
 FOSSASIA's normal system-mode action. KEY1 long press still changes brightness,
@@ -279,16 +277,15 @@ The landing-page lab permits only inspection and artifact preparation. Its
 legacy program controls are absent, and the controller also requires explicit
 program-page mode; all destructive browser actions exist only on `/flash/`.
 
-On `/flash/`, choose the exact `260404` or `250901` hardware profile before
-loading a local survey BIN. Compatible images expose local monitoring controls
-for the five built-in target groups and up to eight custom rules. Applying the
-options rewrites only the checked configuration block, calculates and displays
-a new SHA-256, resets destructive confirmations, and offers the derived BIN for
-download. It never changes the image's compiled hardware profile or inherits
-hardware approval from the base.
+On `/flash/`, the wizard observes whether the bottom or top button produced the
+ISP dot, maps that to the exact `250901` or `260404` profile, and downloads the
+matching same-origin beta BIN automatically. There is no profile selector or
+local file chooser in the public flasher. Local inspection and experimental
+configuration remain separate on the landing-page lab.
 
 The manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and third-party
-`recovery_images` separate. Both FrogAlert collections are empty. The former
+`recovery_images` separate. It lists both exact USB-C `0.1.0-beta.1` releases;
+the lab collection remains empty. The former
 USB-C pixel-walk artifact was removed after a physical flash produced no panel
 output and its KEY2 recovery path did not enumerate ISP. The recovery collection
 contains the official FOSSASIA open v0.1 Micro-USB substitute, still

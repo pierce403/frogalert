@@ -43,6 +43,26 @@ const evidence = (overrides = {}) => ({
   ...overrides,
 });
 
+const userConfirmedBetaEvidence = (overrides = {}) => ({
+  artifact_sha256: VERIFIED_SHA,
+  source_commit: "a".repeat(40),
+  record: "firmware/evidence/2026-07-28-example-beta.json",
+  transcript: "agent-memory/logs/2026-07-28-example-beta.md",
+  tested_at: "2026-07-28",
+  hardware_profile: "B1144C_250901_USB_C",
+  pcb_marking: "B1144C_250901",
+  verification_basis: "user-confirmed-beta",
+  user_confirmed_working: true,
+  boot_observed: true,
+  display_passed: true,
+  badgemagic_upload_passed: true,
+  button_behavior_passed: true,
+  key2_dot_observed: true,
+  key2_recovery_passed: true,
+  transport_transcript_captured: false,
+  ...overrides,
+});
+
 const artifact = (overrides = {}) => ({
   id: "frogalert-0.1.0-alpha.1-b1144c-250901-usbc",
   kind: "frogalert-release",
@@ -103,6 +123,57 @@ test("physically verified, hash-bound FrogAlert artifacts may be published", () 
       emptyQuarantine,
     ),
     true,
+  );
+});
+
+test("user-confirmed exact images may ship as beta without invented transport transcripts", () => {
+  const beta = artifact({
+    id: "frogalert-0.1.0-beta.1-b1144c-250901-usbc",
+    version: "0.1.0-beta.1",
+    channel: "beta",
+    release_tag: "v0.1.0-beta.1",
+    release_url:
+      "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-beta.1",
+    release_notes: "firmware/releases/notes/v0.1.0-beta.1.md",
+    hardware_evidence: userConfirmedBetaEvidence(),
+  });
+  assert.equal(
+    validateFirmwarePublicationManifest(manifest({ releases: [beta] }), emptyQuarantine),
+    true,
+  );
+  const { record: _recordPath, ...recordFields } = beta.hardware_evidence;
+  const record = { schema_version: 2, ...recordFields };
+  assert.equal(validateHardwareEvidenceRecord(beta, record), true);
+  const transcript = [
+    record.tested_at,
+    record.artifact_sha256,
+    record.source_commit,
+    record.hardware_profile,
+    record.pcb_marking,
+    "## User hardware confirmation\nThe user confirmed this exact image is working.",
+    "## Runtime and display\nNormal boot, Bluetooth counter, and display output worked.",
+    "## BadgeMagic compatibility\nBadgeMagic upload compatibility was confirmed.",
+    "## Buttons and recovery\nButton behavior and the KEY2 dot recovery path worked.",
+    "## Uncaptured transport evidence\nCLI and WebUSB program logs were not captured.",
+  ].join("\n");
+  assert.equal(validateHardwareEvidenceTranscript(beta, record, transcript), true);
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          releases: [
+            {
+              ...beta,
+              version: "0.1.0",
+              channel: "stable",
+              release_tag: "v0.1.0",
+              release_url: "https://github.com/pierce403/frogalert/releases/tag/v0.1.0",
+            },
+          ],
+        }),
+        emptyQuarantine,
+      ),
+    /limited to beta releases/,
   );
 });
 

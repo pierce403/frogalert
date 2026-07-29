@@ -1987,7 +1987,7 @@ async function fetchReleaseManifest() {
         elements.releaseSelect.append(option);
       }
       elements.releaseSelect.disabled = state.flashing;
-      setReleaseSummary(`${state.releases.length} hardware-verified release${state.releases.length === 1 ? "" : "s"} available; ${latestApprovedVersion} is the newest approved version. Nothing is selected or loaded automatically.`, "good");
+      setReleaseSummary(`${state.releases.length} hardware-verified release${state.releases.length === 1 ? "" : "s"} available; ${latestApprovedVersion} is the newest approved version. The flasher loads the matching image after it observes the button path.`, "good");
     }
 
     const labIds = new Set();

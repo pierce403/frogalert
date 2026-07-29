@@ -112,10 +112,12 @@ The public site is a dependency-free static application. It separates:
   `hardware_verified: true` plus hash/profile/PCB-bound physical evidence.
   One descriptor covers exactly one profile and one physical PCB marking. Its
   structured `firmware/evidence/*.json` record must repeat the exact hash,
-  source, board, application USB, display, BadgeMagic upload, and KEY2-only
-  dot-to-ISP results, separate KEY1/short-KEY2 behavior, and known-good reflash.
-  Bind a dated transcript with exact identifiers and captured CLI, WebUSB,
-  kernel, app, and visual evidence; C3 entry does not satisfy the KEY2 gate.
+  source, and board. Stable schema-1 evidence additionally requires captured
+  CLI, WebUSB, application USB, display, BadgeMagic upload, KEY2-only
+  dot-to-ISP, button, and known-good-reflash results. A beta release may use
+  schema-2 `user-confirmed-beta` evidence for an exact image the owner confirms
+  working; it must disclose uncaptured transport logs and cannot satisfy stable
+  promotion. C3 entry does not satisfy the KEY2 gate.
   `firmware/quarantine.json` is a permanent SHA denylist checked during site
   assembly and after hashing any browser-selected local file. If the browser
   cannot load that registry, artifact preparation must fail closed.
@@ -338,16 +340,17 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   count and optional diagnostic phase.
   The user explicitly confirmed runtime, display, BadgeMagic upload, button
   behavior, and KEY2-only dot-to-ISP acceptance for the exact `260404` hash on
-  2026-07-28. This is meaningful physical evidence but not the complete release
-  record: exact-hash CLI and WebUSB program/byte-verify transcripts are still
-  missing. The front page may link the expiring Actions artifact as a clearly
-  labeled developer download, but it must not enter the executable manifest
-  until those publication gates pass.
+  2026-07-28, then confirmed both exact profile images working and directed
+  their beta publication. Exact-hash CLI and WebUSB program/byte-verify
+  transcripts remain missing and prevent stable promotion.
   FrogAlert completes frames in one of two private buffers and the final TMR0
   refresh selects the committed buffer while an overlay owns the panel.
   Marquee/flash/fixed/Bluetooth event handlers also consume queued work without
-  rescheduling. Both candidates remain private under `tmp/`,
-  hardware-unverified, and not flash-approved or published.
+  rescheduling. The user confirmed both exact images working. They are
+  published as `0.1.0-beta.1` top-button (`260404`) and bottom-button (`250901`)
+  releases with explicit schema-2 user-confirmed evidence. Missing exact-hash
+  CLI and WebUSB transcripts remain a stable-release limitation, not a beta
+  blocker.
 - On 2026-07-23 the user reported that the latest image they had flashed was
   working well. Treat this as encouraging physical feedback, not release
   evidence: the last explicitly requested-and-observed flash was likely the
