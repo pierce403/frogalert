@@ -27,6 +27,7 @@
 #define SURVEY_DISPLAY_PAGE_EVENT (1U << 3)
 #define SURVEY_WATCHDOG_EVENT     (1U << 4)
 #define SURVEY_ALERT_END_EVENT    (1U << 5)
+#define SURVEY_APP_WINDOW_END_EVENT (1U << 6)
 
 #define TMOS_TICKS_FROM_MS(ms) ((uint32_t)(ms) * 1000U / 625U)
 #define SURVEY_CYCLE_TIME_MS  20000U
@@ -40,6 +41,7 @@
 #define SURVEY_FRAME_TIME     TMOS_TICKS_FROM_MS(1000U)
 #define SURVEY_WATCHDOG_TIME  TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_SCAN_TICKS     TMOS_TICKS_FROM_MS(SURVEY_SCAN_TIME_MS)
+#define SURVEY_APP_WINDOW_TIME TMOS_TICKS_FROM_MS(10000U)
 
 #define SURVEY_PHASE_INITIALIZING 'I'
 #define SURVEY_PHASE_READY        'R'
@@ -69,6 +71,7 @@ static uint8_t scan_active;
 static uint8_t restore_advertising;
 static uint8_t cancel_reason;
 static uint8_t advertise_when_idle;
+static uint8_t app_window_active;
 static uint8_t latest_count;
 static uint8_t latest_saturated;
 static uint8_t latest_phase = SURVEY_PHASE_INITIALIZING;
@@ -226,7 +229,7 @@ static void mark_central_ready(void)
 static void restore_advertising_if_needed(void)
 {
 	if (restore_advertising && frogalert_survey_allowed() &&
-	    !peripheral_is_connected())
+	    frogalert_survey_should_advertise() && !peripheral_is_connected())
 		ble_enable_advertise();
 	restore_advertising = 0;
 }
@@ -485,6 +488,16 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		return events ^ SURVEY_ALERT_END_EVENT;
 	}
 
+	if (events & SURVEY_APP_WINDOW_END_EVENT) {
+		app_window_active = 0;
+		advertise_when_idle = 0;
+		restore_advertising = 0;
+		if (!frogalert_badgemagic_persistent_advertising() &&
+		    !peripheral_is_connected())
+			ble_disable_advertise();
+		return events ^ SURVEY_APP_WINDOW_END_EVENT;
+	}
+
 	if (events & SURVEY_DISPLAY_PAGE_EVENT) {
 		if (alert_visible &&
 		    alert_frame_index + 1 < alert_frame_count) {
@@ -543,6 +556,22 @@ uint8_t frogalert_survey_suspend(uint8_t advertise_after)
 		PRINT("FrogAlert survey suspend deferred after error: %u\n",
 		      status);
 	return FALSE;
+}
+
+uint8_t frogalert_survey_should_advertise(void)
+{
+	return app_window_active ||
+	       frogalert_badgemagic_persistent_advertising();
+}
+
+void frogalert_survey_open_app_window(void)
+{
+	app_window_active = 1;
+	tmos_stop_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT);
+	if (frogalert_survey_suspend(TRUE))
+		ble_enable_advertise();
+	tmos_start_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT,
+			SURVEY_APP_WINDOW_TIME);
 }
 
 void frogalert_survey_role_init(void)

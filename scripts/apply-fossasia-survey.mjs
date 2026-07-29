@@ -75,7 +75,10 @@ export function applyPeripheralHooks(source) {
 		conn_list.connTimeout = 0;
 #ifdef FROGALERT_SURVEY
 		frogalert_survey_on_disconnect();
-		if (frogalert_survey_suspend(TRUE))
+		uint8_t advertise_after =
+			frogalert_survey_should_advertise();
+		if (frogalert_survey_suspend(advertise_after) &&
+		    advertise_after)
 			enable_advertising(TRUE);
 #else
 		enable_advertising(TRUE);
@@ -310,30 +313,6 @@ export function applyMainHooks(source) {
   );
   result = replaceOnce(
     result,
-    `	if (! badge_cfg.ble_always_on) {
-		ble_disable_advertise();
-	}
-
-	devInfo_registerService();`,
-    `#ifdef FROGALERT_SURVEY
-	/*
-	 * Keep the BadgeMagic upload service discoverable in normal nametag
-	 * mode. This makes app access independent of the profile-specific mode
-	 * button; surveys still pause advertising briefly and suspend after a
-	 * connection.
-	 */
-	ble_enable_advertise();
-#else
-	if (! badge_cfg.ble_always_on) {
-		ble_disable_advertise();
-	}
-#endif
-
-	devInfo_registerService();`,
-    "normal-mode BadgeMagic advertising",
-  );
-  result = replaceOnce(
-    result,
     `	if(events & ANI_NEXT_STEP) {
 
 		static int (*animations[])(bm_t *bm, uint16_t *fb) = {`,
@@ -434,8 +413,25 @@ static void frogalert_view_transition(void)
 	frogalert_survey_view_changed();
 }
 
+static void frogalert_open_app_window(void)
+{
+	/*
+	 * The Android app connects to the first matching FEE0 advertiser. Keep
+	 * unattended FrogAlert badges quiet, but let either short button make
+	 * this badge discoverable without depending on the compiled profile.
+	 */
+	if (mode == NORMAL)
+		frogalert_survey_open_app_window();
+}
+
+uint8_t frogalert_badgemagic_persistent_advertising(void)
+{
+	return badge_cfg.ble_always_on || mode == DOWNLOAD;
+}
+
 static void frogalert_key1_transition(void)
 {
+	frogalert_open_app_window();
 	if (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901)
 		change_mode();
 	else if (mode == NORMAL)
@@ -448,6 +444,7 @@ static void frogalert_key2_transition(void)
 	 * Until KEY1 proves the board, let a short KEY2 press select the counter
 	 * but never walk an accidentally cross-flashed badge toward power-off.
 	 */
+	frogalert_open_app_window();
 	if (!btn_key1_profile_detected()) {
 		if (mode == NORMAL)
 			frogalert_view_transition();

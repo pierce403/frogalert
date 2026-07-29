@@ -189,7 +189,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedPeripheral,
-    /conn_list\.connHandle = GAP_CONNHANDLE_INIT;[\s\S]*frogalert_survey_on_disconnect\(\);[\s\S]*frogalert_survey_suspend\(TRUE\)[\s\S]*enable_advertising\(TRUE\)/,
+    /conn_list\.connHandle = GAP_CONNHANDLE_INIT;[\s\S]*frogalert_survey_on_disconnect\(\);[\s\S]*frogalert_survey_should_advertise\(\)[\s\S]*frogalert_survey_suspend\(advertise_after\)[\s\S]*enable_advertising\(TRUE\)/,
   );
   assert.doesNotMatch(
     patchedPeripheral,
@@ -198,7 +198,19 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /peripheral_init\(\);[\s\S]*frogalert_survey_init\(\);/);
   assert.match(
     patchedMain,
-    /Keep the BadgeMagic upload service discoverable[\s\S]*ble_enable_advertise\(\);[\s\S]*#else[\s\S]*ble_disable_advertise\(\);/,
+    /Android app connects to the first matching FEE0 advertiser[\s\S]*frogalert_survey_open_app_window\(\)/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_key1_transition\(void\)[\s\S]*frogalert_open_app_window\(\)/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_key2_transition\(void\)[\s\S]*frogalert_open_app_window\(\)/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_badgemagic_persistent_advertising\(void\)[\s\S]*badge_cfg\.ble_always_on \|\| mode == DOWNLOAD/,
   );
   assert.match(
     patchedMain,
@@ -556,6 +568,16 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(
     survey,
     /advertise_when_idle && !peripheral_is_connected\(\)/,
+  );
+  assert.match(survey, /SURVEY_APP_WINDOW_END_EVENT/);
+  assert.match(survey, /SURVEY_APP_WINDOW_TIME/);
+  assert.match(
+    survey,
+    /app_window_active = 0;[\s\S]*advertise_when_idle = 0;[\s\S]*restore_advertising = 0;[\s\S]*frogalert_badgemagic_persistent_advertising\(\)[\s\S]*ble_disable_advertise\(\)/,
+  );
+  assert.match(
+    survey,
+    /frogalert_survey_open_app_window\(void\)[\s\S]*app_window_active = 1;[\s\S]*frogalert_survey_suspend\(TRUE\)[\s\S]*SURVEY_APP_WINDOW_END_EVENT/,
   );
   assert.match(survey, /show_survey\(SURVEY_PHASE_SCANNING\)/);
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);

@@ -11,9 +11,18 @@ candidate still inherited FOSSASIA's default behavior of disabling advertising
 at boot when `badge_cfg.ble_always_on` was false, making app access depend on
 entering download mode with the correctly routed button.
 
-Current source explicitly enables peripheral advertising in normal nametag
-mode for FrogAlert survey builds. Passive survey preparation may still disable
-it for the three-second scan, and an established connection suspends surveys
-until disconnect. Rebuilds remain hardware-unverified until both exact profiles
-and deliberate cross-profile flashes pass Android discover/connect/upload,
-disconnect, survey-resume, and KEY2-only ISP recovery checks.
+An initial response explicitly enabled peripheral advertising in normal
+nametag mode. It was rejected before physical testing after the user identified
+the multi-badge-room failure: BadgeMagic app commit
+`42c98bc8c7d24459c5145d1b2efdda26c8aaf27e` defaults to “any” and connects to
+the first advertisement containing `FEE0`, without a chooser.
+
+Current source instead keeps unattended normal-mode advertising off. Either
+short button calls the existing survey-suspension path with advertising
+restoration, opening a roughly ten-second app-attention window before surveys
+retry. This makes discovery independent of the profile-specific mode button
+without putting every FrogAlert badge into the candidate pool. An established
+connection still suspends surveys until disconnect. Rebuilds remain
+hardware-unverified until both exact profiles and deliberate cross-profile
+flashes pass Android discover/connect/upload, disconnect, survey-resume,
+multi-badge selection, and KEY2-only ISP recovery checks.
