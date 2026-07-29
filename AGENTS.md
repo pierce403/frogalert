@@ -282,9 +282,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - FrogAlert survey candidates keep unattended normal-mode GATT advertising off
   because BadgeMagic app commit `42c98bc` defaults to “any” and connects to the
   first matching `FEE0` advertiser without a chooser. Either short button must
-  open an app-attention window and pause surveying, so an accidental
-  top-image/bottom-image mismatch cannot make uploads depend on the correctly
-  routed download button. A connection suspends surveys until disconnect; KEY2
+  show the same Bluetooth animation, open an app-attention window, and pause
+  surveying, so an accidental top-image/bottom-image mismatch cannot make
+  uploads depend on the correctly routed download button. The view-button
+  window expires back to its selected view; the system button retains ordinary
+  download mode. A connection suspends surveys until disconnect; KEY2
   long-press ISP remains independent.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
@@ -377,10 +379,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `250901`, four `low/low` samples select `260404`, and the ordinary open
   `low/high` state selects nothing. A confirmed result corrects KEY1 polarity,
   both short-button roles, and shutdown wake for the current boot. The new
-  expiring either-button-attention 205,852-byte candidates are `260404`
-  `d59e8cc2dd63dc3ae0026996ab7a9598c0faa96640cba2a0b27fdbe994698614`
+  consistent-cue either-button-attention 205,892-byte candidates are `260404`
+  `dc2e7123d4882129abad2798773b93a2b3914fa8038c1527ffc5469258e4bacc`
   and `250901`
-  `532a6628bde58c5b2655ba6c15e26951110f0101fc7b7e96358429ea2fe295c1`.
+  `c98fc0f4c30793cce6bda998f7bbfb8b1428fa23804bb3bbd0d70308bacc19c5`.
   They pass locked ELF/BIN/vector/USB/BLE/display/KEY2 audits but are
   hardware-unverified. Test each on its matching board and deliberately
   cross-flashed board, including KEY2-before-detection, brightness,

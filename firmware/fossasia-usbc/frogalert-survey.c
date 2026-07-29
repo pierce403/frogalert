@@ -492,9 +492,11 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		app_window_active = 0;
 		advertise_when_idle = 0;
 		restore_advertising = 0;
-		if (!frogalert_badgemagic_persistent_advertising() &&
-		    !peripheral_is_connected())
-			ble_disable_advertise();
+		if (!peripheral_is_connected()) {
+			if (!frogalert_badgemagic_persistent_advertising())
+				ble_disable_advertise();
+			frogalert_display_app_attention_end();
+		}
 		return events ^ SURVEY_APP_WINDOW_END_EVENT;
 	}
 
@@ -570,6 +572,7 @@ void frogalert_survey_open_app_window(void)
 	tmos_stop_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT);
 	if (frogalert_survey_suspend(TRUE))
 		ble_enable_advertise();
+	frogalert_display_app_attention_start();
 	tmos_start_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT,
 			SURVEY_APP_WINDOW_TIME);
 }

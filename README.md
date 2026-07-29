@@ -126,9 +126,12 @@ Current FrogAlert candidates let either short button open a roughly ten-second
 BadgeMagic app window while showing the normal nametag. The Android upload path
 therefore does not depend on finding the profile-specific mode button after an
 accidental top-image/bottom-image mismatch. Unattended badges do not advertise
-continuously, avoiding a room full of identical `FEE0` candidates; the original
-button action still occurs. The window pauses passive surveys, and a successful
-app connection keeps them suspended for the entire upload.
+continuously, avoiding a room full of identical `FEE0` candidates. Either press
+shows the same animated Bluetooth readiness cue. A view-button window returns
+to the selected name/counter after ten seconds; the ordinary system button
+retains FOSSASIA's persistent download-mode behavior. The window pauses passive
+surveys, and a successful app connection keeps them suspended for the entire
+upload.
 
 ## Hardware warning
 

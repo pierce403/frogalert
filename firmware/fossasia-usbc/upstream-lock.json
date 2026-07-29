@@ -99,8 +99,8 @@
           "sha256": "6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87"
         },
         "survey": {
-          "size": 205852,
-          "sha256": "532a6628bde58c5b2655ba6c15e26951110f0101fc7b7e96358429ea2fe295c1"
+          "size": 205892,
+          "sha256": "c98fc0f4c30793cce6bda998f7bbfb8b1428fa23804bb3bbd0d70308bacc19c5"
         }
       },
       "B1144C_260404_USB_C": {
@@ -113,8 +113,8 @@
           "sha256": "f4defa234af5c1b2377fd19daa513d8a3e550c9907cd9bd793f9c6f3b021e565"
         },
         "survey": {
-          "size": 205852,
-          "sha256": "d59e8cc2dd63dc3ae0026996ab7a9598c0faa96640cba2a0b27fdbe994698614"
+          "size": 205892,
+          "sha256": "dc2e7123d4882129abad2798773b93a2b3914fa8038c1527ffc5469258e4bacc"
         }
       }
     },

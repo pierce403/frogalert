@@ -20,9 +20,12 @@ the first advertisement containing `FEE0`, without a chooser.
 Current source instead keeps unattended normal-mode advertising off. Either
 short button calls the existing survey-suspension path with advertising
 restoration, opening a roughly ten-second app-attention window before surveys
-retry. This makes discovery independent of the profile-specific mode button
-without putting every FrogAlert badge into the candidate pool. An established
-connection still suspends surveys until disconnect. Rebuilds remain
-hardware-unverified until both exact profiles and deliberate cross-profile
-flashes pass Android discover/connect/upload, disconnect, survey-resume,
-multi-badge selection, and KEY2-only ISP recovery checks.
+retry and showing the same animated Bluetooth readiness cue. A view-button
+window returns to the selected nametag/counter; the system-mode button retains
+FOSSASIA's ordinary download-mode behavior. This makes discovery independent
+of the profile-specific mode button without putting every FrogAlert badge into
+the candidate pool. An established connection still suspends surveys until
+disconnect. Rebuilds remain hardware-unverified until both exact profiles and
+deliberate cross-profile flashes pass Android discover/connect/upload,
+disconnect, cue/view restoration, survey-resume, multi-badge selection, and
+KEY2-only ISP recovery checks.

@@ -27,5 +27,7 @@ void frogalert_display_survey_relinquish(void);
 void frogalert_display_survey_release(void);
 void frogalert_display_survey_page_step(void);
 void frogalert_display_survey_page_redraw(void);
+void frogalert_display_app_attention_start(void);
+void frogalert_display_app_attention_end(void);
 
 #endif

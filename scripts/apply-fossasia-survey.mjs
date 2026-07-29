@@ -394,6 +394,9 @@ void play_splash`,
 }
 #ifdef FROGALERT_SURVEY
 static uint8_t frogalert_counter_view;
+static void start_ble_animation(void);
+static void start_normal_animation(void);
+extern int streaming_enabled;
 
 uint8_t frogalert_survey_counter_mode(void)
 {
@@ -431,11 +434,12 @@ uint8_t frogalert_badgemagic_persistent_advertising(void)
 
 static void frogalert_key1_transition(void)
 {
-	frogalert_open_app_window();
 	if (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901)
 		change_mode();
-	else if (mode == NORMAL)
+	else if (mode == NORMAL) {
 		frogalert_view_transition();
+		frogalert_open_app_window();
+	}
 }
 
 static void frogalert_key2_transition(void)
@@ -444,18 +448,35 @@ static void frogalert_key2_transition(void)
 	 * Until KEY1 proves the board, let a short KEY2 press select the counter
 	 * but never walk an accidentally cross-flashed badge toward power-off.
 	 */
-	frogalert_open_app_window();
 	if (!btn_key1_profile_detected()) {
-		if (mode == NORMAL)
+		if (mode == NORMAL) {
 			frogalert_view_transition();
+			frogalert_open_app_window();
+		}
 		return;
 	}
 	if (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901) {
-		if (mode == NORMAL)
+		if (mode == NORMAL) {
 			frogalert_view_transition();
+			frogalert_open_app_window();
+		}
 	} else {
 		change_mode();
 	}
+}
+
+void frogalert_display_app_attention_start(void)
+{
+	frogalert_display_survey_relinquish();
+	start_ble_animation();
+}
+
+void frogalert_display_app_attention_end(void)
+{
+	if (mode != NORMAL || streaming_enabled)
+		return;
+	start_normal_animation();
+	frogalert_survey_view_changed();
 }
 #endif
 
@@ -753,12 +774,10 @@ void frogalert_survey_on_disconnect(void)
 {
 	if (streaming_enabled) {
 		streaming_enabled = 0;
-		if (mode == NORMAL)
-			start_normal_animation();
-		else
+		if (mode != NORMAL)
 			start_ble_animation();
 	}
-	frogalert_survey_view_changed();
+	frogalert_display_app_attention_end();
 }
 #endif
 

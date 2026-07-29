@@ -202,15 +202,23 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /frogalert_key1_transition\(void\)[\s\S]*frogalert_open_app_window\(\)/,
+    /frogalert_key1_transition\(void\)[\s\S]*frogalert_view_transition\(\);[\s\S]*frogalert_open_app_window\(\)/,
   );
   assert.match(
     patchedMain,
-    /frogalert_key2_transition\(void\)[\s\S]*frogalert_open_app_window\(\)/,
+    /frogalert_key2_transition\(void\)[\s\S]*frogalert_view_transition\(\);[\s\S]*frogalert_open_app_window\(\)/,
   );
   assert.match(
     patchedMain,
     /frogalert_badgemagic_persistent_advertising\(void\)[\s\S]*badge_cfg\.ble_always_on \|\| mode == DOWNLOAD/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_display_app_attention_start\(void\)[\s\S]*frogalert_display_survey_relinquish\(\);[\s\S]*start_ble_animation\(\)/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_display_app_attention_end\(void\)[\s\S]*mode != NORMAL \|\| streaming_enabled[\s\S]*start_normal_animation\(\);[\s\S]*frogalert_survey_view_changed\(\)/,
   );
   assert.match(
     patchedMain,
@@ -255,7 +263,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.doesNotMatch(viewTransition, /bm_transition\(\)/);
   assert.match(
     patchedMain,
-    /frogalert_survey_on_disconnect\(void\)[\s\S]*streaming_enabled = 0;[\s\S]*mode == NORMAL[\s\S]*start_normal_animation\(\);[\s\S]*start_ble_animation\(\);[\s\S]*frogalert_survey_view_changed\(\)/,
+    /frogalert_survey_on_disconnect\(void\)[\s\S]*streaming_enabled = 0;[\s\S]*mode != NORMAL[\s\S]*start_ble_animation\(\);[\s\S]*frogalert_display_app_attention_end\(\)/,
   );
   assert.match(
     patchedMain,
@@ -578,6 +586,14 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(
     survey,
     /frogalert_survey_open_app_window\(void\)[\s\S]*app_window_active = 1;[\s\S]*frogalert_survey_suspend\(TRUE\)[\s\S]*SURVEY_APP_WINDOW_END_EVENT/,
+  );
+  assert.match(
+    survey,
+    /frogalert_survey_open_app_window\(void\)[\s\S]*frogalert_display_app_attention_start\(\)/,
+  );
+  assert.match(
+    survey,
+    /SURVEY_APP_WINDOW_END_EVENT[\s\S]*!peripheral_is_connected\(\)[\s\S]*frogalert_display_app_attention_end\(\)/,
   );
   assert.match(survey, /show_survey\(SURVEY_PHASE_SCANNING\)/);
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);
