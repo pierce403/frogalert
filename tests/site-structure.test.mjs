@@ -176,7 +176,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=8/);
+  assert.match(html, /site\/app\.js\?v=10/);
   assert.match(app, /latest approved/);
   assert.match(app, /Nothing is selected or loaded automatically/);
   assert.match(html, /newest semantic version.*never selected automatically/i);
@@ -191,7 +191,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /Private survey builds remain local, hardware-unverified developer artifacts/);
 });
 
-test("dedicated flash route exposes guided mobile and recovery workflow", async () => {
+test("dedicated flash route exposes one safe wizard step at a time", async () => {
   const html = await read("flash/index.html");
   const app = await read("site/app.js");
   const flashCss = await read("site/flash.css");
@@ -237,13 +237,28 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=9/);
-  assert.match(html, /Phone-first WebUSB updater/i);
-  assert.match(html, /Android Chrome.*USB OTG \+ data cable/is);
-  assert.match(html, /class="compact-disclosure"/);
-  assert.match(html, /class="flash-panel recovery-panel section-disclosure"/);
-  assert.match(flashCss, /\.mode-grid-phone-first \.mode-card-usb/);
-  assert.match(flashCss, /\.program-action\s*\{[^}]*position:\s*sticky/s);
+  assert.match(html, /\.\.\/site\/app\.js\?v=10/);
+  assert.match(html, /class="wizard-shell"/);
+  assert.match(html, /data-wizard-step="connect"[^>]*>/);
+  for (const step of ["firmware", "confirm", "flash", "success"]) {
+    assert.match(
+      html,
+      new RegExp(`data-wizard-step="${step}"[^>]*hidden`),
+      `${step} must be hidden initially`,
+    );
+  }
+  assert.match(html, /class="legacy-flasher" hidden aria-hidden="true"/);
+  assert.doesNotMatch(
+    html.slice(0, html.indexOf('class="legacy-flasher"')),
+    /Flasher navigation|flash-help|mode-grid|capabilities-table/,
+  );
+  assert.match(flashCss, /\.wizard-step/);
+  assert.match(flashCss, /\.flash-page > footer\s*\{[^}]*display:\s*none/s);
+  assert.match(app, /function detectAuthorizedUsb\(device = null\)/);
+  assert.match(app, /await navigator\.usb\.getDevices\(\)/);
+  assert.match(app, /connectUsb\(\{ device: matches\[0\], automatic: true \}\)/);
+  assert.match(app, /setWizardStep\(WIZARD_STEP\.FIRMWARE\)/);
+  assert.match(app, /setWizardStep\(WIZARD_STEP\.SUCCESS, \{ terminal: true \}\)/);
   assert.match(html, /iPhone.*WebUSB/is);
   assert.match(html, /B1144C_250901.*CH582M.*11×44/is);
   assert.match(html, /B1144C_260404.*KEY2.*farther from USB/is);
@@ -261,8 +276,8 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
   assert.match(html, /id="isp-guide-connect"[^>]+type="button"[^>]+hidden[^>]+disabled/);
   assert.match(`${html}\n${app}`, /Identify and Read Config/i);
   assert.ok(
-    html.indexOf('id="isp-entry-guide"') < html.indexOf('id="usb-status"'),
-    "the KEY2 guide must stay beside the chooser and before its live status",
+    html.indexOf('id="wizard-isp-help"') < html.indexOf('class="legacy-flasher"'),
+    "the ISP recovery hint must stay in the visible connection step",
   );
   assert.match(app, /ispGuideConnect\?\.addEventListener\("click", beginGuidedUsbConnection\)/);
   assert.match(app, /void connectUsb\(\{ guided: true \}\)/);

@@ -195,6 +195,20 @@ const elements = {
   flashPhrase: $("#flash-phrase"),
   armedStatus: $("#armed-status"),
   copyLogButton: $("#copy-log"),
+  wizardSteps: $$("[data-wizard-step]"),
+  wizardProgress: $$("[data-wizard-progress]"),
+  wizardDeviceSummary: $("#wizard-device-summary"),
+  wizardFirmwareStatus: $("#wizard-firmware-status"),
+  wizardFirmwareBack: $("#wizard-firmware-back"),
+  wizardFirmwareContinue: $("#wizard-firmware-continue"),
+  wizardConfirmBack: $("#wizard-confirm-back"),
+  wizardConfirmContinue: $("#wizard-confirm-continue"),
+  wizardFlashBack: $("#wizard-flash-back"),
+  wizardFlashStatus: $("#wizard-flash-status"),
+  wizardFinalSummary: $("#wizard-final-summary"),
+  wizardIspHelp: $("#wizard-isp-help"),
+  wizardResult: $("#wizard-result"),
+  wizardRestart: $("#wizard-restart"),
   stages: {
     identify: $("#stage-identify"),
     config: $("#stage-config"),
@@ -204,6 +218,17 @@ const elements = {
     reset: $("#stage-reset"),
   },
 };
+
+const WIZARD_STEP = Object.freeze({
+  CONNECT: "connect",
+  FIRMWARE: "firmware",
+  CONFIRM: "confirm",
+  FLASH: "flash",
+  SUCCESS: "success",
+});
+
+let wizardStep = WIZARD_STEP.CONNECT;
+let wizardTerminal = false;
 
 const ISP_ENTRY_COPY = Object.freeze({
   [ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE]: {
@@ -321,6 +346,87 @@ function setStatus(element, message, tone = "neutral") {
   if (!element) return;
   element.textContent = message;
   element.dataset.tone = tone;
+}
+
+function artifactReadyForWizard() {
+  return Boolean(
+    state.usbDevice &&
+      state.chip &&
+      state.config &&
+      state.firmware &&
+      !state.monitorDirty &&
+      hasBoardRecord() &&
+      revisionMatchesArtifact() &&
+      physicalMarkingMatchesArtifact() &&
+      artifactProgrammingAllowed(),
+  );
+}
+
+function renderWizardFinalSummary() {
+  if (!elements.wizardFinalSummary) return;
+  const facts = [
+    ["Target", state.chip ? "CH582 · 0x82 / 0x16" : "Not connected"],
+    ["Board", elements.pcbMarking?.value.trim() || "Not recorded"],
+    ["Profile", selectedRevision() || "Not selected"],
+    ["Firmware", state.firmware?.name || "Not loaded"],
+    ["SHA-256", state.firmware?.hash || "—"],
+  ];
+  elements.wizardFinalSummary.replaceChildren(
+    ...facts.map(([term, value]) => {
+      const row = document.createElement("div");
+      const dt = document.createElement("dt");
+      const dd = document.createElement("dd");
+      dt.textContent = term;
+      dd.textContent = value;
+      row.append(dt, dd);
+      return row;
+    }),
+  );
+}
+
+function updateWizardUi() {
+  if (!elements.wizardSteps.length) return;
+  document.body.dataset.wizardStep = wizardStep;
+  for (const step of elements.wizardSteps) {
+    step.hidden = step.dataset.wizardStep !== wizardStep;
+  }
+  for (const marker of elements.wizardProgress) {
+    if (marker.dataset.wizardProgress === wizardStep) marker.setAttribute("aria-current", "step");
+    else marker.removeAttribute("aria-current");
+  }
+  const artifactReady = artifactReadyForWizard();
+  if (elements.wizardFirmwareContinue) {
+    elements.wizardFirmwareContinue.disabled = !artifactReady;
+  }
+  if (elements.wizardConfirmContinue) {
+    elements.wizardConfirmContinue.disabled = !artifactReady || elements.flashButton?.disabled !== false;
+  }
+  if (elements.wizardFirmwareStatus) {
+    const message = !state.firmware
+      ? "Select the exact board profile and a matching BIN."
+      : artifactReady
+        ? "Firmware validated locally and bound to this board profile."
+        : "The board marking, profile, and firmware must match before continuing.";
+    setStatus(elements.wizardFirmwareStatus, message, artifactReady ? "good" : "neutral");
+  }
+  if (elements.wizardDeviceSummary && state.chip && state.config) {
+    elements.wizardDeviceSummary.textContent =
+      `CH582 ISP identified · bootloader ${formatBootloaderVersion(state.config.bootloaderVersion)} · no write sent`;
+  }
+  if (wizardStep === WIZARD_STEP.FLASH) renderWizardFinalSummary();
+}
+
+function setWizardStep(step, { focus = true, terminal = false } = {}) {
+  if (wizardTerminal && !terminal) return;
+  wizardStep = step;
+  wizardTerminal = terminal;
+  updateWizardUi();
+  if (focus) {
+    const heading = elements.wizardSteps
+      .find((candidate) => candidate.dataset.wizardStep === step)
+      ?.querySelector("h1");
+    heading?.focus();
+  }
 }
 
 function log(message, tone = "info") {
@@ -784,6 +890,8 @@ async function connectUsb(options = {}) {
   state.usbRequestPending = true;
   renderIspEntryGuide();
   const guided = options?.guided === true;
+  const authorizedDevice = options?.device || null;
+  const automatic = options?.automatic === true;
   const guideTracking = guided || state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED;
   if (!guided && state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
     state.ispEntryPhase = beginIspDeviceRequest(state.ispEntryPhase);
@@ -793,10 +901,27 @@ async function connectUsb(options = {}) {
   try {
     resetConfirmations();
     elements.usbButton.disabled = true;
-    setStatus(elements.usbPermissionStatus, "Device chooser requested by your action.", "working");
-    setStatus(elements.usbStatus, "Choose the WCH ISP device—not the running nametag…", "working");
-    log("Requesting permission for a WCH USB ISP bootloader.");
-    const device = await navigator.usb.requestDevice({ filters: WCH_USB_FILTERS });
+    setStatus(
+      elements.usbPermissionStatus,
+      authorizedDevice
+        ? "Previously authorized WCH device detected."
+        : "Device chooser requested by your action.",
+      "working",
+    );
+    setStatus(
+      elements.usbStatus,
+      authorizedDevice
+        ? "Checking the attached WCH device read-only…"
+        : "Choose the WCH ISP device—not the running nametag…",
+      "working",
+    );
+    log(
+      authorizedDevice
+        ? "Checking a previously authorized WCH USB device."
+        : "Requesting permission for a WCH USB ISP bootloader.",
+    );
+    const device =
+      authorizedDevice || (await navigator.usb.requestDevice({ filters: WCH_USB_FILTERS }));
     await device.open();
     state.usbDevice = device;
     if (!device.configuration) await device.selectConfiguration(1);
@@ -840,6 +965,7 @@ async function connectUsb(options = {}) {
       `Read-only target gate passed: CH582, family 0x16, bootloader ${formatBootloaderVersion(config.bootloaderVersion)}, UID checksum valid; application firmware remains unreadable.`,
       "success",
     );
+    setWizardStep(WIZARD_STEP.FIRMWARE);
   } catch (error) {
     await closeUsb();
     const cancelled = error?.name === "NotFoundError";
@@ -860,6 +986,8 @@ async function connectUsb(options = {}) {
       cancelled ? "neutral" : "bad",
     );
     log(cancelled ? "Device selection cancelled; nothing changed." : `Probe stopped safely: ${error.message}`, cancelled ? "info" : "error");
+    if (!cancelled && elements.wizardIspHelp) elements.wizardIspHelp.open = true;
+    if (automatic) setWizardStep(WIZARD_STEP.CONNECT, { focus: false });
   } finally {
     state.usbRequestPending = false;
     elements.usbButton.disabled = !canUseWebUsbChooser() || Boolean(state.usbDevice);
@@ -871,6 +999,41 @@ async function connectUsb(options = {}) {
       focusIspEntryPhaseControl(state.ispEntryPhase);
     }
     updateFlashButton();
+  }
+}
+
+async function detectAuthorizedUsb(device = null) {
+  if (
+    state.flashing ||
+    state.usbRequestPending ||
+    state.usbDevice ||
+    !hasWebUsb() ||
+    !isTrustworthyContext()
+  ) {
+    return;
+  }
+  try {
+    const devices = device ? [device] : await navigator.usb.getDevices();
+    const matches = devices.filter((candidate) =>
+      WCH_USB_FILTERS.some(
+        (filter) =>
+          candidate.vendorId === filter.vendorId &&
+          candidate.productId === filter.productId,
+      ),
+    );
+    if (matches.length === 1) {
+      await connectUsb({ device: matches[0], automatic: true });
+      return;
+    }
+    setStatus(
+      elements.usbStatus,
+      matches.length > 1
+        ? "More than one authorized ISP device is attached. Tap Check connected badge and choose the intended badge."
+        : "No authorized CH582 ISP badge detected. Enter ISP mode, then tap Check connected badge.",
+      matches.length > 1 ? "warning" : "neutral",
+    );
+  } catch (error) {
+    setStatus(elements.usbStatus, `Could not check attached USB devices: ${error.message}`, "warning");
   }
 }
 
@@ -906,6 +1069,7 @@ async function closeUsb() {
     }
   }
   refreshAuthorizedUsbStatus();
+  updateWizardUi();
 }
 
 async function disconnectUsbByUser() {
@@ -918,6 +1082,7 @@ async function disconnectUsbByUser() {
     setIspEntryPhase(ISP_ENTRY_PHASE.CLOSED);
   }
   updateFlashButton();
+  setWizardStep(WIZARD_STEP.CONNECT);
 }
 
 async function copyRedactedLog() {
@@ -1374,10 +1539,11 @@ function updateFlashButton() {
     elements.selectedProfileStatus.textContent = selectedRevision() || "Not selected";
   }
   if (elements.matrixStatus) {
-    elements.matrixStatus.textContent = elements.confirmations[1]?.checked
+    elements.matrixStatus.textContent = elements.confirmations[0]?.checked
       ? "User confirmed exactly 11×44"
       : "Not confirmed";
   }
+  updateWizardUi();
 }
 
 function clearFirmware() {
@@ -1487,6 +1653,7 @@ async function chooseLocalFirmware(event) {
   if (!revision) {
     elements.firmwareInput.value = "";
     log("Enter the exact PCB revision before selecting a developer BIN.", "error");
+    setStatus(elements.wizardFirmwareStatus, "Choose the printed PCB revision before selecting a BIN.", "warning");
     return;
   }
   try {
@@ -1500,6 +1667,7 @@ async function chooseLocalFirmware(event) {
   } catch (error) {
     if (generation !== state.artifactGeneration) return;
     clearFirmware();
+    setStatus(elements.wizardFirmwareStatus, `Firmware rejected: ${error.message}`, "bad");
     log(`Firmware rejected before any device write: ${error.message}`, "error");
   }
 }
@@ -1880,6 +2048,9 @@ async function flashFirmware() {
   }
 
   state.flashing = true;
+  setWizardStep(WIZARD_STEP.FLASH, { focus: false });
+  if (elements.wizardFlashBack) elements.wizardFlashBack.disabled = true;
+  setStatus(elements.wizardFlashStatus, "Programming has started. Keep this page visible and do not disconnect.", "working");
   const flashDevice = state.usbDevice;
   state.activeFlashDevice = flashDevice;
   updateFlashButton();
@@ -1982,6 +2153,14 @@ async function flashFirmware() {
         : "Flash completed and verified; reset response was not confirmed.",
       resetAcknowledged ? "success" : "warning",
     );
+    setStatus(
+      elements.wizardResult,
+      resetAcknowledged
+        ? "Firmware was programmed, byte-verified, and the reset was acknowledged."
+        : "Firmware was programmed and byte-verified. The reset command was sent, but its response was not observed.",
+      resetAcknowledged ? "good" : "warning",
+    );
+    setWizardStep(WIZARD_STEP.SUCCESS, { terminal: true });
     await closeUsb();
   } catch (error) {
     failActiveStage();
@@ -2003,6 +2182,9 @@ async function flashFirmware() {
       `FLASH STOPPED: ${error.message}.${uncertainty} Keep this page open, re-enter ISP mode, reconnect, pass read-only identification, and accept every acknowledgement again before retrying the same verified artifact.`,
       "error",
     );
+    wizardTerminal = false;
+    setWizardStep(WIZARD_STEP.CONNECT);
+    if (elements.wizardIspHelp) elements.wizardIspHelp.open = true;
   } finally {
     state.activeFlashDevice = null;
     state.flashing = false;
@@ -2029,6 +2211,7 @@ async function flashFirmware() {
     if (elements.usbDisconnectButton) {
       elements.usbDisconnectButton.disabled = !state.usbDevice;
     }
+    if (elements.wizardFlashBack) elements.wizardFlashBack.disabled = false;
     updateFlashButton();
     updateRecoveryButton();
     renderIspEntryGuide();
@@ -2078,6 +2261,24 @@ async function startFlash() {
 function bindEvents() {
   elements.bluetoothButton.addEventListener("click", connectBluetooth);
   elements.usbButton.addEventListener("click", connectUsb);
+  elements.wizardFirmwareBack?.addEventListener("click", () => {
+    setWizardStep(WIZARD_STEP.CONNECT);
+  });
+  elements.wizardFirmwareContinue?.addEventListener("click", () => {
+    if (artifactReadyForWizard()) setWizardStep(WIZARD_STEP.CONFIRM);
+  });
+  elements.wizardConfirmBack?.addEventListener("click", () => {
+    setWizardStep(WIZARD_STEP.FIRMWARE);
+  });
+  elements.wizardConfirmContinue?.addEventListener("click", () => {
+    if (elements.flashButton?.disabled === false) setWizardStep(WIZARD_STEP.FLASH);
+  });
+  elements.wizardFlashBack?.addEventListener("click", () => {
+    if (!state.flashing) setWizardStep(WIZARD_STEP.CONFIRM);
+  });
+  elements.wizardRestart?.addEventListener("click", () => {
+    window.location.reload();
+  });
   elements.ispGuideStart?.addEventListener("click", openIspEntryGuide);
   elements.ispGuideBack?.addEventListener("click", retreatIspEntryGuide);
   elements.ispGuideNext?.addEventListener("click", advanceIspEntryGuide);
@@ -2164,7 +2365,7 @@ function bindEvents() {
       }
       setStatus(
         elements.authorizedUsbStatus,
-        "A WCH ISP bootloader was attached. Tap a chooser button to request permission and identify it read-only.",
+        "A WCH ISP bootloader was attached. Checking for existing permission.",
         "good",
       );
       if (state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
@@ -2174,6 +2375,7 @@ function bindEvents() {
           "good",
         );
       }
+      if (destructivePage) void detectAuthorizedUsb(event.device);
     });
     navigator.usb.addEventListener("disconnect", async (event) => {
       if (event.device !== state.usbDevice) return;
@@ -2196,6 +2398,8 @@ function bindEvents() {
         setIspEntryPhase(ISP_ENTRY_PHASE.RETRY);
       }
       updateFlashButton();
+      setWizardStep(WIZARD_STEP.CONNECT);
+      if (elements.wizardIspHelp) elements.wizardIspHelp.open = true;
     });
   }
 }
@@ -2203,4 +2407,6 @@ function bindEvents() {
 startMatrixPreview();
 updateCapabilities();
 bindEvents();
+updateWizardUi();
+if (destructivePage) void detectAuthorizedUsb();
 loadReleaseManifest();

@@ -222,11 +222,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   invalidation. When an app dependency changes exports or state contracts, bump
   both pages' `app.js` query and the changed dependency query in `site/app.js`;
   reload a browser that previously opened the old site and check console errors.
-- Keep `/flash/` phone-first: at narrow widths put WebUSB and local BIN selection
-  before optional probes/catalogs, keep the five-step rail and destructive action
-  reachable, and collapse diagnostics, device facts, recovery detail, and logs.
-  Do not collapse the active USB status, board/profile fields, confirmations,
-  progress, or verify result.
+- Keep `/flash/` as a one-pane wizard: connect/read-only identify, exact
+  board/BIN, confirmations, flash/verify, terminal result. Never reveal a later
+  pane before its gate passes. `getDevices()` may automatically identify one
+  previously authorized WCH ISP badge; a new badge still needs an explicit
+  chooser tap, and USB attach must never synthesize `requestDevice()`. Keep
+  unrelated Bluetooth, catalog, and diagnostic surfaces out of the visible
+  flasher.
 - Use semantic HTML, visible focus states, reduced-motion support, and readable
   status messages announced through ARIA live regions.
 - Use repo-local `./tmp/` for scratch files and ignore it.

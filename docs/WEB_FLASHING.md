@@ -8,11 +8,15 @@ page retains read-only badge and artifact inspection, but its destructive
 controls have been removed. Every flashing and recovery write belongs on
 `/flash/`.
 
-On a narrow phone screen, `/flash/` keeps the primary update path compact:
-select the exact printed PCB profile, load the BIN locally, enter ISP, connect
-through WebUSB, complete the confirmations, and program plus verify. Browser
-diagnostics, the full device-facts table, recovery detail, and the redacted
-session log remain available as disclosures without crowding that path.
+`/flash/` is a one-screen-at-a-time wizard. It starts by checking for a
+previously authorized WCH ISP device and performs only read-only USB
+configuration, Identify, and Read Config operations. A first-time badge still
+requires one explicit chooser tap because WebUSB does not expose unapproved
+devices. Only after CH582 `0x82 / 0x16` identification succeeds does the wizard
+show exact-board firmware selection, confirmations, and finally the separate
+program-and-verify action. Failure returns to the connection screen with the
+relevant KEY2 recovery hint; unrelated diagnostics and Bluetooth controls are
+not visible in the flasher.
 
 | Job | Browser API | Device state |
 | --- | --- | --- |

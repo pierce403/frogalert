@@ -36,16 +36,143 @@
         <span class="wordmark-dot" aria-hidden="true"></span>
         FROG<span>ALERT</span>
       </a>
-      <nav aria-label="Flasher navigation">
-        <a href="#preflight">Preflight</a>
-        <a href="#connect">Connect</a>
-        <a href="#recovery">Recovery</a>
-        <a href="#artifact">Firmware</a>
-        <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">Hardware guide</a>
-      </nav>
+      <a class="flash-exit" href="../">Exit flasher</a>
     </header>
 
-    <main id="flash-main" class="flash-main">
+    <main id="flash-main" class="wizard-shell">
+      <nav class="wizard-progress" aria-label="Flashing progress">
+        <span data-wizard-progress="connect" aria-current="step"><b>1</b> Connect</span>
+        <span data-wizard-progress="firmware"><b>2</b> Firmware</span>
+        <span data-wizard-progress="confirm"><b>3</b> Confirm</span>
+        <span data-wizard-progress="flash"><b>4</b> Flash</span>
+      </nav>
+
+      <section class="wizard-step" data-wizard-step="connect" aria-labelledby="wizard-connect-title">
+        <p class="section-kicker">Step 1 of 4</p>
+        <h1 id="wizard-connect-title" tabindex="-1">Connect the badge</h1>
+        <p>Plug the badge into this device with a data-capable USB cable. FrogAlert will recognize a previously authorized badge automatically.</p>
+        <p id="capability-status" class="wizard-capability" role="status" aria-live="polite">Checking WebUSB…</p>
+        <div class="wizard-device-state" aria-live="polite">
+          <span class="wizard-state-dot" aria-hidden="true"></span>
+          <p id="usb-status">Looking for a CH582 badge in ISP mode…</p>
+        </div>
+        <button id="usb-connect" class="button button-primary wizard-primary-action" type="button" disabled>Check connected badge</button>
+        <button id="usb-disconnect" class="text-button wizard-disconnect" type="button" disabled>Disconnect badge</button>
+
+        <details id="wizard-isp-help" class="wizard-help">
+          <summary>Badge not detected?</summary>
+          <p>If compatible firmware is running, keep USB connected and hold KEY2 for about 2.2 seconds. Release when one dot lights near the middle, then tap <strong>Check connected badge</strong> promptly.</p>
+          <p><code>260404</code>: KEY2 is farther from USB. <code>250901</code>: KEY2 is nearest USB.</p>
+          <p>Original or unknown firmware may require qualified C3 bench recovery. Do not disturb the soldered battery.</p>
+        </details>
+      </section>
+
+      <section class="wizard-step" data-wizard-step="firmware" aria-labelledby="wizard-firmware-title" hidden>
+        <p class="section-kicker">Step 2 of 4</p>
+        <h1 id="wizard-firmware-title" tabindex="-1">Choose the firmware</h1>
+        <p id="wizard-device-summary" class="wizard-success-line" role="status">CH582 ISP badge connected.</p>
+
+        <div class="wizard-fields">
+          <div class="field-group">
+            <label for="pcb-revision">Printed PCB revision</label>
+            <select id="pcb-revision">
+              <option value="">Choose the marking on the opened board</option>
+              <option value="B1144C_260404_USB_C">B1144C_260404 · USB-C</option>
+              <option value="B1144C_250901_USB_C">B1144C_250901 · USB-C</option>
+              <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="pcb-marking">PCB marking</label>
+            <input id="pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="B1144C_260404">
+          </div>
+          <div class="field-group">
+            <label for="firmware-file">Firmware BIN</label>
+            <input id="firmware-file" type="file" accept=".bin,application/octet-stream">
+          </div>
+        </div>
+
+        <dl class="wizard-artifact-summary">
+          <div><dt>File</dt><dd id="firmware-name">Not loaded</dd></div>
+          <div><dt>Size</dt><dd id="firmware-size">—</dd></div>
+          <div><dt>Profile</dt><dd id="firmware-revision">—</dd></div>
+          <div class="wizard-hash"><dt>SHA-256</dt><dd id="firmware-hash">—</dd></div>
+          <div hidden><dt>Provenance</dt><dd id="firmware-provenance">—</dd></div>
+          <div hidden><dt>Evidence</dt><dd id="firmware-verification">—</dd></div>
+        </dl>
+        <p id="wizard-firmware-status" class="wizard-inline-status" role="status" aria-live="polite">Select the exact board profile and a matching BIN.</p>
+        <div class="wizard-actions">
+          <button id="wizard-firmware-back" class="button button-secondary" type="button">Back</button>
+          <button id="wizard-firmware-continue" class="button button-primary" type="button" disabled>Continue</button>
+        </div>
+      </section>
+
+      <section class="wizard-step" data-wizard-step="confirm" aria-labelledby="wizard-confirm-title" hidden>
+        <p class="section-kicker">Step 3 of 4</p>
+        <h1 id="wizard-confirm-title" tabindex="-1">Confirm before erasing</h1>
+        <p class="wizard-warning">The original firmware cannot be backed up or restored.</p>
+        <fieldset class="wizard-confirmations">
+          <legend>Confirm all four</legend>
+          <label><input class="flash-confirmation" type="checkbox"> This opened badge has a <strong>CH582M</strong>, an <strong>11×44</strong> matrix, and the selected PCB marking.</label>
+          <label><input class="flash-confirmation" type="checkbox"> I checked this BIN's profile, size, and SHA-256 shown in the previous step.</label>
+          <label><input class="flash-confirmation" type="checkbox"> I understand the first write resets configuration and erases the unrecoverable current firmware.</label>
+          <label><input class="flash-confirmation" type="checkbox"> Power is stable, and success requires the complete byte-verification step.</label>
+        </fieldset>
+        <div class="field-group">
+          <label for="flash-phrase">Type <code>ERASE THIS BADGE</code></label>
+          <input id="flash-phrase" type="text" autocomplete="off" spellcheck="false" placeholder="ERASE THIS BADGE">
+        </div>
+        <p id="armed-status" class="wizard-inline-status" role="status" aria-live="polite">Not ready.</p>
+        <div class="wizard-actions">
+          <button id="wizard-confirm-back" class="button button-secondary" type="button">Back</button>
+          <button id="wizard-confirm-continue" class="button button-primary" type="button" disabled>Review flash</button>
+        </div>
+      </section>
+
+      <section class="wizard-step" data-wizard-step="flash" aria-labelledby="wizard-flash-title" hidden>
+        <p class="section-kicker">Step 4 of 4</p>
+        <h1 id="wizard-flash-title" tabindex="-1">Flash and verify</h1>
+        <dl id="wizard-final-summary" class="wizard-final-summary"></dl>
+        <button id="flash-button" class="button button-danger wizard-primary-action" type="button" disabled>Erase, flash, and verify</button>
+        <p id="wizard-flash-status" class="wizard-inline-status" role="status" aria-live="assertive">No write has started.</p>
+        <div class="progress-wrap flash-progress-wrap">
+          <label id="progress-label" for="flash-progress">Ready to begin</label>
+          <progress id="flash-progress" max="100" value="0">0%</progress>
+          <ol class="progress-stages" aria-label="Programming stages">
+            <li id="stage-identify">Identify</li>
+            <li id="stage-config">Config</li>
+            <li id="stage-erase">Erase</li>
+            <li id="stage-program">Program</li>
+            <li id="stage-verify">Verify</li>
+            <li id="stage-reset">Reset</li>
+          </ol>
+        </div>
+        <div class="wizard-actions">
+          <button id="wizard-flash-back" class="button button-secondary" type="button">Back</button>
+        </div>
+        <details class="wizard-help">
+          <summary>Session log</summary>
+          <div class="log-heading">
+            <h2>Session log</h2>
+            <button id="copy-log" class="text-button" type="button" disabled>Copy</button>
+          </div>
+          <ol id="flash-log" class="flash-log" role="log" aria-live="polite" aria-relevant="additions text">
+            <li>No device access requested. No write command sent.</li>
+          </ol>
+        </details>
+      </section>
+
+      <section class="wizard-step" data-wizard-step="success" aria-labelledby="wizard-success-title" hidden>
+        <p class="section-kicker">Complete</p>
+        <h1 id="wizard-success-title" tabindex="-1">Badge updated</h1>
+        <p id="wizard-result" class="wizard-success-line" role="status" aria-live="polite">Firmware was programmed and verified.</p>
+        <button id="wizard-restart" class="button button-primary wizard-primary-action" type="button">Flash another badge</button>
+        <a class="text-link wizard-home-link" href="../">Return to FrogAlert</a>
+      </section>
+    </main>
+
+    <div class="legacy-flasher" hidden aria-hidden="true">
+    <main id="legacy-flash-main" class="flash-main">
       <section class="flash-hero flash-hero-compact" aria-labelledby="flash-title">
         <div class="flash-hero-copy">
           <p class="eyebrow">Phone-first WebUSB updater</p>
@@ -81,7 +208,7 @@
             <p class="section-kicker">Step 1 / browser support</p>
             <h2 id="preflight-title">Check WebUSB before opening the badge</h2>
           </div>
-          <p id="capability-status" class="status-summary" role="status" aria-live="polite">Preflight has not run.</p>
+          <p id="legacy-capability-status" class="status-summary" role="status" aria-live="polite">Preflight has not run.</p>
         </div>
 
         <details class="compact-disclosure">
@@ -165,8 +292,8 @@
             </div>
             <div class="button-row">
               <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Guide: compatible-firmware KEY2 entry</button>
-              <button id="usb-connect" class="button button-secondary" type="button" disabled>Dot is lit — choose CH582 now</button>
-              <button id="usb-disconnect" class="button button-secondary" type="button" disabled>End USB session</button>
+              <button id="legacy-usb-connect" class="button button-secondary" type="button" disabled>Dot is lit — choose CH582 now</button>
+              <button id="legacy-usb-disconnect" class="button button-secondary" type="button" disabled>End USB session</button>
             </div>
 
             <section id="isp-entry-guide" class="isp-entry-guide" hidden tabindex="-1" role="region" aria-labelledby="isp-guide-title" data-state="closed">
@@ -191,7 +318,7 @@
               </div>
             </section>
 
-            <p id="usb-status" class="device-status" role="status" aria-live="polite">After compatible firmware shows the single dot, choose the WCH bootloader promptly. Original or unknown firmware on the confirmed USB-C board requires expert bench recovery outside this tool. Identification is read-only.</p>
+            <p id="legacy-usb-status" class="device-status" role="status" aria-live="polite">After compatible firmware shows the single dot, choose the WCH bootloader promptly. Original or unknown firmware on the confirmed USB-C board requires expert bench recovery outside this tool. Identification is read-only.</p>
           </article>
         </div>
 
@@ -393,13 +520,13 @@
 
           <div class="board-record-grid">
             <div class="field-group">
-              <label for="pcb-marking">Physical PCB marking</label>
-              <input id="pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Copy the opened-board marking, or write: none printed">
+              <label for="legacy-pcb-marking">Physical PCB marking</label>
+              <input id="legacy-pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Copy the opened-board marking, or write: none printed">
               <p class="field-help">This is a physical record. Keep front/back photos if no marking is printed.</p>
             </div>
             <div class="field-group">
-              <label for="pcb-revision">Firmware hardware profile</label>
-              <select id="pcb-revision">
+              <label for="legacy-pcb-revision">Firmware hardware profile</label>
+              <select id="legacy-pcb-revision">
                 <option value="">Select after opening the badge</option>
                 <option value="B1144C_260404_USB_C">Nyx 260404 · active-low KEY1 wiring (build default)</option>
                 <option value="B1144C_250901_USB_C">Legacy 250901 · active-high KEY1 wiring</option>
@@ -455,8 +582,8 @@
             <article class="artifact-option artifact-option-local">
               <p class="terminal-label">QUALIFIED DEVELOPMENT</p>
               <h3>Local raw BIN</h3>
-              <label for="firmware-file">Choose a local firmware file</label>
-              <input id="firmware-file" type="file" accept=".bin,application/octet-stream">
+              <label for="legacy-firmware-file">Choose a local firmware file</label>
+              <input id="legacy-firmware-file" type="file" accept=".bin,application/octet-stream">
               <p class="field-help">Bytes stay in this browser and are never a compatibility signal by themselves. CI produces separate, commit-bound <code>260404</code> and <code>250901</code> survey candidates with their SHA-256 values in <code>candidate.json</code>; they show each alert frame once for one second, use a roughly 20-second survey cadence, and retain qualified 48-column app-animation cropping, but are not hosted, released, or hardware-approved. Selecting a locally built copy is qualified bench testing only and does not prove detector behavior, board compatibility, button behavior, app-animation compatibility, or KEY2 recovery.</p>
             </article>
 
@@ -491,12 +618,12 @@
           </div>
 
           <dl class="artifact-facts flash-artifact-facts">
-            <div><dt>File</dt><dd id="firmware-name">Not loaded</dd></div>
-            <div><dt>Size</dt><dd id="firmware-size">—</dd></div>
-            <div><dt>Bound profile</dt><dd id="firmware-revision">—</dd></div>
-            <div><dt>SHA-256</dt><dd id="firmware-hash">—</dd></div>
-            <div><dt>Provenance</dt><dd id="firmware-provenance">—</dd></div>
-            <div><dt>Hardware evidence</dt><dd id="firmware-verification">—</dd></div>
+            <div><dt>File</dt><dd id="legacy-firmware-name">Not loaded</dd></div>
+            <div><dt>Size</dt><dd id="legacy-firmware-size">—</dd></div>
+            <div><dt>Bound profile</dt><dd id="legacy-firmware-revision">—</dd></div>
+            <div><dt>SHA-256</dt><dd id="legacy-firmware-hash">—</dd></div>
+            <div><dt>Provenance</dt><dd id="legacy-firmware-provenance">—</dd></div>
+            <div><dt>Hardware evidence</dt><dd id="legacy-firmware-verification">—</dd></div>
           </dl>
         </section>
 
@@ -512,21 +639,21 @@
           <fieldset class="safety-gate flash-safety-gate">
             <legend>Every confirmation is required</legend>
             <div class="safety-grid">
-              <label><input class="flash-confirmation" type="checkbox"> I opened this exact badge and read <strong>CH582M</strong> on the MCU.</label>
-              <label><input class="flash-confirmation" type="checkbox"> I counted an <strong>11×44</strong> matrix and ruled out similar 11×55 badges.</label>
-              <label><input class="flash-confirmation" type="checkbox"> I separately recorded the physical PCB marking and selected the correct firmware profile.</label>
-              <label><input class="flash-confirmation" type="checkbox"> I verified this image's byte length, SHA-256, target, provenance, and hardware evidence.</label>
-              <label><input class="flash-confirmation" type="checkbox"> I understand the first destructive command resets CH58x protection/configuration and requires exact readback before erase.</label>
-              <label><input class="flash-confirmation" type="checkbox"> I understand the OEM image cannot be backed up or restored and this write may permanently replace it.</label>
-              <label><input class="flash-confirmation" type="checkbox"> I am using stable USB power and will not disconnect, lock the phone, or switch devices during programming.</label>
-              <label><input class="flash-confirmation" type="checkbox"> I will treat success as valid only after every programmed chunk passes bootloader verification.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I opened this exact badge and read <strong>CH582M</strong> on the MCU.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I counted an <strong>11×44</strong> matrix and ruled out similar 11×55 badges.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I separately recorded the physical PCB marking and selected the correct firmware profile.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I verified this image's byte length, SHA-256, target, provenance, and hardware evidence.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I understand the first destructive command resets CH58x protection/configuration and requires exact readback before erase.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I understand the OEM image cannot be backed up or restored and this write may permanently replace it.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I am using stable USB power and will not disconnect, lock the phone, or switch devices during programming.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I will treat success as valid only after every programmed chunk passes bootloader verification.</label>
             </div>
           </fieldset>
 
           <div class="typed-confirmation">
-            <label for="flash-phrase">Final phrase</label>
+            <label for="legacy-flash-phrase">Final phrase</label>
             <p>Type <code>ERASE THIS BADGE</code> only after the connected target and selected artifact are both shown above.</p>
-            <input id="flash-phrase" type="text" autocomplete="off" spellcheck="false" placeholder="ERASE THIS BADGE">
+            <input id="legacy-flash-phrase" type="text" autocomplete="off" spellcheck="false" placeholder="ERASE THIS BADGE">
           </div>
         </section>
 
@@ -536,23 +663,23 @@
               <p class="section-kicker">Step 5 / final action</p>
               <h2 id="program-title">Reset config, erase, program, verify.</h2>
             </div>
-            <p id="armed-status" class="status-summary" role="status" aria-live="polite">Not armed</p>
+            <p id="legacy-armed-status" class="status-summary" role="status" aria-live="polite">Not armed</p>
           </div>
 
           <div class="program-action">
-            <button id="flash-button" class="button button-danger" type="button" disabled>Reset config → erase → program → verify</button>
+            <button id="legacy-flash-button" class="button button-danger" type="button" disabled>Reset config → erase → program → verify</button>
           </div>
 
           <div class="progress-wrap flash-progress-wrap">
-            <label id="progress-label" for="flash-progress">No destructive operation has started</label>
-            <progress id="flash-progress" max="100" value="0">0%</progress>
+            <label id="legacy-progress-label" for="legacy-flash-progress">No destructive operation has started</label>
+            <progress id="legacy-flash-progress" max="100" value="0">0%</progress>
             <ol class="progress-stages" aria-label="Programming stages">
-              <li id="stage-identify">Identify</li>
-              <li id="stage-config">Config reset + readback</li>
-              <li id="stage-erase">Erase</li>
-              <li id="stage-program">Program</li>
-              <li id="stage-verify">Verify</li>
-              <li id="stage-reset">Reset</li>
+              <li id="legacy-stage-identify">Identify</li>
+              <li id="legacy-stage-config">Config reset + readback</li>
+              <li id="legacy-stage-erase">Erase</li>
+              <li id="legacy-stage-program">Program</li>
+              <li id="legacy-stage-verify">Verify</li>
+              <li id="legacy-stage-reset">Reset</li>
             </ol>
           </div>
 
@@ -560,9 +687,9 @@
             <summary>Show session log</summary>
             <div class="log-heading">
               <h3>Session log</h3>
-              <button id="copy-log" class="text-button" type="button" disabled>Copy redacted log</button>
+              <button id="legacy-copy-log" class="text-button" type="button" disabled>Copy redacted log</button>
             </div>
-            <ol id="flash-log" class="flash-log" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Flash operation log">
+            <ol id="legacy-flash-log" class="flash-log" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Flash operation log">
               <li>No device access requested. No configuration, erase, or write command sent.</li>
             </ol>
           </details>
@@ -588,11 +715,12 @@
         </div>
       </section>
     </main>
+    </div>
 
     <footer>
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=9"></script>
+    <script type="module" src="../site/app.js?v=10"></script>
   </body>
 </html>

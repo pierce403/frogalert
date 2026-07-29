@@ -1037,6 +1037,338 @@
   }
 }
 
+/* One-screen-at-a-time WebUSB wizard. */
+.flash-page {
+  min-height: 100vh;
+}
+
+.flash-page .flash-header {
+  min-height: 4rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.flash-exit {
+  color: var(--muted-dark);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.flash-exit:hover {
+  color: var(--cream);
+}
+
+.wizard-shell {
+  width: min(100% - 1.5rem, 38rem);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vw, 3rem) 0 5rem;
+}
+
+.wizard-progress {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.wizard-progress span {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 0.3rem;
+  color: #65796c;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.wizard-progress b {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border: 1px solid #355141;
+  border-radius: 50%;
+  font-size: 0.68rem;
+}
+
+.wizard-progress span[aria-current="step"] {
+  color: var(--frog-bright);
+}
+
+.wizard-progress span[aria-current="step"] b {
+  border-color: var(--frog-bright);
+  background: rgba(216, 255, 128, 0.08);
+}
+
+.wizard-step {
+  border: 1px solid var(--flash-line);
+  padding: clamp(1.25rem, 5vw, 2.25rem);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 55%),
+    var(--flash-panel);
+  box-shadow: var(--shadow);
+}
+
+.wizard-step h1 {
+  margin: 0 0 0.8rem;
+  color: var(--cream);
+  font-size: clamp(2.35rem, 10vw, 4rem);
+  line-height: 0.95;
+}
+
+.wizard-step h1:focus {
+  outline: none;
+}
+
+.wizard-step > p:not(.section-kicker, .wizard-warning, .wizard-success-line, .wizard-inline-status) {
+  color: var(--muted-dark);
+}
+
+.wizard-capability,
+.wizard-inline-status {
+  margin: 1rem 0;
+  color: var(--muted-dark);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.wizard-capability[data-tone="good"],
+.wizard-inline-status[data-tone="good"] {
+  color: var(--frog-bright);
+}
+
+.wizard-capability[data-tone="bad"],
+.wizard-inline-status[data-tone="bad"] {
+  color: #ff9a94;
+}
+
+.wizard-device-state {
+  display: grid;
+  grid-template-columns: 0.8rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  margin: 1.2rem 0;
+  border: 1px solid var(--flash-line);
+  padding: 0.9rem;
+  background: #07130d;
+}
+
+.wizard-state-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-top: 0.25rem;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0.75rem rgba(255, 122, 61, 0.5);
+}
+
+.wizard-device-state p {
+  margin: 0;
+  color: var(--cream);
+  font-size: 0.84rem;
+}
+
+.wizard-primary-action {
+  width: 100%;
+  min-height: 3.5rem;
+}
+
+.wizard-disconnect:disabled {
+  display: none;
+}
+
+.wizard-help {
+  margin-top: 1rem;
+  border-top: 1px solid var(--flash-line);
+  padding-top: 0.75rem;
+}
+
+.wizard-help summary {
+  min-height: 2.5rem;
+  cursor: pointer;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.wizard-help p,
+.wizard-help li {
+  color: var(--muted-dark);
+  font-size: 0.78rem;
+}
+
+.wizard-fields {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+.wizard-fields .field-group,
+.wizard-step > .field-group {
+  margin: 0;
+}
+
+.wizard-fields label,
+.wizard-step > .field-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--cream);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.wizard-artifact-summary,
+.wizard-final-summary {
+  display: grid;
+  gap: 1px;
+  margin: 1rem 0;
+  background: var(--flash-line);
+}
+
+.wizard-artifact-summary > div,
+.wizard-final-summary > div {
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  background: #07130d;
+}
+
+.wizard-artifact-summary dt,
+.wizard-final-summary dt {
+  color: #718579;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+.wizard-artifact-summary dd,
+.wizard-final-summary dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--cream);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+.wizard-hash {
+  grid-column: 1 / -1;
+}
+
+.wizard-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 0.65rem;
+  margin-top: 1.2rem;
+}
+
+.wizard-warning {
+  border-left: 3px solid var(--red);
+  padding: 0.75rem 0.9rem;
+  background: rgba(255, 79, 69, 0.06);
+  color: #ffaaa5;
+  font-weight: 800;
+}
+
+.wizard-confirmations {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1rem 0;
+  border: 0;
+  padding: 0;
+}
+
+.wizard-confirmations legend {
+  margin-bottom: 0.65rem;
+  color: var(--muted-dark);
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+}
+
+.wizard-confirmations label {
+  display: grid;
+  grid-template-columns: 1.15rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  border: 1px solid var(--flash-line);
+  padding: 0.75rem;
+  color: #c6d0c9;
+  font-size: 0.8rem;
+}
+
+.wizard-confirmations input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.1rem;
+}
+
+.wizard-success-line {
+  border-left: 3px solid var(--frog-bright);
+  padding: 0.75rem 0.9rem;
+  background: rgba(216, 255, 128, 0.05);
+  color: var(--frog-bright);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+}
+
+.wizard-home-link {
+  display: block;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.wizard-step .flash-progress-wrap {
+  margin-top: 1.25rem;
+}
+
+.wizard-step .log-heading h2 {
+  font-size: 1rem;
+}
+
+.flash-page > footer {
+  display: none;
+}
+
+@media (min-width: 36rem) {
+  .wizard-artifact-summary,
+  .wizard-final-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .flash-page .flash-header {
+    display: flex;
+    position: relative;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .wizard-shell {
+    width: min(100% - 1rem, 38rem);
+    padding-top: 1rem;
+  }
+
+  .wizard-step {
+    padding: 1.15rem;
+  }
+
+  .wizard-progress span {
+    font-size: 0.5rem;
+  }
+
+  .wizard-actions .button {
+    width: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
