@@ -24,3 +24,11 @@ and old dashboard input was not an acceptable removal. `/flash/` now contains
 no `type=file` element at all. The shared application treats that input as
 optional so the landing-page inspection lab can retain local analysis without
 leaking a file chooser into the updater.
+
+For repeat visits, the page stores one coarse local flag after a successful
+read-only CH582 ISP identification. The flag is only a UX hint; Chrome retains
+and enforces the WebUSB grant. When the normal application is recognized later,
+the redundant Connect control is hidden and an authorized ISP attach is
+identified automatically through `getDevices()` and the USB connect event. If
+the grant was cleared, the explicit native chooser remains a fallback. No USB
+serial, UID, or device identifier is stored.

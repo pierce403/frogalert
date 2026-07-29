@@ -233,6 +233,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   profile and marking controls must not be visible in the public wizard.
   If no approved image matches, or ISP was entered before the wizard observed
   a bottom/top button path, stop without offering a developer BIN.
+- After a successful CH582 ISP identification, store only a coarse local
+  permission hint. Chrome remains authoritative through `getDevices()` and USB
+  attach events; never store a serial or device identifier. Reuse authorized
+  devices automatically, hide the redundant Connect control in recognized
+  application mode, and retain an explicit chooser fallback for revoked access.
 - Use semantic HTML, visible focus states, reduced-motion support, and readable
   status messages announced through ARIA live regions.
 - Use repo-local `./tmp/` for scratch files and ignore it.

@@ -176,7 +176,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=14/);
+  assert.match(html, /site\/app\.js\?v=15/);
   assert.match(app, /flash-support\.js\?v=2/);
   assert.match(app, /latest approved/);
   assert.match(app, /Nothing is selected or loaded automatically/);
@@ -237,7 +237,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=14/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=15/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   for (const step of ["firmware", "confirm", "flash", "success"]) {
@@ -257,6 +257,13 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /function detectAuthorizedUsb\(device = null\)/);
   assert.match(app, /await navigator\.usb\.getDevices\(\)/);
   assert.match(app, /connectUsb\(\{ device: ispMatches\[0\], automatic: true \}\)/);
+  assert.match(app, /ISP_PERMISSION_HINT_KEY = "frogalert\.wch-isp-authorized\.v1"/);
+  assert.match(app, /window\.localStorage\.setItem\(ISP_PERMISSION_HINT_KEY, "yes"\)/);
+  assert.match(app, /state\.ispPermissionRemembered = true/);
+  assert.match(app, /Chrome remembers this bootloader/);
+  assert.match(app, /FrogAlert will identify it automatically/);
+  assert.match(app, /Not detected\? Open the chooser/);
+  assert.match(app, /elements\.usbButton\.hidden = true/);
   assert.match(app, /badgeUsbMode\(candidate\) === "application"/);
   assert.match(app, /showApplicationUsbDevice\(applicationMatches\[0\]\)/);
   assert.match(app, /BADGE_USB_CHOOSER_FILTERS/);

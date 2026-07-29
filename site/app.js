@@ -76,6 +76,23 @@ import {
 
 const USB_ENDPOINT = 2;
 const USB_READ_BYTES = 64;
+const ISP_PERMISSION_HINT_KEY = "frogalert.wch-isp-authorized.v1";
+
+function readRememberedIspPermission() {
+  try {
+    return window.localStorage.getItem(ISP_PERMISSION_HINT_KEY) === "yes";
+  } catch {
+    return false;
+  }
+}
+
+function rememberIspPermission() {
+  try {
+    window.localStorage.setItem(ISP_PERMISSION_HINT_KEY, "yes");
+  } catch {
+    // WebUSB getDevices() still carries the browser grant for this page load.
+  }
+}
 
 const state = {
   usbDevice: null,
@@ -105,6 +122,7 @@ const state = {
   applicationEntryAttempt: "nearest",
   applicationProfileHint: null,
   applicationTransitionPending: false,
+  ispPermissionRemembered: readRememberedIspPermission(),
 };
 let releaseManifestPromise = null;
 
@@ -388,12 +406,14 @@ function showApplicationUsbDevice(device) {
   );
   setStatus(
     elements.usbStatus,
-    `Badge detected in normal nametag mode (${descriptor.vidPid}). Enter ISP mode to continue.`,
+    state.ispPermissionRemembered
+      ? `Badge detected in normal nametag mode (${descriptor.vidPid}). Bootloader permission is remembered; hold the indicated button and FrogAlert will continue automatically.`
+      : `Badge detected in normal nametag mode (${descriptor.vidPid}). Enter ISP mode to continue.`,
     "good",
   );
   if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = false;
   if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = true;
-  if (elements.usbButton) elements.usbButton.textContent = "Check for bootloader";
+  if (elements.usbButton) elements.usbButton.hidden = true;
   renderApplicationEntryGuide();
   log(
     `Detected the known BadgeMagic application USB signature ${descriptor.vidPid}; no interface was opened and no command was sent.`,
@@ -407,9 +427,12 @@ function renderApplicationEntryGuide() {
   const attempt = state.applicationEntryAttempt;
   if (attempt === "nearest") {
     elements.wizardApplicationTitle.textContent = "Try the bottom button";
-    elements.wizardApplicationInstruction.textContent =
-      "With the badge display upright, tap Start watching first. Keep the chooser open, then hold the bottom button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.";
-    elements.wizardApplicationSuccess.textContent = "Start watching for ISP";
+    elements.wizardApplicationInstruction.textContent = state.ispPermissionRemembered
+      ? "Chrome remembers this bootloader. With the badge display upright, hold the bottom button for about 2.2 seconds and release at the dot. FrogAlert will identify it automatically."
+      : "With the badge display upright, tap Start watching first. Keep the chooser open, then hold the bottom button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.";
+    elements.wizardApplicationSuccess.textContent = state.ispPermissionRemembered
+      ? "Not detected? Open the chooser"
+      : "Start watching for ISP";
     elements.wizardApplicationSuccess.hidden = false;
     elements.wizardApplicationNext.textContent = "No dot — try the top button";
     elements.wizardApplicationNext.hidden = false;
@@ -417,9 +440,12 @@ function renderApplicationEntryGuide() {
   }
   if (attempt === "farthest") {
     elements.wizardApplicationTitle.textContent = "Try the top button";
-    elements.wizardApplicationInstruction.textContent =
-      "Keep the chooser open, then hold the top button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.";
-    elements.wizardApplicationSuccess.textContent = "Start watching for ISP";
+    elements.wizardApplicationInstruction.textContent = state.ispPermissionRemembered
+      ? "Hold the top button for about 2.2 seconds and release at the dot. FrogAlert will identify the remembered bootloader automatically."
+      : "Keep the chooser open, then hold the top button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.";
+    elements.wizardApplicationSuccess.textContent = state.ispPermissionRemembered
+      ? "Not detected? Open the chooser"
+      : "Start watching for ISP";
     elements.wizardApplicationSuccess.hidden = false;
     elements.wizardApplicationNext.textContent = "No dot on either button";
     elements.wizardApplicationNext.hidden = false;
@@ -474,7 +500,10 @@ function clearApplicationUsbDevice({ restoreStatus = false } = {}) {
   state.applicationUsbDevice = null;
   if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = true;
   if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = false;
-  if (elements.usbButton) elements.usbButton.textContent = "Check connected badge";
+  if (elements.usbButton) {
+    elements.usbButton.hidden = false;
+    elements.usbButton.textContent = "Check connected badge";
+  }
   if (restoreStatus) {
     setStatus(
       elements.usbStatus,
@@ -1095,6 +1124,8 @@ async function connectUsb(options = {}) {
     }
     state.chip = identity;
     state.config = config;
+    rememberIspPermission();
+    state.ispPermissionRemembered = true;
     const descriptor = usbDescriptorSummary(device);
     const configSummary = configurationSummary(config.registers);
     elements.chipName.textContent = `${identity.name} [0x8216]`;
@@ -2595,7 +2626,9 @@ function bindEvents() {
       if (usbMode === "isp" && state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
         setStatus(
           elements.ispGuideStep,
-          "A matching WCH USB device was attached. Tap the chooser button yourself to identify it read-only.",
+          state.ispPermissionRemembered
+            ? "The remembered WCH bootloader attached. Identifying it automatically…"
+            : "A matching WCH USB device was attached. Tap the chooser button yourself to identify it read-only.",
           "good",
         );
       }

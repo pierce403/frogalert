@@ -27,7 +27,14 @@ hazardous operation remains qualified bench recovery, not profile detection.
 Seeing an ISP id starts
 only read-only USB configuration, Identify, and Read Config operations. A
 first-time badge still requires one explicit chooser tap because WebUSB does
-not expose unapproved devices. Only after CH582 `0x82 / 0x16` identification
+not expose unapproved devices. After a successful read-only identification,
+FrogAlert stores only a coarse local “WCH ISP was authorized” hint. Chrome owns
+the real device permission. On later visits the page uses
+`navigator.usb.getDevices()` and USB attach events to identify the permitted
+bootloader automatically, without another site-level Connect step. If browser
+permission was cleared, the local hint grants nothing and the guide exposes
+the native chooser as a fallback. No USB serial or device identifier is stored.
+Only after CH582 `0x82 / 0x16` identification
 succeeds does the wizard use the observed button path to download the newest
 approved matching same-origin image, verify its size, hash, profile, and
 evidence metadata, then show confirmations and finally the separate
