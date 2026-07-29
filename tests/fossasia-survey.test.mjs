@@ -49,6 +49,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   const main = [
     '#include "ble/setup.h"',
     '#include "ble/profile.h"',
+    "#define ANI_NEXT_STEP       (1 << 0)",
     "\tif(events & ANI_NEXT_STEP) {",
     "",
     "\t\tstatic int (*animations[])(bm_t *bm, uint16_t *fb) = {",
@@ -110,7 +111,10 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\tbtn_onOnePress(KEY1, change_mode);",
     "\tbtn_onOnePress(KEY2, bm_transition);",
     "\tbtn_onLongPress(KEY1, change_brightness);",
+    "\tTMR0_TimerInit((FREQ_SYS / 2000) / 2);",
     "\t\t\tled_write2dcol(i >> 2, fb[i >> 1], fb[(i >> 1) + 1]);",
+    "\t\telse if (state > (badge_cfg.led_brightness&3))",
+    "}",
   ].join("\r\n");
 
   const patchedPeripheral = applyPeripheralHooks(peripheral);
@@ -129,6 +133,22 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     /GAPRole_TerminateLink\([^;]+;[\s\S]{0,80}enable_advertising\(TRUE\);/,
   );
   assert.match(patchedMain, /peripheral_init\(\);[\s\S]*frogalert_survey_init\(\);/);
+  assert.match(
+    patchedMain,
+    /#define FROGALERT_LED_TICK_HZ \(16000\)/,
+  );
+  assert.match(
+    patchedMain,
+    /TMR0_TimerInit\(FREQ_SYS \/ FROGALERT_LED_TICK_HZ\)/,
+  );
+  assert.match(
+    patchedMain,
+    /else if \(state == \(badge_cfg\.led_brightness&3\) \+ 1\)/,
+  );
+  assert.doesNotMatch(
+    patchedMain,
+    /TMR0_TimerInit\(\(FREQ_SYS \/ 2000\) \/ 2\)|state > \(badge_cfg\.led_brightness&3\)/,
+  );
   for (const event of [
     "ANI_NEXT_STEP",
     "ANI_MARQUE",
@@ -506,6 +526,20 @@ test("survey role pattern is pinned to WCH's combined-role example", async () =>
     combined_role_example: "EVT/EXAM/BLE/CentPeri/APP/centPeri_main.c",
     central_scan_example: "EVT/EXAM/BLE/CentPeri/APP/central.c",
     ble_heap_config: "EVT/EXAM/BLE/HAL/include/config.h",
+  });
+});
+
+test("display refresh fix is pinned to bkero's reviewed source", async () => {
+  const lock = await loadLock();
+  assert.deepEqual(lock.display_refresh_reference, {
+    repository: "https://github.com/bkero/badgemagic-firmware",
+    branch: "b1144c-support",
+    commit: "074c448066573be2990fe83fd718a22c01b7c283",
+    source: "src/main.c",
+    timer_tick_hz: 16000,
+    column_pairs: 22,
+    pwm_ticks_per_pair: 4,
+    calculated_frame_hz: 181.8181818181818,
   });
 });
 

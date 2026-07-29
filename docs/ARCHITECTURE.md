@@ -114,9 +114,18 @@ stops the original animation only when an overlay or selected counter takes
 ownership. The original animation tasks may already have queued their next
 events, so the patched handlers also consume marquee, flash, fixed-animation,
 and Bluetooth animation steps while FrogAlert owns the panel. They do not
-reschedule until the frame-count-derived overlay releases ownership and restores the
-selected nametag/count view. FOSSASIA's underlying roughly 45 Hz matrix refresh
-is unchanged.
+reschedule until the frame-count-derived overlay releases ownership and
+restores the selected nametag/count view.
+
+The private survey lane also carries the narrow display timing change from
+`bkero/badgemagic-firmware` commit `074c448`. Timer 0 now ticks at 16 kHz.
+Because the ISR walks 22 column pairs over four PWM ticks, that produces about
+182 complete frames per second instead of about 45. The off-period releases
+the matrix pins only on its first tick rather than repeating the same 23-pin
+operation on every later off tick. Baseline and metadata-only canary lanes
+remain byte-locked to their previous behavior; the higher-rate survey image
+needs physical BLE, brightness, current, USB/app, and recovery testing on both
+exact profiles.
 
 Each profile/lane combination has an independent audited size and SHA-256 lock.
 All derived images are intentionally absent from the public manifest pending

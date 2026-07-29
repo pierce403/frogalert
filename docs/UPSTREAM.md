@@ -74,6 +74,22 @@ Rust does not provide the entry point, interrupt vectors, clocks, USB, BLE role
 setup, or display refresh. The first derived artifact is a C-only metadata
 canary, followed by an ABI-only Rust canary, before any scan or panel change.
 
+### Display refresh port
+
+The private survey lane carries the narrow PWM timing fix from Ben Kero's
+Apache-2.0 FOSSASIA fork, branch `b1144c-support`, exact commit
+[`074c448`](https://github.com/bkero/badgemagic-firmware/commit/074c448066573be2990fe83fd718a22c01b7c283).
+It changes only `src/main.c`: Timer 0 ticks at 16 kHz, and the matrix is
+released only on the first tick after the selected brightness on-period. With
+22 column pairs and four PWM ticks per pair, the calculated complete-frame
+rate is about 181.82 Hz rather than 45.45 Hz.
+
+FrogAlert applies this change only after preparing the exact pinned `9ce885d`
+source and only for the survey lane. Baseline and metadata-only canary hashes
+remain unchanged. The source calculation and clean embedded audits are not
+physical proof that the higher interrupt rate coexists with BLE, USB, every
+brightness level, current limits, and recovery on either board profile.
+
 ### Nyx `260404` board delta
 
 Nyx documents how to distinguish the newer PCB marking `B1144C_260404` from

@@ -99,8 +99,8 @@
           "sha256": "6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87"
         },
         "survey": {
-          "size": 204724,
-          "sha256": "0e92b9b778398c59e7d1b07944c270c80d4d27b45d8d1f8094f7a0a204084b30"
+          "size": 204736,
+          "sha256": "d9ce4edb5093058fecbad09eb3e594ee8c4a7c1d113f99bb4764043ae02c5b9d"
         }
       },
       "B1144C_260404_USB_C": {
@@ -113,8 +113,8 @@
           "sha256": "f4defa234af5c1b2377fd19daa513d8a3e550c9907cd9bd793f9c6f3b021e565"
         },
         "survey": {
-          "size": 204748,
-          "sha256": "8e602591ce0d87c98c97d9147cfbc023d697a87c4a4797c020b85ba4d9b3ae9c"
+          "size": 204760,
+          "sha256": "87d11900921cc33e20463ff2ce828cc4a4a2e3a967e33593518f074abd0eeeeb"
         }
       }
     },
@@ -179,6 +179,16 @@
     "combined_role_example": "EVT/EXAM/BLE/CentPeri/APP/centPeri_main.c",
     "central_scan_example": "EVT/EXAM/BLE/CentPeri/APP/central.c",
     "ble_heap_config": "EVT/EXAM/BLE/HAL/include/config.h"
+  },
+  "display_refresh_reference": {
+    "repository": "https://github.com/bkero/badgemagic-firmware",
+    "branch": "b1144c-support",
+    "commit": "074c448066573be2990fe83fd718a22c01b7c283",
+    "source": "src/main.c",
+    "timer_tick_hz": 16000,
+    "column_pairs": 22,
+    "pwm_ticks_per_pair": 4,
+    "calculated_frame_hz": 181.8181818181818
   },
   "flipper_reference": {
     "repository": "https://github.com/flipperdevices/flipperzero-firmware",

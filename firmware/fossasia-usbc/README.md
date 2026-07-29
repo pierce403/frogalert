@@ -130,8 +130,13 @@ name/count view resumes after the final one-second frame releases ownership.
 The count is a single centered fixed frame. Text alerts split into no more than
 two fixed pages held for one second each; only the frog alert deliberately
 changes pose. This removes both the diagnostic's added blank-frame flicker and
-the competing-animation overwrite, but does not change FOSSASIA's roughly
-45 Hz matrix refresh. For fixed and frame-animation modes only, a compatibility
+the competing-animation overwrite. The survey lane additionally ports
+`bkero/badgemagic-firmware` commit `074c448`: Timer 0 ticks at 16 kHz for about
+182 complete matrix frames per second instead of about 45, and the PWM
+off-period releases the pins only once per column pair. This should reduce
+visible strobing but remains hardware-unverified alongside BLE load, current
+draw, all brightness levels, app uploads, and recovery. For fixed and
+frame-animation modes only, a compatibility
 helper recognizes 48-column
 blocks with two blank columns at both edges and copies their inner 44 columns
 using the correct 48-column stride. Unqualified payloads retain the original

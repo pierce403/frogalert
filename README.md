@@ -114,7 +114,11 @@ are consumed instead of being allowed to restart the normal scroll underneath
 it. The LED refresh ISR also selects a separate double-buffered FrogAlert
 framebuffer while the overlay is active, so even an unexpected base-animation
 write cannot reach the panel. Normal content resumes only when the overlay
-releases display ownership.
+releases display ownership. The private survey lane also ports bkero's
+16 kHz Timer 0 change, raising calculated complete-frame refresh from roughly
+45 Hz to 182 Hz and blanking each column pair only once per off-period. That
+should reduce visible strobing, but the higher interrupt rate and current/BLE
+behavior remain hardware-unverified.
 
 ## Hardware warning
 
@@ -378,6 +382,7 @@ and dated lessons that survive individual sessions.
 - [Its embedded source commit `9ce885d`](https://github.com/fossasia/badgemagic-firmware/commit/9ce885d682b5c56c3ac7595c09e009a210885221)
 - [Nyx `260404` badge notes](https://badge.nyx.ms/)
 - [FOSSASIA `260404` KEY1 wiring change](https://github.com/fossasia/badgemagic-firmware/commit/696bbd71b608a3f0db585cd0d8d828ce1f5dc0a3)
+- [bkero 16 kHz display-refresh change](https://github.com/bkero/badgemagic-firmware/commit/074c448066573be2990fe83fd718a22c01b7c283)
 - [“How to Burn Your LED Badge: Flash & Develop Custom Animation” — Dien-Nhung Nguyen, FOSSASIA Summit 2025](https://www.youtube.com/watch?v=X84YQFNjkmw)
   — practical teardown and WCH ISP demonstration; treat the shown board-short
   recovery technique as a hazardous bench method

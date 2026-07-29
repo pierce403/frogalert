@@ -6,6 +6,10 @@ FrogAlert is Apache-2.0 unless a file says otherwise.
   initial USB-C hardware/runtime shell, plus hardware mapping, BadgeMagic
   protocol documentation, and flashing safety reference.
   <https://github.com/fossasia/badgemagic-firmware>
+- `bkero/badgemagic-firmware` — Apache-2.0 FOSSASIA fork. Exact commit
+  `074c448` is the source attribution for the survey lane's 16 kHz matrix
+  refresh and one-shot PWM blanking change.
+  <https://github.com/bkero/badgemagic-firmware/commit/074c448066573be2990fe83fd718a22c01b7c283>
 - `ch32-rs/ch58x-hal` — MIT OR Apache-2.0. Rust HAL and BLE feasibility
   reference. <https://github.com/ch32-rs/ch58x-hal>
 - `ch32-rs/wchisp` — GPL-2.0-only. USB ISP reference implementation and device

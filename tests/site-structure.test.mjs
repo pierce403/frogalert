@@ -111,8 +111,9 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.doesNotMatch(html, /HAX DETECTED/);
   assert.match(html, /profile-specific .*260404.*250901.*candidates/is);
   assert.match(html, /double-buffered output overlay.*blink.*marquee.*base animations/is);
-  assert.match(html, /204,748 bytes.*8e602591ce0d87c98c97d9147cfbc023d697a87c4a4797c020b85ba4d9b3ae9c/);
-  assert.match(html, /204,724 bytes.*0e92b9b778398c59e7d1b07944c270c80d4d27b45d8d1f8094f7a0a204084b30/);
+  assert.match(html, /204,760 bytes.*87d11900921cc33e20463ff2ce828cc4a4a2e3a967e33593518f074abd0eeeeb/);
+  assert.match(html, /204,736 bytes.*d9ce4edb5093058fecbad09eb3e594ee8c4a7c1d113f99bb4764043ae02c5b9d/);
+  assert.match(html, /complete-frame refresh from roughly 45 Hz to 182 Hz/);
   assert.match(html, /a fixed counter, one-second-per-frame fixed alerts/);
   assert.match(html, /active-low .*260404.*build default/is);
   assert.match(html, /cannot be distinguished passively at boot/i);

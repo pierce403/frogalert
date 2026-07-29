@@ -73,6 +73,9 @@ on chat context or filenames alone.
 - [`2026-07-28-fixed-survey-pages.md`](agent-memory/logs/2026-07-28-fixed-survey-pages.md)
   — non-scrolling count and two-page alert design, alert-relative one-second
   frame timing, and locked dual-profile candidate hashes.
+- [`2026-07-28-display-refresh.md`](agent-memory/logs/2026-07-28-display-refresh.md)
+  — pinned bkero PWM timing port, 182 Hz survey refresh, dual-profile build
+  hashes, and physical BLE/current/display acceptance boundary.
 
 ## People
 

@@ -313,10 +313,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the physical button nearest USB as the
   counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
   short press retains the normal system action and KEY2 long press retains ISP
-  entry. The locked `260404` candidate is 204,748 bytes at SHA-256
-  `8e602591ce0d87c98c97d9147cfbc023d697a87c4a4797c020b85ba4d9b3ae9c`;
-  the `250901` candidate is 204,724 bytes at SHA-256
-  `0e92b9b778398c59e7d1b07944c270c80d4d27b45d8d1f8094f7a0a204084b30`.
+  entry. The locked `260404` candidate is 204,760 bytes at SHA-256
+  `87d11900921cc33e20463ff2ce828cc4a4a2e3a967e33593518f074abd0eeeeb`;
+  the `250901` candidate is 204,736 bytes at SHA-256
+  `d9ce4edb5093058fecbad09eb3e594ee8c4a7c1d113f99bb4764043ae02c5b9d`.
   FrogAlert completes frames in one of two private buffers and the final TMR0
   refresh selects the committed buffer while an overlay owns the panel.
   Marquee/flash/fixed/Bluetooth event handlers also consume queued work without
@@ -335,14 +335,20 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   completed count after suspension so a cancelled `S` phase is never shown as
   a measurement. Clear an interrupted BadgeMagic streaming session on
   disconnect before resuming survey scheduling and advertising.
-- The user observed survey-display flicker. FOSSASIA scans 22 Charlieplex
-  source phases at roughly 45 Hz, which can be visible. The survey hook also
+- The user observed survey-display flicker. Pinned FOSSASIA scanned 22
+  Charlieplex source phases at roughly 45 Hz, which can be visible. The survey hook also
   called `stop_all_animation()` every 100 ms, clearing the live framebuffer and
   adding periodic blank/partial frames. The replacement stops animation only
   on display-ownership transition. Because original animation events may
   already be queued, patched handlers also consume their events without
   rescheduling while an overlay owns the panel. This addresses the competing
-  scroll, but does not change the base refresh rate.
+  scroll. The private survey lane now also ports
+  `bkero/badgemagic-firmware` commit `074c448`: Timer 0 ticks at 16 kHz for
+  about 182 complete frames per second and releases the matrix only on the
+  first off-period tick. Baseline/canary timing remains unchanged. Treat the
+  higher-rate image as hardware-unverified until BLE coexistence, brightness,
+  current draw, USB/app uploads, display behavior, and KEY2 recovery pass on
+  each exact profile.
 - The user physically observed that FOSSASIA blink mode could still overwrite a
   `FLIPPER DETECTED` overlay despite the per-event scheduler guards. The
   replacement double-buffers FrogAlert's 44-column frames and switches the

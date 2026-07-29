@@ -93,6 +93,18 @@ export function applyMainHooks(source) {
   let result = normalizeLineEndings(source);
   result = replaceOnce(
     result,
+    "#define ANI_NEXT_STEP       (1 << 0)\n",
+    `/* FrogAlert carries bkero/badgemagic-firmware 074c448's refresh fix in
+ * the private survey lane. The ISR scans 22 column pairs over four ticks,
+ * so 16 kHz produces a roughly 182 Hz complete-frame refresh. */
+#define FROGALERT_LED_TICK_HZ (16000)
+
+#define ANI_NEXT_STEP       (1 << 0)
+`,
+    "16 kHz display refresh constant",
+  );
+  result = replaceOnce(
+    result,
     '#include "ble/setup.h"\n#include "ble/profile.h"\n',
     '#include "ble/setup.h"\n#include "ble/profile.h"\n#ifdef FROGALERT_SURVEY\n#include "ble/frogalert-survey.h"\n#endif\n',
     "main survey include",
@@ -568,6 +580,12 @@ static void disp_charging()
   );
   result = replaceOnce(
     result,
+    "\tTMR0_TimerInit((FREQ_SYS / 2000) / 2);\n",
+    "\tTMR0_TimerInit(FREQ_SYS / FROGALERT_LED_TICK_HZ);\n",
+    "display refresh timer runs at 16 kHz",
+  );
+  result = replaceOnce(
+    result,
     `			led_write2dcol(i >> 2, fb[i >> 1], fb[(i >> 1) + 1]);`,
     `#ifdef FROGALERT_SURVEY
 			uint8_t column = i >> 1;
@@ -587,6 +605,16 @@ static void disp_charging()
 				      fb[(i >> 1) + 1]);
 #endif`,
     "display ISR gives FrogAlert overlays absolute framebuffer priority",
+  );
+  result = replaceOnce(
+    result,
+    "\t\telse if (state > (badge_cfg.led_brightness&3))\n",
+    `		/* Blank only on the first tick past the selected on-period.
+		 * Releasing the same 23 pins again on later ticks changes no
+		 * output and wastes time in this higher-rate interrupt. */
+		else if (state == (badge_cfg.led_brightness&3) + 1)
+`,
+    "display PWM blanks once per column pair",
   );
   return result;
 }
