@@ -136,6 +136,10 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\tperipheral_init();",
     "",
     "\tif (! badge_cfg.ble_always_on) {",
+    "\t\tble_disable_advertise();",
+    "\t}",
+    "",
+    "\tdevInfo_registerService();",
     "\tif (params[0] == 0x00) { // enter streaming mode",
     "\t\tstop_all_animation();",
     "\t\tstreaming_enabled = 1;",
@@ -192,6 +196,10 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     /GAPRole_TerminateLink\([^;]+;[\s\S]{0,80}enable_advertising\(TRUE\);/,
   );
   assert.match(patchedMain, /peripheral_init\(\);[\s\S]*frogalert_survey_init\(\);/);
+  assert.match(
+    patchedMain,
+    /Keep the BadgeMagic upload service discoverable[\s\S]*ble_enable_advertise\(\);[\s\S]*#else[\s\S]*ble_disable_advertise\(\);/,
+  );
   assert.match(
     patchedMain,
     /#define FROGALERT_LED_TICK_HZ \(16000\)/,

@@ -310,6 +310,30 @@ export function applyMainHooks(source) {
   );
   result = replaceOnce(
     result,
+    `	if (! badge_cfg.ble_always_on) {
+		ble_disable_advertise();
+	}
+
+	devInfo_registerService();`,
+    `#ifdef FROGALERT_SURVEY
+	/*
+	 * Keep the BadgeMagic upload service discoverable in normal nametag
+	 * mode. This makes app access independent of the profile-specific mode
+	 * button; surveys still pause advertising briefly and suspend after a
+	 * connection.
+	 */
+	ble_enable_advertise();
+#else
+	if (! badge_cfg.ble_always_on) {
+		ble_disable_advertise();
+	}
+#endif
+
+	devInfo_registerService();`,
+    "normal-mode BadgeMagic advertising",
+  );
+  result = replaceOnce(
+    result,
     `	if(events & ANI_NEXT_STEP) {
 
 		static int (*animations[])(bm_t *bm, uint16_t *fb) = {`,

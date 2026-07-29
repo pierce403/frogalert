@@ -122,6 +122,13 @@ releases display ownership. The private survey lane also ports bkero's
 should reduce visible strobing, but the higher interrupt rate and current/BLE
 behavior remain hardware-unverified.
 
+Current FrogAlert candidates also advertise the BadgeMagic upload service
+while showing the normal nametag. The Android app therefore does not depend on
+entering download mode with the profile-specific button after an accidental
+top-image/bottom-image mismatch. Advertising pauses during each short passive
+survey and resumes afterward; once the app connects, FrogAlert suspends surveys
+for the entire upload.
+
 ## Hardware warning
 
 The photographed USB-C reference is PCB `B1144C_250901`, confirmed as a WCH

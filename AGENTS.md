@@ -279,6 +279,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - Keep the same-origin manifest and BIN as the browser's sole executable
   release source. GitHub Releases are provenance and alternate downloads; do
   not add a GitHub API or runtime asset dependency to the flasher.
+- FrogAlert survey candidates advertise the BadgeMagic GATT service in normal
+  nametag mode so an accidental top-image/bottom-image mismatch cannot make app
+  uploads depend on finding the correctly routed download button. Passive
+  surveys may pause advertising briefly, but a connection must suspend surveys
+  until disconnect and advertising must resume afterward.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 
@@ -370,10 +375,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `250901`, four `low/low` samples select `260404`, and the ordinary open
   `low/high` state selects nothing. A confirmed result corrects KEY1 polarity,
   both short-button roles, and shutdown wake for the current boot. The new
-  205,612-byte candidates are `260404`
-  `9ecb7763ce9931323683192dd4d85b28972949a503667462b7ab5db7e6cbbe91`
+  normal-mode-advertising 205,596-byte candidates are `260404`
+  `52333c72eaa47f58e51c83a636f2e71f8129e3523131effd01c65c02156f7cf6`
   and `250901`
-  `6c66fe90cc71da5a9fc5fa21ba61c4f0ca610ae354d1211a33645b836b8c9ea9`.
+  `90f6c7cd7e03935f48fe06ae9c31daf243d78692609d1b98cb58b96fcc557386`.
   They pass locked ELF/BIN/vector/USB/BLE/display/KEY2 audits but are
   hardware-unverified. Test each on its matching board and deliberately
   cross-flashed board, including KEY2-before-detection, brightness,
@@ -391,6 +396,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   completed count after suspension so a cancelled `S` phase is never shown as
   a measurement. Clear an interrupted BadgeMagic streaming session on
   disconnect before resuming survey scheduling and advertising.
+- On 2026-07-29 the user reported that Android BadgeMagic initially failed to
+  connect to the adaptive bottom candidate and then began working after a
+  delay. The GATT path was therefore not permanently broken. Treat this as an
+  advertising/mode race until exact radio logs prove otherwise; current source
+  makes the service discoverable in normal nametag mode while retaining the
+  existing scan pause and connection-suspension rules.
 - The user observed survey-display flicker. Pinned FOSSASIA scanned 22
   Charlieplex source phases at roughly 45 Hz, which can be visible. The survey hook also
   called `stop_all_animation()` every 100 ms, clearing the live framebuffer and
