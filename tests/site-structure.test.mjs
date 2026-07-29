@@ -176,7 +176,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=12/);
+  assert.match(html, /site\/app\.js\?v=13/);
   assert.match(app, /flash-support\.js\?v=2/);
   assert.match(app, /latest approved/);
   assert.match(app, /Nothing is selected or loaded automatically/);
@@ -238,7 +238,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=12/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=13/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   for (const step of ["firmware", "confirm", "flash", "success"]) {
@@ -275,6 +275,16 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /profile: "B1144C_260404_USB_C"/);
   assert.match(app, /imageLabel: "bottom-button image"/);
   assert.match(app, /imageLabel: "top-button image"/);
+  assert.match(html, /Preparing the update/);
+  assert.doesNotMatch(
+    html.slice(0, html.indexOf('class="legacy-flasher"')),
+    /Choose the firmware|Choose a local firmware file|Printed PCB revision/,
+  );
+  assert.match(app, /async function prepareAutomaticButtonFirmware\(\)/);
+  assert.match(app, /await loadReleaseManifest\(\)/);
+  assert.match(app, /candidate\.hardware_revisions\[0\] === hint\.profile/);
+  assert.match(app, /No approved \$\{hint\.imageLabel\} is published yet/);
+  assert.match(app, /await prepareAutomaticButtonFirmware\(\)/);
   assert.match(app, /state\.applicationTransitionPending = true/);
   assert.match(app, /state\.applicationTransitionPending && !state\.applicationProfileHint/);
   assert.match(app, /setWizardStep\(WIZARD_STEP\.FIRMWARE\)/);

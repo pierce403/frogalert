@@ -79,39 +79,30 @@
 
       <section class="wizard-step" data-wizard-step="firmware" aria-labelledby="wizard-firmware-title" hidden>
         <p class="section-kicker">Step 2 of 4</p>
-        <h1 id="wizard-firmware-title" tabindex="-1">Choose the firmware</h1>
+        <h1 id="wizard-firmware-title" tabindex="-1">Preparing the update</h1>
         <p id="wizard-device-summary" class="wizard-success-line" role="status">CH582 ISP badge connected.</p>
         <p id="wizard-profile-hint" class="wizard-inline-status" hidden></p>
 
-        <div class="wizard-fields">
-          <div class="field-group">
-            <label for="pcb-revision">Printed PCB revision</label>
-            <select id="pcb-revision">
-              <option value="">Choose the marking on the opened board</option>
-              <option value="B1144C_260404_USB_C">Top-button image · B1144C_260404</option>
-              <option value="B1144C_250901_USB_C">Bottom-button image · B1144C_250901</option>
-              <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label for="pcb-marking">PCB marking</label>
-            <input id="pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="B1144C_260404">
-          </div>
-          <div class="field-group">
-            <label for="firmware-file">Firmware BIN</label>
-            <input id="firmware-file" type="file" accept=".bin,application/octet-stream">
-          </div>
+        <div hidden aria-hidden="true">
+          <select id="pcb-revision" tabindex="-1">
+            <option value=""></option>
+            <option value="B1144C_260404_USB_C">Top-button image</option>
+            <option value="B1144C_250901_USB_C">Bottom-button image</option>
+            <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1</option>
+          </select>
+          <input id="pcb-marking" type="text" tabindex="-1">
+          <input id="firmware-file" type="file" accept=".bin,application/octet-stream" tabindex="-1">
         </div>
 
         <dl class="wizard-artifact-summary">
-          <div><dt>File</dt><dd id="firmware-name">Not loaded</dd></div>
+          <div><dt>Update</dt><dd id="firmware-name">Checking the release catalog…</dd></div>
           <div><dt>Size</dt><dd id="firmware-size">—</dd></div>
           <div><dt>Profile</dt><dd id="firmware-revision">—</dd></div>
           <div class="wizard-hash"><dt>SHA-256</dt><dd id="firmware-hash">—</dd></div>
           <div hidden><dt>Provenance</dt><dd id="firmware-provenance">—</dd></div>
           <div hidden><dt>Evidence</dt><dd id="firmware-verification">—</dd></div>
         </dl>
-        <p id="wizard-firmware-status" class="wizard-inline-status" role="status" aria-live="polite">Select the exact board profile and a matching BIN.</p>
+        <p id="wizard-firmware-status" class="wizard-inline-status" role="status" aria-live="polite">FrogAlert will select and verify the matching update automatically.</p>
         <div class="wizard-actions">
           <button id="wizard-firmware-back" class="button button-secondary" type="button">Back</button>
           <button id="wizard-firmware-continue" class="button button-primary" type="button" disabled>Continue</button>
@@ -732,6 +723,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=12"></script>
+    <script type="module" src="../site/app.js?v=13"></script>
   </body>
 </html>

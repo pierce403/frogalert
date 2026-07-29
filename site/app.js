@@ -106,6 +106,7 @@ const state = {
   applicationProfileHint: null,
   applicationTransitionPending: false,
 };
+let releaseManifestPromise = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -524,10 +525,12 @@ function updateWizardUi() {
   }
   if (elements.wizardFirmwareStatus) {
     const message = !state.firmware
-      ? "Select the exact board profile and a matching BIN."
+      ? state.applicationProfileHint
+        ? `Looking for an approved ${state.applicationProfileHint.imageLabel}…`
+        : "FrogAlert needs to observe which button entered ISP before it can select an update."
       : artifactReady
-        ? "Firmware validated locally and bound to this board profile."
-        : "The board marking, profile, and firmware must match before continuing.";
+        ? "The matching update was downloaded and verified."
+        : "The automatic update did not pass every profile and evidence check.";
     setStatus(elements.wizardFirmwareStatus, message, artifactReady ? "good" : "neutral");
   }
   if (elements.wizardDeviceSummary && state.chip && state.config) {
@@ -1117,6 +1120,7 @@ async function connectUsb(options = {}) {
       "success",
     );
     setWizardStep(WIZARD_STEP.FIRMWARE);
+    await prepareAutomaticButtonFirmware();
   } catch (error) {
     await closeUsb();
     const cancelled = error?.name === "NotFoundError";
@@ -1898,7 +1902,12 @@ async function prepareOpenBadgeMagicFirmware() {
   }
 }
 
-async function loadReleaseManifest() {
+function loadReleaseManifest() {
+  releaseManifestPromise ??= fetchReleaseManifest();
+  return releaseManifestPromise;
+}
+
+async function fetchReleaseManifest() {
   try {
     const [response, quarantineResponse] = await Promise.all([
       fetch(firmwareManifestUrl(import.meta.url), { cache: "no-store" }),
@@ -1993,10 +2002,11 @@ async function loadReleaseManifest() {
     elements.releaseSelect.disabled = true;
     elements.labImageSelect.disabled = true;
     elements.recoveryButton.disabled = true;
+    throw error;
   }
 }
 
-async function chooseRelease(event) {
+async function loadReleaseArtifact(release) {
   if (state.flashing) return;
   const generation = beginArtifactPreparation();
   elements.firmwareInput.value = "";
@@ -2004,13 +2014,9 @@ async function chooseRelease(event) {
   clearLabImageDownload();
   restoreLabImageSummary();
   clearFirmware();
-  if (!event.target.value) {
-    restoreReleaseSummary();
-    return;
-  }
   try {
-    const release = state.releases.find((candidate) => candidate.id === event.target.value);
-    if (!release) throw new Error("selected release is not present in the loaded manifest");
+    if (!release) throw new Error("release is not present in the loaded manifest");
+    elements.releaseSelect.value = release.id;
     renderReleaseLinks(release);
     validateReleaseDescriptor(release, selectedRevision(), elements.pcbMarking.value);
     const artifactUrl = firmwareArtifactUrl(release.file, import.meta.url);
@@ -2030,15 +2036,74 @@ async function chooseRelease(event) {
         hardwareEvidence: "Manifest marks this exact release hardware-verified",
       },
     });
-    if (!loaded) return;
+    if (!loaded) return false;
     setStatus(elements.releaseStatus, `Loaded ${release.version} for PCB revision ${selectedRevision()}.`, "good");
+    return true;
   } catch (error) {
-    if (generation !== state.artifactGeneration) return;
+    if (generation !== state.artifactGeneration) return false;
     clearFirmware();
-    const release = state.releases.find((candidate) => candidate.id === event.target.value);
     if (release) renderReleaseLinks(release);
     setStatus(elements.releaseStatus, `Release not loaded: ${error.message}`, "bad");
     log(`Release rejected before any device write: ${error.message}`, "error");
+    return false;
+  }
+}
+
+async function chooseRelease(event) {
+  if (!event.target.value) {
+    restoreReleaseSummary();
+    return;
+  }
+  const release = state.releases.find((candidate) => candidate.id === event.target.value);
+  await loadReleaseArtifact(release);
+}
+
+async function prepareAutomaticButtonFirmware() {
+  const hint = state.applicationProfileHint;
+  if (!hint) {
+    setStatus(
+      elements.wizardFirmwareStatus,
+      "FrogAlert did not observe a top- or bottom-button entry. Let the badge return to normal mode and start again.",
+      "bad",
+    );
+    log("Automatic firmware selection stopped because no button-derived profile was recorded.", "warning");
+    return;
+  }
+  elements.pcbRevision.value = hint.profile;
+  elements.pcbMarking.value = hint.marking;
+  updateFlashButton();
+  setStatus(
+    elements.wizardFirmwareStatus,
+    `Loading the approved ${hint.imageLabel}…`,
+    "working",
+  );
+  try {
+    await loadReleaseManifest();
+  } catch (error) {
+    setStatus(
+      elements.wizardFirmwareStatus,
+      `The approved update catalog is unavailable: ${error.message}`,
+      "bad",
+    );
+    return;
+  }
+  const release = state.releases.find(
+    (candidate) =>
+      candidate.hardware_revisions.length === 1 &&
+      candidate.hardware_revisions[0] === hint.profile,
+  );
+  if (!release) {
+    setStatus(
+      elements.wizardFirmwareStatus,
+      `No approved ${hint.imageLabel} is published yet. FrogAlert will not flash an unverified developer build.`,
+      "bad",
+    );
+    log(`No approved manifest release exists for ${hint.profile}; no firmware bytes were loaded.`, "warning");
+    return;
+  }
+  const loaded = await loadReleaseArtifact(release);
+  if (loaded && artifactReadyForWizard()) {
+    setWizardStep(WIZARD_STEP.CONFIRM);
   }
 }
 
@@ -2581,4 +2646,4 @@ updateCapabilities();
 bindEvents();
 updateWizardUi();
 if (destructivePage) void detectAuthorizedUsb();
-loadReleaseManifest();
+void loadReleaseManifest().catch(() => {});

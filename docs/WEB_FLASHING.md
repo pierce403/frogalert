@@ -28,8 +28,12 @@ Seeing an ISP id starts
 only read-only USB configuration, Identify, and Read Config operations. A
 first-time badge still requires one explicit chooser tap because WebUSB does
 not expose unapproved devices. Only after CH582 `0x82 / 0x16` identification
-succeeds does the wizard show exact-board firmware selection, confirmations,
-and finally the separate program-and-verify action. Failure returns to the
+succeeds does the wizard use the observed button path to download the newest
+approved matching same-origin image, verify its size, hash, profile, and
+evidence metadata, then show confirmations and finally the separate
+program-and-verify action. There is no file chooser or profile selector in the
+public wizard. If no approved image exists for that button, it stops without
+offering a developer BIN. Failure returns to the
 connection screen with the relevant KEY2 recovery hint; unrelated diagnostics
 and Bluetooth controls are not visible in the flasher.
 
@@ -168,7 +172,7 @@ Symbol presence is no longer accepted as recovery evidence.
 
 ## Hardware-profile selection
 
-The flashing page offers exact USB-C profile choices:
+The public wizard maps its observed entry button to one exact USB-C profile:
 
 - `B1144C_260404_USB_C` — printed `B1144C_260404`, Nyx KEY1
   pull-up/active-low/falling-wake profile and firmware build default;
@@ -182,13 +186,17 @@ USB on `250901`. Their KEY1 switch is open while untouched, so there is no
 reliable read-only boot probe:
 PA1 simply follows the internal pull selected by firmware. The browser cannot
 infer the profile from CH582 identity, USB descriptors, case color, generic
-`BM1144-C` text, or an untouched button. It intentionally starts with no
-profile selected and requires the printed PCB marking.
+`BM1144-C` text, or an untouched button. It instead records which guided
+button attempt actually produced the dot and ISP device. Entering the page
+while the badge is already in ISP provides no such evidence, so automatic
+selection stops and asks the user to let the badge return to normal mode and
+repeat the guided entry.
 
 Every configurable survey BIN embeds its compiled profile id. The page rejects
-a mismatch between that id and the selected profile. Selecting a different
-profile clears the loaded artifact and its monitoring configuration rather
-than reinterpreting the same bytes.
+a mismatch between that id and the button-derived profile. The legacy
+developer lab retains manual local-file controls outside the visible wizard;
+those controls do not provide a public fallback when an approved release is
+missing.
 
 ## Local monitoring customization
 
