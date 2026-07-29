@@ -9,6 +9,8 @@ index: plain markdown and ripgrep
 
 # FrogAlert memory
 
+- [2026-07-28 compact phone flasher](agent-memory/logs/2026-07-28-compact-phone-flasher.md)
+
 Search this index and `agent-memory/` before important work instead of relying
 on chat context or filenames alone.
 

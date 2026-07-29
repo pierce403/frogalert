@@ -46,29 +46,25 @@
     </header>
 
     <main id="flash-main" class="flash-main">
-      <section class="flash-hero" aria-labelledby="flash-title">
+      <section class="flash-hero flash-hero-compact" aria-labelledby="flash-title">
         <div class="flash-hero-copy">
-          <p class="eyebrow">Experimental WebUSB flasher for CH582M badges</p>
-          <h1 id="flash-title">Flash a supported BadgeMagic badge.</h1>
+          <p class="eyebrow">Phone-first WebUSB updater</p>
+          <h1 id="flash-title">Update your badge.</h1>
           <p class="lede">
-            This page can identify a CH582 in WCH ISP mode, validate a local BIN, program it, and verify every written chunk. Connecting alone never writes to the badge.
+            On Android Chrome, connect the badge through a data-capable USB OTG adapter. Choose the board, load a BIN, enter ISP, then program and verify it here. Connecting alone never writes.
           </p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#preflight">Check browser support</a>
-            <a class="button button-secondary" href="#recovery">Open recovery steps</a>
+          <div class="mobile-readiness" aria-label="Phone flashing requirements">
+            <span>Android Chrome</span>
+            <span>USB OTG + data cable</span>
+            <span>CH582M · 11×44</span>
           </div>
         </div>
 
-        <aside class="hero-safety" aria-labelledby="irreversible-title">
-          <p class="terminal-label">Before the first write</p>
-          <h2 id="irreversible-title">You cannot back up the original firmware.</h2>
-          <p>
-            The OEM firmware is read-protected and unavailable. Once replaced, it cannot be restored unless you already have a recoverable image for this exact board.
-          </p>
-          <p>
-            FOSSASIA's open BadgeMagic firmware is a compatible substitute for one exact Micro-USB profile. It is <strong>not</strong> the original factory firmware.
-          </p>
-        </aside>
+        <details class="hero-safety">
+          <summary id="irreversible-title">First flash is irreversible</summary>
+          <p>The read-protected OEM firmware cannot be backed up. Once replaced, it cannot be restored unless you already have a recoverable exact-board image.</p>
+          <p>FOSSASIA's open firmware is a compatible substitute for one exact Micro-USB profile, not the original firmware.</p>
+        </details>
       </section>
 
       <nav class="workflow-nav" aria-label="Flashing workflow">
@@ -88,6 +84,8 @@
           <p id="capability-status" class="status-summary" role="status" aria-live="polite">Preflight has not run.</p>
         </div>
 
+        <details class="compact-disclosure">
+          <summary>Show all browser and USB checks</summary>
         <div class="preflight-grid" aria-label="Browser support checks">
           <article class="preflight-item">
             <p class="preflight-label">Secure context</p>
@@ -120,6 +118,7 @@
             <p>A supported browser may keep the screen awake only during an active write.</p>
           </article>
         </div>
+        </details>
 
         <aside id="phone-guidance" class="phone-note" role="status" aria-live="polite">
           <strong>Using a phone?</strong> Android Chrome with USB OTG may expose WebUSB, but this path remains experimental until it passes a physical flash and recovery test. iPhone and iPad browsers do not expose WebUSB. If the preflight reports no USB support, use current desktop Chrome or Edge and the documented <a href="https://github.com/ch32-rs/wchisp">wchisp CLI</a> fallback.
@@ -139,7 +138,7 @@
           <p>Web Bluetooth cannot install firmware. WebUSB cannot inspect the running BadgeMagic app protocol.</p>
         </div>
 
-        <div class="mode-grid">
+        <div class="mode-grid mode-grid-phone-first">
           <article class="mode-card mode-card-safe">
             <div class="mode-card-heading">
               <span class="source-badge source-detected">Browser detected</span>
@@ -196,6 +195,8 @@
           </article>
         </div>
 
+        <details class="compact-disclosure device-facts">
+          <summary>Show detected device facts</summary>
         <div class="capabilities-wrap" tabindex="0" role="region" aria-labelledby="capabilities-title">
           <table class="capabilities-table">
             <caption id="capabilities-title">What this session actually knows</caption>
@@ -320,14 +321,20 @@
             </tbody>
           </table>
         </div>
+        </details>
         <p class="honesty-note"><strong>What the page cannot tell you:</strong> a Bluetooth name such as <code>LSLED</code> does not identify the firmware or PCB. Unless firmware reports authenticated version metadata, the exact installed image remains unknown.</p>
       </section>
 
-      <section id="recovery" class="flash-panel recovery-panel" aria-labelledby="recovery-title">
+      <details id="recovery" class="flash-panel recovery-panel section-disclosure">
+        <summary>
+          <span><span class="section-kicker">Recovery</span><strong id="recovery-title">Badge will not enter ISP?</strong></span>
+          <span>Open recovery steps</span>
+        </summary>
+        <div class="section-disclosure-body">
         <div class="panel-heading">
           <div>
             <p class="section-kicker">Recovery / know which firmware is running</p>
-            <h2 id="recovery-title">KEY2 entry is provided by compatible firmware.</h2>
+            <h2>KEY2 entry is provided by compatible firmware.</h2>
           </div>
           <span class="source-badge source-confirmed">Physical steps</span>
         </div>
@@ -371,7 +378,8 @@
           <summary>Why does original or unknown firmware need expert recovery?</summary>
           <p>On the confirmed USB-C <code>B1144C_250901</code> board, holding its KEY2—the button nearest USB—while pressing the populated RESET switch did not enter ISP. Its documented first entry required a qualified operator to hold KEY2 while momentarily bridging both ends of PCB capacitor <code>C3</code>. Nyx documents the same C3 operation for <code>B1144C_260404</code>, but with KEY2 explicitly identified as the button farther from USB; FrogAlert has not yet captured a successful ISP enumeration for that revision. This hazardous rail-collapse maneuver is not routine, is not a battery operation, and is deliberately not implemented as a website checklist. Leave the soldered cell and its leads alone. Review the <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">hardware evidence and safety boundary</a> and <a href="https://badge.nyx.ms/flash.html">Nyx's revision-specific notes</a> before qualified bench work.</p>
         </details>
-      </section>
+        </div>
+      </details>
 
       <form id="flash-workflow" novalidate>
         <section id="artifact" class="flash-panel" aria-labelledby="artifact-title">
@@ -401,7 +409,7 @@
             </div>
           </div>
 
-          <div class="artifact-options">
+          <div class="artifact-options artifact-options-compact">
             <article class="artifact-option">
               <p class="terminal-label">RELEASE CHANNEL</p>
               <h3>FrogAlert release</h3>
@@ -444,7 +452,7 @@
               </dl>
             </article>
 
-            <article class="artifact-option">
+            <article class="artifact-option artifact-option-local">
               <p class="terminal-label">QUALIFIED DEVELOPMENT</p>
               <h3>Local raw BIN</h3>
               <label for="firmware-file">Choose a local firmware file</label>
@@ -548,13 +556,16 @@
             </ol>
           </div>
 
-          <div class="log-heading">
-            <h3>Session log</h3>
-            <button id="copy-log" class="text-button" type="button" disabled>Copy redacted log</button>
-          </div>
-          <ol id="flash-log" class="flash-log" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Flash operation log">
-            <li>No device access requested. No configuration, erase, or write command sent.</li>
-          </ol>
+          <details class="compact-disclosure session-log-disclosure">
+            <summary>Show session log</summary>
+            <div class="log-heading">
+              <h3>Session log</h3>
+              <button id="copy-log" class="text-button" type="button" disabled>Copy redacted log</button>
+            </div>
+            <ol id="flash-log" class="flash-log" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Flash operation log">
+              <li>No device access requested. No configuration, erase, or write command sent.</li>
+            </ol>
+          </details>
 
           <aside class="interruption-note">
             <h3>If programming is interrupted</h3>
@@ -582,6 +593,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=8"></script>
+    <script type="module" src="../site/app.js?v=9"></script>
   </body>
 </html>

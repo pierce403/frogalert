@@ -8,6 +8,12 @@ page retains read-only badge and artifact inspection, but its destructive
 controls have been removed. Every flashing and recovery write belongs on
 `/flash/`.
 
+On a narrow phone screen, `/flash/` keeps the primary update path compact:
+select the exact printed PCB profile, load the BIN locally, enter ISP, connect
+through WebUSB, complete the confirmations, and program plus verify. Browser
+diagnostics, the full device-facts table, recovery detail, and the redacted
+session log remain available as disclosures without crowding that path.
+
 | Job | Browser API | Device state |
 | --- | --- | --- |
 | Verify/configure normal nametag behavior | Web Bluetooth | Badge firmware running and advertising `FEE0` |

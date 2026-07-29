@@ -237,7 +237,13 @@ test("dedicated flash route exposes guided mobile and recovery workflow", async 
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=8/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=9/);
+  assert.match(html, /Phone-first WebUSB updater/i);
+  assert.match(html, /Android Chrome.*USB OTG \+ data cable/is);
+  assert.match(html, /class="compact-disclosure"/);
+  assert.match(html, /class="flash-panel recovery-panel section-disclosure"/);
+  assert.match(flashCss, /\.mode-grid-phone-first \.mode-card-usb/);
+  assert.match(flashCss, /\.program-action\s*\{[^}]*position:\s*sticky/s);
   assert.match(html, /iPhone.*WebUSB/is);
   assert.match(html, /B1144C_250901.*CH582M.*11×44/is);
   assert.match(html, /B1144C_260404.*KEY2.*farther from USB/is);

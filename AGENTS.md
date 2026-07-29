@@ -222,6 +222,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   invalidation. When an app dependency changes exports or state contracts, bump
   both pages' `app.js` query and the changed dependency query in `site/app.js`;
   reload a browser that previously opened the old site and check console errors.
+- Keep `/flash/` phone-first: at narrow widths put WebUSB and local BIN selection
+  before optional probes/catalogs, keep the five-step rail and destructive action
+  reachable, and collapse diagnostics, device facts, recovery detail, and logs.
+  Do not collapse the active USB status, board/profile fields, confirmations,
+  progress, or verify result.
 - Use semantic HTML, visible focus states, reduced-motion support, and readable
   status messages announced through ARIA live regions.
 - Use repo-local `./tmp/` for scratch files and ignore it.

@@ -1064,3 +1064,234 @@
     border-color: currentColor;
   }
 }
+
+/* Compact phone-first updater shell. Keep the full diagnostics available on demand. */
+.flash-main h2 {
+  font-size: clamp(1.55rem, 4vw, 2.5rem);
+}
+
+.flash-hero-compact {
+  align-items: center;
+  gap: 1rem;
+  padding: clamp(1.75rem, 5vw, 3.5rem) 0 1.25rem;
+}
+
+.flash-hero-compact h1 {
+  margin-bottom: 0.8rem;
+  font-size: clamp(2.7rem, 9vw, 5.2rem);
+}
+
+.hero-safety summary {
+  cursor: pointer;
+  color: #ff9a94;
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.hero-safety p {
+  margin-top: 0.85rem;
+  font-size: 0.82rem;
+}
+
+.mobile-readiness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.mobile-readiness span {
+  border: 1px solid var(--flash-line);
+  border-radius: 999px;
+  padding: 0.38rem 0.6rem;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.workflow-nav {
+  margin-bottom: 1rem;
+}
+
+.flash-panel {
+  padding: clamp(1rem, 3vw, 1.65rem);
+}
+
+.panel-heading {
+  margin-bottom: 1.2rem;
+}
+
+.compact-disclosure {
+  border: 1px solid var(--flash-line);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.compact-disclosure > summary {
+  min-height: 3rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.compact-disclosure[open] > summary {
+  border-bottom: 1px solid var(--flash-line);
+}
+
+.compact-disclosure > .preflight-grid {
+  padding: 0.75rem;
+}
+
+.preflight-label {
+  margin-bottom: 0.5rem;
+}
+
+.mode-grid-phone-first .mode-card-usb,
+.artifact-options-compact .artifact-option-local {
+  order: -1;
+}
+
+.artifact-options-compact .artifact-option-local {
+  border-color: rgba(216, 255, 128, 0.42);
+  background: rgba(216, 255, 128, 0.035);
+}
+
+.device-facts {
+  margin-top: 1rem;
+}
+
+.device-facts .capabilities-wrap {
+  margin-top: 0;
+}
+
+.section-disclosure {
+  padding: 0;
+}
+
+.section-disclosure > summary {
+  display: flex;
+  min-height: 4.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 3vw, 1.65rem);
+  cursor: pointer;
+  color: var(--orange);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.section-disclosure > summary strong,
+.section-disclosure > summary .section-kicker {
+  display: block;
+}
+
+.section-disclosure > summary strong {
+  margin-top: 0.2rem;
+  color: var(--cream);
+  font-family: var(--display);
+  font-size: 1.35rem;
+  text-transform: none;
+}
+
+.section-disclosure-body {
+  border-top: 1px solid var(--flash-line);
+  padding: clamp(1rem, 3vw, 1.65rem);
+}
+
+.session-log-disclosure {
+  margin-top: 1rem;
+}
+
+.session-log-disclosure .log-heading,
+.session-log-disclosure .flash-log {
+  margin-right: 1rem;
+  margin-left: 1rem;
+}
+
+.session-log-disclosure .flash-log {
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 680px) {
+  .flash-page .site-header {
+    padding-bottom: 0.85rem;
+  }
+
+  .flash-page .site-header nav {
+    display: none;
+  }
+
+  .flash-main {
+    padding-right: 0.7rem;
+    padding-left: 0.7rem;
+  }
+
+  .flash-hero .lede {
+    margin-bottom: 0.9rem;
+    font-size: 0.92rem;
+  }
+
+  .hero-safety {
+    padding: 0.85rem 1rem;
+  }
+
+  .workflow-nav {
+    position: sticky;
+    z-index: 8;
+    top: 0;
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-left: 0;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.28);
+    scrollbar-width: none;
+  }
+
+  .workflow-nav a {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .workflow-nav span {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
+  .flash-panel {
+    margin-top: 0.7rem;
+  }
+
+  .panel-heading {
+    gap: 0.65rem;
+    padding-bottom: 0.85rem;
+  }
+
+  .mode-card-heading {
+    margin-bottom: 0.8rem;
+  }
+
+  .isp-entry-summary p + p {
+    display: none;
+  }
+
+  .phone-note {
+    margin-top: 0.75rem;
+  }
+
+  .program-action {
+    position: sticky;
+    z-index: 7;
+    bottom: 0.5rem;
+    padding: 0.55rem;
+    background: rgba(7, 19, 13, 0.96);
+    box-shadow: 0 0 0 1px var(--flash-line), 0 -0.5rem 1rem rgba(0, 0, 0, 0.3);
+  }
+}
