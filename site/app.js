@@ -405,20 +405,20 @@ function renderApplicationEntryGuide() {
   if (!elements.wizardApplicationGuide) return;
   const attempt = state.applicationEntryAttempt;
   if (attempt === "nearest") {
-    elements.wizardApplicationTitle.textContent = "Try the button nearest USB";
+    elements.wizardApplicationTitle.textContent = "Try the bottom button";
     elements.wizardApplicationInstruction.textContent =
-      "Hold it for about 2.2 seconds and release if one dot appears near the middle.";
-    elements.wizardApplicationSuccess.textContent = "A dot appeared — continue";
+      "With the badge display upright, tap Start watching first. Keep the chooser open, then hold the bottom button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.";
+    elements.wizardApplicationSuccess.textContent = "Start watching for ISP";
     elements.wizardApplicationSuccess.hidden = false;
-    elements.wizardApplicationNext.textContent = "No dot — try the other button";
+    elements.wizardApplicationNext.textContent = "No dot — try the top button";
     elements.wizardApplicationNext.hidden = false;
     return;
   }
   if (attempt === "farthest") {
-    elements.wizardApplicationTitle.textContent = "Try the button farthest from USB";
+    elements.wizardApplicationTitle.textContent = "Try the top button";
     elements.wizardApplicationInstruction.textContent =
-      "Hold it for about 2.2 seconds and release if one dot appears near the middle.";
-    elements.wizardApplicationSuccess.textContent = "A dot appeared — continue";
+      "Keep the chooser open, then hold the top button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.";
+    elements.wizardApplicationSuccess.textContent = "Start watching for ISP";
     elements.wizardApplicationSuccess.hidden = false;
     elements.wizardApplicationNext.textContent = "No dot on either button";
     elements.wizardApplicationNext.hidden = false;
@@ -437,13 +437,15 @@ function recordApplicationProfileHint() {
     state.applicationProfileHint = {
       profile: "B1144C_250901_USB_C",
       marking: "B1144C_250901",
-      position: "nearest-to-USB",
+      position: "bottom",
+      imageLabel: "bottom-button image",
     };
   } else if (state.applicationEntryAttempt === "farthest") {
     state.applicationProfileHint = {
       profile: "B1144C_260404_USB_C",
       marking: "B1144C_260404",
-      position: "farthest-from-USB",
+      position: "top",
+      imageLabel: "top-button image",
     };
   } else {
     return false;
@@ -451,9 +453,9 @@ function recordApplicationProfileHint() {
   return true;
 }
 
-function continueAfterApplicationDot() {
-  if (!recordApplicationProfileHint()) return;
-  void connectUsb();
+function beginApplicationIspWatch() {
+  if (!["nearest", "farthest"].includes(state.applicationEntryAttempt)) return;
+  void connectUsb({ ispOnly: true, applicationAttempt: true });
 }
 
 function advanceApplicationEntryAttempt() {
@@ -537,7 +539,7 @@ function updateWizardUi() {
     elements.wizardProfileHint.hidden = !hint;
     if (hint) {
       elements.wizardProfileHint.textContent =
-        `The ${hint.position} button entered ISP, which is consistent with ${hint.marking}. Confirm that exact printed PCB marking before choosing its image; the button test is not proof.`;
+        `The ${hint.position} button entered ISP, so FrogAlert will use the ${hint.imageLabel} (${hint.marking}).`;
     }
   }
   if (wizardStep === WIZARD_STEP.FLASH) renderWizardFinalSummary();
@@ -1019,6 +1021,8 @@ async function connectUsb(options = {}) {
   const guided = options?.guided === true;
   const authorizedDevice = options?.device || null;
   const automatic = options?.automatic === true;
+  const ispOnly = options?.ispOnly === true;
+  const applicationAttempt = options?.applicationAttempt === true;
   const guideTracking = guided || state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED;
   if (!guided && state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
     state.ispEntryPhase = beginIspDeviceRequest(state.ispEntryPhase);
@@ -1039,23 +1043,32 @@ async function connectUsb(options = {}) {
       elements.usbStatus,
       authorizedDevice
         ? "Checking the attached badge USB mode…"
-        : "Choose the connected badge or its WCH ISP bootloader…",
+        : ispOnly
+          ? "Keep the chooser open, enter ISP with the indicated button, then select WCH ISP as soon as it appears…"
+          : "Choose the connected badge or its WCH ISP bootloader…",
       "working",
     );
     log(
       authorizedDevice
         ? "Checking a previously authorized badge USB device."
-        : "Requesting permission to detect the badge USB mode.",
+        : ispOnly
+          ? "Opening the WCH ISP chooser before the button hold."
+          : "Requesting permission to detect the badge USB mode.",
     );
     const device =
-      authorizedDevice || (await navigator.usb.requestDevice({ filters: BADGE_USB_CHOOSER_FILTERS }));
+      authorizedDevice ||
+      (await navigator.usb.requestDevice({
+        filters: ispOnly ? WCH_USB_FILTERS : BADGE_USB_CHOOSER_FILTERS,
+      }));
     const usbMode = badgeUsbMode(device);
     if (usbMode === "application") {
       showApplicationUsbDevice(device);
       return;
     }
     if (usbMode !== "isp") throw new Error("selected USB device is not a supported BadgeMagic badge");
-    if (state.applicationTransitionPending && !state.applicationProfileHint) {
+    if (applicationAttempt) {
+      recordApplicationProfileHint();
+    } else if (state.applicationTransitionPending && !state.applicationProfileHint) {
       recordApplicationProfileHint();
     }
     state.applicationTransitionPending = false;
@@ -1119,7 +1132,9 @@ async function connectUsb(options = {}) {
     setStatus(
       elements.usbStatus,
       cancelled
-        ? "No bootloader selected. Nothing changed. If the dot went out and compatible firmware is installed, repeat the KEY2 guide."
+        ? applicationAttempt
+          ? "Chooser closed without selecting the bootloader. Nothing changed; start watching again, or try the other button if no dot appeared."
+          : "No bootloader selected. Nothing changed. If the dot went out and compatible firmware is installed, repeat the KEY2 guide."
         : `Bootloader probe failed: ${error.message}. If compatible firmware is installed, repeat the KEY2 guide with a known data cable or direct port; otherwise stop.`,
       cancelled ? "neutral" : "bad",
     );
@@ -1172,7 +1187,7 @@ async function detectAuthorizedUsb(device = null) {
         : applicationMatches.length > 1
           ? "More than one authorized BadgeMagic application is attached. Tap Check connected badge and choose the intended badge."
           : state.applicationTransitionPending
-            ? "Normal mode disconnected. Tap A dot appeared — continue to choose the WCH bootloader."
+            ? "Normal mode disconnected. Keep the already-open chooser visible and select WCH ISP when it appears."
             : "No authorized BadgeMagic USB device detected. Plug it in, then tap Check connected badge.";
     setStatus(
       elements.usbStatus,
@@ -2426,7 +2441,7 @@ function bindEvents() {
   elements.wizardRestart?.addEventListener("click", () => {
     window.location.reload();
   });
-  elements.wizardApplicationSuccess?.addEventListener("click", continueAfterApplicationDot);
+  elements.wizardApplicationSuccess?.addEventListener("click", beginApplicationIspWatch);
   elements.wizardApplicationNext?.addEventListener("click", advanceApplicationEntryAttempt);
   elements.ispGuideStart?.addEventListener("click", openIspEntryGuide);
   elements.ispGuideBack?.addEventListener("click", retreatIspEntryGuide);
@@ -2530,7 +2545,7 @@ function bindEvents() {
         if (elements.usbButton) elements.usbButton.textContent = "Check for bootloader";
         setStatus(
           elements.usbStatus,
-          "Normal nametag mode disconnected. If you saw the dot, tap A dot appeared — continue promptly.",
+          "Normal nametag mode disconnected. Keep the already-open chooser visible and select WCH ISP when it appears.",
           "working",
         );
         return;

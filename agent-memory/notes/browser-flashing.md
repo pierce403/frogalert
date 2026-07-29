@@ -26,10 +26,10 @@
   as a normal-mode hint and show KEY2/dot guidance, but must not open its
   HID/CDC interfaces or treat it as target proof. First-time detection still
   requires a user-initiated browser chooser.
-- From detected application mode, try the nearest-USB button first and the
-  farthest button second. A dot from nearest is consistent with `250901`; a dot
-  from farthest is consistent with `260404`. Keep this as a suggestion only and
-  require the printed PCB marking. If neither works, stop before C3.
+- From detected application mode, call the variants **bottom-button image**
+  (`250901`) and **top-button image** (`260404`). Try bottom first and top
+  second with the badge display upright. Exact PCB ids remain canonical in
+  manifests and build tooling. If neither works, stop before C3.
 - If a browser USB operation times out, the underlying command may still have
   completed. Treat device state as unknown and require a fresh identify plus a
   complete program/verify cycle.
@@ -51,6 +51,11 @@
   The approximately ten-second indicator is advisory; countdown expiry and USB
   attach events must not invoke `requestDevice()`. Only the final user tap may
   open the chooser, and its first transcript remains Identify plus Read Config.
+- For detected application mode, make that user tap happen before the button
+  hold: open a WCH-only chooser, keep it visible, then enter ISP and select the
+  device as soon as it appears. This preserves the short ROM window for the
+  actual read-only probe. Native chooser hot-plug behavior remains a physical
+  browser acceptance gate.
 - FOSSASIA documents a KEY2 long press only after its own open firmware is
   installed. For OEM, unknown, blank, or broken application firmware, use the
   battery-disconnected cold-entry sequence and do not infer failure from an

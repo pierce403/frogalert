@@ -176,7 +176,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /wchisp-protocol\.js\?v=5/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=11/);
+  assert.match(html, /site\/app\.js\?v=12/);
   assert.match(app, /flash-support\.js\?v=2/);
   assert.match(app, /latest approved/);
   assert.match(app, /Nothing is selected or loaded automatically/);
@@ -238,7 +238,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=11/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=12/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   for (const step of ["firmware", "confirm", "flash", "success"]) {
@@ -260,16 +260,21 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /connectUsb\(\{ device: ispMatches\[0\], automatic: true \}\)/);
   assert.match(app, /badgeUsbMode\(candidate\) === "application"/);
   assert.match(app, /showApplicationUsbDevice\(applicationMatches\[0\]\)/);
-  assert.match(app, /filters: BADGE_USB_CHOOSER_FILTERS/);
+  assert.match(app, /BADGE_USB_CHOOSER_FILTERS/);
   assert.match(html, /id="wizard-application-guide"[^>]+hidden/);
   assert.match(html, /Badge detected in normal mode/);
-  assert.match(html, /Try the button nearest USB/);
-  assert.match(html, /No dot — try the other button/);
-  assert.match(app, /Try the button farthest from USB/);
+  assert.match(html, /Try the bottom button/);
+  assert.match(html, /Tap Start watching first.*Keep the chooser open/is);
+  assert.match(html, /Start watching for ISP/);
+  assert.match(html, /No dot — try the top button/);
+  assert.match(app, /Try the top button/);
+  assert.match(app, /connectUsb\(\{ ispOnly: true, applicationAttempt: true \}\)/);
+  assert.match(app, /filters: ispOnly \? WCH_USB_FILTERS : BADGE_USB_CHOOSER_FILTERS/);
   assert.match(app, /Qualified C3 bench recovery is outside this browser wizard/);
   assert.match(app, /profile: "B1144C_250901_USB_C"/);
   assert.match(app, /profile: "B1144C_260404_USB_C"/);
-  assert.match(app, /the button test is not proof/);
+  assert.match(app, /imageLabel: "bottom-button image"/);
+  assert.match(app, /imageLabel: "top-button image"/);
   assert.match(app, /state\.applicationTransitionPending = true/);
   assert.match(app, /state\.applicationTransitionPending && !state\.applicationProfileHint/);
   assert.match(app, /setWizardStep\(WIZARD_STEP\.FIRMWARE\)/);

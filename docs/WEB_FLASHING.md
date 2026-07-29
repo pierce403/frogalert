@@ -11,11 +11,17 @@ controls have been removed. Every flashing and recovery write belongs on
 `/flash/` is a one-screen-at-a-time wizard. It starts by checking previously
 authorized USB devices for either the known BadgeMagic application signature
 `0416:5020` or the WCH ISP ids. Seeing `0416:5020` keeps the wizard on the
-connection step and tries the button nearest USB, then the button farthest from
-USB; the page does not open or claim the application's HID/CDC interfaces. A
-reported dot from the nearest button suggests `B1144C_250901`; a dot from the
-farthest suggests `B1144C_260404`. This remains only a profile hint: the exact
-printed marking is required and the image is never selected automatically.
+connection step and tries the bottom button, then the top button, with the
+badge display held upright; the page does not open or claim the application's
+HID/CDC interfaces. For
+each attempt, the user explicitly opens the WCH-only chooser first, leaves it
+open, then holds the indicated button and selects the ISP device as soon as it
+appears. This spends the short ROM window identifying the device instead of
+opening browser permission UI afterward. A
+reported dot from the bottom button maps to the **bottom-button image**
+(`B1144C_250901`); a dot from the top maps to the **top-button image**
+(`B1144C_260404`). These are the public labels; manifests and build tooling
+retain the exact PCB identifiers.
 If neither button produces the dot, the public wizard stops before C3; that
 hazardous operation remains qualified bench recovery, not profile detection.
 Seeing an ISP id starts
@@ -95,13 +101,13 @@ That hazardous rail-collapse maneuver is expert-only, is not a battery
 operation, and is deliberately not implemented as a public website checklist.
 An ordinary user should stop at this boundary.
 
-`/flash/` therefore keeps a five-step guide only for the routine
-compatible-firmware KEY2 path: confirm compatible firmware, connect stable data
-USB, hold KEY2, release at the single dot, and open the chooser. The countdown
-is advisory: expiry never opens a chooser, runs a command, or turns the
-read-only connection into a write. Only the final explicit tap may call
-`navigator.usb.requestDevice()`. USB attach events may update the visible
-status, but must never synthesize that tap or skip a physical step.
+`/flash/` therefore keeps a routine compatible-firmware guide that confirms
+stable data USB, opens the WCH-only chooser from an explicit user tap, then asks
+the user to hold the indicated button and release at the single dot while the
+chooser is already watching. A timer or USB attach event never opens a chooser,
+runs a command, or turns the read-only connection into a write. Only the
+explicit **Start watching for ISP** action may call
+`navigator.usb.requestDevice()`.
 
 Pinned FOSSASIA USB-C source `9ce885d` polls KEY2/PB22 every 200 ms and, after
 more than ten consecutive held samples (about 2.2 seconds), executes a transfer

@@ -61,11 +61,11 @@
 
         <section id="wizard-application-guide" class="wizard-mode-guide" aria-labelledby="wizard-application-title" hidden>
           <p class="section-kicker">Badge detected in normal mode</p>
-          <h2 id="wizard-application-title" tabindex="-1">Try the button nearest USB</h2>
-          <p id="wizard-application-instruction">Hold it for about 2.2 seconds and release if one dot appears near the middle.</p>
+          <h2 id="wizard-application-title" tabindex="-1">Try the bottom button</h2>
+          <p id="wizard-application-instruction">With the badge display upright, tap Start watching first. Keep the chooser open, then hold the bottom button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.</p>
           <div class="wizard-entry-actions">
-            <button id="wizard-application-success" class="button button-primary" type="button">A dot appeared — continue</button>
-            <button id="wizard-application-next" class="button button-secondary" type="button">No dot — try the other button</button>
+            <button id="wizard-application-success" class="button button-primary" type="button">Start watching for ISP</button>
+            <button id="wizard-application-next" class="button button-secondary" type="button">No dot — try the top button</button>
           </div>
         </section>
 
@@ -88,8 +88,8 @@
             <label for="pcb-revision">Printed PCB revision</label>
             <select id="pcb-revision">
               <option value="">Choose the marking on the opened board</option>
-              <option value="B1144C_260404_USB_C">B1144C_260404 · USB-C</option>
-              <option value="B1144C_250901_USB_C">B1144C_250901 · USB-C</option>
+              <option value="B1144C_260404_USB_C">Top-button image · B1144C_260404</option>
+              <option value="B1144C_250901_USB_C">Bottom-button image · B1144C_250901</option>
               <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1</option>
             </select>
           </div>
@@ -732,6 +732,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=11"></script>
+    <script type="module" src="../site/app.js?v=12"></script>
   </body>
 </html>
