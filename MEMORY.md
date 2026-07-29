@@ -11,6 +11,7 @@ index: plain markdown and ripgrep
 
 - [2026-07-28 compact phone flasher](agent-memory/logs/2026-07-28-compact-phone-flasher.md)
 - [2026-07-28 one-pane flasher wizard](agent-memory/logs/2026-07-28-one-pane-flasher-wizard.md)
+- [2026-07-28 application-aware flasher wizard](agent-memory/logs/2026-07-28-application-usb-wizard.md)
 
 Search this index and `agent-memory/` before important work instead of relying
 on chat context or filenames alone.

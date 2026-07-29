@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  BADGE_USB_CHOOSER_FILTERS,
+  BADGEMAGIC_APPLICATION_USB_FILTERS,
+  badgeUsbMode,
   browserCapabilityReport,
   configurationSummary,
   decodeGattText,
@@ -90,6 +93,21 @@ test("USB descriptors omit serial data and configuration is conservatively summa
   assert.equal(configurationSummary(CH58X_RESET_CONFIG).matchesReviewedDefaults, true);
   assert.match(configurationSummary(new Uint8Array(12)).label, /does not match.*reset.*before erase/);
   assert.match(protectedFirmwareExplanation(), /current firmware remains unknown/);
+});
+
+test("USB mode detection distinguishes the running BadgeMagic application from WCH ISP", () => {
+  assert.equal(badgeUsbMode({ vendorId: 0x0416, productId: 0x5020 }), "application");
+  assert.equal(badgeUsbMode({ vendorId: 0x4348, productId: 0x55e0 }), "isp");
+  assert.equal(badgeUsbMode({ vendorId: 0x1a86, productId: 0x55e0 }), "isp");
+  assert.equal(badgeUsbMode({ vendorId: 0x0416, productId: 0x9999 }), null);
+  assert.deepEqual(BADGEMAGIC_APPLICATION_USB_FILTERS, [
+    { vendorId: 0x0416, productId: 0x5020 },
+  ]);
+  assert.deepEqual(BADGE_USB_CHOOSER_FILTERS, [
+    { vendorId: 0x0416, productId: 0x5020 },
+    { vendorId: 0x4348, productId: 0x55e0 },
+    { vendorId: 0x1a86, productId: 0x55e0 },
+  ]);
 });
 
 test("WCH USB descriptor gate requires interface zero and bulk endpoint two in/out", () => {

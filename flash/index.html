@@ -50,7 +50,7 @@
       <section class="wizard-step" data-wizard-step="connect" aria-labelledby="wizard-connect-title">
         <p class="section-kicker">Step 1 of 4</p>
         <h1 id="wizard-connect-title" tabindex="-1">Connect the badge</h1>
-        <p>Plug the badge into this device with a data-capable USB cable. FrogAlert will recognize a previously authorized badge automatically.</p>
+        <p>Plug the badge into this device with a data-capable USB cable. FrogAlert checks whether it is in normal nametag mode or ISP mode.</p>
         <p id="capability-status" class="wizard-capability" role="status" aria-live="polite">Checking WebUSB…</p>
         <div class="wizard-device-state" aria-live="polite">
           <span class="wizard-state-dot" aria-hidden="true"></span>
@@ -58,6 +58,16 @@
         </div>
         <button id="usb-connect" class="button button-primary wizard-primary-action" type="button" disabled>Check connected badge</button>
         <button id="usb-disconnect" class="text-button wizard-disconnect" type="button" disabled>Disconnect badge</button>
+
+        <section id="wizard-application-guide" class="wizard-mode-guide" aria-labelledby="wizard-application-title" hidden>
+          <p class="section-kicker">Badge detected in normal mode</p>
+          <h2 id="wizard-application-title" tabindex="-1">Try the button nearest USB</h2>
+          <p id="wizard-application-instruction">Hold it for about 2.2 seconds and release if one dot appears near the middle.</p>
+          <div class="wizard-entry-actions">
+            <button id="wizard-application-success" class="button button-primary" type="button">A dot appeared — continue</button>
+            <button id="wizard-application-next" class="button button-secondary" type="button">No dot — try the other button</button>
+          </div>
+        </section>
 
         <details id="wizard-isp-help" class="wizard-help">
           <summary>Badge not detected?</summary>
@@ -71,6 +81,7 @@
         <p class="section-kicker">Step 2 of 4</p>
         <h1 id="wizard-firmware-title" tabindex="-1">Choose the firmware</h1>
         <p id="wizard-device-summary" class="wizard-success-line" role="status">CH582 ISP badge connected.</p>
+        <p id="wizard-profile-hint" class="wizard-inline-status" hidden></p>
 
         <div class="wizard-fields">
           <div class="field-group">
@@ -721,6 +732,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=10"></script>
+    <script type="module" src="../site/app.js?v=11"></script>
   </body>
 </html>

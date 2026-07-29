@@ -475,6 +475,17 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   cannot identify arbitrary installed firmware, PCB revision, matrix wiring,
   or board health. Optional Bluetooth Device Information strings are
   self-reported hints, not flash-content proof.
+- The one-pane flasher recognizes a previously authorized `0416:5020`
+  application descriptor as normal nametag mode, leaves its HID/CDC interfaces
+  unopened, and shows the compatible-firmware KEY2/dot path. Treat that USB id
+  only as a mode hint; exact target gating still begins after WCH ISP
+  `4348/1a86:55e0` and the `0x82/0x16` Identify response. A never-authorized
+  application still requires an explicit chooser tap.
+- The application-mode wizard tries the nearest-USB button, then the
+  farthest-USB button. A user-reported dot suggests `250901` or `260404`
+  respectively, but must never auto-select the artifact or replace the exact
+  printed-marking gate. If neither button works, stop; do not turn C3 into a
+  public wizard step.
 - WebUSB and Web Bluetooth support varies by browser and operating system.
 - USB permission or driver binding can block WebUSB even when the browser API
   exists; do not describe that as a firmware failure.

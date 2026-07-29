@@ -8,15 +8,24 @@ page retains read-only badge and artifact inspection, but its destructive
 controls have been removed. Every flashing and recovery write belongs on
 `/flash/`.
 
-`/flash/` is a one-screen-at-a-time wizard. It starts by checking for a
-previously authorized WCH ISP device and performs only read-only USB
-configuration, Identify, and Read Config operations. A first-time badge still
-requires one explicit chooser tap because WebUSB does not expose unapproved
-devices. Only after CH582 `0x82 / 0x16` identification succeeds does the wizard
-show exact-board firmware selection, confirmations, and finally the separate
-program-and-verify action. Failure returns to the connection screen with the
-relevant KEY2 recovery hint; unrelated diagnostics and Bluetooth controls are
-not visible in the flasher.
+`/flash/` is a one-screen-at-a-time wizard. It starts by checking previously
+authorized USB devices for either the known BadgeMagic application signature
+`0416:5020` or the WCH ISP ids. Seeing `0416:5020` keeps the wizard on the
+connection step and tries the button nearest USB, then the button farthest from
+USB; the page does not open or claim the application's HID/CDC interfaces. A
+reported dot from the nearest button suggests `B1144C_250901`; a dot from the
+farthest suggests `B1144C_260404`. This remains only a profile hint: the exact
+printed marking is required and the image is never selected automatically.
+If neither button produces the dot, the public wizard stops before C3; that
+hazardous operation remains qualified bench recovery, not profile detection.
+Seeing an ISP id starts
+only read-only USB configuration, Identify, and Read Config operations. A
+first-time badge still requires one explicit chooser tap because WebUSB does
+not expose unapproved devices. Only after CH582 `0x82 / 0x16` identification
+succeeds does the wizard show exact-board firmware selection, confirmations,
+and finally the separate program-and-verify action. Failure returns to the
+connection screen with the relevant KEY2 recovery hint; unrelated diagnostics
+and Bluetooth controls are not visible in the flasher.
 
 | Job | Browser API | Device state |
 | --- | --- | --- |
@@ -129,6 +138,13 @@ may optionally self-report Device Information firmware/manufacturer/model text
 over Bluetooth; the page labels that untrusted, optional metadata rather than
 treating it as proof of flash contents. Physical board and 11×44 confirmation
 remain separate human inputs.
+
+The known application USB id `0416:5020` is similarly only a mode hint. Both
+OEM and open FOSSASIA-derived firmware have used that id, and other devices can
+reuse it. Its detection means “a known BadgeMagic application-shaped USB
+device is connected,” not that the browser proved the firmware, PCB revision,
+MCU marking, or display geometry. The wizard advances only after the separate
+ROM ISP identity exchange succeeds.
 
 Every FrogAlert image must preserve and physically prove FOSSASIA's deliberate
 KEY2 recovery affordance before it is flash-approved. Keep the upstream TMOS

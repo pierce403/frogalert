@@ -21,6 +21,15 @@
   UID integrity. It cannot determine arbitrary installed application firmware,
   physical PCB revision, matrix wiring, oscillator population, or peripheral
   health. Optional GATT Device Information text is self-reported only.
+- The running OEM and FOSSASIA-derived USB-C application can enumerate as
+  `0416:5020`. The flasher may recognize that previously authorized descriptor
+  as a normal-mode hint and show KEY2/dot guidance, but must not open its
+  HID/CDC interfaces or treat it as target proof. First-time detection still
+  requires a user-initiated browser chooser.
+- From detected application mode, try the nearest-USB button first and the
+  farthest button second. A dot from nearest is consistent with `250901`; a dot
+  from farthest is consistent with `260404`. Keep this as a suggestion only and
+  require the printed PCB marking. If neither works, stop before C3.
 - If a browser USB operation times out, the underlying command may still have
   completed. Treat device state as unknown and require a fresh identify plus a
   complete program/verify cycle.

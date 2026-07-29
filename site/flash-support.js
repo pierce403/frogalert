@@ -1,4 +1,4 @@
-import { isResetConfig } from "./wchisp-protocol.js";
+import { WCH_USB_FILTERS, isResetConfig } from "./wchisp-protocol.js";
 
 export const BADGE_SERVICE = 0xfee0;
 export const BADGE_CHARACTERISTIC = 0xfee1;
@@ -7,6 +7,25 @@ export const DEVICE_INFORMATION_SERVICE = 0x180a;
 export const MODEL_NUMBER_CHARACTERISTIC = 0x2a24;
 export const FIRMWARE_REVISION_CHARACTERISTIC = 0x2a26;
 export const MANUFACTURER_NAME_CHARACTERISTIC = 0x2a29;
+export const BADGEMAGIC_APPLICATION_USB_FILTERS = Object.freeze([
+  { vendorId: 0x0416, productId: 0x5020 },
+]);
+export const BADGE_USB_CHOOSER_FILTERS = Object.freeze([
+  ...BADGEMAGIC_APPLICATION_USB_FILTERS,
+  ...WCH_USB_FILTERS,
+]);
+
+function matchesUsbFilter(device, filter) {
+  return device?.vendorId === filter.vendorId && device?.productId === filter.productId;
+}
+
+export function badgeUsbMode(device) {
+  if (WCH_USB_FILTERS.some((filter) => matchesUsbFilter(device, filter))) return "isp";
+  if (BADGEMAGIC_APPLICATION_USB_FILTERS.some((filter) => matchesUsbFilter(device, filter))) {
+    return "application";
+  }
+  return null;
+}
 
 function formatHex(value, width) {
   return Number(value).toString(16).padStart(width, "0");

@@ -1203,6 +1203,33 @@
   font-size: 0.78rem;
 }
 
+.wizard-mode-guide {
+  margin-top: 1rem;
+  border: 1px solid rgba(216, 255, 128, 0.32);
+  padding: 1rem;
+  background: rgba(216, 255, 128, 0.045);
+}
+
+.wizard-mode-guide h2 {
+  margin: 0.2rem 0 0.75rem;
+  font-size: clamp(1.35rem, 5vw, 1.9rem);
+}
+
+.wizard-mode-guide > p:not(.section-kicker) {
+  margin: 0 0 0.85rem;
+  color: var(--muted-dark);
+  font-size: 0.82rem;
+}
+
+.wizard-entry-actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.wizard-entry-actions .button {
+  width: 100%;
+}
+
 .wizard-fields {
   display: grid;
   gap: 0.9rem;

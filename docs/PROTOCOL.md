@@ -48,6 +48,14 @@ session log.
 The shared USB id is not a target identity. The browser must send Identify and
 accept only a payload beginning with chip id `0x82`, device type `0x16`.
 
+Before ISP entry, photographed OEM and FOSSASIA-derived USB-C badges have
+enumerated their running application as `0416:5020`. The flasher may use that
+descriptor as a conservative “normal application mode” hint and show the KEY2
+guide, but it must not treat it as a bootloader or open its application
+interfaces. It cannot prove the installed firmware or exact hardware. Only the
+WCH ids above followed by the Identify exchange may advance to firmware
+selection.
+
 ## ISP command envelope
 
 Requests begin with command byte plus a little-endian payload length. Responses

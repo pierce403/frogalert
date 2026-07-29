@@ -55,11 +55,13 @@ import {
 import {
   BADGE_CHARACTERISTIC,
   BADGE_SERVICE,
+  BADGE_USB_CHOOSER_FILTERS,
   DEVICE_INFORMATION_SERVICE,
   FIRMWARE_REVISION_CHARACTERISTIC,
   MANUFACTURER_NAME_CHARACTERISTIC,
   MODEL_NUMBER_CHARACTERISTIC,
   NEXT_GEN_SERVICE,
+  badgeUsbMode,
   browserCapabilityReport,
   configurationSummary,
   decodeGattText,
@@ -70,13 +72,14 @@ import {
   protectedFirmwareExplanation,
   usbDescriptorSummary,
   validateWchUsbConfiguration,
-} from "./flash-support.js";
+} from "./flash-support.js?v=2";
 
 const USB_ENDPOINT = 2;
 const USB_READ_BYTES = 64;
 
 const state = {
   usbDevice: null,
+  applicationUsbDevice: null,
   chip: null,
   config: null,
   firmware: null,
@@ -99,6 +102,9 @@ const state = {
   monitorBase: null,
   monitorDownloadUrl: null,
   monitorDirty: false,
+  applicationEntryAttempt: "nearest",
+  applicationProfileHint: null,
+  applicationTransitionPending: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -207,6 +213,12 @@ const elements = {
   wizardFlashStatus: $("#wizard-flash-status"),
   wizardFinalSummary: $("#wizard-final-summary"),
   wizardIspHelp: $("#wizard-isp-help"),
+  wizardApplicationGuide: $("#wizard-application-guide"),
+  wizardApplicationTitle: $("#wizard-application-title"),
+  wizardApplicationInstruction: $("#wizard-application-instruction"),
+  wizardApplicationSuccess: $("#wizard-application-success"),
+  wizardApplicationNext: $("#wizard-application-next"),
+  wizardProfileHint: $("#wizard-profile-hint"),
   wizardResult: $("#wizard-result"),
   wizardRestart: $("#wizard-restart"),
   stages: {
@@ -362,6 +374,113 @@ function artifactReadyForWizard() {
   );
 }
 
+function showApplicationUsbDevice(device) {
+  state.applicationUsbDevice = device;
+  state.applicationEntryAttempt = "nearest";
+  state.applicationProfileHint = null;
+  state.applicationTransitionPending = false;
+  const descriptor = usbDescriptorSummary(device);
+  setStatus(
+    elements.usbPermissionStatus,
+    "Permission granted to a known BadgeMagic application USB signature.",
+    "good",
+  );
+  setStatus(
+    elements.usbStatus,
+    `Badge detected in normal nametag mode (${descriptor.vidPid}). Enter ISP mode to continue.`,
+    "good",
+  );
+  if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = false;
+  if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = true;
+  if (elements.usbButton) elements.usbButton.textContent = "Check for bootloader";
+  renderApplicationEntryGuide();
+  log(
+    `Detected the known BadgeMagic application USB signature ${descriptor.vidPid}; no interface was opened and no command was sent.`,
+    "success",
+  );
+  updateWizardUi();
+}
+
+function renderApplicationEntryGuide() {
+  if (!elements.wizardApplicationGuide) return;
+  const attempt = state.applicationEntryAttempt;
+  if (attempt === "nearest") {
+    elements.wizardApplicationTitle.textContent = "Try the button nearest USB";
+    elements.wizardApplicationInstruction.textContent =
+      "Hold it for about 2.2 seconds and release if one dot appears near the middle.";
+    elements.wizardApplicationSuccess.textContent = "A dot appeared — continue";
+    elements.wizardApplicationSuccess.hidden = false;
+    elements.wizardApplicationNext.textContent = "No dot — try the other button";
+    elements.wizardApplicationNext.hidden = false;
+    return;
+  }
+  if (attempt === "farthest") {
+    elements.wizardApplicationTitle.textContent = "Try the button farthest from USB";
+    elements.wizardApplicationInstruction.textContent =
+      "Hold it for about 2.2 seconds and release if one dot appears near the middle.";
+    elements.wizardApplicationSuccess.textContent = "A dot appeared — continue";
+    elements.wizardApplicationSuccess.hidden = false;
+    elements.wizardApplicationNext.textContent = "No dot on either button";
+    elements.wizardApplicationNext.hidden = false;
+    return;
+  }
+  elements.wizardApplicationTitle.textContent = "Routine ISP entry is unavailable";
+  elements.wizardApplicationInstruction.textContent =
+    "Neither button produced the dot. Stop here: this application may not include the ISP hook. Qualified C3 bench recovery is outside this browser wizard; do not use RESET or disturb the soldered battery.";
+  elements.wizardApplicationSuccess.hidden = true;
+  elements.wizardApplicationNext.textContent = "Try the buttons again";
+  elements.wizardApplicationNext.hidden = false;
+}
+
+function recordApplicationProfileHint() {
+  if (state.applicationEntryAttempt === "nearest") {
+    state.applicationProfileHint = {
+      profile: "B1144C_250901_USB_C",
+      marking: "B1144C_250901",
+      position: "nearest-to-USB",
+    };
+  } else if (state.applicationEntryAttempt === "farthest") {
+    state.applicationProfileHint = {
+      profile: "B1144C_260404_USB_C",
+      marking: "B1144C_260404",
+      position: "farthest-from-USB",
+    };
+  } else {
+    return false;
+  }
+  return true;
+}
+
+function continueAfterApplicationDot() {
+  if (!recordApplicationProfileHint()) return;
+  void connectUsb();
+}
+
+function advanceApplicationEntryAttempt() {
+  state.applicationEntryAttempt =
+    state.applicationEntryAttempt === "nearest"
+      ? "farthest"
+      : state.applicationEntryAttempt === "farthest"
+        ? "stopped"
+        : "nearest";
+  renderApplicationEntryGuide();
+  elements.wizardApplicationTitle?.focus();
+}
+
+function clearApplicationUsbDevice({ restoreStatus = false } = {}) {
+  state.applicationUsbDevice = null;
+  if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = true;
+  if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = false;
+  if (elements.usbButton) elements.usbButton.textContent = "Check connected badge";
+  if (restoreStatus) {
+    setStatus(
+      elements.usbStatus,
+      "No authorized BadgeMagic USB device detected. Plug it in, then tap Check connected badge.",
+      "neutral",
+    );
+  }
+}
+
 function renderWizardFinalSummary() {
   if (!elements.wizardFinalSummary) return;
   const facts = [
@@ -412,6 +531,14 @@ function updateWizardUi() {
   if (elements.wizardDeviceSummary && state.chip && state.config) {
     elements.wizardDeviceSummary.textContent =
       `CH582 ISP identified · bootloader ${formatBootloaderVersion(state.config.bootloaderVersion)} · no write sent`;
+  }
+  if (elements.wizardProfileHint) {
+    const hint = state.applicationProfileHint;
+    elements.wizardProfileHint.hidden = !hint;
+    if (hint) {
+      elements.wizardProfileHint.textContent =
+        `The ${hint.position} button entered ISP, which is consistent with ${hint.marking}. Confirm that exact printed PCB marking before choosing its image; the button test is not proof.`;
+    }
   }
   if (wizardStep === WIZARD_STEP.FLASH) renderWizardFinalSummary();
 }
@@ -904,24 +1031,35 @@ async function connectUsb(options = {}) {
     setStatus(
       elements.usbPermissionStatus,
       authorizedDevice
-        ? "Previously authorized WCH device detected."
+        ? "Previously authorized badge USB device detected."
         : "Device chooser requested by your action.",
       "working",
     );
     setStatus(
       elements.usbStatus,
       authorizedDevice
-        ? "Checking the attached WCH device read-only…"
-        : "Choose the WCH ISP device—not the running nametag…",
+        ? "Checking the attached badge USB mode…"
+        : "Choose the connected badge or its WCH ISP bootloader…",
       "working",
     );
     log(
       authorizedDevice
-        ? "Checking a previously authorized WCH USB device."
-        : "Requesting permission for a WCH USB ISP bootloader.",
+        ? "Checking a previously authorized badge USB device."
+        : "Requesting permission to detect the badge USB mode.",
     );
     const device =
-      authorizedDevice || (await navigator.usb.requestDevice({ filters: WCH_USB_FILTERS }));
+      authorizedDevice || (await navigator.usb.requestDevice({ filters: BADGE_USB_CHOOSER_FILTERS }));
+    const usbMode = badgeUsbMode(device);
+    if (usbMode === "application") {
+      showApplicationUsbDevice(device);
+      return;
+    }
+    if (usbMode !== "isp") throw new Error("selected USB device is not a supported BadgeMagic badge");
+    if (state.applicationTransitionPending && !state.applicationProfileHint) {
+      recordApplicationProfileHint();
+    }
+    state.applicationTransitionPending = false;
+    clearApplicationUsbDevice();
     await device.open();
     state.usbDevice = device;
     if (!device.configuration) await device.selectConfiguration(1);
@@ -1014,23 +1152,32 @@ async function detectAuthorizedUsb(device = null) {
   }
   try {
     const devices = device ? [device] : await navigator.usb.getDevices();
-    const matches = devices.filter((candidate) =>
-      WCH_USB_FILTERS.some(
-        (filter) =>
-          candidate.vendorId === filter.vendorId &&
-          candidate.productId === filter.productId,
-      ),
+    const ispMatches = devices.filter((candidate) => badgeUsbMode(candidate) === "isp");
+    const applicationMatches = devices.filter(
+      (candidate) => badgeUsbMode(candidate) === "application",
     );
-    if (matches.length === 1) {
-      await connectUsb({ device: matches[0], automatic: true });
+    if (ispMatches.length === 1) {
+      await connectUsb({ device: ispMatches[0], automatic: true });
       return;
     }
+    if (ispMatches.length === 0 && applicationMatches.length === 1) {
+      showApplicationUsbDevice(applicationMatches[0]);
+      return;
+    }
+    if (!state.applicationTransitionPending) clearApplicationUsbDevice();
+    const multipleDevices = ispMatches.length > 1 || applicationMatches.length > 1;
+    const statusMessage =
+      ispMatches.length > 1
+        ? "More than one authorized ISP device is attached. Tap Check connected badge and choose the intended badge."
+        : applicationMatches.length > 1
+          ? "More than one authorized BadgeMagic application is attached. Tap Check connected badge and choose the intended badge."
+          : state.applicationTransitionPending
+            ? "Normal mode disconnected. Tap A dot appeared — continue to choose the WCH bootloader."
+            : "No authorized BadgeMagic USB device detected. Plug it in, then tap Check connected badge.";
     setStatus(
       elements.usbStatus,
-      matches.length > 1
-        ? "More than one authorized ISP device is attached. Tap Check connected badge and choose the intended badge."
-        : "No authorized CH582 ISP badge detected. Enter ISP mode, then tap Check connected badge.",
-      matches.length > 1 ? "warning" : "neutral",
+      statusMessage,
+      multipleDevices ? "warning" : state.applicationTransitionPending ? "working" : "neutral",
     );
   } catch (error) {
     setStatus(elements.usbStatus, `Could not check attached USB devices: ${error.message}`, "warning");
@@ -2279,6 +2426,8 @@ function bindEvents() {
   elements.wizardRestart?.addEventListener("click", () => {
     window.location.reload();
   });
+  elements.wizardApplicationSuccess?.addEventListener("click", continueAfterApplicationDot);
+  elements.wizardApplicationNext?.addEventListener("click", advanceApplicationEntryAttempt);
   elements.ispGuideStart?.addEventListener("click", openIspEntryGuide);
   elements.ispGuideBack?.addEventListener("click", retreatIspEntryGuide);
   elements.ispGuideNext?.addEventListener("click", advanceIspEntryGuide);
@@ -2354,21 +2503,16 @@ function bindEvents() {
   });
   if (hasWebUsb() && typeof navigator.usb.addEventListener === "function") {
     navigator.usb.addEventListener("connect", (event) => {
-      if (
-        !WCH_USB_FILTERS.some(
-          (filter) =>
-            event.device.vendorId === filter.vendorId &&
-            event.device.productId === filter.productId,
-        )
-      ) {
-        return;
-      }
+      const usbMode = badgeUsbMode(event.device);
+      if (!usbMode) return;
       setStatus(
         elements.authorizedUsbStatus,
-        "A WCH ISP bootloader was attached. Checking for existing permission.",
+        usbMode === "isp"
+          ? "A WCH ISP bootloader was attached. Checking for existing permission."
+          : "A BadgeMagic application USB device was attached. Checking for existing permission.",
         "good",
       );
-      if (state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
+      if (usbMode === "isp" && state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
         setStatus(
           elements.ispGuideStep,
           "A matching WCH USB device was attached. Tap the chooser button yourself to identify it read-only.",
@@ -2378,6 +2522,19 @@ function bindEvents() {
       if (destructivePage) void detectAuthorizedUsb(event.device);
     });
     navigator.usb.addEventListener("disconnect", async (event) => {
+      if (event.device === state.applicationUsbDevice) {
+        state.applicationUsbDevice = null;
+        state.applicationTransitionPending = true;
+        if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = false;
+        if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = true;
+        if (elements.usbButton) elements.usbButton.textContent = "Check for bootloader";
+        setStatus(
+          elements.usbStatus,
+          "Normal nametag mode disconnected. If you saw the dot, tap A dot appeared — continue promptly.",
+          "working",
+        );
+        return;
+      }
       if (event.device !== state.usbDevice) return;
       await closeUsb();
       if (state.flashing) {
