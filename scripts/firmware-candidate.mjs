@@ -51,6 +51,10 @@ function profileStem(profile) {
   return profile.toLowerCase().replaceAll("_", "-");
 }
 
+function profilePosition(profile) {
+  return profile === "B1144C_250901_USB_C" ? "bottom" : "top";
+}
+
 export function firmwareCandidateVersion(sourceCommit) {
   return `0.0.0-candidate.${requireCommit(sourceCommit).slice(0, 12)}`;
 }
@@ -123,7 +127,8 @@ export async function buildFirmwareCandidateBundle({
       throw new Error(`${profile} candidate BIN does not match the audited survey lock`);
     }
 
-    const stem = `frogalert-${version}-${profileStem(profile)}`;
+    const stem =
+      `frogalert-${version}-${profilePosition(profile)}-${profileStem(profile)}`;
     const binName = `${stem}.bin`;
     const elfName = `${stem}.elf`;
     artifacts[profile] = {

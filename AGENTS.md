@@ -176,6 +176,10 @@ uploads one expiring `frogalert-candidate-<commit>` Actions artifact containing
 both BIN/ELF pairs. Candidate metadata must keep `hardware_verified`,
 `flash_approved`, `publishable`, and `hosted_on_site` false; this build lane
 never edits the public manifest or creates a GitHub Release.
+Successful local builds also copy the audited bytes to
+`frogalert-top-b1144c-260404.{bin,elf}` or
+`frogalert-bottom-b1144c-250901.{bin,elf}` in the matching profile directory.
+Candidate-bundle filenames include the same `top` or `bottom` token.
 
 The first single-profile live candidate run, Actions run `30069161224` for
 commit `af83fbb`, passed on 2026-07-23. Downstream run `30069244999` correctly

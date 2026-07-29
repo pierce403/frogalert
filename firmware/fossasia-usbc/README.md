@@ -49,6 +49,15 @@ Name the legacy board explicitly:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
 ```
 
+Successful builds retain the audited upstream filenames internally and also
+create position-labelled aliases:
+
+- `frogalert-top-b1144c-260404.bin`
+- `frogalert-bottom-b1144c-250901.bin`
+
+CI candidate bundles likewise include `top` or `bottom` in both BIN and ELF
+filenames.
+
 The legacy baseline contains no FrogAlert source and must match the known-good
 177,704-byte FOSSASIA image byte-for-byte. The lock also records FOSSASIA bin
 commit `b56cd949`, its 250,072-byte

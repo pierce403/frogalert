@@ -43,10 +43,19 @@ fi
 build_directory="$repo_root/tmp/fossasia-usbc/build/$profile/$build_mode"
 bin="$build_directory/badgemagic-ch582.bin"
 elf_bin="$build_directory/badgemagic-ch582.from-elf.bin"
+if [[ "$profile" == "B1144C_250901_USB_C" ]]; then
+  image_position="bottom"
+  image_revision="250901"
+else
+  image_position="top"
+  image_revision="260404"
+fi
+named_bin="$build_directory/frogalert-$image_position-b1144c-$image_revision.bin"
+named_elf="$build_directory/frogalert-$image_position-b1144c-$image_revision.elf"
 audit_complete=0
 cleanup_failed_audit() {
   if [[ "$audit_complete" != "1" ]]; then
-    rm -f "$bin" "$elf_bin"
+    rm -f "$bin" "$elf_bin" "$named_bin" "$named_elf"
   fi
 }
 trap cleanup_failed_audit EXIT
@@ -172,6 +181,8 @@ node "$repo_root/scripts/audit-fossasia-usbc.mjs" disassembly "$disassembly"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" binary \
   "$profile" "$build_mode" "$bin"
 audit_complete=1
+cp "$bin" "$named_bin"
+cp "$elf" "$named_elf"
 
 "$size_tool" "$elf"
 sha256sum "$bin"
@@ -191,7 +202,7 @@ else
   echo "survey candidate gate passed: bounded passive scan with persistent count requested"
 fi
 echo "hardware profile: $profile"
-echo "build evidence: $bin"
+echo "build evidence: $named_bin"
 echo "HARDWARE UNVERIFIED: build evidence only; not a public release or approved for flashing"
 
 if [[ "$check_mode" == "--check" ]]; then

@@ -123,6 +123,8 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
   assert.equal(metadata.default_hardware_profile, PROFILES[0]);
   assert.deepEqual(metadata.hardware_profiles, PROFILES);
   for (const profile of PROFILES) {
+    const position =
+      profile === "B1144C_250901_USB_C" ? "bottom" : "top";
     assert.equal(
       metadata.artifacts[profile].firmware.bytes,
       fixtures[profile].bin.byteLength,
@@ -138,6 +140,14 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
     assert.equal(
       metadata.artifacts[profile].debug_elf.sha256,
       sha256(fixtures[profile].elf),
+    );
+    assert.match(
+      metadata.artifacts[profile].firmware.file,
+      new RegExp(`-${position}-b1144c-`),
+    );
+    assert.match(
+      metadata.artifacts[profile].debug_elf.file,
+      new RegExp(`-${position}-b1144c-`),
     );
   }
 

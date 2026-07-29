@@ -231,6 +231,16 @@ The default may also be named explicitly:
 ./scripts/build-fossasia-usbc B1144C_260404_USB_C survey --check
 ```
 
+The resulting test images are named
+`frogalert-top-b1144c-260404.bin` and
+`frogalert-bottom-b1144c-250901.bin` inside their respective profile build
+directories. To have `wchisp` wait for a bottom-button badge to enter ISP:
+
+```bash
+wchisp -r 30 flash \
+  ./tmp/fossasia-usbc/build/B1144C_250901_USB_C/survey/frogalert-bottom-b1144c-250901.bin
+```
+
 The first derived canary adds only an inert identifying string. The survey lane
 adds the passive detector and embeds the compiled profile id. Every
 profile/lane pair has its own locked size and SHA-256 in

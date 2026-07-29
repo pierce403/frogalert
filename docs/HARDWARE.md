@@ -271,10 +271,13 @@ The eventual flash flow uses `wchisp`:
 
 ```sh
 wchisp config reset
-wchisp flash frogalert-ch582.bin
+wchisp -r 30 flash \
+  ./tmp/fossasia-usbc/build/B1144C_250901_USB_C/survey/frogalert-bottom-b1144c-250901.bin
 ```
 
-This command is documentation only today; no FrogAlert release image is
-provided yet. Do not substitute either quarantined standalone Rust image or a
-temporary canary merely because it builds, and do not mistake the upstream
-open v0.1 substitute for the original OEM firmware.
+Run the flash command before holding bottom-button KEY2 so `wchisp` is already
+polling during the short ISP window. The locally built adaptive image remains
+hardware-unverified; it is not the published beta. Do not substitute either
+quarantined standalone Rust image or a temporary canary merely because it
+builds, and do not mistake the upstream open v0.1 substitute for the original
+OEM firmware.

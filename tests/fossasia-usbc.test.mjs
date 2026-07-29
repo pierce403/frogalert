@@ -163,6 +163,9 @@ test("build wrappers gate the exact profile and keep outputs local", async () =>
   assert.match(build, /baseline\|canary/);
   assert.match(build, /USBC_VERSION=1/);
   assert.match(build, /tmp\/fossasia-usbc\/build/);
+  assert.match(build, /frogalert-\$image_position-b1144c-\$image_revision\.bin/);
+  assert.match(build, /image_position="bottom"/);
+  assert.match(build, /image_position="top"/);
   assert.match(build, /audit-fossasia-usbc\.mjs/);
   assert.match(build, /objcopy" -O binary -S "\$elf" "\$elf_bin"/);
   assert.match(build, /cmp -s "\$bin" "\$elf_bin"/);
