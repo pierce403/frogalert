@@ -94,8 +94,19 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /id="usb-connect"[^>]+disabled/);
   assert.match(html, /Install open BadgeMagic firmware/);
   assert.match(html, /Prepare open BadgeMagic firmware/);
-  assert.match(html, /PROTOTYPE \/ BADGE · HARDWARE-UNVERIFIED/);
+  assert.match(html, /PROTOTYPE \/ BADGE · 260404 HARDWARE-TESTED/);
   assert.match(html, /Private dual-profile survey BINs/);
+  assert.match(
+    html,
+    /href="https:\/\/github\.com\/pierce403\/frogalert\/actions\/runs\/30411963327\/artifacts\/8708751285"[^>]*>Download firmware bundle</,
+  );
+  assert.match(
+    html,
+    /frogalert-0\.0\.0-candidate\.e8787b850cc6-b1144c-260404-usb-c\.bin/,
+  );
+  assert.match(html, /GitHub sign-in is required.*expires August 28, 2026/is);
+  assert.match(html, /developer download, not yet a manifest-approved release/i);
+  assert.match(html, /260404 runtime hardware-tested/i);
   assert.match(html, /view button.*names.*Bluetooth-rune.*00.*nearest USB.*260404/is);
   assert.match(html, /Scanning runs in either display mode/i);
   assert.match(html, /shows.*COP DETECTED.*one second each/is);
@@ -117,7 +128,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /a fixed counter, one-second-per-frame fixed alerts/);
   assert.match(html, /active-low .*260404.*build default/is);
   assert.match(html, /cannot be distinguished passively at boot/i);
-  assert.match(html, /not hosted or released/i);
+  assert.match(html, /Neither image is release-approved.*CLI and WebUSB program\/byte-verify/is);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
   assert.match(html, /Preparation does not touch USB/i);
   assert.match(

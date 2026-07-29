@@ -320,6 +320,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The fixed count frame uses the six-column, full-height Bluetooth rune from
   the first frame of FOSSASIA's pinned `src/res/bluetooth.xbm`, followed by the
   count and optional diagnostic phase.
+  The user explicitly confirmed runtime, display, BadgeMagic upload, button
+  behavior, and KEY2-only dot-to-ISP acceptance for the exact `260404` hash on
+  2026-07-28. This is meaningful physical evidence but not the complete release
+  record: exact-hash CLI and WebUSB program/byte-verify transcripts are still
+  missing. The front page may link the expiring Actions artifact as a clearly
+  labeled developer download, but it must not enter the executable manifest
+  until those publication gates pass.
   FrogAlert completes frames in one of two private buffers and the final TMR0
   refresh selects the committed buffer while an overlay owns the panel.
   Marquee/flash/fixed/Bluetooth event handlers also consume queued work without

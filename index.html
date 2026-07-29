@@ -53,12 +53,16 @@
             FrogAlert keeps your uploaded BadgeMagic names, adds a nearby-device counter, and briefly shows alerts for selected BLE names and public OUIs. Scanning and matching happen on the badge.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="./flash/">Open the flasher</a>
-            <a class="button button-secondary" href="https://github.com/pierce403/frogalert/blob/main/FEATURES.md">Check feature status</a>
+            <a class="button button-primary" href="https://github.com/pierce403/frogalert/actions/runs/30411963327/artifacts/8708751285">Download firmware bundle</a>
+            <a class="button button-secondary" href="./flash/">Open the flasher</a>
           </div>
+          <p class="candidate-download-note">
+            The bundle contains separate <code>260404</code> and <code>250901</code> BINs. For the physically tested <code>B1144C_260404</code> badge, choose <code>frogalert-0.0.0-candidate.e8787b850cc6-b1144c-260404-usb-c.bin</code> and verify SHA-256 <code>c6d06c59…face0d9</code>. GitHub sign-in is required; the artifact expires August 28, 2026. This is a developer download, not yet a manifest-approved release.
+            <a href="https://github.com/pierce403/frogalert/blob/main/FEATURES.md">Check full status.</a>
+          </p>
           <ul class="status-strip" aria-label="Current project status">
             <li><span class="signal signal-good"></span>Host tests passing</li>
-            <li><span class="signal signal-warn"></span>Badge build not hardware-tested</li>
+            <li><span class="signal signal-good"></span>260404 runtime hardware-tested</li>
             <li><span class="signal signal-lab"></span>WebUSB flasher experimental</li>
           </ul>
         </div>
@@ -88,7 +92,7 @@
           <article>
             <span class="card-number">01</span>
             <h3>Name badge and counter</h3>
-            <p>Upload names with the BadgeMagic app. The view button rotates through those names and a fixed Bluetooth-rune <code>00</code>–<code>64+</code> counter: use the button nearest USB on <code>260404</code>, or KEY2 nearest USB on <code>250901</code>. The <code>260404</code> button farther from USB keeps the normal system action and its long-press ISP gesture. Recovery still needs a physical test on each exact FrogAlert BIN.</p>
+            <p>Upload names with the BadgeMagic app. The view button rotates through those names and a fixed Bluetooth-rune <code>00</code>–<code>64+</code> counter: use the button nearest USB on <code>260404</code>, or KEY2 nearest USB on <code>250901</code>. The <code>260404</code> button farther from USB keeps the normal system action and its long-press ISP gesture. That recovery path is physically confirmed for the exact listed <code>260404</code> hash; <code>250901</code> still needs its own test.</p>
           </article>
           <article>
             <span class="card-number">02</span>
@@ -110,7 +114,7 @@
         <div>
           <p class="section-kicker">Timing</p>
           <h2 id="cycle-title">A scan starts about every 20 seconds.</h2>
-          <p>The current private build scans for three seconds, records only an approximate count and matching alert class, then returns to the selected display. The build passes software audits but has not been tested on the badge.</p>
+          <p>The current private build scans for three seconds, records only an approximate count and matching alert class, then returns to the selected display. The exact listed <code>260404</code> hash passes software audits and user-confirmed badge acceptance; the separate <code>250901</code> build remains hardware-unverified.</p>
         </div>
         <ol class="cycle" aria-label="Private FrogAlert candidate operating cycle">
           <li><span>~17 s</span><strong>SELECTED MODE</strong><small>Uploaded name or latest BT count</small></li>
@@ -142,9 +146,9 @@
             <code class="command">node --test tests/*.test.mjs</code>
           </article>
           <article class="evidence-card prototype">
-            <p class="evidence-state">PROTOTYPE / BADGE · HARDWARE-UNVERIFIED</p>
+            <p class="evidence-state">PROTOTYPE / BADGE · 260404 HARDWARE-TESTED</p>
             <h3>Private dual-profile survey BINs</h3>
-            <p>The profile-specific <code>260404</code> and <code>250901</code> candidates retain FOSSASIA's USB, BLE, display, uploaded entries, brightness control, system mode, and KEY2 recovery source while adding configurable targets, a fixed counter, one-second-per-frame fixed alerts, frog overlays, and a roughly 20-second survey cadence. A double-buffered output overlay keeps alerts above blink, marquee, base animations, and queued Bluetooth animation frames. The survey lane also raises complete-frame refresh from roughly 45 Hz to 182 Hz to reduce visible strobing; BLE coexistence, current draw, and the visual result still need a badge test. The active-low <code>260404</code> profile is the build default. These candidates are Actions artifacts only; they are not hosted or released.</p>
+            <p>The profile-specific <code>260404</code> and <code>250901</code> candidates retain FOSSASIA's USB, BLE, display, uploaded entries, brightness control, system mode, and KEY2 recovery source while adding configurable targets, a fixed counter, one-second-per-frame fixed alerts, frog overlays, and a roughly 20-second survey cadence. A double-buffered output overlay keeps alerts above blink, marquee, base animations, and queued Bluetooth animation frames. The survey lane also raises complete-frame refresh from roughly 45 Hz to 182 Hz to reduce visible strobing. The active-low <code>260404</code> profile is the build default, and its exact hash below has user-confirmed runtime, display, BadgeMagic upload, button, and KEY2 dot-to-ISP acceptance; <code>250901</code> remains hardware-unverified. Neither image is release-approved until exact-hash CLI and WebUSB program/byte-verify transcripts complete the publication record.</p>
             <code class="command">260404 · 205,152 bytes · SHA-256 c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9</code>
             <code class="command">250901 · 205,128 bytes · SHA-256 f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9</code>
           </article>

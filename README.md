@@ -20,19 +20,22 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   mismatch makes both interrupt-driven builds unsafe to flash
 - replacement firmware base: pinned FOSSASIA USB-C C hardware shell supports
   exact `B1144C_260404_USB_C` and `B1144C_250901_USB_C` build profiles; the
-  Nyx `260404` KEY1 wiring is the build default, while both remain
-  hardware-unverified FrogAlert targets
+  Nyx `260404` KEY1 wiring is the build default; exact SHA
+  `c6d06c59…face0d9` has user-confirmed runtime, display, BadgeMagic upload,
+  button, and KEY2 recovery behavior, while `250901` remains hardware-unverified
 - private survey candidates: CI builds and audits one profile-bound BIN/ELF
   pair for each USB-C board profile, with passive counting, configurable
   built-in/custom monitoring, one second per alert frame on a roughly 20-second
-  survey cadence, and a BadgeMagic frog animation; these Actions artifacts are
-  build evidence only and are neither GitHub Releases nor flash-approved
+  survey cadence, and a BadgeMagic frog animation; the current bundle is
+  linked from the project front page for developer download, but remains
+  outside GitHub Releases and the flash-approved manifest
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
 - full BadgeMagic-compatible FrogAlert firmware: not implemented
-- downloadable FrogAlert release or lab BIN: none; the first USB-C pixel-walk
-  image was withdrawn after it booted blank and failed KEY2 recovery
+- downloadable FrogAlert developer BIN: the expiring, sign-in-gated Actions
+  bundle for commit `e8787b8` is linked from the front page; no manifest-approved
+  FrogAlert release or lab BIN exists yet
 - public artifact safety: failed SHA permanently quarantined; site assembly
   rejects every FrogAlert BIN without hash-bound physical smoke evidence, and
   the browser refuses the failed SHA even if it is manually reselected

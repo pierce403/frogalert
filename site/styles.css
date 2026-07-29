@@ -241,6 +241,23 @@ h3 {
   gap: 0.9rem;
 }
 
+.candidate-download-note {
+  max-width: 64ch;
+  margin: 1rem 0 0;
+  color: var(--muted-dark);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+.candidate-download-note strong,
+.candidate-download-note a {
+  color: var(--frog-bright);
+}
+
+.candidate-download-note code {
+  overflow-wrap: anywhere;
+}
+
 .button {
   display: inline-flex;
   min-height: 3.1rem;

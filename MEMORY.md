@@ -79,6 +79,9 @@ on chat context or filenames alone.
 - [`2026-07-28-bluetooth-counter-logo.md`](agent-memory/logs/2026-07-28-bluetooth-counter-logo.md)
   — FOSSASIA-derived fixed Bluetooth rune, centered count layout, locked
   dual-profile candidate hashes, and remaining physical display gate.
+- [`2026-07-28-260404-user-acceptance.md`](agent-memory/logs/2026-07-28-260404-user-acceptance.md)
+  — exact `260404` user acceptance, front-page developer artifact link, and
+  remaining CLI/WebUSB publication evidence boundary.
 
 ## People
 
