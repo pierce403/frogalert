@@ -99,8 +99,8 @@
           "sha256": "6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87"
         },
         "survey": {
-          "size": 205128,
-          "sha256": "f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9"
+          "size": 205612,
+          "sha256": "6c66fe90cc71da5a9fc5fa21ba61c4f0ca610ae354d1211a33645b836b8c9ea9"
         }
       },
       "B1144C_260404_USB_C": {
@@ -113,8 +113,8 @@
           "sha256": "f4defa234af5c1b2377fd19daa513d8a3e550c9907cd9bd793f9c6f3b021e565"
         },
         "survey": {
-          "size": 205152,
-          "sha256": "c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9"
+          "size": 205612,
+          "sha256": "9ecb7763ce9931323683192dd4d85b28972949a503667462b7ab5db7e6cbbe91"
         }
       }
     },
@@ -152,6 +152,10 @@
       "frogalert_display_survey_page_step",
       "frogalert_display_survey_page_redraw",
       "frogalert_display_survey_release",
+      "btn_key1_pressed",
+      "btn_key1_profile",
+      "btn_key1_profile_detected",
+      "btn_configure_key1_wake",
       "frogalert_animation_has_padded_frames",
       "frogalert_animation_frame_count",
       "frogalert_animation_copy_visible_frame",

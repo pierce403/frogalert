@@ -42,9 +42,14 @@ KEY1 source transformations before compilation.
 
 There is no passive boot-time profile probe. An untouched KEY1 switch is open
 on both boards, and PA1 follows whichever internal pull the firmware chooses.
-The first press can reveal a transition only after boot and initial button/wake
-semantics have already been selected. Separate artifacts, exact printed board
-markings, and profile-bound checks are therefore part of the architecture.
+The survey lane retains the compiled profile as its boot fallback, then samples
+PA1 with weak pull-down and pull-up configurations until a held KEY1 produces
+four consistent samples. Open reads low/high, held `250901` reads high/high,
+and held `260404` reads low/low. The runtime result corrects KEY1 polarity,
+short-button routing, and shutdown wake configuration without modifying the
+KEY2 long-press ISP path. Separate artifacts, exact printed markings, and
+profile-bound release evidence remain required because the correction is
+interactive, volatile, and hardware-unverified.
 
 ## Replacement-image progression
 

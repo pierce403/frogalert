@@ -339,9 +339,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the physical button nearest USB as the
   counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
   short press retains the normal system action and KEY2 long press retains ISP
-  entry. The locked `260404` candidate is 205,152 bytes at SHA-256
+  entry. The published beta `260404` image is 205,152 bytes at SHA-256
   `c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9`;
-  the `250901` candidate is 205,128 bytes at SHA-256
+  the published beta `250901` image is 205,128 bytes at SHA-256
   `f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9`.
   The fixed count frame uses the six-column, full-height Bluetooth rune from
   the first frame of FOSSASIA's pinned `src/res/bluetooth.xbm`, followed by the
@@ -359,6 +359,21 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   releases with explicit schema-2 user-confirmed evidence. Missing exact-hash
   CLI and WebUSB transcripts remain a stable-release limitation, not a beta
   blocker.
+- Current post-beta survey source adds mismatch recovery without changing the
+  common LED map or KEY2/PB22 path. Until KEY1 is held, each image uses its
+  compiled profile. The 50 Hz button scan then samples PA1 after a 2 us settle
+  under pull-down and pull-up; four consistent `high/high` samples select
+  `250901`, four `low/low` samples select `260404`, and the ordinary open
+  `low/high` state selects nothing. A confirmed result corrects KEY1 polarity,
+  both short-button roles, and shutdown wake for the current boot. The new
+  205,612-byte candidates are `260404`
+  `9ecb7763ce9931323683192dd4d85b28972949a503667462b7ab5db7e6cbbe91`
+  and `250901`
+  `6c66fe90cc71da5a9fc5fa21ba61c4f0ca610ae354d1211a33645b836b8c9ea9`.
+  They pass locked ELF/BIN/vector/USB/BLE/display/KEY2 audits but are
+  hardware-unverified. Test each on its matching board and deliberately
+  cross-flashed board, including KEY2-before-detection, brightness,
+  download/power/wake, and KEY2-only ISP, before release promotion.
 - On 2026-07-23 the user reported that the latest image they had flashed was
   working well. Treat this as encouraging physical feedback, not release
   evidence: the last explicitly requested-and-observed flash was likely the

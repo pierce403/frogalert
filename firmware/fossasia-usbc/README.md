@@ -24,7 +24,12 @@ KEY2/PB22 active-low input. The build-time difference is limited to KEY1/PA1:
 
 An untouched KEY1 is an open switch on both boards and only reflects the
 firmware-selected pull, so it cannot safely auto-detect the board before first
-use. The build and embedded monitor configuration carry an explicit profile id.
+use. The survey candidate retains the compiled profile as its fallback, then
+uses four debounced two-pull samples while KEY1 is held to distinguish
+open (`low/high`), `250901` (`high/high`), and `260404` (`low/low`). A confirmed
+result corrects button routing and shutdown wake for the current boot. The
+build and embedded monitor configuration still carry an explicit profile id,
+and this mismatch recovery remains hardware-unverified.
 
 ## Build lanes
 

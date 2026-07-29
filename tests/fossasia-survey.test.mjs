@@ -5,8 +5,11 @@ import test from "node:test";
 
 import {
   applyAnimationHooks,
+  applyButtonHeaderHooks,
+  applyButtonHooks,
   applyMainHooks,
   applyPeripheralHooks,
+  applyPowerHooks,
 } from "../scripts/apply-fossasia-survey.mjs";
 import { loadLock } from "../scripts/audit-fossasia-usbc.mjs";
 
@@ -15,6 +18,62 @@ const firmwareDirectory = path.join(
   repositoryRoot,
   "firmware/fossasia-usbc",
 );
+
+test("survey hooks detect either KEY1 rail without touching KEY2", () => {
+  const button = [
+    "static uint16_t btn_task(tmosTaskID, uint16_t);",
+    "",
+    "void btn_init()",
+    "{",
+    "\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);",
+    "\tGPIOB_ModeCfg(KEY2_PIN, GPIO_ModeIN_PU);",
+  ].join("\n");
+  const activeHighHeader = [
+    "#define isPressed(key) \t\t((key) ? \\",
+    "\t\t\t\t!GPIOB_ReadPortPin(KEY2_PIN) : \\",
+    "\t\t\t\tGPIOA_ReadPortPin(KEY1_PIN))",
+    "",
+  ].join("\n");
+  const activeLowHeader = activeHighHeader.replace(
+    "\t\t\t\tGPIOA_ReadPortPin(KEY1_PIN))",
+    "\t\t\t\t!GPIOA_ReadPortPin(KEY1_PIN))",
+  );
+  const legacyPower = [
+    "\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);",
+    "\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);",
+  ].join("\n");
+  const currentPower = legacyPower
+    .replace("GPIO_ModeIN_PD", "GPIO_ModeIN_PU")
+    .replace("GPIO_ITMode_RiseEdge", "GPIO_ITMode_FallEdge");
+
+  const patchedButton = applyButtonHooks(button);
+  assert.match(
+    patchedButton,
+    /GPIO_ModeIN_PD[\s\S]*pulled_down[\s\S]*GPIO_ModeIN_PU[\s\S]*pulled_up/,
+  );
+  assert.match(
+    patchedButton,
+    /pulled_down && pulled_up[\s\S]*FROGALERT_KEY1_PROFILE_250901/,
+  );
+  assert.match(
+    patchedButton,
+    /!pulled_down && !pulled_up[\s\S]*FROGALERT_KEY1_PROFILE_260404/,
+  );
+  assert.equal(
+    patchedButton.match(/GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)/g)?.length,
+    1,
+  );
+  for (const header of [activeHighHeader, activeLowHeader]) {
+    const patchedHeader = applyButtonHeaderHooks(header);
+    assert.match(patchedHeader, /btn_key1_pressed\(\)/);
+    assert.match(patchedHeader, /!GPIOB_ReadPortPin\(KEY2_PIN\)/);
+  }
+  for (const power of [legacyPower, currentPower]) {
+    const patchedPower = applyPowerHooks(power);
+    assert.match(patchedPower, /btn_configure_key1_wake\(\)/);
+    assert.match(patchedPower, /#else[\s\S]*GPIOA_ITModeCfg/);
+  }
+});
 
 test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => {
   const peripheral = [
@@ -180,7 +239,11 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /btn_onOnePress\(KEY2, frogalert_view_transition\)/,
+    /btn_onOnePress\(KEY2, frogalert_key2_transition\)/,
+  );
+  assert.match(
+    patchedMain,
+    /!btn_key1_profile_detected\(\)[\s\S]*mode == NORMAL[\s\S]*frogalert_view_transition\(\);[\s\S]*return;/,
   );
   assert.match(
     patchedMain,
@@ -190,11 +253,11 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /stop_all_animation\(\);/);
   assert.match(
     patchedMain,
-    /FROGALERT_PROFILE_B1144C_260404_USB_C[\s\S]*btn_onOnePress\(KEY1, frogalert_view_transition\);[\s\S]*btn_onOnePress\(KEY2, change_mode\);/,
+    /frogalert_key1_transition[\s\S]*FROGALERT_KEY1_PROFILE_250901[\s\S]*change_mode\(\);[\s\S]*frogalert_view_transition\(\);/,
   );
   assert.match(
     patchedMain,
-    /Disable the profile-specific view button[\s\S]*btn_onOnePress\(KEY1, NULL\);[\s\S]*btn_onOnePress\(KEY2, change_mode\);[\s\S]*btn_onOnePress\(KEY2, NULL\);/,
+    /Route both buttons through the detected KEY1 electrical profile[\s\S]*btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);/,
   );
   assert.match(patchedMain, /frogalert_survey_text/);
   assert.match(

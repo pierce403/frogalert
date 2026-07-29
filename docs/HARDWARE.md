@@ -41,12 +41,18 @@ FrogAlert smoke test.
 
 Safe passive boot-time auto-detection is not available. Before KEY1 has been
 pressed, its switch is open on both boards, so PA1 only reflects the internal
-pull selected by the running firmware. Reconfiguring that pull merely changes
-the reading the firmware created; it does not reveal which rail the untouched
-switch will connect when pressed. A first press could provide a clue, but by
-then boot behavior, the first button action, and shutdown-wake configuration
-have already depended on the profile. FrogAlert consequently requires the
-printed board marking and emits separate artifacts.
+pull selected by the running firmware. The current survey candidate therefore
+boots with its compiled profile as a fallback, but probes PA1 under both weak
+pull directions until KEY1 is held. An open switch reads low then high; a held
+`250901` switch remains high under both pulls; and a held `260404` switch
+remains low under both. Four consistent 50 Hz samples confirm the runtime
+profile, after which FrogAlert corrects the KEY1 polarity, both short-button
+roles, and the shutdown wake edge. This makes an accidentally mismatched image
+recover after one KEY1 press without changing the common KEY2 long-press ISP
+path. Before that confirmation, a short KEY2 press may select the counter but
+cannot advance toward shutdown, preventing the most hazardous wrong-profile
+fallback. It remains hardware-unverified and does not relax first-flash
+profile selection or artifact/evidence binding.
 
 ## Current physical badge evidence
 

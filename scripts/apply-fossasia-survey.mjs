@@ -89,6 +89,199 @@ export function applyPeripheralHooks(source) {
   return result;
 }
 
+export function applyButtonHeaderHooks(source) {
+  let result = normalizeLineEndings(source);
+  const activeHigh = `#define isPressed(key) \t\t((key) ? \\
+\t\t\t\t!GPIOB_ReadPortPin(KEY2_PIN) : \\
+\t\t\t\tGPIOA_ReadPortPin(KEY1_PIN))
+`;
+  const activeLow = `#define isPressed(key) \t\t((key) ? \\
+\t\t\t\t!GPIOB_ReadPortPin(KEY2_PIN) : \\
+\t\t\t\t!GPIOA_ReadPortPin(KEY1_PIN))
+`;
+  const originalPressed = result.includes(activeHigh) ? activeHigh : activeLow;
+  const compiledKey1Read =
+    originalPressed === activeHigh
+      ? "\t\t\t\tGPIOA_ReadPortPin(KEY1_PIN))"
+      : "\t\t\t\t!GPIOA_ReadPortPin(KEY1_PIN))";
+  result = replaceOnce(
+    result,
+    originalPressed,
+    `#ifdef FROGALERT_SURVEY
+#define FROGALERT_KEY1_PROFILE_UNKNOWN 0
+#define FROGALERT_KEY1_PROFILE_250901  1
+#define FROGALERT_KEY1_PROFILE_260404  2
+
+int btn_key1_pressed(void);
+uint8_t btn_key1_profile(void);
+uint8_t btn_key1_profile_detected(void);
+void btn_configure_key1_wake(void);
+
+#define isPressed(key) \t\t((key) ? \\
+\t\t\t\t!GPIOB_ReadPortPin(KEY2_PIN) : \\
+\t\t\t\tbtn_key1_pressed())
+#else
+#define isPressed(key) \t\t((key) ? \\
+\t\t\t\t!GPIOB_ReadPortPin(KEY2_PIN) : \\
+${compiledKey1Read}
+#endif
+`,
+    "adaptive KEY1 declarations",
+  );
+  return result;
+}
+
+export function applyButtonHooks(source) {
+  let result = normalizeLineEndings(source);
+  result = replaceOnce(
+    result,
+    `static uint16_t btn_task(tmosTaskID, uint16_t);
+
+void btn_init()
+`,
+    `static uint16_t btn_task(tmosTaskID, uint16_t);
+
+#ifdef FROGALERT_SURVEY
+/*
+ * The two USB-C boards connect KEY1/PA1 to opposite rails. An open switch
+ * follows both weak pulls (low, then high); a held 250901 switch stays high
+ * under both, while a held 260404 switch stays low under both. Probe only
+ * until the first unambiguous held sample, then retain the detected polarity.
+ * KEY2/PB22 and its independent long-press ROM-ISP path are untouched.
+ */
+static volatile uint8_t frogalert_key1_profile;
+static uint8_t frogalert_key1_candidate;
+static uint8_t frogalert_key1_confidence;
+
+__HIGH_CODE
+static void frogalert_key1_settle(void)
+{
+\t/* Let the weak internal pull settle the open PA1 trace before sampling. */
+\tDelayUs(2);
+}
+
+__HIGH_CODE
+static void frogalert_key1_restore_pull(void)
+{
+\tuint8_t profile = frogalert_key1_profile;
+
+\tif (profile == FROGALERT_KEY1_PROFILE_250901) {
+\t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
+\t} else if (profile == FROGALERT_KEY1_PROFILE_260404) {
+\t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\t} else {
+\t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
+#else
+\t} else {
+\t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);
+#endif
+\t}
+}
+
+__HIGH_CODE
+int btn_key1_pressed(void)
+{
+\tuint8_t profile = frogalert_key1_profile;
+\tuint8_t pulled_down;
+\tuint8_t pulled_up;
+\tuint8_t observed = FROGALERT_KEY1_PROFILE_UNKNOWN;
+
+\tif (profile == FROGALERT_KEY1_PROFILE_250901)
+\t\treturn GPIOA_ReadPortPin(KEY1_PIN) != 0;
+\tif (profile == FROGALERT_KEY1_PROFILE_260404)
+\t\treturn GPIOA_ReadPortPin(KEY1_PIN) == 0;
+
+\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
+\tfrogalert_key1_settle();
+\tpulled_down = GPIOA_ReadPortPin(KEY1_PIN) != 0;
+\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);
+\tfrogalert_key1_settle();
+\tpulled_up = GPIOA_ReadPortPin(KEY1_PIN) != 0;
+
+\tif (pulled_down && pulled_up)
+\t\tobserved = FROGALERT_KEY1_PROFILE_250901;
+\telse if (!pulled_down && !pulled_up)
+\t\tobserved = FROGALERT_KEY1_PROFILE_260404;
+
+\tif (observed == FROGALERT_KEY1_PROFILE_UNKNOWN) {
+\t\tfrogalert_key1_candidate = FROGALERT_KEY1_PROFILE_UNKNOWN;
+\t\tfrogalert_key1_confidence = 0;
+\t} else if (observed != frogalert_key1_candidate) {
+\t\tfrogalert_key1_candidate = observed;
+\t\tfrogalert_key1_confidence = 1;
+\t} else if (frogalert_key1_confidence < 4) {
+\t\tfrogalert_key1_confidence++;
+\t\tif (frogalert_key1_confidence == 4)
+\t\t\tfrogalert_key1_profile = observed;
+\t}
+
+\t/* Restore a stable pull between 50 Hz samples. */
+\tfrogalert_key1_restore_pull();
+\treturn observed != FROGALERT_KEY1_PROFILE_UNKNOWN;
+}
+
+uint8_t btn_key1_profile(void)
+{
+\tuint8_t profile = frogalert_key1_profile;
+
+\tif (profile != FROGALERT_KEY1_PROFILE_UNKNOWN)
+\t\treturn profile;
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\treturn FROGALERT_KEY1_PROFILE_250901;
+#else
+\treturn FROGALERT_KEY1_PROFILE_260404;
+#endif
+}
+
+uint8_t btn_key1_profile_detected(void)
+{
+\treturn frogalert_key1_profile != FROGALERT_KEY1_PROFILE_UNKNOWN;
+}
+
+void btn_configure_key1_wake(void)
+{
+\tif (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901) {
+\t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
+\t\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);
+\t} else {
+\t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);
+\t\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_FallEdge);
+\t}
+}
+#endif
+
+void btn_init()
+`,
+    "adaptive KEY1 implementation",
+  );
+  return result;
+}
+
+export function applyPowerHooks(source) {
+  let result = normalizeLineEndings(source);
+  const legacyWake = [
+    "\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);",
+    "\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);",
+  ].join("\n");
+  const currentWake = [
+    "\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);",
+    "\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_FallEdge);",
+  ].join("\n");
+  const originalWake = result.includes(legacyWake) ? legacyWake : currentWake;
+  result = replaceOnce(
+    result,
+    originalWake,
+    `#ifdef FROGALERT_SURVEY
+\tbtn_configure_key1_wake();
+#else
+${originalWake}
+#endif`,
+    "adaptive KEY1 shutdown wake",
+  );
+  return result;
+}
+
 export function applyMainHooks(source) {
   let result = normalizeLineEndings(source);
   result = replaceOnce(
@@ -215,6 +408,33 @@ static void frogalert_view_transition(void)
 		frogalert_counter_view = TRUE;
 	}
 	frogalert_survey_view_changed();
+}
+
+static void frogalert_key1_transition(void)
+{
+	if (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901)
+		change_mode();
+	else if (mode == NORMAL)
+		frogalert_view_transition();
+}
+
+static void frogalert_key2_transition(void)
+{
+	/*
+	 * Until KEY1 proves the board, let a short KEY2 press select the counter
+	 * but never walk an accidentally cross-flashed badge toward power-off.
+	 */
+	if (!btn_key1_profile_detected()) {
+		if (mode == NORMAL)
+			frogalert_view_transition();
+		return;
+	}
+	if (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901) {
+		if (mode == NORMAL)
+			frogalert_view_transition();
+	} else {
+		change_mode();
+	}
 }
 #endif
 
@@ -534,13 +754,9 @@ static void disp_charging()
 	// the Bluetooth animation
 	ble_enable_advertise();
 	start_ble_animation();`,
-    `	// Disable the profile-specific view button in download mode.
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_260404_USB_C
-	btn_onOnePress(KEY1, NULL);
-	btn_onOnePress(KEY2, change_mode);
-#else
-	btn_onOnePress(KEY2, NULL);
-#endif
+    `	// Route both buttons through the detected KEY1 electrical profile.
+	btn_onOnePress(KEY1, frogalert_key1_transition);
+	btn_onOnePress(KEY2, frogalert_key2_transition);
 
 	// Take control of the current bitmap to display
 	// the Bluetooth animation. Never advertise during Central discovery.
@@ -568,12 +784,8 @@ static void disp_charging()
 #ifdef FROGALERT_SURVEY
 	frogalert_counter_view = FALSE;
 	frogalert_display_survey_relinquish();
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_260404_USB_C
-	btn_onOnePress(KEY1, frogalert_view_transition);
-	btn_onOnePress(KEY2, change_mode);
-#else
-	btn_onOnePress(KEY2, frogalert_view_transition);
-#endif
+	btn_onOnePress(KEY1, frogalert_key1_transition);
+	btn_onOnePress(KEY2, frogalert_key2_transition);
 #else
 	btn_onOnePress(KEY2, bm_transition);
 #endif
@@ -614,13 +826,8 @@ static void disp_charging()
 	btn_onOnePress(KEY2, bm_transition);
 	btn_onLongPress(KEY1, change_brightness);`,
     `#ifdef FROGALERT_SURVEY
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_260404_USB_C
-	btn_onOnePress(KEY1, frogalert_view_transition);
-	btn_onOnePress(KEY2, change_mode);
-#else
-	btn_onOnePress(KEY1, change_mode);
-	btn_onOnePress(KEY2, frogalert_view_transition);
-#endif
+	btn_onOnePress(KEY1, frogalert_key1_transition);
+	btn_onOnePress(KEY2, frogalert_key2_transition);
 #else
 	btn_onOnePress(KEY1, change_mode);
 	btn_onOnePress(KEY2, bm_transition);
@@ -766,15 +973,25 @@ export async function applySurveyHooks(sourceDirectory) {
   const peripheralPath = path.join(sourceDirectory, "src/ble/peripheral.c");
   const mainPath = path.join(sourceDirectory, "src/main.c");
   const animationPath = path.join(sourceDirectory, "src/animation.c");
-  const [peripheral, main, animation] = await Promise.all([
+  const buttonPath = path.join(sourceDirectory, "src/button.c");
+  const buttonHeaderPath = path.join(sourceDirectory, "src/button.h");
+  const powerPath = path.join(sourceDirectory, "src/power.c");
+  const [peripheral, main, animation, button, buttonHeader, power] =
+    await Promise.all([
     readFile(peripheralPath, "utf8"),
     readFile(mainPath, "utf8"),
     readFile(animationPath, "utf8"),
+    readFile(buttonPath, "utf8"),
+    readFile(buttonHeaderPath, "utf8"),
+    readFile(powerPath, "utf8"),
   ]);
   await Promise.all([
     writeFile(peripheralPath, applyPeripheralHooks(peripheral), "utf8"),
     writeFile(mainPath, applyMainHooks(main), "utf8"),
     writeFile(animationPath, applyAnimationHooks(animation), "utf8"),
+    writeFile(buttonPath, applyButtonHooks(button), "utf8"),
+    writeFile(buttonHeaderPath, applyButtonHeaderHooks(buttonHeader), "utf8"),
+    writeFile(powerPath, applyPowerHooks(power), "utf8"),
   ]);
 }
 

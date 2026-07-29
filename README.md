@@ -136,10 +136,13 @@ active-low presses, and falling-edge wake.
 
 There is no safe passive boot-time auto-detection for that distinction. With
 KEY1 untouched, the switch is open on both boards and the input simply follows
-whichever internal pull the firmware selected. A later button press could
-provide a polarity clue, but that is too late to guarantee correct boot,
-power-off wake, and first-button behavior. Select the exact printed PCB
-marking; the build default does not replace this check.
+whichever internal pull the firmware selected. The current development
+candidate adds mismatch recovery: while KEY1 is held, it samples PA1 with both
+weak pull directions. An open switch follows the pulls, a `250901` press stays
+high, and a `260404` press stays low. Four consistent samples correct the
+button roles and shutdown wake edge for that boot without changing KEY2's
+long-press ISP path. This is not yet hardware-verified, so select the exact
+printed PCB marking for first flash; the fallback does not replace that check.
 
 Once compatible FOSSASIA firmware is installed, holding KEY2 for about
 2.2 seconds shows one dot near the middle and exposes WCH ISP as `4348:55e0`
