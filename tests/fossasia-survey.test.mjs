@@ -638,13 +638,34 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(animationHeader, /FROGALERT_ANIMATION_WIRE_COLUMNS\s+48U/);
   assert.match(overlay, /^CFLAGS \+= -DFROGALERT_SURVEY=1$/m);
   assert.match(overlay, /src\/frogalert_animation_compat\.c/);
-  assert.match(build, /baseline\|canary\|survey/);
+  assert.match(build, /baseline\|canary\|survey\|frogs/);
   assert.match(build, /frogalert-animation-compat\.c/);
   assert.match(build, /frogalert-animation-compat\.h/);
   assert.match(build, /apply-fossasia-survey\.mjs/);
   assert.doesNotMatch(build, /\bwchisp\b/);
   assert.match(build, /audit-fossasia-usbc\.mjs" ram/);
   assert.match(build, /cleanup_failed_audit/);
+});
+
+test("dancing-frog lane replaces only the visible counter view", async () => {
+  const [survey, frogsOverlay, build] = await Promise.all([
+    readFile(path.join(firmwareDirectory, "frogalert-survey.c"), "utf8"),
+    readFile(path.join(firmwareDirectory, "frogalert-frogs.mk"), "utf8"),
+    readFile(path.join(repositoryRoot, "scripts/build-fossasia-usbc"), "utf8"),
+  ]);
+
+  assert.match(frogsOverlay, /FROGALERT_DANCING_FROG_MODE=1/);
+  assert.match(frogsOverlay, /frogalert_dancing_frog_identity/);
+  assert.match(survey, /SURVEY_FROG_VIEW_FRAME_TIME\s+TMOS_TICKS_FROM_MS\(500U\)/);
+  assert.match(
+    survey,
+    /frogalert_survey_counter_mode\(\)[\s\S]*FROGALERT_DANCING_FROG_MODE[\s\S]*frogalert_display_frog_dance\(frog_view_frame\)/,
+  );
+  assert.match(
+    survey,
+    /SURVEY_FROG_VIEW_FRAME_EVENT[\s\S]*frog_view_frame \^= 1U/,
+  );
+  assert.match(build, /image_variant="-frogs"/);
 });
 
 test("survey role pattern is pinned to WCH's combined-role example", async () => {

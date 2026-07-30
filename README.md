@@ -28,6 +28,10 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   built-in/custom monitoring, one second per alert frame on a roughly 20-second
   survey cadence, and a BadgeMagic frog animation; the current bundle is
   published together as `0.1.0-beta.1` and available to the flasher
+- dancing-frog firmware: a separate hardware-unverified lane retains the same
+  passive surveys, alerts, BadgeMagic app window, adaptive buttons, and KEY2
+  recovery, but replaces the visible Bluetooth counter with three frogs
+  alternating poses every half-second
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
@@ -121,6 +125,14 @@ releases display ownership. The private survey lane also ports bkero's
 45 Hz to 182 Hz and blanking each column pair only once per off-period. That
 should reduce visible strobing, but the higher interrupt rate and current/BLE
 behavior remain hardware-unverified.
+
+The optional `frogs` build lane uses the same view button and survey/alert
+logic, but its rotation is
+`Name 1 → dancing frogs → Name 2 → dancing frogs → …`. The three-frog view is
+fixed in place and alternates between its two poses every 500 ms. Alerts and
+the BadgeMagic readiness cue temporarily own the display, then the frogs
+resume. This variant is separate from the published counter beta and remains
+hardware-unverified.
 
 Current FrogAlert candidates let either short button open a roughly ten-second
 BadgeMagic app window while showing the normal nametag. The Android upload path
@@ -226,6 +238,7 @@ toolchain (about 345 MB). Omitting a profile selects the newer Nyx
 ./scripts/build-fossasia-usbc baseline --check
 ./scripts/build-fossasia-usbc canary --check
 ./scripts/build-fossasia-usbc survey --check
+./scripts/build-fossasia-usbc frogs --check
 ```
 
 Pass the legacy profile explicitly when building for the older board:
@@ -234,6 +247,7 @@ Pass the legacy profile explicitly when building for the older board:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --check
 ```
 
 The default may also be named explicitly:
@@ -245,15 +259,18 @@ The default may also be named explicitly:
 The resulting test images are named
 `frogalert-top-b1144c-260404.bin` and
 `frogalert-bottom-b1144c-250901.bin` inside their respective profile build
-directories. To have `wchisp` wait for a bottom-button badge to enter ISP:
+directories. The new variant is named
+`frogalert-frogs-top-b1144c-260404.bin` or
+`frogalert-frogs-bottom-b1144c-250901.bin` under the `frogs/` lane. To have
+`wchisp` wait for a bottom-button badge to enter ISP with the frog variant:
 
 ```bash
 wchisp -r 30 flash \
-  ./tmp/fossasia-usbc/build/B1144C_250901_USB_C/survey/frogalert-bottom-b1144c-250901.bin
+  ./tmp/fossasia-usbc/build/B1144C_250901_USB_C/frogs/frogalert-frogs-bottom-b1144c-250901.bin
 ```
 
-The first derived canary adds only an inert identifying string. The survey lane
-adds the passive detector and embeds the compiled profile id. Every
+The first derived canary adds only an inert identifying string. The survey and
+frog lanes add the passive detector and embed the compiled profile id. Every
 profile/lane pair has its own locked size and SHA-256 in
 `firmware/fossasia-usbc/upstream-lock.json`; a hash for one profile is never
 evidence for the other.

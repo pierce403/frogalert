@@ -28,6 +28,7 @@
 #define SURVEY_WATCHDOG_EVENT     (1U << 4)
 #define SURVEY_ALERT_END_EVENT    (1U << 5)
 #define SURVEY_APP_WINDOW_END_EVENT (1U << 6)
+#define SURVEY_FROG_VIEW_FRAME_EVENT (1U << 7)
 
 #define TMOS_TICKS_FROM_MS(ms) ((uint32_t)(ms) * 1000U / 625U)
 #define SURVEY_CYCLE_TIME_MS  20000U
@@ -39,6 +40,7 @@
 #define SURVEY_NEXT_DELAY     TMOS_TICKS_FROM_MS( \
 	SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS - SURVEY_RADIO_QUIET_MS)
 #define SURVEY_FRAME_TIME     TMOS_TICKS_FROM_MS(1000U)
+#define SURVEY_FROG_VIEW_FRAME_TIME TMOS_TICKS_FROM_MS(500U)
 #define SURVEY_WATCHDOG_TIME  TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_SCAN_TICKS     TMOS_TICKS_FROM_MS(SURVEY_SCAN_TIME_MS)
 #define SURVEY_APP_WINDOW_TIME TMOS_TICKS_FROM_MS(10000U)
@@ -59,6 +61,12 @@ __attribute__((used, section(".rodata.frogalert")))
 const char frogalert_survey_identity[] =
 	"FROGALERT:SURVEY-CONFIG-V1:FOSSASIA-9ce885d:"
 	FROGALERT_HARDWARE_PROFILE_NAME ":UNVERIFIED";
+
+#ifdef FROGALERT_DANCING_FROG_MODE
+__attribute__((used, section(".rodata.frogalert")))
+const char frogalert_dancing_frog_identity[] =
+	"FROGALERT:VIEW:DANCING-FROGS:UNVERIFIED";
+#endif
 
 static const char cop_alert[] = "COP DETECTED";
 static const char flipper_alert[] = "FLIPPER DETECTED";
@@ -81,6 +89,9 @@ static uint8_t completed_phase = SURVEY_PHASE_INITIALIZING;
 static uint8_t alert_visible;
 static uint8_t alert_frame_count;
 static uint8_t alert_frame_index;
+#ifdef FROGALERT_DANCING_FROG_MODE
+static uint8_t frog_view_frame;
+#endif
 static frogalert_survey_alert_t detected_alert;
 static const uint8_t *detected_custom_message;
 static uint8_t detected_custom_message_length;
@@ -148,20 +159,37 @@ static void display_selected_view(void)
 		else
 			frogalert_display_survey_page_redraw();
 	} else if (frogalert_survey_counter_mode()) {
+#ifdef FROGALERT_DANCING_FROG_MODE
+		frogalert_display_frog_dance(frog_view_frame);
+#else
 		frogalert_display_survey_count(latest_count, latest_saturated,
 					       latest_phase);
+#endif
 	} else {
 		frogalert_display_survey_release();
 	}
 }
+
+#ifdef FROGALERT_DANCING_FROG_MODE
+static void schedule_frog_view_frame(void)
+{
+	tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
+	if (!alert_visible && frogalert_survey_allowed() &&
+	    frogalert_survey_counter_mode())
+		tmos_start_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT,
+				SURVEY_FROG_VIEW_FRAME_TIME);
+}
+#endif
 
 static void save_survey_view(uint8_t count, uint8_t saturated, uint8_t phase)
 {
 	latest_count = count;
 	latest_saturated = saturated;
 	latest_phase = phase;
+#ifndef FROGALERT_DANCING_FROG_MODE
 	if (!alert_visible && frogalert_survey_counter_mode())
 		frogalert_display_survey_count(count, saturated, phase);
+#endif
 }
 
 static void commit_survey_view(uint8_t count, uint8_t saturated, uint8_t phase)
@@ -204,10 +232,16 @@ static void show_alert(const frogalert_survey_match_t *match)
 	alert_frame_index = 0;
 	tmos_stop_task(survey_task_id, SURVEY_DISPLAY_PAGE_EVENT);
 	tmos_stop_task(survey_task_id, SURVEY_ALERT_END_EVENT);
+#ifdef FROGALERT_DANCING_FROG_MODE
+	tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
+#endif
 	alert_frame_count = render_alert(alert);
 	if (!alert_frame_count) {
 		alert_visible = 0;
 		detected_alert = FROGALERT_ALERT_NONE;
+#ifdef FROGALERT_DANCING_FROG_MODE
+		schedule_frog_view_frame();
+#endif
 		return;
 	}
 	if (alert_frame_count > 1)
@@ -485,6 +519,9 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		alert_frame_count = 0;
 		alert_frame_index = 0;
 		display_selected_view();
+#ifdef FROGALERT_DANCING_FROG_MODE
+		schedule_frog_view_frame();
+#endif
 		return events ^ SURVEY_ALERT_END_EVENT;
 	}
 
@@ -517,6 +554,20 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		return events ^ SURVEY_DISPLAY_PAGE_EVENT;
 	}
 
+	if (events & SURVEY_FROG_VIEW_FRAME_EVENT) {
+#ifdef FROGALERT_DANCING_FROG_MODE
+		if (!alert_visible && frogalert_survey_allowed() &&
+		    frogalert_survey_counter_mode()) {
+			frog_view_frame ^= 1U;
+			frogalert_display_frog_dance(frog_view_frame);
+			tmos_start_task(survey_task_id,
+					SURVEY_FROG_VIEW_FRAME_EVENT,
+					SURVEY_FROG_VIEW_FRAME_TIME);
+		}
+#endif
+		return events ^ SURVEY_FROG_VIEW_FRAME_EVENT;
+	}
+
 	return 0;
 }
 
@@ -528,7 +579,14 @@ uint8_t frogalert_survey_display_active(void)
 
 void frogalert_survey_view_changed(void)
 {
+#ifdef FROGALERT_DANCING_FROG_MODE
+	tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
+	frog_view_frame = 0;
+#endif
 	display_selected_view();
+#ifdef FROGALERT_DANCING_FROG_MODE
+	schedule_frog_view_frame();
+#endif
 }
 
 uint8_t frogalert_survey_suspend(uint8_t advertise_after)
@@ -570,6 +628,9 @@ void frogalert_survey_open_app_window(void)
 {
 	app_window_active = 1;
 	tmos_stop_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT);
+#ifdef FROGALERT_DANCING_FROG_MODE
+	tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
+#endif
 	if (frogalert_survey_suspend(TRUE))
 		ble_enable_advertise();
 	frogalert_display_app_attention_start();

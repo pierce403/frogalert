@@ -101,6 +101,10 @@
         "survey": {
           "size": 205892,
           "sha256": "c98fc0f4c30793cce6bda998f7bbfb8b1428fa23804bb3bbd0d70308bacc19c5"
+        },
+        "frogs": {
+          "size": 205972,
+          "sha256": "495921986be061d0a0bb575b7943231281c61afd921544df3ced053fe4e57a38"
         }
       },
       "B1144C_260404_USB_C": {
@@ -115,6 +119,10 @@
         "survey": {
           "size": 205892,
           "sha256": "dc2e7123d4882129abad2798773b93a2b3914fa8038c1527ffc5469258e4bacc"
+        },
+        "frogs": {
+          "size": 205972,
+          "sha256": "115ac29613b099cc5d409bd3338f1a4f86befc82727989d4b00a053b9c838f50"
         }
       }
     },

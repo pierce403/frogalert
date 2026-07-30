@@ -31,10 +31,16 @@ export function surveyTextForProfile(profile) {
   return `FROGALERT:SURVEY-CONFIG-V1:FOSSASIA-9ce885d:${profile}:UNVERIFIED`;
 }
 export const surveyText = surveyTextForProfile(defaultProfile);
+export const dancingFrogText =
+  "FROGALERT:VIEW:DANCING-FROGS:UNVERIFIED";
+
+function isSurveyMode(mode) {
+  return mode === "survey" || mode === "frogs";
+}
 
 function validateMode(mode) {
   assert.ok(
-    mode === "baseline" || mode === "canary" || mode === "survey",
+    mode === "baseline" || mode === "canary" || isSurveyMode(mode),
     "invalid build mode",
   );
 }
@@ -121,9 +127,9 @@ export function validateLock(lock) {
   for (const profile of supportedProfiles) {
     assert.deepEqual(
       Object.keys(lock.build.profile_images[profile]),
-      ["baseline", "canary", "survey"],
+      ["baseline", "canary", "survey", "frogs"],
     );
-    for (const mode of ["baseline", "canary", "survey"]) {
+    for (const mode of ["baseline", "canary", "survey", "frogs"]) {
       const image = lock.build.profile_images[profile][mode];
       assert.ok(
         Number.isSafeInteger(image.size) && image.size > 0,
@@ -321,10 +327,15 @@ export function verifySymbolTable(nmOutput, mode, lock) {
   );
   assert.equal(
     symbols.has("frogalert_survey_identity"),
-    mode === "survey",
+    isSurveyMode(mode),
     `survey symbol mismatch for ${mode} build`,
   );
-  if (mode === "survey") {
+  assert.equal(
+    symbols.has("frogalert_dancing_frog_identity"),
+    mode === "frogs",
+    `dancing-frog symbol mismatch for ${mode} build`,
+  );
+  if (isSurveyMode(mode)) {
     for (const symbol of lock.build.required_survey_symbols) {
       assert.ok(symbols.has(symbol), `required survey symbol missing: ${symbol}`);
     }
@@ -453,10 +464,15 @@ export async function verifyBinary(file, mode, lock, profile = lock.default_prof
   );
   assert.equal(
     contains(image, Buffer.from(surveyTextForProfile(profile), "ascii")),
-    mode === "survey",
+    isSurveyMode(mode),
     `survey marker mismatch for ${mode} build`,
   );
-  if (mode === "survey") {
+  assert.equal(
+    contains(image, Buffer.from(dancingFrogText, "ascii")),
+    mode === "frogs",
+    `dancing-frog marker mismatch for ${mode} build`,
+  );
+  if (isSurveyMode(mode)) {
     for (const text of lock.build.required_survey_ascii) {
       assert.ok(
         contains(image, Buffer.from(text, "ascii")),

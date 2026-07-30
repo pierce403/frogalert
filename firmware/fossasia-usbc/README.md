@@ -39,6 +39,7 @@ Omit the profile for the default `260404` board:
 ./scripts/build-fossasia-usbc baseline --check
 ./scripts/build-fossasia-usbc canary --check
 ./scripts/build-fossasia-usbc survey --check
+./scripts/build-fossasia-usbc frogs --check
 ```
 
 Name the legacy board explicitly:
@@ -47,6 +48,7 @@ Name the legacy board explicitly:
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --check
 ```
 
 Successful builds retain the audited upstream filenames internally and also
@@ -54,6 +56,8 @@ create position-labelled aliases:
 
 - `frogalert-top-b1144c-260404.bin`
 - `frogalert-bottom-b1144c-250901.bin`
+- `frogalert-frogs-top-b1144c-260404.bin`
+- `frogalert-frogs-bottom-b1144c-250901.bin`
 
 CI candidate bundles likewise include `top` or `bottom` in both BIN and ELF
 filenames.
@@ -80,6 +84,12 @@ behavior, KEY1 retains long-press brightness, and the separate long-KEY2 ISP
 task remains unchanged. Passive surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio
 schedule runs.
+
+The separate `frogs` lane retains that complete survey and compatibility
+shell, but renders the alternate view as three fixed frogs alternating between
+two poses every 500 ms. Detection alerts and the BadgeMagic readiness cue
+preempt the frogs through the same display-ownership path, then return to the
+frog view. It does not change or replace the locked `survey` artifacts.
 
 In counter view, the final character exposes progress: `I` means Central
 initialization, `R` means ready/waiting, and `S` means the three-second passive
@@ -191,12 +201,12 @@ raw BIN from the audited ELF and requires byte identity with the Make-produced
 BIN. Every profile/lane size and SHA-256 is locked independently; the legacy
 baseline also must match the already recovered FOSSASIA image exactly.
 
-The survey lane additionally requires its passive-scan/cancel/suspend,
+The survey and frog lanes additionally require their passive-scan/cancel/suspend,
 display-view, configuration, bounded classifier, text-alert, frog-render, and
 animation-ownership symbols plus at least 8 KiB between static RAM and the
 stack top. The Actions candidate packager requires both profile-specific
-survey BIN/ELF pairs and produces one checksum/metadata bundle with every
-approval flag false.
+BIN/ELF pairs for each lane and produces separate counter and dancing-frog
+checksum/metadata directories with every approval flag false.
 
 It does **not** prove that a derived image boots, scans, displays correctly,
 accepts a BadgeMagic upload, enters ISP on KEY2, or recovers after a failed

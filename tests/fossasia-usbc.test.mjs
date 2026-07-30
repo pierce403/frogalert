@@ -68,6 +68,8 @@ test("FOSSASIA USB-C lock pins source, toolchain, and known-good baseline", asyn
   assert.equal(lock.build.minimum_stack_headroom, 8192);
   assert.ok(Number.isSafeInteger(legacyImages.survey.size));
   assert.ok(Number.isSafeInteger(defaultImages.survey.size));
+  assert.ok(Number.isSafeInteger(legacyImages.frogs.size));
+  assert.ok(Number.isSafeInteger(defaultImages.frogs.size));
   assert.deepEqual(lock.build.required_survey_ascii, [
     "COP DETECTED",
     "FLIPPER DETECTED",
@@ -163,7 +165,10 @@ test("build wrappers gate the exact profile and keep outputs local", async () =>
   assert.match(build, /baseline\|canary/);
   assert.match(build, /USBC_VERSION=1/);
   assert.match(build, /tmp\/fossasia-usbc\/build/);
-  assert.match(build, /frogalert-\$image_position-b1144c-\$image_revision\.bin/);
+  assert.match(
+    build,
+    /frogalert\$image_variant-\$image_position-b1144c-\$image_revision\.bin/,
+  );
   assert.match(build, /image_position="bottom"/);
   assert.match(build, /image_position="top"/);
   assert.match(build, /audit-fossasia-usbc\.mjs/);

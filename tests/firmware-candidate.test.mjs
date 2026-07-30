@@ -30,15 +30,6 @@ async function makeFixture(t) {
 
   const fixtures = {};
   for (const [profileIndex, profile] of PROFILES.entries()) {
-    const buildRoot = join(
-      root,
-      "tmp",
-      "fossasia-usbc",
-      "build",
-      profile,
-      "survey",
-    );
-    await mkdir(buildRoot, { recursive: true });
     const bin = Buffer.alloc(8192);
     for (let index = 0; index < bin.length; index++) {
       bin[index] = (index + profileIndex) & 0xff;
@@ -49,10 +40,22 @@ async function makeFixture(t) {
       elf[index] = (index * 7 + profileIndex) & 0xff;
     }
     elf.set([0x7f, 0x45, 0x4c, 0x46], 0);
-    await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
-    await writeFile(join(buildRoot, "badgemagic-ch582.elf"), elf);
-    await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
-    fixtures[profile] = { buildRoot, bin, elf };
+    fixtures[profile] = { bin, elf, buildRoots: {} };
+    for (const lane of ["survey", "frogs"]) {
+      const buildRoot = join(
+        root,
+        "tmp",
+        "fossasia-usbc",
+        "build",
+        profile,
+        lane,
+      );
+      await mkdir(buildRoot, { recursive: true });
+      await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
+      await writeFile(join(buildRoot, "badgemagic-ch582.elf"), elf);
+      await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
+      fixtures[profile].buildRoots[lane] = buildRoot;
+    }
   }
 
   const lock = {
@@ -81,6 +84,10 @@ async function makeFixture(t) {
           profile,
           {
             survey: {
+              size: fixtures[profile].bin.byteLength,
+              sha256: sha256(fixtures[profile].bin),
+            },
+            frogs: {
               size: fixtures[profile].bin.byteLength,
               sha256: sha256(fixtures[profile].bin),
             },
@@ -181,9 +188,27 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
   );
 });
 
+test("candidate bundle can package the dancing-frog lane separately", async (t) => {
+  const { root } = await makeFixture(t);
+  const outputRoot = join(root, "tmp", "frog-candidate-output");
+  const metadata = await buildFirmwareCandidateBundle({
+    repositoryRoot: root,
+    outputRoot,
+    sourceCommit: SOURCE_COMMIT,
+    buildLane: "frogs",
+  });
+
+  assert.equal(metadata.build_lane, "frogs");
+  assert.match(metadata.label, /dancing-frog/i);
+  for (const profile of PROFILES) {
+    assert.match(metadata.artifacts[profile].firmware.file, /^frogalert-frogs-/);
+  }
+});
+
 test("candidate packaging rejects an image that differs from the audited lock", async (t) => {
   const { root, fixtures } = await makeFixture(t);
-  const { bin, buildRoot } = fixtures[PROFILES[0]];
+  const { bin, buildRoots } = fixtures[PROFILES[0]];
+  const buildRoot = buildRoots.survey;
   bin[100] ^= 0xff;
   await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
   await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
@@ -199,7 +224,8 @@ test("candidate packaging rejects an image that differs from the audited lock", 
 
 test("candidate packaging rejects a BIN that is not bound to the audited ELF", async (t) => {
   const { root, fixtures } = await makeFixture(t);
-  const { bin, buildRoot } = fixtures[PROFILES[0]];
+  const { bin, buildRoots } = fixtures[PROFILES[0]];
+  const buildRoot = buildRoots.survey;
   bin[101] ^= 0xff;
   await writeFile(
     join(buildRoot, "badgemagic-ch582.from-elf.bin"),

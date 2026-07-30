@@ -165,15 +165,18 @@ host verification:
 ./scripts/build-fossasia-usbc baseline --check
 ./scripts/build-fossasia-usbc canary --check
 ./scripts/build-fossasia-usbc survey --check
+./scripts/build-fossasia-usbc frogs --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --check
 ```
 
 The omitted profile selects default `B1144C_260404_USB_C`. An active-firmware
-`main` commit runs both survey profiles after the ordinary CI contract and
-uploads one expiring `frogalert-candidate-<commit>` Actions artifact containing
-both BIN/ELF pairs. Candidate metadata must keep `hardware_verified`,
+`main` commit runs both survey variants for both profiles after the ordinary CI
+contract and uploads one expiring `frogalert-candidate-<commit>` Actions
+artifact with separate counter and `frogs` directories. Candidate metadata
+must keep `hardware_verified`,
 `flash_approved`, `publishable`, and `hosted_on_site` false; this build lane
 never edits the public manifest or creates a GitHub Release.
 Successful local builds also copy the audited bytes to
@@ -372,6 +375,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   releases with explicit schema-2 user-confirmed evidence. Missing exact-hash
   CLI and WebUSB transcripts remain a stable-release limitation, not a beta
   blocker.
+- The optional `frogs` lane retains the entire private survey/alert/app/recovery
+  shell and changes only the alternate visible view: three fixed frogs
+  alternate poses every 500 ms. Alerts and the BadgeMagic readiness cue stop
+  that one-shot frame event and the selected frog view resumes afterward. Its
+  hardware-unverified locked images are 205,972 bytes: top/`260404`
+  `115ac296…c838f50`, bottom/`250901` `49592198…57a38`.
 - Current post-beta survey source adds mismatch recovery without changing the
   common LED map or KEY2/PB22 path. Until KEY1 is held, each image uses its
   compiled profile. The 50 Hz button scan then samples PA1 after a 2 us settle

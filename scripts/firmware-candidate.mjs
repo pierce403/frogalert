@@ -15,7 +15,7 @@ const PROFILES = Object.freeze([
   "B1144C_250901_USB_C",
 ]);
 const DEFAULT_PROFILE = PROFILES[0];
-const BUILD_LANE = "survey";
+const BUILD_LANES = Object.freeze(["survey", "frogs"]);
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -64,6 +64,7 @@ export async function buildFirmwareCandidateBundle({
   outputRoot,
   sourceCommit,
   repository = "pierce403/frogalert",
+  buildLane = "survey",
 } = {}) {
   const root = resolve(repositoryRoot || ".");
   const scratchRoot = join(root, "tmp");
@@ -74,6 +75,9 @@ export async function buildFirmwareCandidateBundle({
 
   const commit = requireCommit(sourceCommit);
   const githubRepository = requireRepository(repository);
+  if (!BUILD_LANES.includes(buildLane)) {
+    throw new Error(`unsupported candidate build lane: ${buildLane}`);
+  }
   const version = firmwareCandidateVersion(commit);
   const lock = JSON.parse(
     await readFile(join(root, "firmware", "fossasia-usbc", "upstream-lock.json"), "utf8"),
@@ -92,7 +96,7 @@ export async function buildFirmwareCandidateBundle({
   const copies = [];
   const checksumLines = [];
   for (const profile of PROFILES) {
-    const lockedImage = lock.build?.profile_images?.[profile]?.[BUILD_LANE];
+    const lockedImage = lock.build?.profile_images?.[profile]?.[buildLane];
     if (
       !Number.isSafeInteger(lockedImage?.size) ||
       typeof lockedImage?.sha256 !== "string"
@@ -105,7 +109,7 @@ export async function buildFirmwareCandidateBundle({
       "fossasia-usbc",
       "build",
       profile,
-      BUILD_LANE,
+      buildLane,
     );
     const bin = await readFile(join(buildRoot, "badgemagic-ch582.bin"));
     const elf = await readFile(join(buildRoot, "badgemagic-ch582.elf"));
@@ -124,11 +128,12 @@ export async function buildFirmwareCandidateBundle({
       bin.byteLength !== lockedImage.size ||
       binSha256 !== lockedImage.sha256
     ) {
-      throw new Error(`${profile} candidate BIN does not match the audited survey lock`);
+      throw new Error(`${profile} candidate BIN does not match the audited ${buildLane} lock`);
     }
 
+    const variant = buildLane === "frogs" ? "-frogs" : "";
     const stem =
-      `frogalert-${version}-${profilePosition(profile)}-${profileStem(profile)}`;
+      `frogalert${variant}-${version}-${profilePosition(profile)}-${profileStem(profile)}`;
     const binName = `${stem}.bin`;
     const elfName = `${stem}.elf`;
     artifacts[profile] = {
@@ -159,7 +164,10 @@ export async function buildFirmwareCandidateBundle({
     schema_version: 2,
     id: `frogalert-${version}-${commit}`,
     kind: "frogalert-candidate",
-    label: "FrogAlert CI candidate",
+    label:
+      buildLane === "frogs"
+        ? "FrogAlert dancing-frog CI candidate"
+        : "FrogAlert CI candidate",
     version,
     channel: "candidate",
     source_commit: commit,
@@ -167,7 +175,7 @@ export async function buildFirmwareCandidateBundle({
     target: "ch582m-badgemagic-11x44",
     default_hardware_profile: DEFAULT_PROFILE,
     hardware_profiles: [...PROFILES],
-    build_lane: BUILD_LANE,
+    build_lane: buildLane,
     hardware_verified: false,
     flash_approved: false,
     publishable: false,
@@ -192,6 +200,7 @@ export async function buildFirmwareCandidateBundle({
     `Source commit: ${commit}`,
     `Default target profile: ${DEFAULT_PROFILE}`,
     `Included profiles: ${PROFILES.join(", ")}`,
+    `Build lane: ${buildLane}`,
     "",
     ...PROFILES.flatMap((profile) => [
       `- ${profile} (${artifacts[profile].pcb_marking}): \`${artifacts[profile].firmware.sha256}\``,
@@ -230,6 +239,7 @@ async function runCli() {
     outputRoot,
     sourceCommit,
     repository: process.env.GITHUB_REPOSITORY || "pierce403/frogalert",
+    buildLane: process.env.FROGALERT_CANDIDATE_LANE || "survey",
   });
   console.log(
     `prepared ${metadata.version} hardware-unverified candidate in ${relative(repositoryRoot, outputRoot)}`,

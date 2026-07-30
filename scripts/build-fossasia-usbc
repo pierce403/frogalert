@@ -16,7 +16,7 @@ build_mode=""
 check_mode=""
 
 case "${1:-}" in
-  baseline|canary|survey)
+  baseline|canary|survey|frogs)
     profile="$default_profile"
     build_mode="$1"
     check_mode="${2:-}"
@@ -33,9 +33,9 @@ esac
 if [[ "$profile" != "B1144C_250901_USB_C" &&
       "$profile" != "B1144C_260404_USB_C" ]] ||
   [[ "$build_mode" != "baseline" && "$build_mode" != "canary" &&
-    "$build_mode" != "survey" ]] ||
+    "$build_mode" != "survey" && "$build_mode" != "frogs" ]] ||
   [[ -n "$check_mode" && "$check_mode" != "--check" ]]; then
-  echo "usage: ./scripts/build-fossasia-usbc [B1144C_250901_USB_C|B1144C_260404_USB_C] {baseline|canary|survey} [--check]" >&2
+  echo "usage: ./scripts/build-fossasia-usbc [B1144C_250901_USB_C|B1144C_260404_USB_C] {baseline|canary|survey|frogs} [--check]" >&2
   echo "Omit the profile to build the default B1144C_260404_USB_C profile." >&2
   exit 2
 fi
@@ -50,8 +50,12 @@ else
   image_position="top"
   image_revision="260404"
 fi
-named_bin="$build_directory/frogalert-$image_position-b1144c-$image_revision.bin"
-named_elf="$build_directory/frogalert-$image_position-b1144c-$image_revision.elf"
+image_variant=""
+if [[ "$build_mode" == "frogs" ]]; then
+  image_variant="-frogs"
+fi
+named_bin="$build_directory/frogalert$image_variant-$image_position-b1144c-$image_revision.bin"
+named_elf="$build_directory/frogalert$image_variant-$image_position-b1144c-$image_revision.elf"
 audit_complete=0
 cleanup_failed_audit() {
   if [[ "$audit_complete" != "1" ]]; then
@@ -97,7 +101,7 @@ if [[ "$build_mode" == "canary" ]]; then
   makefiles+=(
     -f "$repo_root/firmware/fossasia-usbc/frogalert-canary.mk"
   )
-elif [[ "$build_mode" == "survey" ]]; then
+elif [[ "$build_mode" == "survey" || "$build_mode" == "frogs" ]]; then
   cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-survey.c" \
     "$source_directory/src/ble/frogalert_survey.c"
@@ -126,6 +130,11 @@ elif [[ "$build_mode" == "survey" ]]; then
   makefiles+=(
     -f "$repo_root/firmware/fossasia-usbc/frogalert-survey.mk"
   )
+  if [[ "$build_mode" == "frogs" ]]; then
+    makefiles+=(
+      -f "$repo_root/firmware/fossasia-usbc/frogalert-frogs.mk"
+    )
+  fi
 fi
 
 jobs="${FROGALERT_BUILD_JOBS:-}"
@@ -198,8 +207,10 @@ if [[ "$build_mode" == "baseline" ]]; then
   fi
 elif [[ "$build_mode" == "canary" ]]; then
   echo "canary gate passed: only the C metadata overlay was requested"
-else
+elif [[ "$build_mode" == "survey" ]]; then
   echo "survey candidate gate passed: bounded passive scan with persistent count requested"
+else
+  echo "dancing-frog candidate gate passed: passive alerts with a persistent frog view requested"
 fi
 echo "hardware profile: $profile"
 echo "build evidence: $named_bin"
