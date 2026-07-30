@@ -380,7 +380,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   alternate poses every 500 ms. Alerts and the BadgeMagic readiness cue stop
   that one-shot frame event and the selected frog view resumes afterward. Its
   hardware-unverified locked images are 205,972 bytes: top/`260404`
-  `115ac296…c838f50`, bottom/`250901` `49592198…57a38`.
+  `115ac296…c838f50`, bottom/`250901` `49592198…57a38`. Keep the entire
+  frog-only event branch inside `FROGALERT_DANCING_FROG_MODE`; an empty
+  runtime branch still changed the counter BIN by eight bytes and broke its
+  locked CI hash.
 - Current post-beta survey source adds mismatch recovery without changing the
   common LED map or KEY2/PB22 path. Until KEY1 is held, each image uses its
   compiled profile. The 50 Hz button scan then samples PA1 after a 2 us settle

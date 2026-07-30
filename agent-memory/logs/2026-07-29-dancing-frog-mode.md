@@ -15,3 +15,7 @@
   - bottom `B1144C_250901`: 205,972 bytes,
     `495921986be061d0a0bb575b7943231281c61afd921544df3ced053fe4e57a38`
 - These images are hardware-unverified and remain under ignored `tmp/`.
+- First CI exposed an eight-byte counter-image drift because the frog event
+  test remained compiled with an empty body when the variant macro was off.
+  Guarding the entire branch restored both pre-existing survey hashes while
+  retaining both frog hashes.

@@ -554,8 +554,8 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		return events ^ SURVEY_DISPLAY_PAGE_EVENT;
 	}
 
-	if (events & SURVEY_FROG_VIEW_FRAME_EVENT) {
 #ifdef FROGALERT_DANCING_FROG_MODE
+	if (events & SURVEY_FROG_VIEW_FRAME_EVENT) {
 		if (!alert_visible && frogalert_survey_allowed() &&
 		    frogalert_survey_counter_mode()) {
 			frog_view_frame ^= 1U;
@@ -564,9 +564,9 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 					SURVEY_FROG_VIEW_FRAME_EVENT,
 					SURVEY_FROG_VIEW_FRAME_TIME);
 		}
-#endif
 		return events ^ SURVEY_FROG_VIEW_FRAME_EVENT;
 	}
+#endif
 
 	return 0;
 }
