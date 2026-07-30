@@ -363,6 +363,70 @@ export function applyMainHooks(source) {
   );
   result = replaceOnce(
     result,
+    `	bmlist_drop(curr_bm);
+}
+
+static uint16_t common_tasks`,
+    `	bmlist_drop(curr_bm);
+}
+
+#ifdef FROGALERT_SURVEY
+static uint8_t frogalert_bmlist_blank(void)
+{
+	bm_t *start = bmlist_current();
+	bm_t *bm = start;
+
+	if (!bm)
+		return TRUE;
+	do {
+		if (bm->buf) {
+			for (uint16_t column = 0; column < bm->width; column++) {
+				if (bm->buf[column])
+					return FALSE;
+			}
+		}
+		bm = bm->next;
+	} while (bm && bm != start);
+	return TRUE;
+}
+
+static void frogalert_apply_blank_nametag_fallback(void)
+{
+	static const char fallback[] = "503.PARTY";
+	const uint16_t width = (sizeof(fallback) - 1U) * 6U;
+	bm_t *bm = bmlist_current();
+	uint16_t *buffer;
+
+	if (!bm || !frogalert_bmlist_blank())
+		return;
+	while (bm->next != bm)
+		bmlist_drop(bm->next);
+	buffer = realloc(bm->buf, width * sizeof(*buffer));
+	if (!buffer)
+		return;
+	bm->buf = buffer;
+	bm->width = width;
+	bm->modes = 0;
+	bm->is_flash = FALSE;
+	bm->is_marquee = FALSE;
+	bm->anim_step = 0;
+	memset(bm->buf, 0, width * sizeof(*bm->buf));
+	for (uint8_t character = 0; character < sizeof(fallback) - 1U;
+	     character++) {
+		for (uint8_t column = 0; column < 5; column++) {
+			bm->buf[character * 6U + column] =
+				(uint16_t)(font5x7[fallback[character] - ' ']
+					[column + 1U] << 2);
+		}
+	}
+}
+#endif
+
+static uint16_t common_tasks`,
+    "blank nametag fallback renderer",
+  );
+  result = replaceOnce(
+    result,
     `static void bm_transition()
 {
 	if (is_play_sequentially) {
@@ -813,6 +877,23 @@ static void disp_charging()
   );
   result = replaceOnce(
     result,
+    `void reload_bmlist()
+{
+	clean_bmlist();
+	load_bmlist();
+}`,
+    `void reload_bmlist()
+{
+	clean_bmlist();
+	load_bmlist();
+#ifdef FROGALERT_SURVEY
+	frogalert_apply_blank_nametag_fallback();
+#endif
+}`,
+    "blank nametag fallback after BadgeMagic upload",
+  );
+  result = replaceOnce(
+    result,
     `static void mode_setup_normal()
 {
 	btn_onOnePress(KEY2, bm_transition);
@@ -874,6 +955,19 @@ static void disp_charging()
 #endif
 	btn_onLongPress(KEY1, change_brightness);`,
     "initial KEY2 virtual counter-view registration",
+  );
+  result = replaceOnce(
+    result,
+    `	load_bmlist();
+
+	ble_setup();`,
+    `	load_bmlist();
+#ifdef FROGALERT_SURVEY
+	frogalert_apply_blank_nametag_fallback();
+#endif
+
+	ble_setup();`,
+    "blank nametag fallback at boot",
   );
   result = replaceOnce(
     result,

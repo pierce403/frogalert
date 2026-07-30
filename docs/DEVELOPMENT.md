@@ -133,6 +133,13 @@ After each three-second discovery, the next attempt waits about 17 seconds.
 That gives a roughly 20-second start-to-start cadence, and a continuously
 present match can retrigger once in each new window.
 
+The FOSSASIA shell always allocates an initial bitmap even when data flash has
+no valid or visible nametag content. After boot and each BadgeMagic list reload,
+the survey patch scans every loaded bitmap. If all pixels are zero, it collapses
+the empty list to one RAM-only scrolling `503.PARTY` bitmap. Any nonzero
+uploaded bitmap bypasses the fallback, and the fallback never writes data
+flash.
+
 Each survey contains one 384-byte `FROGALERTCFGv1` block. Its default enables
 the police, Flipper, KARR, Ray-Ban, and BadgeMagic target groups with no custom
 rules. The browser codec can encode at most eight custom rules using

@@ -28,7 +28,8 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   built-in/custom monitoring, deterministic
   `frogs → KARR → COP → Flipper → custom` priority, one second per alert frame
   on a roughly 20-second survey cadence, and a three-second BadgeMagic frog
-  animation; the current beta bundle predates this new candidate and remains
+  animation; an entirely blank nametag falls back to scrolling `503.PARTY`
+  without modifying data flash; the current beta bundle predates this candidate and remains
   published together as `0.1.0-beta.1` and available to the flasher
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
   passive surveys, alerts, BadgeMagic app window, adaptive buttons, and KEY2

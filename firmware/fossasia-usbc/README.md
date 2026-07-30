@@ -116,6 +116,11 @@ AD-structure classifier mirrors every README detector row:
   service runs a three-second, three-frog animation using two alternating
   poses.
 
+At boot and after each BadgeMagic upload, the firmware examines the complete
+loaded nametag list. If every bitmap is pixel-empty, it creates a scrolling
+`503.PARTY` bitmap in RAM. It does not write that fallback to data flash, and
+the next nonblank BadgeMagic upload replaces it through the normal list reload.
+
 Within one survey window, detection priority is BadgeMagic frogs, then KARR,
 COP, Flipper, and finally optional custom rules. A newly observed result replaces
 the active overlay only when it has strictly higher priority. Repeated or

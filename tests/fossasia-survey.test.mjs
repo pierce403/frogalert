@@ -133,6 +133,18 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\t}",
     "}",
     "void play_splash",
+    "void load_bmlist()",
+    "{",
+    "\tdata_legacy_t header;",
+    "\tdata_get_header(&header);",
+    '\tif (memcmp(header.header, "wang", 5))',
+    "\t\treturn;",
+    "",
+    "\tbm_t *curr_bm = bmlist_current();",
+    "\tbmlist_drop(curr_bm);",
+    "}",
+    "",
+    "static uint16_t common_tasks",
     "\tperipheral_init();",
     "",
     "\tif (! badge_cfg.ble_always_on) {",
@@ -157,6 +169,11 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\t// the Bluetooth animation",
     "\tble_enable_advertise();",
     "\tstart_ble_animation();",
+    "void reload_bmlist()",
+    "{",
+    "\tclean_bmlist();",
+    "\tload_bmlist();",
+    "}",
     "static void mode_setup_normal()",
     "{",
     "\tbtn_onOnePress(KEY2, bm_transition);",
@@ -175,6 +192,9 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\tbtn_onOnePress(KEY2, bm_transition);",
     "\tbtn_onLongPress(KEY1, change_brightness);",
     "\tTMR0_TimerInit((FREQ_SYS / 2000) / 2);",
+    "\tload_bmlist();",
+    "",
+    "\tble_setup();",
     "\t\t\tled_write2dcol(i >> 2, fb[i >> 1], fb[(i >> 1) + 1]);",
     "\t\telse if (state > (badge_cfg.led_brightness&3))",
     "}",
@@ -394,6 +414,18 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /void frogalert_display_frog_dance/);
   assert.match(patchedMain, /static const uint16_t frogs\[2\]\[9\]/);
   assert.match(patchedMain, /static const uint8_t starts\[3\]/);
+  assert.match(
+    patchedMain,
+    /static const char fallback\[\] = "503\.PARTY"/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_bmlist_blank\(\)[\s\S]*realloc\(bm->buf, width \* sizeof\(\*buffer\)\)[\s\S]*font5x7\[fallback\[character\] - ' '\][\s\S]*\[column \+ 1U\] << 2/,
+  );
+  assert.equal(
+    patchedMain.match(/frogalert_apply_blank_nametag_fallback\(\);/g)?.length,
+    2,
+  );
   assert.throws(
     () => applyPeripheralHooks(patchedPeripheral),
     /must match exactly once/,

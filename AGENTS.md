@@ -225,6 +225,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - When a FrogAlert overlay owns the display, consume already queued original
   animation events without rescheduling them; release the selected base view
   only after the final one-second alert frame expires.
+- Survey builds treat a nametag list as blank only when every loaded bitmap
+  pixel is zero. At boot and after BadgeMagic reloads, replace that empty list
+  in RAM with scrolling `503.PARTY`; never persist the fallback or override any
+  nonblank uploaded bitmap.
 - Prefer explicit state transitions and visible logs for destructive flows.
 - Keep the site dependency-free unless a real capability requires otherwise.
 - Keep `site/og-card.svg` as the editable social-card source and render the
