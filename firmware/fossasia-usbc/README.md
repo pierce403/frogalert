@@ -89,7 +89,9 @@ The separate `frogs` lane retains that complete survey and compatibility
 shell, but renders the alternate view as three fixed frogs alternating between
 two poses every 500 ms. Detection alerts and the BadgeMagic readiness cue
 preempt the frogs through the same display-ownership path, then return to the
-frog view. It does not change or replace the locked `survey` artifacts.
+frog view. The cue lasts one second while advertising remains available for
+the full ten-second app window. It does not change or replace the locked
+`survey` artifacts.
 
 In counter view, the final character exposes progress: `I` means Central
 initialization, `R` means ready/waiting, and `S` means the three-second passive

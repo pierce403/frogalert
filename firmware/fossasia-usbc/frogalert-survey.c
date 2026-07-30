@@ -29,6 +29,7 @@
 #define SURVEY_ALERT_END_EVENT    (1U << 5)
 #define SURVEY_APP_WINDOW_END_EVENT (1U << 6)
 #define SURVEY_FROG_VIEW_FRAME_EVENT (1U << 7)
+#define SURVEY_APP_CUE_END_EVENT     (1U << 8)
 
 #define TMOS_TICKS_FROM_MS(ms) ((uint32_t)(ms) * 1000U / 625U)
 #define SURVEY_CYCLE_TIME_MS  20000U
@@ -44,6 +45,7 @@
 #define SURVEY_WATCHDOG_TIME  TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_SCAN_TICKS     TMOS_TICKS_FROM_MS(SURVEY_SCAN_TIME_MS)
 #define SURVEY_APP_WINDOW_TIME TMOS_TICKS_FROM_MS(10000U)
+#define SURVEY_APP_CUE_TIME    TMOS_TICKS_FROM_MS(1000U)
 
 #define SURVEY_PHASE_INITIALIZING 'I'
 #define SURVEY_PHASE_READY        'R'
@@ -80,6 +82,9 @@ static uint8_t restore_advertising;
 static uint8_t cancel_reason;
 static uint8_t advertise_when_idle;
 static uint8_t app_window_active;
+#ifdef FROGALERT_DANCING_FROG_MODE
+static uint8_t app_cue_active;
+#endif
 static uint8_t latest_count;
 static uint8_t latest_saturated;
 static uint8_t latest_phase = SURVEY_PHASE_INITIALIZING;
@@ -529,13 +534,34 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		app_window_active = 0;
 		advertise_when_idle = 0;
 		restore_advertising = 0;
+#ifdef FROGALERT_DANCING_FROG_MODE
+		tmos_stop_task(survey_task_id, SURVEY_APP_CUE_END_EVENT);
+#endif
 		if (!peripheral_is_connected()) {
 			if (!frogalert_badgemagic_persistent_advertising())
 				ble_disable_advertise();
+#ifdef FROGALERT_DANCING_FROG_MODE
+			if (app_cue_active)
+				frogalert_display_app_attention_end();
+#else
 			frogalert_display_app_attention_end();
+#endif
 		}
+#ifdef FROGALERT_DANCING_FROG_MODE
+		app_cue_active = 0;
+#endif
 		return events ^ SURVEY_APP_WINDOW_END_EVENT;
 	}
+
+#ifdef FROGALERT_DANCING_FROG_MODE
+	if (events & SURVEY_APP_CUE_END_EVENT) {
+		if (app_cue_active && !peripheral_is_connected()) {
+			app_cue_active = 0;
+			frogalert_display_app_attention_end();
+		}
+		return events ^ SURVEY_APP_CUE_END_EVENT;
+	}
+#endif
 
 	if (events & SURVEY_DISPLAY_PAGE_EVENT) {
 		if (alert_visible &&
@@ -630,10 +656,16 @@ void frogalert_survey_open_app_window(void)
 	tmos_stop_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT);
 #ifdef FROGALERT_DANCING_FROG_MODE
 	tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
+	tmos_stop_task(survey_task_id, SURVEY_APP_CUE_END_EVENT);
+	app_cue_active = 1;
 #endif
 	if (frogalert_survey_suspend(TRUE))
 		ble_enable_advertise();
 	frogalert_display_app_attention_start();
+#ifdef FROGALERT_DANCING_FROG_MODE
+	tmos_start_task(survey_task_id, SURVEY_APP_CUE_END_EVENT,
+			SURVEY_APP_CUE_TIME);
+#endif
 	tmos_start_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT,
 			SURVEY_APP_WINDOW_TIME);
 }

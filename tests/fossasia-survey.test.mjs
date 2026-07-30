@@ -665,6 +665,15 @@ test("dancing-frog lane replaces only the visible counter view", async () => {
     survey,
     /SURVEY_FROG_VIEW_FRAME_EVENT[\s\S]*frog_view_frame \^= 1U/,
   );
+  assert.match(survey, /SURVEY_APP_CUE_TIME\s+TMOS_TICKS_FROM_MS\(1000U\)/);
+  assert.match(
+    survey,
+    /SURVEY_APP_CUE_END_EVENT[\s\S]*frogalert_display_app_attention_end\(\)/,
+  );
+  assert.match(
+    survey,
+    /SURVEY_APP_WINDOW_TIME\s+TMOS_TICKS_FROM_MS\(10000U\)/,
+  );
   assert.match(build, /image_variant="-frogs"/);
 });
 

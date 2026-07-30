@@ -131,7 +131,10 @@ logic, but its rotation is
 `Name 1 → dancing frogs → Name 2 → dancing frogs → …`. The three-frog view is
 fixed in place and alternates between its two poses every 500 ms. Alerts and
 the BadgeMagic readiness cue temporarily own the display, then the frogs
-resume. This variant is separate from the published counter beta and remains
+resume. The frog lane limits that visible cue to one second while keeping the
+badge discoverable for the full ten-second app window, so repeated mode
+exploration cannot hide the selected view for ten seconds at a time. This
+variant is separate from the published counter beta and remains
 hardware-unverified.
 
 Current FrogAlert candidates let either short button open a roughly ten-second
