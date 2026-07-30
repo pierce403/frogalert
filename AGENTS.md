@@ -344,7 +344,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
   OUI would overmatch, and custom firmware can rename or spoof the device.
   Exact case-insensitive `LED Badge Magic` or advertised `0xFEE0` triggers
-  three frogs in two alternating one-second frames. Passive scans may miss
+  three frogs in three one-second frames using two alternating poses. Detector
+  priority is fixed per survey window: frogs, KARR, COP, Flipper, then custom;
+  only a strictly higher-priority later result may replace the active overlay.
+  Passive scans may miss
   scan-response-only names, so the service fallback can false-positive another
   compatible `0xFEE0` advertiser. The C mirror remains temporary until the Rust
   ABI canary. The image starts a three-second passive window roughly every

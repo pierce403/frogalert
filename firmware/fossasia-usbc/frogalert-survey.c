@@ -146,7 +146,7 @@ static uint8_t render_alert(frogalert_survey_alert_t alert)
 							sizeof(karr_alert) - 1);
 	case FROGALERT_ALERT_FROG_DANCE:
 		frogalert_display_frog_dance(alert_frame_index);
-		return 2;
+		return 3;
 	case FROGALERT_ALERT_CUSTOM:
 		return frogalert_display_survey_message(
 			(const char *)detected_custom_message,
@@ -218,16 +218,53 @@ static void show_survey(uint8_t phase)
 static void show_alert(const frogalert_survey_match_t *match)
 {
 	frogalert_survey_alert_t alert = match->alert;
+	uint8_t incoming_priority;
+	uint8_t current_priority;
+
+	switch (alert) {
+	case FROGALERT_ALERT_FROG_DANCE:
+		incoming_priority = 4;
+		break;
+	case FROGALERT_ALERT_KARR:
+		incoming_priority = 3;
+		break;
+	case FROGALERT_ALERT_COP:
+		incoming_priority = 2;
+		break;
+	case FROGALERT_ALERT_FLIPPER:
+		incoming_priority = 1;
+		break;
+	default:
+		incoming_priority = 0;
+		break;
+	}
+	switch (detected_alert) {
+	case FROGALERT_ALERT_FROG_DANCE:
+		current_priority = 4;
+		break;
+	case FROGALERT_ALERT_KARR:
+		current_priority = 3;
+		break;
+	case FROGALERT_ALERT_COP:
+		current_priority = 2;
+		break;
+	case FROGALERT_ALERT_FLIPPER:
+		current_priority = 1;
+		break;
+	default:
+		current_priority = 0;
+		break;
+	}
 
 	if (alert == FROGALERT_ALERT_NONE || alert == detected_alert ||
 	    (detected_alert != FROGALERT_ALERT_NONE &&
-	     detected_alert != FROGALERT_ALERT_FROG_DANCE))
+	     incoming_priority <= current_priority))
 		return;
 
 	/*
-	 * A broad, friendly FEE0 hint must never hide a text warning.
-	 * A later warning may replace the frog dance; warnings otherwise remain
-	 * stable for the remainder of the short survey window.
+	 * Keep one deterministic result for the survey window. A later, strictly
+	 * higher-priority match may replace the current overlay:
+	 * frogs, then KARR, then COP, then Flipper.
 	 */
 	detected_alert = alert;
 	detected_custom_message = match->message;

@@ -113,7 +113,13 @@ AD-structure classifier mirrors every README detector row:
 - a case-insensitive `QT ` prefix followed by a non-empty serial value produces
   `KARR DETECTED`; and
 - an exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
-  service runs a two-frame, three-frog animation.
+  service runs a three-second, three-frog animation using two alternating
+  poses.
+
+Within one survey window, detection priority is BadgeMagic frogs, then KARR,
+COP, Flipper, and finally optional custom rules. A newly observed result replaces
+the active overlay only when it has strictly higher priority. Repeated or
+lower-priority reports never restart or stomp the current display.
 
 The default 384-byte `FROGALERTCFGv1` block enables all five built-in groups
 and no custom rules. Its CRC covers the schema, compiled hardware-profile id,
@@ -123,8 +129,9 @@ Firmware rejects malformed, mismatched-profile, or bad-CRC configuration and
 disables alerts rather than guessing. Scanning and the count view remain
 available in that failure mode.
 
-Cop, Flipper, KARR, and frog overlays show every generated frame exactly once
-for one second. Each then restores the selected nametag or latest Bluetooth-rune
+Cop, Flipper, and KARR overlays show each generated page exactly once for one
+second. The frog overlay shows three one-second frames, alternating its two
+poses. Each then restores the selected nametag or latest Bluetooth-rune
 `00` through `64+` counter view without modifying uploaded content. Passive discovery
 does not guarantee delivery of a local name carried only in scan response, so
 the advertised-`0xFEE0` branch is a deliberately broad fallback and may animate

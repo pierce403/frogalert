@@ -87,6 +87,18 @@ const OUI_RULES: &[OuiRule] = &[
 // These mirror Unagi's currently seeded name rules.
 const NAME_RULES: &[NameRule] = &[
     NameRule {
+        needle: b"led badge magic",
+        kind: AlertKind::FrogDance,
+        label: "BadgeMagic name",
+        matcher: NameMatcher::ExactPadded,
+    },
+    NameRule {
+        needle: b"qt ",
+        kind: AlertKind::Karr,
+        label: "KARR QT serial name",
+        matcher: NameMatcher::PrefixWithSuffix,
+    },
+    NameRule {
         needle: b"axon body",
         kind: AlertKind::Cop,
         label: "Axon name",
@@ -105,18 +117,6 @@ const NAME_RULES: &[NameRule] = &[
         matcher: NameMatcher::Contains,
     },
     NameRule {
-        needle: b"qt ",
-        kind: AlertKind::Karr,
-        label: "KARR QT serial name",
-        matcher: NameMatcher::PrefixWithSuffix,
-    },
-    NameRule {
-        needle: b"led badge magic",
-        kind: AlertKind::FrogDance,
-        label: "BadgeMagic name",
-        matcher: NameMatcher::ExactPadded,
-    },
-    NameRule {
         needle: b"ray-ban",
         kind: AlertKind::Cop,
         label: "Ray-Ban name",
@@ -131,40 +131,51 @@ const NAME_RULES: &[NameRule] = &[
 ];
 
 pub fn classify(observation: &Observation<'_>) -> Option<Match> {
-    // BLE private/random addresses frequently collide with vendor prefixes.
-    // Only use OUI matching when the controller identifies a public address.
-    if observation.public_address {
-        for rule in OUI_RULES {
-            if starts_with_either_order(&observation.address, &rule.prefix) {
-                return Some(Match {
-                    kind: rule.kind,
-                    label: rule.label,
-                });
-            }
+    for kind in [
+        AlertKind::FrogDance,
+        AlertKind::Karr,
+        AlertKind::Cop,
+        AlertKind::Flipper,
+    ] {
+        if kind == AlertKind::FrogDance && observation.badge_magic_service {
+            return Some(Match {
+                kind,
+                label: "BadgeMagic FEE0 service",
+            });
         }
-    }
 
-    if let Some(name) = observation.name {
-        for rule in NAME_RULES {
-            let matches = match rule.matcher {
-                NameMatcher::Contains => ascii_contains_ignore_case(name, rule.needle),
-                NameMatcher::ExactPadded => ascii_equal_ignore_case_padded(name, rule.needle),
-                NameMatcher::PrefixWithSuffix => {
-                    ascii_starts_with_ignore_case_and_value(name, rule.needle)
+        if kind == AlertKind::Cop && observation.public_address {
+            // BLE private/random addresses frequently collide with vendor
+            // prefixes. Only use OUIs for controller-reported public addresses.
+            for rule in OUI_RULES {
+                if starts_with_either_order(&observation.address, &rule.prefix) {
+                    return Some(Match {
+                        kind: rule.kind,
+                        label: rule.label,
+                    });
                 }
-            };
-            if matches {
-                return Some(Match {
-                    kind: rule.kind,
-                    label: rule.label,
-                });
+            }
+        }
+
+        if let Some(name) = observation.name {
+            for rule in NAME_RULES.iter().filter(|rule| rule.kind == kind) {
+                let matches = match rule.matcher {
+                    NameMatcher::Contains => ascii_contains_ignore_case(name, rule.needle),
+                    NameMatcher::ExactPadded => ascii_equal_ignore_case_padded(name, rule.needle),
+                    NameMatcher::PrefixWithSuffix => {
+                        ascii_starts_with_ignore_case_and_value(name, rule.needle)
+                    }
+                };
+                if matches {
+                    return Some(Match {
+                        kind: rule.kind,
+                        label: rule.label,
+                    });
+                }
             }
         }
     }
-    observation.badge_magic_service.then_some(Match {
-        kind: AlertKind::FrogDance,
-        label: "BadgeMagic FEE0 service",
-    })
+    None
 }
 
 fn starts_with_either_order(address: &[u8; 6], prefix: &[u8; 3]) -> bool {
@@ -294,6 +305,24 @@ mod tests {
         let found = classify(&seen).unwrap();
         assert_eq!(found.kind, AlertKind::FrogDance);
         assert_eq!(found.label, "BadgeMagic FEE0 service");
+    }
+
+    #[test]
+    fn badge_magic_service_has_priority_over_other_detector_hints() {
+        let mut seen = observation([3, 2, 1, 0xDF, 0x25, 0x00], true, Some(b"My FLIPPER Zero"));
+        seen.badge_magic_service = true;
+        assert_eq!(classify(&seen).unwrap().kind, AlertKind::FrogDance);
+    }
+
+    #[test]
+    fn detector_priority_is_frog_then_karr_then_cop_then_flipper() {
+        let public_axon = [3, 2, 1, 0xDF, 0x25, 0x00];
+
+        let karr = observation(public_axon, true, Some(b"QT FLIPPER-42"));
+        assert_eq!(classify(&karr).unwrap().kind, AlertKind::Karr);
+
+        let cop = observation(public_axon, true, Some(b"My FLIPPER Zero"));
+        assert_eq!(classify(&cop).unwrap().kind, AlertKind::Cop);
     }
 
     #[test]

@@ -551,6 +551,22 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(survey, /"KARR DETECTED"/);
   assert.match(survey, /FROGALERT_ALERT_FROG_DANCE/);
   assert.match(survey, /frogalert_display_frog_dance/);
+  assert.match(
+    survey,
+    /case FROGALERT_ALERT_FROG_DANCE:[\s\S]*incoming_priority = 4;[\s\S]*case FROGALERT_ALERT_KARR:[\s\S]*incoming_priority = 3;[\s\S]*case FROGALERT_ALERT_COP:[\s\S]*incoming_priority = 2;[\s\S]*case FROGALERT_ALERT_FLIPPER:[\s\S]*incoming_priority = 1;/,
+  );
+  assert.match(
+    survey,
+    /incoming_priority <= current_priority/,
+  );
+  assert.match(
+    survey,
+    /case FROGALERT_ALERT_FROG_DANCE:[\s\S]*frogalert_display_frog_dance\(alert_frame_index\);[\s\S]*return 3;/,
+  );
+  assert.match(
+    core,
+    /FROGALERT_TARGET_BADGEMAGIC[\s\S]*FROGALERT_ALERT_FROG_DANCE[\s\S]*FROGALERT_TARGET_KARR[\s\S]*FROGALERT_ALERT_KARR[\s\S]*FROGALERT_TARGET_POLICE[\s\S]*FROGALERT_ALERT_COP[\s\S]*FROGALERT_TARGET_FLIPPER[\s\S]*FROGALERT_ALERT_FLIPPER/,
+  );
   assert.match(survey, /SURVEY_ALERT_END_EVENT/);
   assert.match(survey, /alert == detected_alert/);
   assert.match(

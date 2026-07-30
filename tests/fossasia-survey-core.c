@@ -88,6 +88,10 @@ int main(void)
 	static const uint8_t badge_magic_complete_service[] = {
 		3, 0x03, 0xe0, 0xfe,
 	};
+	static const uint8_t badge_magic_flipper[] = {
+		3, 0x02, 0xe0, 0xfe,
+		8, 0x09, 'F', 'l', 'i', 'p', 'p', 'e', 'r',
+	};
 	static const uint8_t ray_ban_dash_name[] = {
 		13, 0x09, 'R', 'a', 'Y', '-', 'B', 'a', 'N', ' ', 'M', 'e', 't',
 		'a',
@@ -189,6 +193,10 @@ int main(void)
 	assert(classify(
 		       unrelated_address, 0, badge_magic_complete_service,
 		       sizeof(badge_magic_complete_service)) ==
+	       FROGALERT_ALERT_FROG_DANCE);
+	assert(classify(
+		       axon_address, 1, badge_magic_flipper,
+		       sizeof(badge_magic_flipper)) ==
 	       FROGALERT_ALERT_FROG_DANCE);
 	assert(classify(
 		       unrelated_address, 0, ray_ban_dash_name,

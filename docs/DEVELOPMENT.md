@@ -117,13 +117,16 @@ visible view. The counter suffix shows `I` initializing, `R` ready/waiting, `S`
 scanning, `E` error, or `T` timeout; it disappears for a completed result. The
 lane updates live while scanning, consumes the final discovery list, and feeds
 live public-address/name/service data into a bounded C mirror of every README
-detection row. Cop, Flipper, and KARR alerts use no more than two fixed
-pages, show each page exactly once for one second, and restore the selected
-view after the last page.
+detection row. The selected result has fixed priority: BadgeMagic frogs, then
+KARR, COP, Flipper, and finally custom rules. A later report replaces the
+visible overlay only when its result has strictly higher priority. Cop,
+Flipper, KARR, and custom alerts use no more than two fixed pages, show each
+page exactly once for one second, and restore the selected view after the last
+page.
 KARR requires a case-insensitive `QT ` prefix at the start plus
 a non-empty serial value. An exact case-insensitive `LED Badge Magic` name or
-advertised `0xFEE0` service shows three frogs in two alternating frames for
-one second each. Passive scans may omit scan-response-only names, so the service
+advertised `0xFEE0` service shows three frogs in alternating poses for three
+one-second frames. Passive scans may omit scan-response-only names, so the service
 fallback is deliberately broad and may false-positive.
 
 After each three-second discovery, the next attempt waits about 17 seconds.

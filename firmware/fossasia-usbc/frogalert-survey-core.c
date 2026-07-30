@@ -249,6 +249,15 @@ static frogalert_survey_alert_t classify_builtins(
 	static const uint8_t ray_ban_space[] = "ray ban";
 	local_name_t name = advertisement_name(advertisement);
 
+	if ((targets & FROGALERT_TARGET_BADGEMAGIC) &&
+	    (ascii_equal_padded(name.value, name.length, badge_magic,
+				sizeof(badge_magic) - 1) ||
+	     advertisement_has_service(advertisement, 0xfee0)))
+		return FROGALERT_ALERT_FROG_DANCE;
+	if ((targets & FROGALERT_TARGET_KARR) &&
+	    ascii_starts_with_value(name.value, name.length, karr_prefix,
+				    sizeof(karr_prefix) - 1))
+		return FROGALERT_ALERT_KARR;
 	if ((targets & FROGALERT_TARGET_POLICE) &&
 	    ((public_address &&
 	      (address_matches_oui(address, axon_oui) ||
@@ -256,25 +265,16 @@ static frogalert_survey_alert_t classify_builtins(
 	     ascii_contains(name.value, name.length, axon, sizeof(axon) - 1) ||
 	     ascii_contains(name.value, name.length, taser, sizeof(taser) - 1)))
 		return FROGALERT_ALERT_COP;
-	if ((targets & FROGALERT_TARGET_FLIPPER) &&
-	    ascii_contains(name.value, name.length, flipper,
-			   sizeof(flipper) - 1))
-		return FROGALERT_ALERT_FLIPPER;
-	if ((targets & FROGALERT_TARGET_KARR) &&
-	    ascii_starts_with_value(name.value, name.length, karr_prefix,
-				    sizeof(karr_prefix) - 1))
-		return FROGALERT_ALERT_KARR;
 	if ((targets & FROGALERT_TARGET_RAY_BAN) &&
 	    (ascii_contains(name.value, name.length, ray_ban_dash,
 			    sizeof(ray_ban_dash) - 1) ||
 	     ascii_contains(name.value, name.length, ray_ban_space,
 			    sizeof(ray_ban_space) - 1)))
 		return FROGALERT_ALERT_COP;
-	if ((targets & FROGALERT_TARGET_BADGEMAGIC) &&
-	    (ascii_equal_padded(name.value, name.length, badge_magic,
-				sizeof(badge_magic) - 1) ||
-	     advertisement_has_service(advertisement, 0xfee0)))
-		return FROGALERT_ALERT_FROG_DANCE;
+	if ((targets & FROGALERT_TARGET_FLIPPER) &&
+	    ascii_contains(name.value, name.length, flipper,
+			   sizeof(flipper) - 1))
+		return FROGALERT_ALERT_FLIPPER;
 	return FROGALERT_ALERT_NONE;
 }
 
@@ -334,6 +334,10 @@ void frogalert_survey_classify(
 		return;
 
 	advertisement = parse_advertisement(data, data_length);
+	match->alert = classify_builtins(config->builtin_targets, address,
+					 public_address, &advertisement);
+	if (match->alert != FROGALERT_ALERT_NONE)
+		return;
 	for (uint8_t index = 0; index < config->custom_rule_count; index++) {
 		const frogalert_monitor_rule_t *rule =
 			&config->custom_rules[index];
@@ -346,6 +350,4 @@ void frogalert_survey_classify(
 			return;
 		}
 	}
-	match->alert = classify_builtins(config->builtin_targets, address,
-					 public_address, &advertisement);
 }
