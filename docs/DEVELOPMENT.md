@@ -30,6 +30,7 @@ Compare the host's BLE discovery paths:
 ```sh
 # BlueZ-managed active discovery; normally does not require root.
 python3 tools/ble-probe.py bluez --adapter hci0 --seconds 30
+python3 tools/ble-probe.py bluez --seconds 300 --candidates-only --stop-on-candidate
 
 # Release a scan owned by bluetoothctl before taking direct controller access.
 bluetoothctl scan off
@@ -47,6 +48,10 @@ stop that discovery session and retry. The assigned company/service
 identifiers are discovery hints only, not proof that an observation is a pair
 of glasses. Manufacturer IDs are little-endian on the wire, so Luxottica
 `0x0D53` appears as the leading bytes `53 0D` in manufacturer data.
+`--stop-on-candidate` exits the current BlueZ or raw-HCI window immediately
+after printing the first configured research indicator. In `compare` mode, a
+passive match also skips the active window because the requested result has
+already been observed.
 
 ## Static site
 

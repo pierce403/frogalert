@@ -142,7 +142,8 @@ The public site is a dependency-free static application. It separates:
   supports a narrow firmware rule. Luxottica `0x0D53` is `53 0D` on the wire.
   Never print BlueZ `Alias`: it defaults to a formatted device address when no
   advertised name exists. Suppress address-shaped `Name` values as defense in
-  depth.
+  depth. `--stop-on-candidate` must exit the current window after printing the
+  first configured indicator; a passive `compare` match must skip active scan.
 - Treat BLE OUI matches as hints only, and never use OUIs for randomized/local
   addresses.
 

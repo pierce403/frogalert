@@ -236,6 +236,7 @@ an active scan that requests scan responses:
 
 ```sh
 python3 tools/ble-probe.py bluez --seconds 30
+python3 tools/ble-probe.py bluez --seconds 300 --candidates-only --stop-on-candidate
 bluetoothctl scan off
 sudo python3 tools/ble-probe.py compare --seconds 30
 ```

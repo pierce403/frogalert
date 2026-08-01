@@ -90,6 +90,13 @@ class BleProbeTests(unittest.TestCase):
         self.assertIsNone(ble_probe.safe_advertised_name("7c:87:e0:80:b8:4d"))
         self.assertEqual(ble_probe.safe_advertised_name("Ray-Ban Meta"), "Ray-Ban Meta")
 
+    def test_stop_flag_requires_both_opt_in_and_a_candidate(self):
+        candidate = ble_probe.Fields(company_ids={0x0D53})
+        unrelated = ble_probe.Fields(company_ids={0x004C})
+        self.assertTrue(ble_probe.should_stop_on_candidate(candidate, True))
+        self.assertFalse(ble_probe.should_stop_on_candidate(candidate, False))
+        self.assertFalse(ble_probe.should_stop_on_candidate(unrelated, True))
+
 
 if __name__ == "__main__":
     unittest.main()

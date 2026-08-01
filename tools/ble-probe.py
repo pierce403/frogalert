@@ -157,6 +157,10 @@ def safe_advertised_name(value: object | None) -> str | None:
     return name
 
 
+def should_stop_on_candidate(fields: Fields, enabled: bool) -> bool:
+    return enabled and bool(candidate_reasons(fields))
+
+
 def format_fields(fields: Fields) -> str:
     name = repr(fields.name) if fields.name else "-"
     services = ",".join(f"{value:04X}" for value in sorted(fields.services16)) or "-"
@@ -316,6 +320,7 @@ def raw_scan(
     active: bool,
     labels: AnonymousLabels,
     candidates_only: bool,
+    stop_on_candidate: bool,
 ) -> dict[tuple[int, bytes], Observation]:
     observations: dict[tuple[int, bytes], Observation] = {}
     signatures: dict[tuple[int, bytes], tuple[object, ...]] = {}
@@ -365,6 +370,9 @@ def raw_scan(
                         method=method,
                         candidates_only=candidates_only,
                     )
+                    if should_stop_on_candidate(merged, stop_on_candidate):
+                        print("Candidate found; stopping scan.")
+                        return observations
     finally:
         try:
             disable_scan(hci, extended=extended)
@@ -374,7 +382,13 @@ def raw_scan(
     return observations
 
 
-def bluez_scan(adapter_name: str, seconds: float, labels: AnonymousLabels, candidates_only: bool) -> None:
+def bluez_scan(
+    adapter_name: str,
+    seconds: float,
+    labels: AnonymousLabels,
+    candidates_only: bool,
+    stop_on_candidate: bool,
+) -> None:
     try:
         import dbus
         from dbus.mainloop.glib import DBusGMainLoop
@@ -405,8 +419,10 @@ def bluez_scan(adapter_name: str, seconds: float, labels: AnonymousLabels, candi
     }
     observations: dict[str, Observation] = {}
     signatures: dict[str, tuple[object, ...]] = {}
+    stop_announced = False
 
     def consume(path: str, properties: dict[object, object]) -> None:
+        nonlocal stop_announced
         if not str(path).startswith(adapter_path + "/dev_"):
             return
         address_text = str(properties.get("Address", ""))
@@ -448,6 +464,13 @@ def bluez_scan(adapter_name: str, seconds: float, labels: AnonymousLabels, candi
                 method="bluez-merged",
                 candidates_only=candidates_only,
             )
+            if (
+                should_stop_on_candidate(merged, stop_on_candidate)
+                and not stop_announced
+            ):
+                stop_announced = True
+                print("Candidate found; stopping scan.")
+                loop.quit()
 
     def interfaces_added(path: object, interfaces: dict[object, object]) -> None:
         properties = interfaces.get("org.bluez.Device1")
@@ -557,7 +580,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--candidates-only",
         action="store_true",
-        help="hide devices without a Ray-Ban/Meta indicator",
+        help="hide devices without a configured research indicator",
+    )
+    parser.add_argument(
+        "--stop-on-candidate",
+        action="store_true",
+        help="exit the current scan window as soon as a research indicator is seen",
     )
     args = parser.parse_args()
     if args.seconds <= 0 or args.seconds > 300:
@@ -572,19 +600,59 @@ def main() -> int:
     labels = AnonymousLabels()
     try:
         if args.mode == "bluez":
-            bluez_scan(args.adapter, args.seconds, labels, args.candidates_only)
+            bluez_scan(
+                args.adapter,
+                args.seconds,
+                labels,
+                args.candidates_only,
+                args.stop_on_candidate,
+            )
             return 0
         index = int(args.adapter[3:])
         if args.mode == "passive":
-            raw_scan(index, args.seconds, False, labels, args.candidates_only).clear()
+            raw_scan(
+                index,
+                args.seconds,
+                False,
+                labels,
+                args.candidates_only,
+                args.stop_on_candidate,
+            ).clear()
         elif args.mode == "active":
-            raw_scan(index, args.seconds, True, labels, args.candidates_only).clear()
+            raw_scan(
+                index,
+                args.seconds,
+                True,
+                labels,
+                args.candidates_only,
+                args.stop_on_candidate,
+            ).clear()
         else:
             print(f"Raw passive scan on {args.adapter} for {args.seconds:g}s")
-            passive = raw_scan(index, args.seconds, False, labels, args.candidates_only)
+            passive = raw_scan(
+                index,
+                args.seconds,
+                False,
+                labels,
+                args.candidates_only,
+                args.stop_on_candidate,
+            )
+            if args.stop_on_candidate and any(
+                candidate_reasons(observation.merged())
+                for observation in passive.values()
+            ):
+                passive.clear()
+                return 0
             time.sleep(1.0)
             print(f"\nRaw active scan on {args.adapter} for {args.seconds:g}s")
-            active = raw_scan(index, args.seconds, True, labels, args.candidates_only)
+            active = raw_scan(
+                index,
+                args.seconds,
+                True,
+                labels,
+                args.candidates_only,
+                args.stop_on_candidate,
+            )
             summarize_comparison(passive, active, labels)
             passive.clear()
             active.clear()

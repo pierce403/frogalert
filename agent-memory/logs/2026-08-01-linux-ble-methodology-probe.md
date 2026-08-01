@@ -25,3 +25,6 @@
   defaults to a formatted Bluetooth address. The probe now ignores `Alias` and
   suppresses address-shaped `Name` values; a regression test locks that privacy
   boundary.
+- Added opt-in `--stop-on-candidate` behavior for BlueZ and raw-HCI modes. It
+  prints the matched observation and reasons before exiting; a passive match in
+  `compare` mode skips the active window.
