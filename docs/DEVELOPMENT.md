@@ -25,6 +25,27 @@ cargo run -p frogalert-simulator -- "00:25:DF:12:34:56" "Axon Body 4"
 cargo run -p frogalert-simulator -- "C2:00:00:00:00:01" "Flipper Zero"
 ```
 
+Compare the host's BLE discovery paths:
+
+```sh
+# BlueZ-managed active discovery; normally does not require root.
+python3 tools/ble-probe.py bluez --adapter hci0 --seconds 30
+
+# Release a scan owned by bluetoothctl before taking direct controller access.
+bluetoothctl scan off
+
+# One passive window followed by one active window; requires raw-HCI access.
+sudo python3 tools/ble-probe.py compare --adapter hci0 --seconds 30
+```
+
+Raw mode first tries extended LE scanning, then falls back to legacy scanning
+when the controller does not support it. It does not stop `bluetoothd`, change
+adapter power, print Bluetooth addresses, or write scan results to disk. Use
+`--candidates-only` to show only Ray-Ban/Meta indicators. A controller already
+owned by another scanner may return `Command Disallowed`; stop that discovery
+session and retry. The assigned company/service identifiers are discovery
+hints only, not proof that an observation is a pair of glasses.
+
 ## Static site
 
 Start the local server:

@@ -1,0 +1,79 @@
+import importlib.util
+import pathlib
+import struct
+import sys
+import unittest
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SPEC = importlib.util.spec_from_file_location("ble_probe", ROOT / "tools" / "ble-probe.py")
+assert SPEC and SPEC.loader
+ble_probe = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = ble_probe
+SPEC.loader.exec_module(ble_probe)
+
+
+class BleProbeTests(unittest.TestCase):
+    def test_parses_name_meta_service_and_company_without_payload_logging(self):
+        data = bytes(
+            [
+                8,
+                0x09,
+                *b"Ray-Ban",
+                3,
+                0x03,
+                0x5F,
+                0xFD,
+                4,
+                0xFF,
+                0x8E,
+                0x05,
+                0xAA,
+            ]
+        )
+        fields = ble_probe.parse_ad_structures(data)
+        self.assertEqual(fields.name, "Ray-Ban")
+        self.assertEqual(fields.services16, {0xFD5F})
+        self.assertEqual(fields.company_ids, {0x058E})
+        reasons = ble_probe.candidate_reasons(fields)
+        self.assertIn("current firmware Ray-Ban name match", reasons)
+        self.assertIn("Meta-assigned manufacturer id 0x058E", reasons)
+        self.assertIn("Meta-assigned service UUID 0xFD5F", reasons)
+
+    def test_truncated_ad_structure_fails_closed(self):
+        fields = ble_probe.parse_ad_structures(bytes([10, 0x09, *b"Ray"]))
+        self.assertIsNone(fields.name)
+        self.assertEqual(fields.ad_types, set())
+
+    def test_legacy_scan_response_is_distinguished(self):
+        ad = bytes([8, 0x09, *b"Ray-Ban"])
+        address = bytes.fromhex("010203040506")
+        report = bytes([1, 4, 1]) + address + bytes([len(ad)]) + ad + struct.pack("b", -42)
+        parsed = ble_probe.parse_legacy_reports(report)
+        self.assertEqual(parsed, [(True, 1, address, -42, ad)])
+
+    def test_extended_scan_response_is_distinguished(self):
+        ad = bytes([3, 0x03, 0x5F, 0xFD])
+        address = bytes.fromhex("010203040506")
+        fixed = (
+            (0x0008).to_bytes(2, "little")
+            + bytes([1])
+            + address
+            + bytes([1, 0, 0, 0x7F])
+            + struct.pack("b", -51)
+            + bytes([0, 0, 0, *bytes(6), len(ad)])
+        )
+        parsed = ble_probe.parse_extended_reports(bytes([1]) + fixed + ad)
+        self.assertEqual(parsed, [(True, 1, address, -51, ad)])
+
+    def test_run_local_labels_do_not_expose_addresses(self):
+        labels = ble_probe.AnonymousLabels()
+        address = bytes.fromhex("010203040506")
+        self.assertEqual(labels.get(1, address), "D01")
+        self.assertEqual(labels.get(1, address), "D01")
+        labels.clear()
+        self.assertEqual(labels.get(1, address), "D01")
+
+
+if __name__ == "__main__":
+    unittest.main()

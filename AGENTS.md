@@ -136,6 +136,10 @@ The public site is a dependency-free static application. It separates:
   audits must also verify vector placement and actual handler targets.
 - Do not log, persist, or transmit scanned device identifiers. Retain only the
   ephemeral per-window addresses needed for deduplication, then zero them.
+- `tools/ble-probe.py` compares BlueZ discovery with raw-HCI passive and active
+  windows. Keep its output anonymous and RAM-only; Meta-assigned company and
+  service IDs remain research hints until physical field evidence supports a
+  narrow firmware rule.
 - Treat BLE OUI matches as hints only, and never use OUIs for randomized/local
   addresses.
 

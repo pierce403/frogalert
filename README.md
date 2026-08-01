@@ -228,6 +228,25 @@ nearby BLE devices: 23
 The count mode renders the same compact numeric framebuffer used by the
 embedded prototype, without touching hardware.
 
+## Compare Linux BLE discovery methods
+
+Use the host probe to see whether a nearby device is visible through ordinary
+BlueZ discovery, passive raw HCI scanning like the badge uses, or only through
+an active scan that requests scan responses:
+
+```sh
+python3 tools/ble-probe.py bluez --seconds 30
+bluetoothctl scan off
+sudo python3 tools/ble-probe.py compare --seconds 30
+```
+
+Keep the glasses awake, and repeat once with them in pairing mode if needed.
+The probe assigns run-local labels such as `D01`; it never prints Bluetooth
+addresses or writes observations to disk. Meta-assigned company IDs and
+service UUIDs are reported as research leads, not accepted as FrogAlert
+detection rules without field evidence. See
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for adapter and filtering options.
+
 ## Build the pinned USB-C firmware base
 
 The next physical images retain the exact FOSSASIA USB-C hardware shell that
