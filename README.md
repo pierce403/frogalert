@@ -242,9 +242,9 @@ sudo python3 tools/ble-probe.py compare --seconds 30
 
 Keep the glasses awake, and repeat once with them in pairing mode if needed.
 The probe assigns run-local labels such as `D01`; it never prints Bluetooth
-addresses or writes observations to disk. Meta-assigned company IDs and
-service UUIDs are reported as research leads, not accepted as FrogAlert
-detection rules without field evidence. See
+addresses or writes observations to disk. Meta/Luxottica company IDs and
+Meta-assigned service UUIDs are reported as research leads, not accepted as
+FrogAlert detection rules without field evidence. See
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for adapter and filtering options.
 
 ## Build the pinned USB-C firmware base

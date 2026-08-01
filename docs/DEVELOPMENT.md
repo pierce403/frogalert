@@ -41,10 +41,12 @@ sudo python3 tools/ble-probe.py compare --adapter hci0 --seconds 30
 Raw mode first tries extended LE scanning, then falls back to legacy scanning
 when the controller does not support it. It does not stop `bluetoothd`, change
 adapter power, print Bluetooth addresses, or write scan results to disk. Use
-`--candidates-only` to show only Ray-Ban/Meta indicators. A controller already
-owned by another scanner may return `Command Disallowed`; stop that discovery
-session and retry. The assigned company/service identifiers are discovery
-hints only, not proof that an observation is a pair of glasses.
+`--candidates-only` to show only Ray-Ban/Meta/Luxottica indicators. A
+controller already owned by another scanner may return `Command Disallowed`;
+stop that discovery session and retry. The assigned company/service
+identifiers are discovery hints only, not proof that an observation is a pair
+of glasses. Manufacturer IDs are little-endian on the wire, so Luxottica
+`0x0D53` appears as the leading bytes `53 0D` in manufacturer data.
 
 ## Static site
 

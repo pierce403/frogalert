@@ -37,8 +37,19 @@ class BleProbeTests(unittest.TestCase):
         self.assertEqual(fields.company_ids, {0x058E})
         reasons = ble_probe.candidate_reasons(fields)
         self.assertIn("current firmware Ray-Ban name match", reasons)
-        self.assertIn("Meta-assigned manufacturer id 0x058E", reasons)
+        self.assertIn(
+            "research company id 0x058E (Meta Platforms Technologies, LLC)",
+            reasons,
+        )
         self.assertIn("Meta-assigned service UUID 0xFD5F", reasons)
+
+    def test_parses_luxottica_company_id_from_little_endian_wire_bytes(self):
+        fields = ble_probe.parse_ad_structures(bytes([3, 0xFF, 0x53, 0x0D]))
+        self.assertEqual(fields.company_ids, {0x0D53})
+        self.assertIn(
+            "research company id 0x0D53 (Luxottica Group S.p.A)",
+            ble_probe.candidate_reasons(fields),
+        )
 
     def test_truncated_ad_structure_fails_closed(self):
         fields = ble_probe.parse_ad_structures(bytes([10, 0x09, *b"Ray"]))
@@ -73,6 +84,11 @@ class BleProbeTests(unittest.TestCase):
         self.assertEqual(labels.get(1, address), "D01")
         labels.clear()
         self.assertEqual(labels.get(1, address), "D01")
+
+    def test_address_like_bluez_names_are_suppressed(self):
+        self.assertIsNone(ble_probe.safe_advertised_name("7C-87-E0-80-B8-4D"))
+        self.assertIsNone(ble_probe.safe_advertised_name("7c:87:e0:80:b8:4d"))
+        self.assertEqual(ble_probe.safe_advertised_name("Ray-Ban Meta"), "Ray-Ban Meta")
 
 
 if __name__ == "__main__":

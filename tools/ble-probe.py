@@ -11,6 +11,7 @@ run-local labels before anything is printed.
 from __future__ import annotations
 
 import argparse
+import re
 import select
 import socket
 import struct
@@ -19,9 +20,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Iterable
 
-META_COMPANY_IDS = {
+RESEARCH_COMPANY_IDS = {
     0x01AB: "Meta Platforms, Inc.",
     0x058E: "Meta Platforms Technologies, LLC",
+    0x0D53: "Luxottica Group S.p.A",
 }
 META_SERVICE_UUIDS = {
     0xFD5F: "Meta Platforms Technologies, LLC",
@@ -30,6 +32,7 @@ META_SERVICE_UUIDS = {
 }
 NAME_FIRMWARE_HINTS = ("ray-ban", "ray ban")
 NAME_RESEARCH_HINTS = ("meta", "view")
+ADDRESS_LIKE_NAME = re.compile(r"^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
 
 HCI_COMMAND_PKT = 0x01
 HCI_EVENT_PKT = 0x04
@@ -135,13 +138,23 @@ def candidate_reasons(fields: Fields) -> list[str]:
         reasons.append("current firmware Ray-Ban name match")
     elif any(hint in lowered for hint in NAME_RESEARCH_HINTS):
         reasons.append("research-only Meta/View name hint")
-    for company_id in sorted(fields.company_ids & META_COMPANY_IDS.keys()):
+    for company_id in sorted(fields.company_ids & RESEARCH_COMPANY_IDS.keys()):
         reasons.append(
-            f"Meta-assigned manufacturer id 0x{company_id:04X}"
+            f"research company id 0x{company_id:04X} "
+            f"({RESEARCH_COMPANY_IDS[company_id]})"
         )
     for service in sorted(fields.services16 & META_SERVICE_UUIDS.keys()):
         reasons.append(f"Meta-assigned service UUID 0x{service:04X}")
     return reasons
+
+
+def safe_advertised_name(value: object | None) -> str | None:
+    if value is None:
+        return None
+    name = str(value)
+    if not name or ADDRESS_LIKE_NAME.fullmatch(name):
+        return None
+    return name
 
 
 def format_fields(fields: Fields) -> str:
@@ -406,7 +419,9 @@ def bluez_scan(adapter_name: str, seconds: float, labels: AnonymousLabels, candi
         )
         observation.rssi = int(properties.get("RSSI", observation.rssi))
         fields = Fields()
-        name = properties.get("Name") or properties.get("Alias")
+        # BlueZ Alias defaults to a formatted Bluetooth address when a device
+        # has no advertised name. Never use it in privacy-preserving output.
+        name = safe_advertised_name(properties.get("Name"))
         if name:
             fields.name = str(name)
         for uuid in properties.get("UUIDs", []):
@@ -489,7 +504,7 @@ def bluez_scan(adapter_name: str, seconds: float, labels: AnonymousLabels, candi
         )
         print(
             f"BlueZ summary: {len(observations)} fresh devices, "
-            f"{candidate_count} with Ray-Ban/Meta indicators"
+            f"{candidate_count} with smart-glasses research indicators"
         )
         if not observations:
             print(

@@ -12,7 +12,16 @@
 - Bluetooth SIG assignments `0x01AB` and `0x058E` (company IDs) and `0xFD5F`,
   `0xFEB7`, and `0xFEB8` (16-bit services) are included only as Meta research
   hints. They do not uniquely prove that a device is smart glasses.
+- Bluetooth SIG's current public YAML assigns company ID `0x0D53` to
+  Luxottica Group S.p.A. The manufacturer-data wire bytes are little-endian
+  `53 0D`; the host probe includes this as another research hint, not proof of
+  a specific glasses model.
 - The host BlueZ path was exercised while another discovery was already in
   progress. Shared-scan handling worked, but no fresh reports arrived in the
   five-second observation window. Root raw-HCI comparison and a physical
   glasses observation remain pending.
+- A later 30-second BlueZ run observed 83 fresh devices but none of the
+  configured Meta/Luxottica indicators. It also exposed that BlueZ `Alias`
+  defaults to a formatted Bluetooth address. The probe now ignores `Alias` and
+  suppresses address-shaped `Name` values; a regression test locks that privacy
+  boundary.
