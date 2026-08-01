@@ -57,6 +57,9 @@ On Python 3.14 and newer, raw HCI binds with the direct integer `device_id`;
 older Python falls back to the historical one-element tuple. Each raw socket,
 filter, and command-send failure names its exact stage. A bare one-element HCI
 tuple produced `EINVAL` on the first Python 3.14 physical comparison attempt.
+The next attempt reached `HCI_FILTER` and exposed a separate ABI issue: Linux's
+14 bytes of filter fields have a 16-byte `sizeof(struct hci_filter)`. The packed
+filter therefore includes the required two trailing padding bytes.
 
 ## Static site
 

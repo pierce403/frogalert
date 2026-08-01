@@ -191,8 +191,9 @@ def print_observation(
 
 
 def hci_event_filter() -> bytes:
-    # Linux struct hci_filter: type_mask, event_mask[2], opcode.
-    return struct.pack("<IIIH", 1 << HCI_EVENT_PKT, 0xFFFFFFFF, 0xFFFFFFFF, 0)
+    # Linux struct hci_filter: type_mask, event_mask[2], opcode, plus two
+    # trailing ABI padding bytes (sizeof(struct hci_filter) == 16 on Linux).
+    return struct.pack("@IIIH2x", 1 << HCI_EVENT_PKT, 0xFFFFFFFF, 0xFFFFFFFF, 0)
 
 
 def open_hci_socket(index: int) -> socket.socket:

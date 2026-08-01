@@ -110,6 +110,14 @@ class BleProbeTests(unittest.TestCase):
         )
         hci.setblocking.assert_called_once_with(False)
 
+    def test_linux_hci_filter_includes_trailing_struct_padding(self):
+        event_filter = ble_probe.hci_event_filter()
+        self.assertEqual(len(event_filter), 16)
+        self.assertEqual(
+            struct.unpack("@IIIH2x", event_filter),
+            (1 << ble_probe.HCI_EVENT_PKT, 0xFFFFFFFF, 0xFFFFFFFF, 0),
+        )
+
     def test_raw_hci_bind_error_names_the_failed_stage(self):
         hci = mock.Mock()
         hci.bind.side_effect = OSError(22, "Invalid argument")

@@ -33,3 +33,9 @@
   the probe had tried the historical one-element tuple first. It now prefers
   the integer form, falls back only on `TypeError`, and gives distinct raw
   socket, bind/filter, and command-send errors. Physical rerun is pending.
+- The next root attempt proved integer binding worked and failed specifically
+  at `HCI_FILTER`. The installed BlueZ header defines three `uint32_t` fields
+  plus one `uint16_t` field, but C reports `sizeof(struct hci_filter) == 16` due
+  to trailing alignment. Python had emitted only 14 bytes. The filter now uses
+  native layout plus explicit `2x` padding, with a test locking the 16-byte ABI;
+  physical rerun remains pending.
