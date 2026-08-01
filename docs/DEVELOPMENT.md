@@ -53,6 +53,11 @@ after printing the first configured research indicator. In `compare` mode, a
 passive match also skips the active window because the requested result has
 already been observed.
 
+On Python 3.14 and newer, raw HCI binds with the direct integer `device_id`;
+older Python falls back to the historical one-element tuple. Each raw socket,
+filter, and command-send failure names its exact stage. A bare one-element HCI
+tuple produced `EINVAL` on the first Python 3.14 physical comparison attempt.
+
 ## Static site
 
 Start the local server:

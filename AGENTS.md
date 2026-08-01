@@ -144,6 +144,10 @@ The public site is a dependency-free static application. It separates:
   advertised name exists. Suppress address-shaped `Name` values as defense in
   depth. `--stop-on-candidate` must exit the current window after printing the
   first configured indicator; a passive `compare` match must skip active scan.
+  Python 3.14 Linux raw HCI should bind the integer `device_id` directly; its
+  one-element tuple returned `EINVAL` on the first physical comparison attempt.
+  Retain operation-specific socket/filter/command errors until root raw mode is
+  physically verified.
 - Treat BLE OUI matches as hints only, and never use OUIs for randomized/local
   addresses.
 

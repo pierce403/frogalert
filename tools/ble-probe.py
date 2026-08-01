@@ -196,19 +196,72 @@ def hci_event_filter() -> bytes:
 
 
 def open_hci_socket(index: int) -> socket.socket:
-    hci = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_RAW, socket.BTPROTO_HCI)
     try:
-        hci.bind((index,))
-    except TypeError:
-        hci.bind((index, 0))
-    hci.setsockopt(0, socket.HCI_FILTER, hci_event_filter())
-    hci.setblocking(False)
+        hci = socket.socket(
+            socket.AF_BLUETOOTH,
+            socket.SOCK_RAW,
+            socket.BTPROTO_HCI,
+        )
+    except PermissionError:
+        raise
+    except OSError as error:
+        raise OSError(
+            error.errno,
+            f"could not open a raw HCI socket: {error.strerror}",
+        ) from error
+    try:
+        # Python 3.14 accepts the Linux HCI device_id directly. Older versions
+        # require the historical one-element tuple.
+        try:
+            hci.bind(index)
+        except TypeError:
+            hci.bind((index,))
+    except PermissionError:
+        hci.close()
+        raise
+    except OSError as error:
+        hci.close()
+        raise OSError(
+            error.errno,
+            f"could not bind hci{index} raw channel: {error.strerror}",
+        ) from error
+    try:
+        hci.setsockopt(
+            socket.SOL_HCI,
+            socket.HCI_FILTER,
+            hci_event_filter(),
+        )
+    except PermissionError:
+        hci.close()
+        raise
+    except OSError as error:
+        hci.close()
+        raise OSError(
+            error.errno,
+            f"could not set the hci{index} event filter: {error.strerror}",
+        ) from error
+    try:
+        hci.setblocking(False)
+    except OSError as error:
+        hci.close()
+        raise OSError(
+            error.errno,
+            f"could not make hci{index} nonblocking: {error.strerror}",
+        ) from error
     return hci
 
 
 def send_hci_command(hci: socket.socket, opcode: int, parameters: bytes) -> int:
     packet = bytes((HCI_COMMAND_PKT,)) + struct.pack("<HB", opcode, len(parameters)) + parameters
-    hci.send(packet)
+    try:
+        hci.send(packet)
+    except PermissionError:
+        raise
+    except OSError as error:
+        raise OSError(
+            error.errno,
+            f"could not send HCI command 0x{opcode:04X}: {error.strerror}",
+        ) from error
     deadline = time.monotonic() + 2.0
     while time.monotonic() < deadline:
         readable, _, _ = select.select([hci], [], [], max(0.0, deadline - time.monotonic()))
@@ -671,8 +724,9 @@ def main() -> int:
         print(f"error: {error}", file=sys.stderr)
         if args.mode != "bluez":
             print(
-                "If the controller reports Command Disallowed, stop other scans "
-                "(`bluetoothctl scan off`) and retry. Do not stop bluetoothd unless necessary.",
+                "If an HCI command reports status 0x0C (Command Disallowed), stop "
+                "other scans (`bluetoothctl scan off`) and retry. Do not stop "
+                "bluetoothd unless necessary.",
                 file=sys.stderr,
             )
         return 1

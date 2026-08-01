@@ -3,6 +3,7 @@ import pathlib
 import struct
 import sys
 import unittest
+from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -96,6 +97,26 @@ class BleProbeTests(unittest.TestCase):
         self.assertTrue(ble_probe.should_stop_on_candidate(candidate, True))
         self.assertFalse(ble_probe.should_stop_on_candidate(candidate, False))
         self.assertFalse(ble_probe.should_stop_on_candidate(unrelated, True))
+
+    def test_raw_hci_socket_prefers_direct_device_id_binding(self):
+        hci = mock.Mock()
+        with mock.patch.object(ble_probe.socket, "socket", return_value=hci):
+            self.assertIs(ble_probe.open_hci_socket(3), hci)
+        hci.bind.assert_called_once_with(3)
+        hci.setsockopt.assert_called_once_with(
+            ble_probe.socket.SOL_HCI,
+            ble_probe.socket.HCI_FILTER,
+            ble_probe.hci_event_filter(),
+        )
+        hci.setblocking.assert_called_once_with(False)
+
+    def test_raw_hci_bind_error_names_the_failed_stage(self):
+        hci = mock.Mock()
+        hci.bind.side_effect = OSError(22, "Invalid argument")
+        with mock.patch.object(ble_probe.socket, "socket", return_value=hci):
+            with self.assertRaisesRegex(OSError, "bind hci3 raw channel"):
+                ble_probe.open_hci_socket(3)
+        hci.close.assert_called_once_with()
 
 
 if __name__ == "__main__":

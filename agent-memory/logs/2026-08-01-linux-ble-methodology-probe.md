@@ -28,3 +28,8 @@
 - Added opt-in `--stop-on-candidate` behavior for BlueZ and raw-HCI modes. It
   prints the matched observation and reasons before exiting; a passive match in
   `compare` mode skips the active window.
+- The first root `compare` attempt on Python 3.14 failed before scanning with a
+  bare `EINVAL`. Python 3.14 documents direct integer HCI `device_id` binding;
+  the probe had tried the historical one-element tuple first. It now prefers
+  the integer form, falls back only on `TypeError`, and gives distinct raw
+  socket, bind/filter, and command-send errors. Physical rerun is pending.
