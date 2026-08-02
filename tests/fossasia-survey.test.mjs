@@ -343,8 +343,9 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /phase != ' ' && \(phase < ' ' \|\| phase > '~'\)/,
+    /frogalert_display_survey_count\(uint8_t count, uint8_t saturated\)/,
   );
+  assert.doesNotMatch(patchedMain, /FROGALERT_SURVEY_PHASE_GAP|phase_start/);
   assert.match(
     patchedMain,
     /frogalert_display_survey_text\(message, message_length, TRUE\)/,
@@ -373,7 +374,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain,
     /char text\[FROGALERT_SURVEY_COUNT_LENGTH\]/,
   );
-  assert.match(patchedMain, /font5x7\[phase - ' '\]/);
+  assert.doesNotMatch(patchedMain, /font5x7\[phase - ' '\]/);
   assert.match(
     patchedMain,
     /if \(!frogalert_survey_display_owned\)[\s\S]*stop_all_animation\(\)/,
@@ -530,10 +531,7 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.doesNotMatch(survey, /SURVEY_SCROLL_TIME|SURVEY_DISPLAY_STEP_EVENT/);
   assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
   assert.doesNotMatch(survey, /SURVEY_ALERT_TIME|SURVEY_FROG_TIME/);
-  assert.match(
-    survey,
-    /save_survey_view\(0, FALSE, SURVEY_PHASE_INITIALIZING\)/,
-  );
+  assert.match(survey, /save_survey_view\(0, FALSE\)/);
   assert.doesNotMatch(
     survey,
     /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_PAGE_EVENT/,
@@ -561,9 +559,9 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   );
   assert.match(survey, /frogalert_display_survey_page_step\(\)/);
   assert.ok(
-    survey.indexOf("save_survey_view(0, FALSE,") <
+    survey.indexOf("save_survey_view(0, FALSE)") <
       survey.indexOf("status = GAPRole_CentralStartDevice"),
-    "diagnostic count must render before central-role startup",
+    "the initial zero must render before central-role startup",
   );
   assert.match(
     survey,
@@ -639,11 +637,33 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     survey,
     /frogalert_survey_open_app_window\(void\)[\s\S]*frogalert_display_app_attention_start\(\)/,
   );
+  assert.match(survey, /SURVEY_APP_CUE_TIME\s+TMOS_TICKS_FROM_MS\(1000U\)/);
+  assert.match(
+    survey,
+    /frogalert_survey_open_app_window\(void\)[\s\S]*app_cue_active = 1;[\s\S]*SURVEY_APP_CUE_END_EVENT[\s\S]*SURVEY_APP_CUE_TIME/,
+  );
+  assert.match(
+    survey,
+    /SURVEY_APP_CUE_END_EVENT[\s\S]*app_cue_active = 0;[\s\S]*frogalert_display_app_attention_end\(\)/,
+  );
   assert.match(
     survey,
     /SURVEY_APP_WINDOW_END_EVENT[\s\S]*!peripheral_is_connected\(\)[\s\S]*frogalert_display_app_attention_end\(\)/,
   );
-  assert.match(survey, /show_survey\(SURVEY_PHASE_SCANNING\)/);
+  assert.doesNotMatch(survey, /SURVEY_PHASE_|show_survey\(/);
+  const observeAdvertisement = survey.match(
+    /static void observe_advertisement\([\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(observeAdvertisement);
+  assert.match(observeAdvertisement, /frogalert_survey_counter_observe/);
+  assert.doesNotMatch(
+    observeAdvertisement,
+    /save_survey_view|frogalert_display_survey_count/,
+  );
+  assert.match(
+    survey,
+    /PRINT\("FrogAlert passive survey count:[\s\S]*commit_survey_view\(count, saturated\)[\s\S]*SURVEY_NEXT_DELAY/,
+  );
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);
   assert.match(survey, /GAPROLE_ADVERT_ENABLED/);
   assert.match(survey, /status != SUCCESS \|\| advertising_enabled/);

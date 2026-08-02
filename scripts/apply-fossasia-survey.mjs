@@ -560,7 +560,6 @@ void play_splash`,
 #define FROGALERT_SURVEY_GLYPH_WIDTH   5
 #define FROGALERT_SURVEY_GLYPH_STRIDE  6
 #define FROGALERT_SURVEY_ICON_GAP      2
-#define FROGALERT_SURVEY_PHASE_GAP     2
 
 static char frogalert_survey_text[FROGALERT_SURVEY_TEXT_MAX];
 static uint8_t frogalert_survey_page_start[FROGALERT_SURVEY_PAGE_MAX];
@@ -674,8 +673,7 @@ static uint8_t frogalert_display_survey_text(const char *text,
 	return frogalert_survey_page_count;
 }
 
-uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
-				       uint8_t phase)
+uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated)
 {
 	/* First-frame rune from FOSSASIA's pinned 24x66 bluetooth.xbm. */
 	static const uint16_t bluetooth_logo[FROGALERT_SURVEY_BT_LOGO_WIDTH] = {
@@ -694,11 +692,6 @@ uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
 	uint8_t glyph_start;
 	uint8_t target_index;
 
-	if (phase != ' ' && (phase < ' ' || phase > '~'))
-		return FALSE;
-	if (phase != ' ')
-		width += FROGALERT_SURVEY_PHASE_GAP +
-			 FROGALERT_SURVEY_GLYPH_WIDTH;
 	if (!frogalert_survey_display_active()) {
 		frogalert_display_survey_release();
 		return FALSE;
@@ -724,18 +717,6 @@ uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
 				 character * FROGALERT_SURVEY_GLYPH_STRIDE +
 				 column] =
 				(uint16_t)(font5x7[result[character] - ' ']
-					[column + 1] << 2);
-	}
-	if (phase != ' ') {
-		uint8_t phase_start =
-			glyph_start +
-			result_length * FROGALERT_SURVEY_GLYPH_STRIDE +
-			FROGALERT_SURVEY_PHASE_GAP - 1;
-		for (uint8_t column = 0;
-		     column < FROGALERT_SURVEY_GLYPH_WIDTH; column++)
-			frogalert_survey_overlay_fb[target_index]
-				[phase_start + column] =
-				(uint16_t)(font5x7[phase - ' ']
 					[column + 1] << 2);
 	}
 	frogalert_survey_page_count = 0;

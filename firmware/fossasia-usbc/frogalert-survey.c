@@ -47,13 +47,6 @@
 #define SURVEY_APP_WINDOW_TIME TMOS_TICKS_FROM_MS(10000U)
 #define SURVEY_APP_CUE_TIME    TMOS_TICKS_FROM_MS(1000U)
 
-#define SURVEY_PHASE_INITIALIZING 'I'
-#define SURVEY_PHASE_READY        'R'
-#define SURVEY_PHASE_SCANNING     'S'
-#define SURVEY_PHASE_COMPLETE     ' '
-#define SURVEY_PHASE_ERROR        'E'
-#define SURVEY_PHASE_TIMEOUT      'T'
-
 #define SURVEY_CANCEL_NONE    0
 #define SURVEY_CANCEL_TIMEOUT 1
 #define SURVEY_CANCEL_SUSPEND 2
@@ -82,15 +75,11 @@ static uint8_t restore_advertising;
 static uint8_t cancel_reason;
 static uint8_t advertise_when_idle;
 static uint8_t app_window_active;
-#ifdef FROGALERT_DANCING_FROG_MODE
 static uint8_t app_cue_active;
-#endif
 static uint8_t latest_count;
 static uint8_t latest_saturated;
-static uint8_t latest_phase = SURVEY_PHASE_INITIALIZING;
 static uint8_t completed_count;
 static uint8_t completed_saturated;
-static uint8_t completed_phase = SURVEY_PHASE_INITIALIZING;
 static uint8_t alert_visible;
 static uint8_t alert_frame_count;
 static uint8_t alert_frame_index;
@@ -167,8 +156,7 @@ static void display_selected_view(void)
 #ifdef FROGALERT_DANCING_FROG_MODE
 		frogalert_display_frog_dance(frog_view_frame);
 #else
-		frogalert_display_survey_count(latest_count, latest_saturated,
-					       latest_phase);
+		frogalert_display_survey_count(latest_count, latest_saturated);
 #endif
 	} else {
 		frogalert_display_survey_release();
@@ -186,33 +174,26 @@ static void schedule_frog_view_frame(void)
 }
 #endif
 
-static void save_survey_view(uint8_t count, uint8_t saturated, uint8_t phase)
+static void save_survey_view(uint8_t count, uint8_t saturated)
 {
 	latest_count = count;
 	latest_saturated = saturated;
-	latest_phase = phase;
 #ifndef FROGALERT_DANCING_FROG_MODE
 	if (!alert_visible && frogalert_survey_counter_mode())
-		frogalert_display_survey_count(count, saturated, phase);
+		frogalert_display_survey_count(count, saturated);
 #endif
 }
 
-static void commit_survey_view(uint8_t count, uint8_t saturated, uint8_t phase)
+static void commit_survey_view(uint8_t count, uint8_t saturated)
 {
 	completed_count = count;
 	completed_saturated = saturated;
-	completed_phase = phase;
-	save_survey_view(count, saturated, phase);
+	save_survey_view(count, saturated);
 }
 
 static void restore_completed_view(void)
 {
-	save_survey_view(completed_count, completed_saturated, completed_phase);
-}
-
-static void show_survey(uint8_t phase)
-{
-	save_survey_view(survey_counter.count, survey_counter.saturated, phase);
+	save_survey_view(completed_count, completed_saturated);
 }
 
 static void show_alert(const frogalert_survey_match_t *match)
@@ -298,7 +279,7 @@ static void mark_central_ready(void)
 	if (central_ready)
 		return;
 	central_ready = 1;
-	commit_survey_view(0, FALSE, SURVEY_PHASE_READY);
+	commit_survey_view(0, FALSE);
 	schedule_survey(SURVEY_FIRST_DELAY);
 }
 
@@ -333,13 +314,13 @@ static void finish_survey(uint8_t reason)
 	restore_advertising_if_needed();
 	advertise_when_idle = 0;
 	if (reason == SURVEY_CANCEL_TIMEOUT) {
-		commit_survey_view(0, FALSE, SURVEY_PHASE_TIMEOUT);
+		restore_completed_view();
 		PRINT("FrogAlert passive survey timed out\n");
 		schedule_survey(SURVEY_RETRY_DELAY);
 		return;
 	}
 	if (reason == SURVEY_CANCEL_ERROR) {
-		commit_survey_view(0, FALSE, SURVEY_PHASE_ERROR);
+		restore_completed_view();
 		PRINT("FrogAlert passive survey completion failed\n");
 		schedule_survey(SURVEY_RETRY_DELAY);
 		return;
@@ -347,7 +328,7 @@ static void finish_survey(uint8_t reason)
 
 	PRINT("FrogAlert passive survey count: %u%s\n", count,
 	      saturated ? "+" : "");
-	commit_survey_view(count, saturated, SURVEY_PHASE_COMPLETE);
+	commit_survey_view(count, saturated);
 	schedule_survey(SURVEY_NEXT_DELAY);
 }
 
@@ -355,7 +336,6 @@ static void observe_advertisement(uint8_t address_type,
 				  const uint8_t address[B_ADDR_LEN],
 				  const uint8_t *data, uint8_t data_length)
 {
-	uint8_t count_changed;
 	frogalert_survey_match_t match;
 
 	if (!scan_active || cancel_reason != SURVEY_CANCEL_NONE ||
@@ -365,9 +345,7 @@ static void observe_advertisement(uint8_t address_type,
 		active_monitor_config, address, address_type == ADDRTYPE_PUBLIC,
 		data, data_length, &match);
 	show_alert(&match);
-	count_changed = frogalert_survey_counter_observe(&survey_counter, address);
-	if (count_changed)
-		show_survey(SURVEY_PHASE_SCANNING);
+	frogalert_survey_counter_observe(&survey_counter, address);
 }
 
 static void observe_address(uint8_t address_type,
@@ -385,7 +363,7 @@ static void survey_central_event(gapRoleEvent_t *event)
 			mark_central_ready();
 		} else {
 			central_ready = 0;
-			show_survey(SURVEY_PHASE_ERROR);
+			restore_completed_view();
 			PRINT("FrogAlert survey role failed: %u\n",
 			      event->gap.hdr.status);
 		}
@@ -444,10 +422,10 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 	if (events & SURVEY_START_DEVICE_EVENT) {
 		bStatus_t status;
 
-		/* Make every startup phase observable before the first scan. */
-		save_survey_view(0, FALSE, SURVEY_PHASE_INITIALIZING);
+		/* Show a stable zero until the first complete scan result. */
+		save_survey_view(0, FALSE);
 		if (central_init_status != SUCCESS) {
-			show_survey(SURVEY_PHASE_ERROR);
+			restore_completed_view();
 			return events ^ SURVEY_START_DEVICE_EVENT;
 		}
 		status = GAPRole_CentralStartDevice(
@@ -460,7 +438,7 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 			 */
 			mark_central_ready();
 		} else {
-			show_survey(SURVEY_PHASE_ERROR);
+			restore_completed_view();
 			PRINT("FrogAlert central start failed: %u\n", status);
 		}
 		return events ^ SURVEY_START_DEVICE_EVENT;
@@ -520,14 +498,13 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 					       FALSE);
 		if (status == SUCCESS) {
 			cancel_reason = SURVEY_CANCEL_NONE;
-			show_survey(SURVEY_PHASE_SCANNING);
 			tmos_start_task(survey_task_id, SURVEY_WATCHDOG_EVENT,
 					SURVEY_WATCHDOG_TIME);
 		} else {
 			scan_active = 0;
 			restore_advertising_if_needed();
 			frogalert_survey_counter_reset(&survey_counter);
-			show_survey(SURVEY_PHASE_ERROR);
+			restore_completed_view();
 			PRINT("FrogAlert passive survey start failed: %u\n", status);
 			schedule_survey(SURVEY_RETRY_DELAY);
 		}
@@ -571,26 +548,17 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		app_window_active = 0;
 		advertise_when_idle = 0;
 		restore_advertising = 0;
-#ifdef FROGALERT_DANCING_FROG_MODE
 		tmos_stop_task(survey_task_id, SURVEY_APP_CUE_END_EVENT);
-#endif
 		if (!peripheral_is_connected()) {
 			if (!frogalert_badgemagic_persistent_advertising())
 				ble_disable_advertise();
-#ifdef FROGALERT_DANCING_FROG_MODE
 			if (app_cue_active)
 				frogalert_display_app_attention_end();
-#else
-			frogalert_display_app_attention_end();
-#endif
 		}
-#ifdef FROGALERT_DANCING_FROG_MODE
 		app_cue_active = 0;
-#endif
 		return events ^ SURVEY_APP_WINDOW_END_EVENT;
 	}
 
-#ifdef FROGALERT_DANCING_FROG_MODE
 	if (events & SURVEY_APP_CUE_END_EVENT) {
 		if (app_cue_active && !peripheral_is_connected()) {
 			app_cue_active = 0;
@@ -598,7 +566,6 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		}
 		return events ^ SURVEY_APP_CUE_END_EVENT;
 	}
-#endif
 
 	if (events & SURVEY_DISPLAY_PAGE_EVENT) {
 		if (alert_visible &&
@@ -693,16 +660,14 @@ void frogalert_survey_open_app_window(void)
 	tmos_stop_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT);
 #ifdef FROGALERT_DANCING_FROG_MODE
 	tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
+#endif
 	tmos_stop_task(survey_task_id, SURVEY_APP_CUE_END_EVENT);
 	app_cue_active = 1;
-#endif
 	if (frogalert_survey_suspend(TRUE))
 		ble_enable_advertise();
 	frogalert_display_app_attention_start();
-#ifdef FROGALERT_DANCING_FROG_MODE
 	tmos_start_task(survey_task_id, SURVEY_APP_CUE_END_EVENT,
 			SURVEY_APP_CUE_TIME);
-#endif
 	tmos_start_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT,
 			SURVEY_APP_WINDOW_TIME);
 }

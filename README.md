@@ -116,9 +116,10 @@ surveys continue in both nametag and counter views. `COP DETECTED`,
 `FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
 one second per generated frame, then the selected view resumes without
 changing the uploaded nametag data. The current built-ins use two frames and
-therefore last two seconds. The counter is one centered, fixed frame (the
-Bluetooth rune followed by `04`, with a
-one-letter phase suffix while a survey is in progress). Text alerts use at
+therefore last two seconds. The counter is one centered, fixed frame: the
+Bluetooth rune followed by a completed result such as `04`. It holds that
+result throughout the next scan and switches only when a new survey completes,
+so internal scan state cannot look like a third digit. Text alerts use at
 most two fixed pages held for one second each—such as `COP` followed by
 `DETECTED`—rather than scrolling pixel by pixel. Survey
 windows start roughly every 20 seconds, so a continuously present match can
@@ -139,19 +140,19 @@ logic, but its rotation is
 `Name 1 → dancing frogs → Name 2 → dancing frogs → …`. The three-frog view is
 fixed in place and alternates between its two poses every 500 ms. Alerts and
 the BadgeMagic readiness cue temporarily own the display, then the frogs
-resume. The frog lane limits that visible cue to one second while keeping the
+resume. Both lanes limit that visible cue to one second while keeping the
 badge discoverable for the full ten-second app window, so repeated mode
 exploration cannot hide the selected view for ten seconds at a time. This
 variant is separate from the published counter beta and remains
 hardware-unverified.
 
 Current FrogAlert candidates let either short button open a roughly ten-second
-BadgeMagic app window while showing the normal nametag. The Android upload path
+BadgeMagic app window. The Android upload path
 therefore does not depend on finding the profile-specific mode button after an
 accidental top-image/bottom-image mismatch. Unattended badges do not advertise
 continuously, avoiding a room full of identical `FEE0` candidates. Either press
-shows the same animated Bluetooth readiness cue. A view-button window returns
-to the selected name/counter after ten seconds; the ordinary system button
+shows the same animated Bluetooth readiness cue for one second, then restores
+the selected name/counter while the radio window remains open. The ordinary system button
 retains FOSSASIA's persistent download-mode behavior. The window pauses passive
 surveys, and a successful app connection keeps them suspended for the entire
 upload.

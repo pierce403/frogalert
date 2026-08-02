@@ -89,16 +89,15 @@ The separate `frogs` lane retains that complete survey and compatibility
 shell, but renders the alternate view as three fixed frogs alternating between
 two poses every 500 ms. Detection alerts and the BadgeMagic readiness cue
 preempt the frogs through the same display-ownership path, then return to the
-frog view. The cue lasts one second while advertising remains available for
+frog view. In both lanes, the cue lasts one second while advertising remains available for
 the full ten-second app window. It does not change or replace the locked
 `survey` artifacts.
 
-In counter view, the final character exposes progress: `I` means Central
-initialization, `R` means ready/waiting, and `S` means the three-second passive
-scan is active. A completed result has no suffix; `E` means an
-initialization/start error and `T` means the five-second watchdog expired. For
-example, a normal first cycle is the Bluetooth rune plus `00  I`, `00  R`, and
-`00  S` (with live updates), then the rune plus `04`.
+Counter view shows only the most recent completed result. It starts at the
+Bluetooth rune plus `00`, holds that frame while a passive scan is active, and
+atomically switches to the new count when the scan completes. Initialization,
+start, and watchdog errors keep the last completed result on screen and remain
+available through the debug log; they are never rendered as count suffixes.
 
 The first scan begins 15 seconds after readiness, so the first completed result
 normally appears about 18 seconds after startup. The lane skips scan work while
@@ -182,9 +181,8 @@ blocks with two blank columns at both edges and copies their inner 44 columns
 using the correct 48-column stride. Unqualified payloads retain the original
 44-column path.
 
-Any value carrying a phase suffix is diagnostic state, not a completed radio
-measurement. The selected nametag remains the base view unless the user chooses
-the counter; overlays are temporary. These are build properties and remain
+The selected nametag remains the base view unless the user chooses the counter;
+overlays are temporary. These are build properties and remain
 unverified on hardware.
 
 The first run downloads about 345 MB of pinned archives. Source, toolchain,

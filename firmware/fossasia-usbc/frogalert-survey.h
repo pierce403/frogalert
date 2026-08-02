@@ -18,8 +18,7 @@ uint8_t frogalert_survey_display_active(void);
 uint8_t frogalert_survey_allowed(void);
 uint8_t frogalert_survey_counter_mode(void);
 uint8_t frogalert_badgemagic_persistent_advertising(void);
-uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated,
-				       uint8_t phase);
+uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated);
 uint8_t frogalert_display_survey_message(const char *message,
 					 uint8_t message_length);
 void frogalert_display_frog_dance(uint8_t frame);

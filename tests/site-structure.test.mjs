@@ -125,7 +125,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /205,128 bytes.*f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9/);
   assert.match(html, /complete-frame refresh from roughly 45 Hz to 182 Hz/);
   assert.match(html, /a fixed counter, one-second-per-frame fixed alerts/);
-  assert.match(html, /Both exact hashes have user-confirmed runtime.*KEY2 dot-to-ISP acceptance/is);
+  assert.match(html, /Both published beta hashes have user-confirmed runtime.*KEY2 dot-to-ISP acceptance/is);
   assert.match(html, /cannot be distinguished passively at boot/i);
   assert.match(html, /Captured CLI\/WebUSB transport logs remain a stable-release gate/is);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);

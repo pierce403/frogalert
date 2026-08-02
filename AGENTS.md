@@ -346,9 +346,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - The replacement private survey is built as independently locked `260404`
   and `250901` candidates. It treats a successful Central start as ready
   instead of depending only on that callback, consumes both live reports and
-  the discovery completion list,
-  and displays scan phases: `I` initializing, `R` ready/waiting, `S` scanning,
-  no suffix for a completed result, `E` error, and `T` timeout. The nearest-USB
+  the discovery completion list. The counter displays only the last completed
+  result, holds it throughout the next scan, and keeps initialization, scan,
+  error, and timeout state in debug output. The nearest-USB
   view button rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`: KEY1 on
   `260404`, KEY2 on `250901`. The other short press retains the system action;
   KEY1 long brightness and the independent long-KEY2 ISP task remain inherited. Surveys
@@ -387,7 +387,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9`.
   The fixed count frame uses the six-column, full-height Bluetooth rune from
   the first frame of FOSSASIA's pinned `src/res/bluetooth.xbm`, followed by the
-  count and optional diagnostic phase.
+  count with no diagnostic suffix.
   The user explicitly confirmed runtime, display, BadgeMagic upload, button
   behavior, and KEY2-only dot-to-ISP acceptance for the exact `260404` hash on
   2026-07-28, then confirmed both exact profile images working and directed
@@ -407,9 +407,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   that one-shot frame event and the selected frog view resumes afterward. Its
   visible app-readiness cue lasts one second while advertising remains open
   for ten, preventing repeated mode presses from indefinitely hiding the frog
-  view. Its current hardware-unverified locked images are 206,480 bytes:
-  top/`260404` `ede11092…2bdeff`, bottom/`250901`
-  `771f03e9…03062`. Keep the entire
+  view. Its current hardware-unverified locked images are 206,304 bytes:
+  top/`260404` `5c69637a…00ea8ce`, bottom/`250901`
+  `5634194f…7964bd`. Keep the entire
   frog-only event branch inside `FROGALERT_DANCING_FROG_MODE`; an empty
   runtime branch still changed the counter BIN by eight bytes and broke its
   locked CI hash.
@@ -420,14 +420,22 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `250901`, four `low/low` samples select `260404`, and the ordinary open
   `low/high` state selects nothing. A confirmed result corrects KEY1 polarity,
   both short-button roles, and shutdown wake for the current boot. The current
-  blank-fallback and Meta-pair 206,296-byte candidates are `260404`
-  `07ca9cf9087103ee56e47782039d130f50e2477d8eb3f19b413f21ac4f087e20`
+  blank-fallback, Meta-pair, and stable-counter 206,216-byte candidates are `260404`
+  `a3cb748194965c2f2aa54ec541df02e66c3f38f8e375179f620a2cae9bcc444e`
   and `250901`
-  `029868f3f2207f70882b3bb02deef79a5603a9c3efe1e1782a5aa9455a779f08`.
+  `cb2780b1f11818f4560fd14d01dfa1e32ab7317766cb9dc876d428fc7df0706a`.
   They pass locked ELF/BIN/vector/USB/BLE/display/KEY2 audits but are
   hardware-unverified. Test each on its matching board and deliberately
   cross-flashed board, including KEY2-before-detection, brightness,
   download/power/wake, and KEY2-only ISP, before release promotion.
+- On 2026-08-01 the user physically observed a bottom-profile counter appear
+  blank for about ten seconds, then alternate between `11` and an apparent
+  three-digit value before a Flipper overlay restored `11`. The counter caps at
+  64; the apparent `115` was the live `11 S` scan-phase suffix. Current source
+  removes all on-panel phase letters, retains the last completed count during a
+  scan, commits only the completed result, and applies the existing one-second
+  visible app cue to both counter and frog lanes while leaving the radio window
+  open for ten seconds. This replacement remains hardware-unverified.
 - On 2026-07-23 the user reported that the latest image they had flashed was
   working well. Treat this as encouraging physical feedback, not release
   evidence: the last explicitly requested-and-observed flash was likely the

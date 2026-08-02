@@ -99,12 +99,12 @@
           "sha256": "6591f55f6035721384dd2780cb66c03d58e5e08817a1b4e5808a9d2821503e87"
         },
         "survey": {
-          "size": 206296,
-          "sha256": "029868f3f2207f70882b3bb02deef79a5603a9c3efe1e1782a5aa9455a779f08"
+          "size": 206216,
+          "sha256": "cb2780b1f11818f4560fd14d01dfa1e32ab7317766cb9dc876d428fc7df0706a"
         },
         "frogs": {
-          "size": 206480,
-          "sha256": "771f03e9e28b7941517a84ff87445c376482ca1a8191d56d45703dc2f2803062"
+          "size": 206304,
+          "sha256": "5634194f7276e4c8734486a5fde013152160fb8ececf95a9902b1470d57964bd"
         }
       },
       "B1144C_260404_USB_C": {
@@ -117,12 +117,12 @@
           "sha256": "f4defa234af5c1b2377fd19daa513d8a3e550c9907cd9bd793f9c6f3b021e565"
         },
         "survey": {
-          "size": 206296,
-          "sha256": "07ca9cf9087103ee56e47782039d130f50e2477d8eb3f19b413f21ac4f087e20"
+          "size": 206216,
+          "sha256": "a3cb748194965c2f2aa54ec541df02e66c3f38f8e375179f620a2cae9bcc444e"
         },
         "frogs": {
-          "size": 206480,
-          "sha256": "ede110927fc672480dc927b5ae670359a3a6c71f73671782f3be892d3f2bdeff"
+          "size": 206304,
+          "sha256": "5c69637a12a9da0f63e76f2844e9f29a1b23cd7ce4a2174ec77c4269500ea8ce"
         }
       }
     },

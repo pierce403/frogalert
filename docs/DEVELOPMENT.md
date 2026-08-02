@@ -187,8 +187,10 @@ schema, lengths, reserved bytes, padding, profile, and CRC before enabling
 alerts.
 
 The display hook stops the original animation only on ownership transition.
-It redraws the counter once per value/phase change and alert text only at the
-one-second page boundary. Each FrogAlert frame is completed in an inactive
+It redraws the counter once per completed survey and holds that frame during
+the next scan. Internal scan phases stay in debug output rather than sharing
+the count display. Alert text redraws only at the one-second page boundary.
+Each FrogAlert frame is completed in an inactive
 private buffer before an atomic index switch. The timer interrupt uses that
 committed buffer as the final LED source while FrogAlert owns the panel, so a
 blink, marquee, base animation, or queued Bluetooth animation cannot overwrite
