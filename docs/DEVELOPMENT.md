@@ -177,8 +177,9 @@ uploaded bitmap bypasses the fallback, and the fallback never writes data
 flash.
 
 Each survey contains one 384-byte `FROGALERTCFGv1` block. Its default enables
-the police, Flipper, KARR, Ray-Ban, and BadgeMagic target groups with no custom
-rules. The browser codec can encode at most eight custom rules using
+the police, Flipper, KARR, Ray-Ban/Meta, and BadgeMagic target groups with no
+custom rules. The Ray-Ban/Meta bit covers both name hints and the conservative
+same-report `0x01AB` + `0xFD5F` pair. The browser codec can encode at most eight custom rules using
 case-insensitive name contains/prefix/exact, canonical public OUI, or 16-bit
 service matching, with a 24-character value and 16-character badge message.
 The block includes the compiled profile id and CRC32. Firmware validates its

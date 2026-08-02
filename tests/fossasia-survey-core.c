@@ -100,6 +100,25 @@ int main(void)
 		13, 0x09, 'R', 'A', 'Y', ' ', 'B', 'A', 'N', ' ', 'M', 'e', 't',
 		'a',
 	};
+	static const uint8_t meta_glasses_passive[] = {
+		2, 0x01, 0x06,
+		3, 0x03, 0x5f, 0xfd,
+		5, 0xff, 0xab, 0x01, 0x12, 0x34,
+	};
+	static const uint8_t meta_company_only[] = {
+		5, 0xff, 0xab, 0x01, 0x12, 0x34,
+	};
+	static const uint8_t meta_service_only[] = {
+		3, 0x03, 0x5f, 0xfd,
+	};
+	static const uint8_t wrong_company_meta_service[] = {
+		3, 0x03, 0x5f, 0xfd,
+		5, 0xff, 0x53, 0x0d, 0x12, 0x34,
+	};
+	static const uint8_t meta_company_wrong_service[] = {
+		3, 0x03, 0xb7, 0xfe,
+		5, 0xff, 0xab, 0x01, 0x12, 0x34,
+	};
 	static const uint8_t unrelated_name[] = {
 		11, 0x09, 'H', 'e', 'a', 'd', 'p', 'h', 'o', 'n', 'e', 's',
 	};
@@ -205,6 +224,23 @@ int main(void)
 		       unrelated_address, 0, ray_ban_space_name,
 		       sizeof(ray_ban_space_name)) == FROGALERT_ALERT_COP);
 	assert(classify(
+		       unrelated_address, 0, meta_glasses_passive,
+		       sizeof(meta_glasses_passive)) == FROGALERT_ALERT_COP);
+	assert(classify(
+		       unrelated_address, 0, meta_company_only,
+		       sizeof(meta_company_only)) == FROGALERT_ALERT_NONE);
+	assert(classify(
+		       unrelated_address, 0, meta_service_only,
+		       sizeof(meta_service_only)) == FROGALERT_ALERT_NONE);
+	assert(classify(
+		       unrelated_address, 0, wrong_company_meta_service,
+		       sizeof(wrong_company_meta_service)) ==
+	       FROGALERT_ALERT_NONE);
+	assert(classify(
+		       unrelated_address, 0, meta_company_wrong_service,
+		       sizeof(meta_company_wrong_service)) ==
+	       FROGALERT_ALERT_NONE);
+	assert(classify(
 		       unrelated_address, 0, unrelated_name,
 		       sizeof(unrelated_name)) == FROGALERT_ALERT_NONE);
 	assert(classify(
@@ -244,6 +280,10 @@ int main(void)
 		assert(classify_match(&config, unrelated_address, 0,
 				      flipper_name, sizeof(flipper_name)).alert ==
 		       FROGALERT_ALERT_FLIPPER);
+		assert(classify_match(&config, unrelated_address, 0,
+				      meta_glasses_passive,
+				      sizeof(meta_glasses_passive)).alert ==
+		       FROGALERT_ALERT_NONE);
 
 		config.custom_rule_count = 1;
 		config.custom_rules[0].type = FROGALERT_MATCH_NAME_CONTAINS;

@@ -213,7 +213,7 @@ built-in target groups:
 - Axon/TASER/Flock indicators;
 - Flipper names;
 - KARR `QT ` names;
-- Ray-Ban names; and
+- Ray-Ban names and the same-report Meta `0x01AB` + `0xFD5F` pair; and
 - BadgeMagic/FrogAlert badges.
 
 The user may also add up to eight custom rules. A rule matches a

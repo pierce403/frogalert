@@ -104,7 +104,9 @@ The candidate mirrors every README OUI and name rule in a bounded C classifier.
 OUI rules run only for controller-reported public addresses. Complete and
 shortened local names are matched case-insensitively for `Axon Body`, `TASER`,
 `Flipper`, `Ray-Ban`, and `Ray Ban`. A name beginning with case-insensitive
-`QT ` and a non-empty serial value produces `KARR DETECTED`. The resulting
+`QT ` and a non-empty serial value produces `KARR DETECTED`. The Ray-Ban target
+also produces `COP DETECTED` when manufacturer ID `0x01AB` and service `0xFD5F`
+occur together in the same passive report; neither field matches alone. The resulting
 text overlay shows each generated fixed page exactly once for one second and
 then restores the selected nametag/count view. An exact case-insensitive
 `LED Badge Magic` name or an advertised `0xFEE0` service triggers two
@@ -148,11 +150,11 @@ read-only image data. It contains:
 
 - magic/schema/size and a CRC32;
 - the compiled hardware-profile id;
-- a bit mask for police, Flipper, KARR, Ray-Ban, and BadgeMagic built-ins; and
+- a bit mask for police, Flipper, KARR, Ray-Ban/Meta, and BadgeMagic built-ins; and
 - up to eight custom name-contains, name-prefix, name-exact, public-OUI, or
   16-bit-service rules with bounded ASCII values and display messages.
 
-Custom rules run before enabled built-ins; the first match wins. A malformed
+Enabled built-ins run before custom rules. A malformed
 block, unknown bit/type, nonzero padding, CRC failure, or profile mismatch
 disables alerts while leaving the scan/count path available. The static web
 flasher finds exactly one block, validates it, and patches a copy without

@@ -361,6 +361,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   value. There is no unique Flipper
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
   OUI would overmatch, and custom firmware can rename or spoof the device.
+  A physical Linux raw-passive run on 2026-08-01 observed Meta company ID
+  `0x01AB` and service `0xFD5F` together in one report at RSSI -69 with AD
+  types `01,03,FF`. The Ray-Ban target now requires that exact same-report pair
+  when no name is present; either marker alone is ignored. This is a
+  product-family hint that works with randomized addresses, not identity proof.
   Exact case-insensitive `LED Badge Magic` or advertised `0xFEE0` triggers
   three frogs in three one-second frames using two alternating poses. Detector
   priority is fixed per survey window: frogs, KARR, COP, Flipper, then custom;
@@ -402,9 +407,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   that one-shot frame event and the selected frog view resumes afterward. Its
   visible app-readiness cue lasts one second while advertising remains open
   for ten, preventing repeated mode presses from indefinitely hiding the frog
-  view. Its hardware-unverified locked images are 206,076 bytes:
-  top/`260404` `61989dbf…e08c2fc`, bottom/`250901`
-  `506c26e9…2cc9249`. Keep the entire
+  view. Its current hardware-unverified locked images are 206,480 bytes:
+  top/`260404` `ede11092…2bdeff`, bottom/`250901`
+  `771f03e9…03062`. Keep the entire
   frog-only event branch inside `FROGALERT_DANCING_FROG_MODE`; an empty
   runtime branch still changed the counter BIN by eight bytes and broke its
   locked CI hash.
@@ -414,11 +419,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   under pull-down and pull-up; four consistent `high/high` samples select
   `250901`, four `low/low` samples select `260404`, and the ordinary open
   `low/high` state selects nothing. A confirmed result corrects KEY1 polarity,
-  both short-button roles, and shutdown wake for the current boot. The new
-  consistent-cue either-button-attention 205,892-byte candidates are `260404`
-  `dc2e7123d4882129abad2798773b93a2b3914fa8038c1527ffc5469258e4bacc`
+  both short-button roles, and shutdown wake for the current boot. The current
+  blank-fallback and Meta-pair 206,296-byte candidates are `260404`
+  `07ca9cf9087103ee56e47782039d130f50e2477d8eb3f19b413f21ac4f087e20`
   and `250901`
-  `c98fc0f4c30793cce6bda998f7bbfb8b1428fa23804bb3bbd0d70308bacc19c5`.
+  `029868f3f2207f70882b3bb02deef79a5603a9c3efe1e1782a5aa9455a779f08`.
   They pass locked ELF/BIN/vector/USB/BLE/display/KEY2 audits but are
   hardware-unverified. Test each on its matching board and deliberately
   cross-flashed board, including KEY2-before-detection, brightness,

@@ -44,6 +44,28 @@ pub struct Observation<'a> {
     /// This is a passive fallback because the open firmware places its local
     /// name in a scan response, which a passive observer cannot request.
     pub badge_magic_service: bool,
+    /// True when manufacturer-specific data starts with Meta company ID 0x01AB.
+    pub meta_company_01ab: bool,
+    /// True when the advertisement contains Meta-assigned 16-bit service FD5F.
+    pub meta_service_fd5f: bool,
+}
+
+impl<'a> Observation<'a> {
+    /// Parses the passive advertising fields used by the built-in policy.
+    pub fn from_advertisement(
+        address: [u8; 6],
+        public_address: bool,
+        data: &'a [u8],
+    ) -> Result<Self, advertisement::AdvertisementError> {
+        Ok(Self {
+            address,
+            public_address,
+            name: advertisement::local_name(data)?,
+            badge_magic_service: advertisement::has_service16(data, 0xfee0)?,
+            meta_company_01ab: advertisement::has_company_id(data, 0x01ab)?,
+            meta_service_fd5f: advertisement::has_service16(data, 0xfd5f)?,
+        })
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -157,6 +179,14 @@ pub fn classify(observation: &Observation<'_>) -> Option<Match> {
             }
         }
 
+        if kind == AlertKind::Cop && observation.meta_company_01ab && observation.meta_service_fd5f
+        {
+            return Some(Match {
+                kind,
+                label: "Meta 01AB + FD5F",
+            });
+        }
+
         if let Some(name) = observation.name {
             for rule in NAME_RULES.iter().filter(|rule| rule.kind == kind) {
                 let matches = match rule.matcher {
@@ -219,6 +249,8 @@ mod tests {
             public_address,
             name,
             badge_magic_service: false,
+            meta_company_01ab: false,
+            meta_service_fd5f: false,
         }
     }
 
@@ -268,6 +300,29 @@ mod tests {
             assert_eq!(found.kind, AlertKind::Cop);
             assert_eq!(found.kind.message(), "COP DETECTED");
         }
+    }
+
+    #[test]
+    fn meta_company_and_service_pair_is_a_cop_alert() {
+        let mut seen = observation([0; 6], false, None);
+        seen.meta_company_01ab = true;
+        assert_eq!(classify(&seen), None);
+        seen.meta_service_fd5f = true;
+        let found = classify(&seen).unwrap();
+        assert_eq!(found.kind, AlertKind::Cop);
+        assert_eq!(found.label, "Meta 01AB + FD5F");
+
+        seen.meta_company_01ab = false;
+        assert_eq!(classify(&seen), None);
+    }
+
+    #[test]
+    fn parses_and_classifies_observed_meta_passive_fields() {
+        let data = [
+            2, 0x01, 0x06, 3, 0x03, 0x5f, 0xfd, 5, 0xff, 0xab, 0x01, 0x12, 0x34,
+        ];
+        let seen = Observation::from_advertisement([0; 6], false, &data).unwrap();
+        assert_eq!(classify(&seen).unwrap().label, "Meta 01AB + FD5F");
     }
 
     #[test]

@@ -109,6 +109,8 @@ AD-structure classifier mirrors every README detector row:
 - public `00:25:DF` and `B4:1E:52` OUIs produce `COP DETECTED`;
 - case-insensitive `Axon Body`, `TASER`, `Ray-Ban`, and `Ray Ban` names produce
   `COP DETECTED`;
+- manufacturer ID `0x01AB` together with advertised service `0xFD5F` in the
+  same passive report produces `COP DETECTED`; either field alone is ignored;
 - case-insensitive `Flipper` produces `FLIPPER DETECTED`;
 - a case-insensitive `QT ` prefix followed by a non-empty serial value produces
   `KARR DETECTED`; and

@@ -39,3 +39,20 @@
   to trailing alignment. Python had emitted only 14 bytes. The filter now uses
   native layout plus explicit `2x` padding, with a test locking the 16-byte ABI;
   physical rerun remains pending.
+- The physical rerun succeeded in raw passive mode. Its first candidate report
+  carried service `0xFD5F` and company `0x01AB` together at RSSI -69 with AD
+  types `01,03,FF`; `--stop-on-candidate` ended the comparison before an active
+  scan. No controller address was recorded.
+- The survey classifier now treats only that same-report pair as the Meta
+  glasses hint. `0x01AB` or `0xFD5F` alone does not match. This is conservative
+  evidence that the CH582M passive methodology can see the fields, not proof of
+  device identity or physical validation of a newly built badge image.
+- Audited counter candidates are 206,296 bytes: top/`260404`
+  `07ca9cf9087103ee56e47782039d130f50e2477d8eb3f19b413f21ac4f087e20`
+  and bottom/`250901`
+  `029868f3f2207f70882b3bb02deef79a5603a9c3efe1e1782a5aa9455a779f08`.
+  Audited frog-view candidates are 206,480 bytes: top/`260404`
+  `ede110927fc672480dc927b5ae670359a3a6c71f73671782f3be892d3f2bdeff`
+  and bottom/`250901`
+  `771f03e9e28b7941517a84ff87445c376482ca1a8191d56d45703dc2f2803062`.
+  All four remain under ignored `tmp/` and hardware-unverified.

@@ -4,6 +4,7 @@
 #define GAP_ADTYPE_LOCAL_NAME_COMPLETE 0x09
 #define GAP_ADTYPE_16BIT_MORE          0x02
 #define GAP_ADTYPE_16BIT_COMPLETE      0x03
+#define GAP_ADTYPE_MANUFACTURER_SPECIFIC 0xff
 
 typedef struct {
 	const uint8_t *value;
@@ -191,6 +192,38 @@ static uint8_t advertisement_has_service(
 	return 0;
 }
 
+static uint8_t advertisement_has_company(
+	const advertisement_t *advertisement, uint16_t company)
+{
+	uint8_t offset = 0;
+
+	if (!advertisement->data)
+		return 0;
+	while (offset < advertisement->data_length) {
+		uint8_t field_length = advertisement->data[offset++];
+		uint8_t remaining =
+			(uint8_t)(advertisement->data_length - offset);
+		uint8_t field_type;
+
+		if (field_length == 0)
+			break;
+		if (field_length > remaining)
+			return 0;
+		field_type = advertisement->data[offset];
+		if (field_type == GAP_ADTYPE_MANUFACTURER_SPECIFIC &&
+		    field_length >= 3) {
+			uint16_t current =
+				(uint16_t)advertisement->data[offset + 1] |
+				((uint16_t)advertisement->data[offset + 2] << 8);
+
+			if (current == company)
+				return 1;
+		}
+		offset = (uint8_t)(offset + field_length);
+	}
+	return 0;
+}
+
 static uint8_t custom_rule_matches(
 	const frogalert_monitor_rule_t *rule, const uint8_t address[6],
 	uint8_t public_address, const advertisement_t *advertisement)
@@ -266,7 +299,9 @@ static frogalert_survey_alert_t classify_builtins(
 	     ascii_contains(name.value, name.length, taser, sizeof(taser) - 1)))
 		return FROGALERT_ALERT_COP;
 	if ((targets & FROGALERT_TARGET_RAY_BAN) &&
-	    (ascii_contains(name.value, name.length, ray_ban_dash,
+	    ((advertisement_has_company(advertisement, 0x01ab) &&
+	      advertisement_has_service(advertisement, 0xfd5f)) ||
+	     ascii_contains(name.value, name.length, ray_ban_dash,
 			    sizeof(ray_ban_dash) - 1) ||
 	     ascii_contains(name.value, name.length, ray_ban_space,
 			    sizeof(ray_ban_space) - 1)))

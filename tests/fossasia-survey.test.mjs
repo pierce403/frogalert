@@ -665,6 +665,12 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(core, /"led badge magic"/);
   assert.match(core, /ascii_equal_padded/);
   assert.match(core, /advertisement_has_service\(advertisement, 0xfee0\)/);
+  assert.match(core, /GAP_ADTYPE_MANUFACTURER_SPECIFIC\s+0xff/);
+  assert.match(core, /static uint8_t advertisement_has_company/);
+  assert.match(
+    core,
+    /advertisement_has_company\(advertisement, 0x01ab\)\s*&&\s*advertisement_has_service\(advertisement, 0xfd5f\)/,
+  );
   assert.match(core, /config->custom_rule_count/);
   assert.match(core, /FROGALERT_MATCH_PUBLIC_OUI/);
   assert.match(core, /FROGALERT_MATCH_SERVICE16/);

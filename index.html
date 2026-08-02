@@ -168,6 +168,7 @@
               <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic service</td><td>Three-frog dance · 2 × 1 s</td><td>Passive fallback; may false-positive</td></tr>
             </tbody>
           </table>
+          <p class="caveat"><strong>Next candidate:</strong> source builds after the beta add a conservative Meta-glasses hint: manufacturer ID <code>0x01AB</code> and service <code>0xFD5F</code> must occur together in one passive advertisement before showing <code>COP DETECTED</code>. It is not part of the downloadable 0.1.0-beta.1 images above until the new exact images pass badge testing.</p>
           <p class="caveat"><strong>Passive scan limit:</strong> discovery does not request scan responses. A device name present only there cannot match, so advertised <code>FEE0</code> provides a broad BadgeMagic-compatible fallback without claiming device identity.</p>
         </div>
       </section>

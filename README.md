@@ -77,6 +77,7 @@ producing a new local BIN and SHA-256:
 | Advertised name starts with a non-empty serial prefix | `QT ` | KARR QT serial name | `KARR DETECTED` |
 | Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
 | Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
+| Manufacturer ID and advertised 16-bit service in the same packet | `0x01AB` + `0xFD5F` | Meta passive pair | `COP DETECTED` |
 | Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation, one second per frame |
 | Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation, one second per frame |
 
@@ -84,14 +85,18 @@ Detection names use case-insensitive substring matching except for two narrow
 rules: KARR requires `QT ` at the beginning plus a non-empty serial value, and
 the `LED Badge Magic` frog trigger requires an exact name. OUI rules run only
 when the Bluetooth controller reports a public address; FrogAlert deliberately
-does not apply them to randomized or locally administered addresses. These are
-explainable hints rather than proof of device identity: names can be changed or
-spoofed, and vendor prefixes can cover unrelated products.
+does not apply them to randomized or locally administered addresses. The Meta
+rule requires both `0x01AB` manufacturer data and service `0xFD5F` in one
+passive report; either marker alone is ignored. These are explainable hints
+rather than proof of device identity: names and fields can be spoofed, and
+company assignments can cover unrelated products.
 
-The released beta firmware mirrors every row in this table
-in a bounded C classifier. That lets the behavior be built and inspected while
-the separately gated Rust ABI canary remains pending; it does not waive that
-gate. Passive discovery does not guarantee
+The current survey source mirrors every row in this table in a bounded C
+classifier. The downloadable 0.1.0-beta.1 images predate the Meta pair; a new
+candidate must pass badge testing before that rule can enter the public
+catalog. The bounded mirror lets the behavior be built and inspected while the
+separately gated Rust ABI canary remains pending; it does not waive that gate.
+Passive discovery does not guarantee
 that a scan-response-only local name will be delivered, so the advertised
 `0xFEE0` service is a deliberately broad BadgeMagic fallback and can animate
 for compatible non-BadgeMagic devices that reuse that UUID.
