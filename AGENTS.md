@@ -215,6 +215,16 @@ published no firmware release and deployed byte-exact site assets. This
 verifies the automation boundary, not the current dual-profile candidate or
 physical firmware.
 
+The first dual-profile, dual-lane schema-3 run, Actions run `30827723476` for
+commit `87f2d47`, passed on 2026-08-03, including `publication-assets` and
+`attest-candidate`. Artifact `8861601465` has archive digest
+`sha256:d51899a5…6d245e`, expires 2026-11-01, and its four cloud BIN hashes
+exactly match the local receipts recorded below. Release/Pages run
+`30827863178` passed and deployed the cleaned site while correctly retaining
+`0.1.0-beta.1` as latest. This verifies the candidate/archive/attestation and
+deployment paths, not the new bytes on physical hardware or schema-5
+promotion.
+
 The first public beta shipped from commit `8f1aeca` on 2026-07-29. CI run
 `30427180021` passed; release/Pages run `30427231242` published
 `v0.1.0-beta.1` and deployed both same-origin BINs. Post-deploy downloads

@@ -106,3 +106,17 @@ finish out of order. The release/Pages workflow now performs a read-only
 GitHub-ref check before checkout or repository code and continues only when
 the triggering CI SHA still equals `refs/heads/main`; an older successful run
 therefore cannot redeploy a stale site after a newer commit is current.
+
+## First live dual-lane result
+
+GitHub Actions run `30827723476` for commit `87f2d47` passed `verify`,
+`publication-assets`, `firmware-candidate`, and `attest-candidate`. Artifact
+`8861601465`, `frogalert-candidate-87f2d47eab5b5450220c2c894656ea6e606e98ed`,
+is 1,139,382 bytes, expires 2026-11-01, and has archive digest
+`sha256:d51899a50dd923349dcffc3f24eeb10ed1abdea6b825593e091d8680496d245e`.
+The GitHub connector download confirmed all four cloud BIN hashes exactly
+match the local candidate receipts above. Release/Pages run `30827863178`
+passed; live HTTPS served module version 19, the compact one-pane flasher, and
+the manifest-derived `0.1.0-beta.1` latest card. This is cloud provenance and
+deployment evidence only; `0.2.0-beta.1` still needs exact-board physical
+testing before publication.
