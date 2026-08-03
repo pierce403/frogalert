@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,42 +31,78 @@ jobs:
           targets: riscv32imc-unknown-none-elf
           components: rustfmt, llvm-tools-preview
       - name: Verify repository contract
+        env:
+          FROGALERT_SKIP_PUBLICATION_ASSETS: "1"
         run: ./scripts/verify
       - name: Detect active firmware input changes
         id: firmware_candidate_scope
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           CURRENT_COMMIT: ${{ github.sha }}
         run: |
           changed_file_list="tmp/firmware-candidate-changed-files.txt"
           mkdir -p tmp
-          if [[ "$BASE_COMMIT" =~ ^0+$ ]] || ! git cat-file -e "$BASE_COMMIT^{commit}" 2>/dev/null; then
-            git diff-tree --no-commit-id --name-only -r "$CURRENT_COMMIT" >"$changed_file_list"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            required=true
           else
-            git diff --name-only "$BASE_COMMIT" "$CURRENT_COMMIT" >"$changed_file_list"
-          fi
+            if [[ "$BASE_COMMIT" =~ ^0+$ ]] || ! git cat-file -e "$BASE_COMMIT^{commit}" 2>/dev/null; then
+              git diff-tree --no-commit-id --name-only -r "$CURRENT_COMMIT" >"$changed_file_list"
+            else
+              git diff --name-only "$BASE_COMMIT" "$CURRENT_COMMIT" >"$changed_file_list"
+            fi
 
-          required=false
-          while IFS= read -r path; do
-            case "$path" in
-              Cargo.toml|Cargo.lock|\
-              crates/frogalert-core/*|\
-              firmware/fossasia-usbc/*|\
-              scripts/apply-fossasia-survey.mjs|\
-              scripts/apply-fossasia-hardware-profile.mjs|\
-              scripts/audit-fossasia-usbc.mjs|\
-              scripts/build-fossasia-usbc|\
-              scripts/firmware-candidate.mjs|\
-              scripts/firmware-image.mjs|\
-              scripts/prepare-fossasia-usbc|\
-              .github/workflows/ci.yml)
-                required=true
-                break
-                ;;
-            esac
-          done <"$changed_file_list"
+            required=false
+            while IFS= read -r path; do
+              case "$path" in
+                Cargo.toml|Cargo.lock|\
+                crates/frogalert-core/*|\
+                firmware/fossasia-usbc/*|\
+                scripts/apply-fossasia-survey.mjs|\
+                scripts/apply-fossasia-hardware-profile.mjs|\
+                scripts/audit-fossasia-usbc.mjs|\
+                scripts/build-fossasia-usbc|\
+                scripts/firmware-candidate.mjs|\
+                scripts/firmware-image.mjs|\
+                scripts/frogalert-version.mjs|\
+                scripts/prepare-fossasia-usbc|\
+                .github/workflows/ci.yml)
+                  required=true
+                  break
+                  ;;
+              esac
+            done <"$changed_file_list"
+          fi
           echo "required=$required" >>"$GITHUB_OUTPUT"
+
+  publication-assets:
+    needs: verify
+    if: github.event_name != 'pull_request'
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Materialize approved release bytes from recorded provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/materialize-firmware-artifacts.mjs tmp/release-artifacts
+      - name: Verify site and release plan against exact materialized bytes
+        env:
+          FROGALERT_PUBLISH_COMMIT: ${{ github.sha }}
+          FROGALERT_RELEASE_ASSET_ROOT: tmp/release-artifacts
+        run: |
+          node scripts/assemble-site.mjs tmp/site-build
+          node scripts/firmware-release-plan.mjs tmp/release-publication
 
   firmware-candidate:
     needs: verify
@@ -73,6 +110,12 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    env:
+      FROGALERT_CANDIDATE_GITHUB_REPOSITORY: ${{ github.repository }}
+      FROGALERT_CANDIDATE_GITHUB_RUN_ID: ${{ github.run_id }}
+      FROGALERT_CANDIDATE_GITHUB_WORKFLOW: ${{ github.workflow_ref }}
+      FROGALERT_CANDIDATE_GITHUB_JOB: firmware-candidate
+      FROGALERT_CANDIDATE_GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,10 +132,10 @@ jobs:
           key: frogalert-fossasia-usbc-${{ runner.os }}-${{ hashFiles('firmware/fossasia-usbc/upstream-lock.json') }}
       - name: Build and audit both private survey and dancing-frog candidates
         run: |
-          ./scripts/build-fossasia-usbc survey --check
-          ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
-          ./scripts/build-fossasia-usbc frogs --check
-          ./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --check
+          ./scripts/build-fossasia-usbc survey --candidate
+          ./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --candidate
+          ./scripts/build-fossasia-usbc frogs --candidate
+          ./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --candidate
       - name: Package commit-bound counter candidate evidence
         env:
           FROGALERT_CANDIDATE_COMMIT: ${{ github.sha }}
@@ -103,9 +146,46 @@ jobs:
           FROGALERT_CANDIDATE_LANE: frogs
         run: node scripts/firmware-candidate.mjs tmp/firmware-candidate/frogs
       - name: Upload hardware-unverified candidate artifact
+        id: candidate_upload
         uses: actions/upload-artifact@v4
         with:
           name: frogalert-candidate-${{ github.sha }}
           path: tmp/firmware-candidate
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
+      - name: Record candidate archive
+        env:
+          ARTIFACT_ID: ${{ steps.candidate_upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.candidate_upload.outputs.artifact-digest }}
+          ARTIFACT_NAME: frogalert-candidate-${{ github.sha }}
+          ARTIFACT_URL: ${{ steps.candidate_upload.outputs.artifact-url }}
+        run: |
+          manifest_digest="$ARTIFACT_DIGEST"
+          if [[ "$manifest_digest" != sha256:* ]]; then
+            manifest_digest="sha256:$manifest_digest"
+          fi
+          echo "Artifact: [$ARTIFACT_NAME]($ARTIFACT_URL)" >>"$GITHUB_STEP_SUMMARY"
+          echo "Artifact id: \`$ARTIFACT_ID\`" >>"$GITHUB_STEP_SUMMARY"
+          echo "Archive digest for manifest provenance: \`$manifest_digest\`" >>"$GITHUB_STEP_SUMMARY"
+
+  attest-candidate:
+    needs: firmware-candidate
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      attestations: write
+      artifact-metadata: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the exact cloud-built candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: frogalert-candidate-${{ github.sha }}
+          path: tmp/firmware-candidate
+      - name: Attest cloud-built candidate provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            tmp/firmware-candidate/**/*.bin
+            tmp/firmware-candidate/**/*.elf

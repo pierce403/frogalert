@@ -164,12 +164,14 @@ artifact.
 
 ## Release and website publication
 
-The committed schema-v4 manifest is the single source for both publication
+The committed schema-v5 manifest is the single source for both publication
 surfaces:
 
 ```text
 successful main CI commit
   -> validate manifest + quarantine + structured physical evidence
+  -> retrieve the exact recorded successful main-CI Actions artifact
+  -> verify archive metadata, candidate receipt, BIN/ELF hashes, and attestations
   -> prepare immutable release bundle
   -> draft GitHub Release
   -> upload and download-hash every asset
@@ -185,11 +187,12 @@ no-op, so ordinary commits cannot accidentally promote the private survey
 candidate. Published tags and assets are immutable under the reconciler:
 metadata or byte drift fails the workflow rather than overwriting a release.
 
-The separate Actions candidate is schema-v2 build evidence containing both
-profile-specific survey BIN/ELF pairs, their checksums, and the
-`B1144C_260404_USB_C` default declaration. Its metadata fixes every approval
-and publication flag to false. It is not the GitHub Release step in the diagram
-above and never enters Pages.
+The separate Actions candidate is schema-v3 build evidence containing both
+profile-specific counter or frog BIN/ELF pairs, their checksums, declared
+semantic version, and GitHub run provenance. Its metadata fixes every approval
+and publication flag to false. It is not a GitHub Release and never enters
+Pages unless a later manifest commit supplies matching physical evidence and
+the exact recorded cloud provenance.
 
 ## Quarantined standalone count prototype
 

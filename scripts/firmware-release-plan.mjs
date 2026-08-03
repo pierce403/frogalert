@@ -41,6 +41,16 @@ function releaseAsset(name, content, contentType) {
   };
 }
 
+export function releaseDescriptorSnapshot(descriptor, legacyRepositoryRelease = false) {
+  if (!legacyRepositoryRelease) return descriptor;
+  const {
+    published_at: _publishedAt,
+    build_provenance: _buildProvenance,
+    ...legacyDescriptor
+  } = descriptor;
+  return legacyDescriptor;
+}
+
 function releaseBody({ release, descriptors, notes, repository }) {
   const artifactLines = descriptors.map((descriptor) => {
     const evidence = descriptor.hardware_evidence;
@@ -96,6 +106,7 @@ export async function buildFirmwareReleasePlan({
   repositoryRoot,
   repository,
   publishCommit,
+  artifactRoot,
   assertSourceCommit = () => true,
 } = {}) {
   const root = resolve(repositoryRoot || ".");
@@ -104,6 +115,10 @@ export async function buildFirmwareReleasePlan({
   }
 
   const releaseRoot = join(root, "firmware", "releases");
+  const releaseArtifactRoot = resolve(artifactRoot || releaseRoot);
+  if (!releaseArtifactRoot.startsWith(`${root}/`)) {
+    throw new Error("release artifact root must stay inside the repository");
+  }
   const manifest = JSON.parse(await readFile(join(releaseRoot, "manifest.json"), "utf8"));
   const quarantine = JSON.parse(
     await readFile(join(root, "firmware", "quarantine.json"), "utf8"),
@@ -116,6 +131,9 @@ export async function buildFirmwareReleasePlan({
   }
 
   const descriptorsByTag = new Map();
+  const legacyRepositoryTags = new Set(
+    manifest.legacy_repository_release_tags,
+  );
   for (const descriptor of manifest.releases) {
     await assertSourceCommit(root, descriptor.source_commit, publishCommit);
     const evidenceRecord = JSON.parse(
@@ -136,13 +154,15 @@ export async function buildFirmwareReleasePlan({
       descriptor.file,
     );
 
-    const artifactPath = join(releaseRoot, descriptor.file);
+    const artifactPath = join(releaseArtifactRoot, descriptor.file);
     const artifact = await readFile(artifactPath);
     assertCh58xUserOptionMagic(artifact);
     if (artifact.byteLength !== descriptor.bytes || sha256(artifact) !== descriptor.sha256) {
       throw new Error(`release artifact does not match its descriptor: ${descriptor.file}`);
     }
-    const debugArtifact = await readFile(join(releaseRoot, descriptor.debug_file));
+    const debugArtifact = await readFile(
+      join(releaseArtifactRoot, descriptor.debug_file),
+    );
     if (
       debugArtifact.byteLength !== descriptor.debug_bytes ||
       debugArtifact.byteLength < 64 ||
@@ -191,7 +211,14 @@ export async function buildFirmwareReleasePlan({
       assets.push(
         releaseAsset(
           `${descriptor.id}.json`,
-          `${JSON.stringify(descriptor, null, 2)}\n`,
+          `${JSON.stringify(
+            releaseDescriptorSnapshot(
+              descriptor,
+              legacyRepositoryTags.has(descriptor.release_tag),
+            ),
+            null,
+            2,
+          )}\n`,
           "application/json",
         ),
       );
@@ -283,6 +310,7 @@ async function runCli() {
     repositoryRoot,
     repository,
     publishCommit,
+    artifactRoot: process.env.FROGALERT_RELEASE_ASSET_ROOT,
     assertSourceCommit: assertGitSourceCommitReachable,
   });
   await writeFirmwareReleaseBundle(plan, outputRoot);

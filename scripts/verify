@@ -30,6 +30,23 @@ cc -std=c11 -Wall -Wextra -Werror \
   tests/fossasia-animation-compat.c \
   -o tmp/c-tests/fossasia-animation-compat
 tmp/c-tests/fossasia-animation-compat
+version_output="$(node scripts/frogalert-version.mjs)"
+mapfile -t frogalert_versions <<<"$version_output"
+if [[ "${#frogalert_versions[@]}" -ne 2 ]]; then
+  echo "firmware version helper returned an invalid result" >&2
+  exit 1
+fi
+for profile_id in 1 2; do
+  cc -std=c11 -Wall -Wextra -Werror \
+    -DFROGALERT_HARDWARE_PROFILE_ID="$profile_id" \
+    "-DFROGALERT_VERSION=\"${frogalert_versions[0]}\"" \
+    "-DFROGALERT_DISPLAY_VERSION=\"${frogalert_versions[1]}\"" \
+    -Ifirmware/fossasia-usbc \
+    firmware/fossasia-usbc/frogalert-boot-status.c \
+    tests/fossasia-boot-status.c \
+    -o "tmp/c-tests/fossasia-boot-status-$profile_id"
+  "tmp/c-tests/fossasia-boot-status-$profile_id"
+done
 firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
 (
   cd firmware
@@ -82,10 +99,14 @@ expect_vector_quarantine \
   tmp/firmware/frogalert-count-HARDWARE_REV1.bin \
   ./scripts/build-count-firmware HARDWARE_REV1 --check
 node --test tests/*.test.mjs
-node scripts/assemble-site.mjs tmp/site-build
-frogalert_publication_commit="$(git rev-parse HEAD)"
-FROGALERT_PUBLISH_COMMIT="$frogalert_publication_commit" \
-  node scripts/firmware-release-plan.mjs tmp/release-publication
+if [[ "${FROGALERT_SKIP_PUBLICATION_ASSETS:-0}" == "1" ]]; then
+  echo "note: exact release-byte checks run in the trusted publication-assets job"
+else
+  node scripts/assemble-site.mjs tmp/site-build
+  frogalert_publication_commit="$(git rev-parse HEAD)"
+  FROGALERT_PUBLISH_COMMIT="$frogalert_publication_commit" \
+    node scripts/firmware-release-plan.mjs tmp/release-publication
+fi
 
 if command -v xmllint >/dev/null 2>&1; then
   xmllint --html --noout index.html flash/index.html

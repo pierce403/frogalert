@@ -326,9 +326,10 @@ third-party open recovery images in separate `releases`, `lab_images`, and
 - same-origin artifact filename and optional GitHub release URL;
 - hardware verification record.
 
-Schema v4 also carries the canonical FrogAlert GitHub repository, release id,
-semantic version, channel, `v<version>` tag, GitHub notes URL, and checked-in
-release-notes path. The selector uses the stable manifest id rather than
+Schema v5 also carries the canonical FrogAlert GitHub repository, release id,
+semantic version, publication date, channel, `v<version>` tag, GitHub notes
+URL, checked-in release-notes path, and exact Actions provenance for every new
+non-legacy release. The selector uses the stable manifest id rather than
 embedding serialized descriptor JSON in the page. It shows the release label,
 version, channel, and exact hardware profile, and provides separate links to
 the same-origin verified BIN and the human-readable GitHub Release.
@@ -337,8 +338,10 @@ The same-origin manifest remains the only executable catalog. The browser does
 not call the GitHub API or download a GitHub-hosted asset, so a missing GitHub
 service response cannot alter firmware selection and the static
 `connect-src 'self'` policy remains intact. After successful CI on `main`, the
-publication workflow verifies and publishes any new manifest-approved GitHub
-Release before deploying the Pages artifact that exposes it.
+publication workflow retrieves the one recorded successful main-CI artifact,
+verifies its archive metadata, candidate receipt, BIN/ELF hashes, and build
+attestations, then publishes any new manifest-approved GitHub Release before
+deploying the Pages artifact that exposes the same bytes.
 
 Site assembly rejects a FrogAlert release or lab image unless
 `hardware_verified` is true and its evidence is bound to the exact SHA-256,

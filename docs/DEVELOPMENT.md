@@ -104,6 +104,29 @@ bundle under `tmp/`. It never builds, flashes, uploads, tags, or publishes
 firmware. GitHub writes occur only in the post-CI workflow after the same bundle
 has passed validation.
 
+## Phone and cloud firmware workflow
+
+Firmware development does not require a local MRS installation. Edit the
+source and `firmware/fossasia-usbc/version.json`, then push the commit to
+`main` from Codex cloud or GitHub. The **CI** workflow builds both board
+profiles and both visible-view lanes, performs the embedded audits, attests the
+outputs, and uploads `frogalert-candidate-<commit>` for 90 days. The same
+workflow can be started manually from the GitHub Actions page when a rebuild is
+needed without another source change.
+
+The Actions summary identifies the declared version, top and bottom files,
+their SHA-256 values, the artifact id, archive digest, and download link. Flash
+and test those exact bytes. After physical confirmation, add only the evidence,
+release notes, and schema-5 manifest descriptors containing the recorded
+candidate provenance. The publication workflow downloads the approved
+candidate itself, creates the GitHub Release, and places the identical BINs on
+the site. Do not build or commit a replacement BIN from another machine during
+approval.
+
+Changing the version creates a candidate, not an automatic hardware claim. The
+site continues to identify the last physically approved version as latest
+until the exact new bytes pass the board gate.
+
 ## Embedded firmware
 
 The supported replacement path is the pinned FOSSASIA USB-C hardware shell in
@@ -118,12 +141,14 @@ Prepare the exact source and toolchain, or let the build script prepare them:
 ./scripts/prepare-fossasia-usbc --with-toolchain
 ```
 
-The default profile is the newer Nyx `B1144C_260404_USB_C` board:
+Local reproduction remains available but is optional. The default profile is
+the newer Nyx `B1144C_260404_USB_C` board:
 
 ```sh
 ./scripts/build-fossasia-usbc baseline --check
 ./scripts/build-fossasia-usbc canary --check
-./scripts/build-fossasia-usbc survey --check
+./scripts/build-fossasia-usbc survey --candidate
+./scripts/build-fossasia-usbc frogs --candidate
 ```
 
 Build the legacy board by naming it explicitly:
@@ -131,7 +156,8 @@ Build the legacy board by naming it explicitly:
 ```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
-./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --candidate
+./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --candidate
 ```
 
 `B1144C_260404_USB_C` and `B1144C_250901_USB_C` use the same 23 display nets
@@ -149,9 +175,9 @@ nearest USB rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth count
 `260404`, KEY2 on `250901`. The other short press keeps the normal system
 action; KEY1 long brightness and the separate long-KEY2 ISP poll remain
 inherited. Scanning continues in either
-visible view. The counter suffix shows `I` initializing, `R` ready/waiting, `S`
-scanning, `E` error, or `T` timeout; it disappears for a completed result. The
-lane updates live while scanning, consumes the final discovery list, and feeds
+visible view. The counter retains the last completed result while a new scan is
+running, then changes once when that scan completes. It consumes the final
+discovery list and feeds
 live public-address/name/service data into a bounded C mirror of every README
 detection row. The selected result has fixed priority: BadgeMagic frogs, then
 KARR, COP, Flipper, and finally custom rules. A later report replaces the

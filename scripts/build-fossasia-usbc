@@ -13,19 +13,19 @@ flock 9
 default_profile="B1144C_260404_USB_C"
 profile=""
 build_mode=""
-check_mode=""
+audit_mode=""
 
 case "${1:-}" in
   baseline|canary|survey|frogs)
     profile="$default_profile"
     build_mode="$1"
-    check_mode="${2:-}"
+    audit_mode="${2:-}"
     [[ "$#" -le 2 ]] || build_mode=""
     ;;
   *)
     profile="${1:-}"
     build_mode="${2:-}"
-    check_mode="${3:-}"
+    audit_mode="${3:-}"
     [[ "$#" -ge 2 && "$#" -le 3 ]] || build_mode=""
     ;;
 esac
@@ -34,9 +34,13 @@ if [[ "$profile" != "B1144C_250901_USB_C" &&
       "$profile" != "B1144C_260404_USB_C" ]] ||
   [[ "$build_mode" != "baseline" && "$build_mode" != "canary" &&
     "$build_mode" != "survey" && "$build_mode" != "frogs" ]] ||
-  [[ -n "$check_mode" && "$check_mode" != "--check" ]]; then
-  echo "usage: ./scripts/build-fossasia-usbc [B1144C_250901_USB_C|B1144C_260404_USB_C] {baseline|canary|survey|frogs} [--check]" >&2
+  [[ -n "$audit_mode" && "$audit_mode" != "--check" &&
+    "$audit_mode" != "--candidate" ]] ||
+  [[ "$audit_mode" == "--candidate" &&
+    "$build_mode" != "survey" && "$build_mode" != "frogs" ]]; then
+  echo "usage: ./scripts/build-fossasia-usbc [B1144C_250901_USB_C|B1144C_260404_USB_C] {baseline|canary|survey|frogs} [--check|--candidate]" >&2
   echo "Omit the profile to build the default B1144C_260404_USB_C profile." >&2
+  echo "--candidate is available only for survey and frogs cloud-build receipts." >&2
   exit 2
 fi
 
@@ -86,6 +90,14 @@ toolchain_prefix="$toolchain_directory/${lock_values[2]}"
 version="${lock_values[3]}"
 version_abbreviation="${lock_values[4]}"
 profile_id="${lock_values[5]}"
+version_output="$(node "$repo_root/scripts/frogalert-version.mjs")"
+mapfile -t frogalert_versions <<<"$version_output"
+if [[ "${#frogalert_versions[@]}" -ne 2 ]]; then
+  echo "firmware version helper returned an invalid result" >&2
+  exit 1
+fi
+frogalert_version="${frogalert_versions[0]}"
+frogalert_display_version="${frogalert_versions[1]}"
 
 "$repo_root/scripts/prepare-fossasia-usbc" --with-toolchain
 node "$repo_root/scripts/apply-fossasia-hardware-profile.mjs" \
@@ -126,6 +138,12 @@ elif [[ "$build_mode" == "survey" || "$build_mode" == "frogs" ]]; then
   cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-animation-compat.h" \
     "$source_directory/src/frogalert-animation-compat.h"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-boot-status.c" \
+    "$source_directory/src/frogalert_boot_status.c"
+  cp \
+    "$repo_root/firmware/fossasia-usbc/frogalert-boot-status.h" \
+    "$source_directory/src/frogalert-boot-status.h"
   node "$repo_root/scripts/apply-fossasia-survey.mjs" "$source_directory"
   makefiles+=(
     -f "$repo_root/firmware/fossasia-usbc/frogalert-survey.mk"
@@ -156,6 +174,8 @@ fi
     USBC_VERSION=1 \
     FROGALERT_HARDWARE_PROFILE_ID="$profile_id" \
     FROGALERT_HARDWARE_PROFILE_NAME="$profile" \
+    FROGALERT_VERSION="$frogalert_version" \
+    FROGALERT_DISPLAY_VERSION="$frogalert_display_version" \
     VERSION="$version" \
     VERSION_ABBR="$version_abbreviation" \
     PREFIX="$toolchain_prefix"
@@ -187,8 +207,11 @@ node "$repo_root/scripts/audit-fossasia-usbc.mjs" symbols "$build_mode" "$nm_out
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" vectors "$highcode" "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" ram "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" disassembly "$disassembly"
-node "$repo_root/scripts/audit-fossasia-usbc.mjs" binary \
-  "$profile" "$build_mode" "$bin"
+binary_audit=(binary "$profile" "$build_mode" "$bin")
+if [[ "$audit_mode" == "--candidate" ]]; then
+  binary_audit+=(--candidate)
+fi
+node "$repo_root/scripts/audit-fossasia-usbc.mjs" "${binary_audit[@]}"
 audit_complete=1
 cp "$bin" "$named_bin"
 cp "$elf" "$named_elf"
@@ -214,8 +237,11 @@ else
 fi
 echo "hardware profile: $profile"
 echo "build evidence: $named_bin"
+if [[ "$audit_mode" == "--candidate" ]]; then
+  echo "candidate receipt gate passed: output size and SHA-256 were calculated, not accepted from a moving input lock"
+fi
 echo "HARDWARE UNVERIFIED: build evidence only; not a public release or approved for flashing"
 
-if [[ "$check_mode" == "--check" ]]; then
+if [[ "$audit_mode" == "--check" || "$audit_mode" == "--candidate" ]]; then
   exit 0
 fi

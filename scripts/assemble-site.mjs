@@ -5,7 +5,11 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import process from "node:process";
 
-import { validateLabDescriptor, validateRecoveryDescriptor } from "../site/wchisp-protocol.js";
+import {
+  validateLabDescriptor,
+  validatePairedUsbCReleaseCatalog,
+  validateRecoveryDescriptor,
+} from "../site/wchisp-protocol.js";
 import { assertCh58xUserOptionMagic } from "./firmware-image.mjs";
 import {
   validateFirmwarePublicationManifest,
@@ -16,8 +20,16 @@ import {
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const outputRoot = resolve(repositoryRoot, process.argv[2] || "_site");
 const releaseRoot = join(repositoryRoot, "firmware", "releases");
+const releaseArtifactRoot = resolve(
+  repositoryRoot,
+  process.env.FROGALERT_RELEASE_ASSET_ROOT || "firmware/releases",
+);
 
-if (outputRoot === repositoryRoot || !outputRoot.startsWith(`${repositoryRoot}/`)) {
+if (
+  outputRoot === repositoryRoot ||
+  !outputRoot.startsWith(`${repositoryRoot}/`) ||
+  !releaseArtifactRoot.startsWith(`${repositoryRoot}/`)
+) {
   throw new Error("site output must be a directory inside the FrogAlert repository");
 }
 
@@ -26,7 +38,7 @@ const manifestBytes = await readFile(manifestPath);
 const manifest = JSON.parse(manifestBytes);
 const quarantine = JSON.parse(await readFile(join(repositoryRoot, "firmware", "quarantine.json")));
 if (
-  manifest.schema_version !== 4 ||
+  manifest.schema_version !== 5 ||
   !Array.isArray(manifest.releases) ||
   !Array.isArray(manifest.lab_images) ||
   !Array.isArray(manifest.recovery_images)
@@ -34,6 +46,7 @@ if (
   throw new Error("unsupported firmware release manifest schema");
 }
 validateFirmwarePublicationManifest(manifest, quarantine);
+validatePairedUsbCReleaseCatalog(manifest.releases, manifest.github_repository);
 
 for (const artifact of quarantine.artifacts) {
   try {
@@ -95,7 +108,7 @@ for (const descriptor of descriptors) {
   }
   listedFiles.add(descriptor.file);
 
-  const bytes = await readFile(join(releaseRoot, descriptor.file));
+  const bytes = await readFile(join(releaseArtifactRoot, descriptor.file));
   assertCh58xUserOptionMagic(bytes);
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (bytes.byteLength !== descriptor.bytes || digest !== descriptor.sha256.toLowerCase()) {
@@ -116,7 +129,7 @@ for (const descriptor of manifest.releases) {
     throw new Error(`duplicate firmware debug ELF in manifest: ${descriptor.debug_file}`);
   }
   listedDebugFiles.add(descriptor.debug_file);
-  const bytes = await readFile(join(releaseRoot, descriptor.debug_file));
+  const bytes = await readFile(join(releaseArtifactRoot, descriptor.debug_file));
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (
     bytes.byteLength !== descriptor.debug_bytes ||
@@ -131,13 +144,13 @@ for (const descriptor of manifest.releases) {
   }
 }
 
-const sourceBins = (await readdir(releaseRoot)).filter((name) => name.endsWith(".bin"));
+const sourceBins = (await readdir(releaseArtifactRoot)).filter((name) => name.endsWith(".bin"));
 for (const name of sourceBins) {
   if (!listedFiles.has(name)) {
     throw new Error(`refusing to publish unlisted firmware artifact: ${name}`);
   }
 }
-const sourceElfs = (await readdir(releaseRoot)).filter((name) => name.endsWith(".elf"));
+const sourceElfs = (await readdir(releaseArtifactRoot)).filter((name) => name.endsWith(".elf"));
 for (const name of sourceElfs) {
   if (!listedDebugFiles.has(name)) {
     throw new Error(`refusing to publish unlisted firmware debug ELF: ${name}`);
@@ -157,7 +170,10 @@ await cp(
 );
 await writeFile(join(outputRoot, "firmware", "releases", "manifest.json"), manifestBytes);
 for (const name of listedFiles) {
-  await cp(join(releaseRoot, name), join(outputRoot, "firmware", "releases", name));
+  await cp(
+    join(releaseArtifactRoot, name),
+    join(outputRoot, "firmware", "releases", name),
+  );
 }
 
 console.log(

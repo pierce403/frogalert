@@ -7,15 +7,28 @@ import test from "node:test";
 
 import {
   buildFirmwareCandidateBundle,
+  firmwareCandidateSummary,
   firmwareCandidateVersion,
+  githubActionsProvenanceFromEnvironment,
+  validateGitHubActionsProvenance,
 } from "../scripts/firmware-candidate.mjs";
 
 const SOURCE_COMMIT = "1234567890abcdef1234567890abcdef12345678";
+const FIRMWARE_VERSION = "0.2.0-beta.1";
+const DISPLAY_VERSION = "v0.2.0b1";
 const TEST_SCRATCH_ROOT = fileURLToPath(new URL("../tmp/", import.meta.url));
 const PROFILES = [
   "B1144C_260404_USB_C",
   "B1144C_250901_USB_C",
 ];
+const GITHUB_ACTIONS_PROVENANCE = Object.freeze({
+  repository: "pierce403/frogalert",
+  run_id: "30726276951",
+  workflow:
+    "pierce403/frogalert/.github/workflows/ci.yml@refs/heads/main",
+  job: "firmware-candidate",
+  run_attempt: "2",
+});
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -27,6 +40,18 @@ async function makeFixture(t) {
   t.after(() => rm(root, { recursive: true, force: true }));
   const lockRoot = join(root, "firmware", "fossasia-usbc");
   await mkdir(lockRoot, { recursive: true });
+  await writeFile(
+    join(lockRoot, "version.json"),
+    `${JSON.stringify(
+      {
+        schema_version: 1,
+        version: FIRMWARE_VERSION,
+        display_version: DISPLAY_VERSION,
+      },
+      null,
+      2,
+    )}\n`,
+  );
 
   const fixtures = {};
   for (const [profileIndex, profile] of PROFILES.entries()) {
@@ -79,17 +104,20 @@ async function makeFixture(t) {
     },
     build: {
       usbc_version: 1,
+      // These intentionally stale moving-output locks prove that candidate
+      // packaging records the audited build output instead of requiring a
+      // locally precomputed survey/frogs hash.
       profile_images: Object.fromEntries(
         PROFILES.map((profile) => [
           profile,
           {
             survey: {
-              size: fixtures[profile].bin.byteLength,
-              sha256: sha256(fixtures[profile].bin),
+              size: 1,
+              sha256: "d".repeat(64),
             },
             frogs: {
-              size: fixtures[profile].bin.byteLength,
-              sha256: sha256(fixtures[profile].bin),
+              size: 1,
+              sha256: "e".repeat(64),
             },
           },
         ]),
@@ -103,26 +131,81 @@ async function makeFixture(t) {
   return { root, fixtures, lock };
 }
 
-test("candidate version is deterministic and commit-bound", () => {
+test("candidate version retains the declared semantic version and commit identity", () => {
   assert.equal(
-    firmwareCandidateVersion(SOURCE_COMMIT),
-    "0.0.0-candidate.1234567890ab",
+    firmwareCandidateVersion(FIRMWARE_VERSION, SOURCE_COMMIT),
+    "0.2.0-beta.1+candidate.1234567890ab",
   );
-  assert.throws(() => firmwareCandidateVersion("1234567"), /full lowercase Git commit/);
+  assert.throws(
+    () => firmwareCandidateVersion(FIRMWARE_VERSION, "1234567"),
+    /full lowercase Git commit/,
+  );
+  assert.throws(
+    () => firmwareCandidateVersion("latest", SOURCE_COMMIT),
+    /firmware version is invalid/,
+  );
+});
+
+test("GitHub Actions provenance is explicit and validated", () => {
+  assert.deepEqual(
+    validateGitHubActionsProvenance(
+      GITHUB_ACTIONS_PROVENANCE,
+      "pierce403/frogalert",
+    ),
+    { provider: "github-actions", ...GITHUB_ACTIONS_PROVENANCE },
+  );
+  assert.deepEqual(
+    githubActionsProvenanceFromEnvironment({
+      FROGALERT_CANDIDATE_GITHUB_REPOSITORY: "pierce403/frogalert",
+      FROGALERT_CANDIDATE_GITHUB_RUN_ID: "30726276951",
+      FROGALERT_CANDIDATE_GITHUB_WORKFLOW:
+        "pierce403/frogalert/.github/workflows/ci.yml@refs/heads/main",
+      FROGALERT_CANDIDATE_GITHUB_JOB: "firmware-candidate",
+      FROGALERT_CANDIDATE_GITHUB_RUN_ATTEMPT: "2",
+    }),
+    GITHUB_ACTIONS_PROVENANCE,
+  );
+  assert.throws(
+    () =>
+      validateGitHubActionsProvenance(
+        { ...GITHUB_ACTIONS_PROVENANCE, repository: "someone/else" },
+        "pierce403/frogalert",
+      ),
+    /repository does not match/,
+  );
+  assert.throws(
+    () =>
+      validateGitHubActionsProvenance(
+        { ...GITHUB_ACTIONS_PROVENANCE, run_id: "not-a-run" },
+        "pierce403/frogalert",
+      ),
+    /run id is invalid/,
+  );
 });
 
 test("candidate bundle records exact audited bytes and cannot imply release approval", async (t) => {
-  const { root, fixtures, lock } = await makeFixture(t);
+  const { root, fixtures } = await makeFixture(t);
   const outputRoot = join(root, "tmp", "candidate-output");
   const metadata = await buildFirmwareCandidateBundle({
     repositoryRoot: root,
     outputRoot,
     sourceCommit: SOURCE_COMMIT,
     repository: "pierce403/frogalert",
+    githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
   });
 
-  assert.equal(metadata.version, "0.0.0-candidate.1234567890ab");
+  assert.equal(metadata.schema_version, 3);
+  assert.equal(metadata.version, FIRMWARE_VERSION);
+  assert.equal(metadata.display_version, DISPLAY_VERSION);
+  assert.equal(
+    metadata.candidate_version,
+    "0.2.0-beta.1+candidate.1234567890ab",
+  );
   assert.equal(metadata.source_commit, SOURCE_COMMIT);
+  assert.deepEqual(metadata.provenance, {
+    provider: "github-actions",
+    ...GITHUB_ACTIONS_PROVENANCE,
+  });
   assert.equal(metadata.hardware_verified, false);
   assert.equal(metadata.flash_approved, false);
   assert.equal(metadata.publishable, false);
@@ -138,7 +221,7 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
     );
     assert.equal(
       metadata.artifacts[profile].firmware.sha256,
-      lock.build.profile_images[profile].survey.sha256,
+      sha256(fixtures[profile].bin),
     );
     assert.equal(
       metadata.artifacts[profile].debug_elf.bytes,
@@ -150,7 +233,9 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
     );
     assert.match(
       metadata.artifacts[profile].firmware.file,
-      new RegExp(`-${position}-b1144c-`),
+      new RegExp(
+        `-${FIRMWARE_VERSION}-candidate-${SOURCE_COMMIT.slice(0, 12)}-${position}-b1144c-`,
+      ),
     );
     assert.match(
       metadata.artifacts[profile].debug_elf.file,
@@ -171,6 +256,9 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
   }
   const readme = await readFile(join(outputRoot, "README.md"), "utf8");
   assert.match(readme, /hardware-unverified CI candidate/i);
+  assert.match(readme, new RegExp(`Version: ${FIRMWARE_VERSION}`));
+  assert.match(readme, new RegExp(`Display version: ${DISPLAY_VERSION}`));
+  assert.match(readme, /GitHub Actions run: 30726276951/);
   assert.match(readme, /not approved for flashing/i);
   assert.match(readme, /never copied into the website firmware catalog/i);
 
@@ -180,12 +268,30 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
     outputRoot,
     sourceCommit: SOURCE_COMMIT,
     repository: "pierce403/frogalert",
+    githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
   });
   assert.equal(
     await readFile(join(outputRoot, "candidate.json"), "utf8"),
     firstMetadata,
     "rerunning the same commit must produce identical candidate metadata",
   );
+});
+
+test("candidate summary is concise, hash-bound, and explicit about approval", async (t) => {
+  const { root } = await makeFixture(t);
+  const metadata = await buildFirmwareCandidateBundle({
+    repositoryRoot: root,
+    outputRoot: join(root, "tmp", "candidate-output"),
+    sourceCommit: SOURCE_COMMIT,
+    githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
+  });
+  const summary = firmwareCandidateSummary(metadata);
+  assert.match(summary, /Counter candidate · 0\.2\.0-beta\.1/);
+  assert.match(summary, /Hardware-unverified/);
+  assert.match(summary, /not approved for flashing or publication/);
+  for (const profile of PROFILES) {
+    assert.match(summary, new RegExp(metadata.artifacts[profile].firmware.sha256));
+  }
 });
 
 test("candidate bundle can package the dancing-frog lane separately", async (t) => {
@@ -196,6 +302,7 @@ test("candidate bundle can package the dancing-frog lane separately", async (t) 
     outputRoot,
     sourceCommit: SOURCE_COMMIT,
     buildLane: "frogs",
+    githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
   });
 
   assert.equal(metadata.build_lane, "frogs");
@@ -205,20 +312,22 @@ test("candidate bundle can package the dancing-frog lane separately", async (t) 
   }
 });
 
-test("candidate packaging rejects an image that differs from the audited lock", async (t) => {
+test("candidate packaging hashes audited output directly instead of requiring moving locks", async (t) => {
   const { root, fixtures } = await makeFixture(t);
   const { bin, buildRoots } = fixtures[PROFILES[0]];
   const buildRoot = buildRoots.survey;
   bin[100] ^= 0xff;
   await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
   await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
-  await assert.rejects(
-    buildFirmwareCandidateBundle({
-      repositoryRoot: root,
-      outputRoot: join(root, "tmp", "candidate-output"),
-      sourceCommit: SOURCE_COMMIT,
-    }),
-    /does not match the audited survey lock/,
+  const metadata = await buildFirmwareCandidateBundle({
+    repositoryRoot: root,
+    outputRoot: join(root, "tmp", "candidate-output"),
+    sourceCommit: SOURCE_COMMIT,
+    githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
+  });
+  assert.equal(
+    metadata.artifacts[PROFILES[0]].firmware.sha256,
+    sha256(bin),
   );
 });
 
@@ -236,6 +345,7 @@ test("candidate packaging rejects a BIN that is not bound to the audited ELF", a
       repositoryRoot: root,
       outputRoot: join(root, "tmp", "candidate-output"),
       sourceCommit: SOURCE_COMMIT,
+      githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
     }),
     /not the audited ELF's exact loadable bytes/,
   );
@@ -248,6 +358,7 @@ test("candidate packaging refuses outputs outside ignored repository scratch spa
       repositoryRoot: root,
       outputRoot: join(root, "firmware", "releases", "candidate"),
       sourceCommit: SOURCE_COMMIT,
+      githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
     }),
     /must stay under the repository tmp directory/,
   );

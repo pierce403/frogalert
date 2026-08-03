@@ -415,6 +415,40 @@ export function sortReleaseCatalogNewestFirst(
   });
 }
 
+export function validatePairedUsbCReleaseCatalog(
+  releases,
+  githubRepository = FROGALERT_GITHUB_REPOSITORY,
+) {
+  if (!Array.isArray(releases)) throw new TypeError("release catalog must be an array");
+  const required = new Map([
+    ["B1144C_260404_USB_C", "B1144C_260404"],
+    ["B1144C_250901_USB_C", "B1144C_250901"],
+  ]);
+  const groups = new Map();
+  for (const release of releases) {
+    validateReleaseCatalogDescriptor(release, githubRepository);
+    const group = groups.get(release.version) || [];
+    group.push(release);
+    groups.set(release.version, group);
+  }
+  for (const [version, group] of groups) {
+    if (group.length !== required.size) {
+      throw new Error(`FrogAlert ${version} must publish one top and one bottom image`);
+    }
+    for (const [profile, marking] of required) {
+      const matches = group.filter(
+        (release) =>
+          release.hardware_revisions[0] === profile &&
+          release.pcb_markings[0] === marking,
+      );
+      if (matches.length !== 1) {
+        throw new Error(`FrogAlert ${version} is missing its ${marking} image`);
+      }
+    }
+  }
+  return true;
+}
+
 export function validateReleaseDescriptor(release, pcbRevision, pcbMarking) {
   validateReleaseCatalogDescriptor(release);
   const revision = String(pcbRevision || "").trim();

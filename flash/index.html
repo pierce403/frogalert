@@ -79,7 +79,7 @@
 
       <section class="wizard-step" data-wizard-step="firmware" aria-labelledby="wizard-firmware-title" hidden>
         <p class="section-kicker">Step 2 of 4</p>
-        <h1 id="wizard-firmware-title" tabindex="-1">Preparing the update</h1>
+        <h1 id="wizard-firmware-title" tabindex="-1">Firmware found</h1>
         <p id="wizard-device-summary" class="wizard-success-line" role="status">CH582 ISP badge connected.</p>
         <p id="wizard-profile-hint" class="wizard-inline-status" hidden></p>
 
@@ -101,7 +101,7 @@
           <div hidden><dt>Provenance</dt><dd id="firmware-provenance">—</dd></div>
           <div hidden><dt>Evidence</dt><dd id="firmware-verification">—</dd></div>
         </dl>
-        <p id="wizard-firmware-status" class="wizard-inline-status" role="status" aria-live="polite">FrogAlert will select and verify the matching update automatically.</p>
+        <p id="wizard-firmware-status" class="wizard-inline-status" role="status" aria-live="polite">Matching firmware will be downloaded and verified.</p>
         <div class="wizard-actions">
           <button id="wizard-firmware-back" class="button button-secondary" type="button">Back</button>
           <button id="wizard-firmware-continue" class="button button-primary" type="button" disabled>Continue</button>
@@ -117,7 +117,7 @@
           <label><input class="flash-confirmation" type="checkbox"> This opened badge has a <strong>CH582M</strong>, an <strong>11×44</strong> matrix, and the selected PCB marking.</label>
           <label><input class="flash-confirmation" type="checkbox"> I checked this BIN's profile, size, and SHA-256 shown in the previous step.</label>
           <label><input class="flash-confirmation" type="checkbox"> I understand the first write resets configuration and erases the unrecoverable current firmware.</label>
-          <label><input class="flash-confirmation" type="checkbox"> Power is stable, and success requires the complete byte-verification step.</label>
+          <label><input class="flash-confirmation" type="checkbox"> I will keep the badge connected until verification finishes.</label>
         </fieldset>
         <div class="field-group">
           <label for="flash-phrase">Type <code>ERASE THIS BADGE</code></label>
@@ -720,6 +720,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=16"></script>
+    <script type="module" src="../site/app.js?v=19"></script>
   </body>
 </html>

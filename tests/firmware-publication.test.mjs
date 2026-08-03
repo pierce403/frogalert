@@ -12,6 +12,17 @@ import {
 const VERIFIED_SHA = "c".repeat(64);
 const FAILED_SHA = "02b4497a9179ef2ce9dc88b9ef4c06b8adf7049391568cea78e019a2361cfb22";
 const KNOWN_GOOD_SHA = "2049eb587844c0ea87eb7c8eddd12dc2c7a3bd5ac1cdee1ede2dba8fc5f670a2";
+const buildProvenance = Object.freeze({
+  kind: "github-actions-candidate",
+  workflow_run_id: 123456789,
+  workflow_path: ".github/workflows/ci.yml",
+  workflow_run_attempt: 1,
+  artifact_id: 987654321,
+  artifact_name: `frogalert-candidate-${"a".repeat(40)}`,
+  artifact_digest: `sha256:${"d".repeat(64)}`,
+  candidate_metadata_sha256: "f".repeat(64),
+  build_lane: "survey",
+});
 
 const evidence = (overrides = {}) => ({
   artifact_sha256: VERIFIED_SHA,
@@ -81,16 +92,20 @@ const artifact = (overrides = {}) => ({
   release_url:
     "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-alpha.1",
   release_notes: "firmware/releases/notes/v0.1.0-alpha.1.md",
+  published_at: "2026-07-23",
+  firmware_variant: "counter",
   debug_file: "frogalert-verified-lab.elf",
   debug_bytes: 16384,
   debug_sha256: "e".repeat(64),
+  build_provenance: buildProvenance,
   hardware_evidence: evidence(),
   ...overrides,
 });
 
 const manifest = (overrides = {}) => ({
-  schema_version: 4,
+  schema_version: 5,
   github_repository: "pierce403/frogalert",
+  legacy_repository_release_tags: [],
   releases: [],
   lab_images: [],
   recovery_images: [],
@@ -123,6 +138,20 @@ test("physically verified, hash-bound FrogAlert artifacts may be published", () 
       emptyQuarantine,
     ),
     true,
+  );
+});
+
+test("only the already-published beta may use repository-backed legacy bytes", () => {
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          legacy_repository_release_tags: ["v9.9.9"],
+          releases: [artifact({ build_provenance: undefined })],
+        }),
+        emptyQuarantine,
+      ),
+    /legacy release list is immutable/,
   );
 });
 
@@ -190,6 +219,7 @@ test("release metadata is canonical for commit-driven GitHub publication", () =>
     [{ release_notes: "../notes.md" }, /release notes path is invalid/],
     [{ debug_file: "../debug.elf" }, /debug ELF filename is invalid/],
     [{ debug_sha256: "short" }, /debug ELF SHA-256 is invalid/],
+    [{ firmware_variant: "frogs" }, /firmware variant does not match its build lane/],
   ]) {
     assert.throws(
       () =>

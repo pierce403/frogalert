@@ -83,34 +83,30 @@ test("landing page exposes the project and guarded device flow", async () => {
     "id=\"lab-image-download\"",
     "id=\"recovery-prepare\"",
     "id=\"recovery-board-confirmation\"",
+    "id=\"latest-release-channel\"",
+    "id=\"latest-release-version\"",
+    "id=\"latest-release-markings\"",
+    "id=\"latest-top-download\"",
+    "id=\"latest-bottom-download\"",
+    "id=\"latest-release-notes\"",
     "site/app.js",
     "site/styles.css",
   ]) {
     assert.ok(html.includes(required), `index.html should include ${required}`);
   }
   assert.match(html, /OEM (?:firmware|image) is unavailable and unrecoverable/i);
-  assert.match(html, /Web Bluetooth checks the running BadgeMagic service/i);
+  assert.match(html, /BadgeMagic device advertising service.*FEE0/is);
   assert.match(html, /id="bluetooth-connect"[^>]+disabled/);
   assert.match(html, /id="usb-connect"[^>]+disabled/);
   assert.match(html, /Install open BadgeMagic firmware/);
   assert.match(html, /Prepare open BadgeMagic firmware/);
-  assert.match(html, /BETA \/ BADGE · BOTH PROFILES HARDWARE-TESTED/);
-  assert.match(html, /Dual-profile survey firmware/);
-  assert.match(
-    html,
-    /href="\.\/firmware\/releases\/frogalert-0\.1\.0-beta\.1-b1144c-260404-usb-c\.bin"[^>]*download[^>]*>Download top-button firmware</,
-  );
-  assert.match(
-    html,
-    /frogalert-0\.1\.0-beta\.1-b1144c-250901-usb-c\.bin/,
-  );
-  assert.match(html, /available for both verified USB-C boards/i);
-  assert.match(html, /Two hardware-tested beta images/i);
-  assert.match(html, /view button.*names.*Bluetooth-rune.*00.*nearest USB.*260404/is);
-  assert.match(html, /Scanning runs in either display mode/i);
+  assert.match(html, /Flash latest published firmware/);
+  assert.match(html, /Latest firmware/);
+  assert.match(html, /button closest to USB.*switch between your messages.*nearby-device count/is);
+  assert.match(html, /About every 20 seconds.*three seconds/is);
+  assert.match(html, /last completed count on screen while the next scan runs/i);
   assert.match(html, /shows.*COP DETECTED.*one second each/is);
   assert.match(html, /dancing-frog frames/i);
-  assert.match(html, /scan starts about every 20 seconds/i);
   assert.match(html, /LED Badge Magic/);
   assert.match(html, /Passive scan limit:.*does not request scan responses/is);
   assert.match(html, /FEE0.*fallback can match other compatible badges/is);
@@ -119,15 +115,10 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /QT [\s\S]*serial[\s\S]*KARR DETECTED/);
   assert.match(html, /Ray-Ban[\s\S]*Ray Ban[\s\S]*COP DETECTED/);
   assert.doesNotMatch(html, /HAX DETECTED/);
-  assert.match(html, /profile-specific .*260404.*250901.*beta images/is);
-  assert.match(html, /double-buffered output overlay.*blink.*marquee.*base animations/is);
-  assert.match(html, /205,152 bytes.*c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9/);
-  assert.match(html, /205,128 bytes.*f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9/);
-  assert.match(html, /complete-frame refresh from roughly 45 Hz to 182 Hz/);
-  assert.match(html, /a fixed counter, one-second-per-frame fixed alerts/);
-  assert.match(html, /Both published beta hashes have user-confirmed runtime.*KEY2 dot-to-ISP acceptance/is);
+  assert.doesNotMatch(html, /frogalert-\d+\.\d+\.\d+(?:-[a-z0-9.]+)?-b1144c-/i);
+  assert.match(html, /FOSSASIA's open-source BadgeMagic firmware/i);
+  assert.match(html, /github\.com\/fossasia\/badgemagic-firmware/);
   assert.match(html, /cannot be distinguished passively at boot/i);
-  assert.match(html, /Captured CLI\/WebUSB transport logs remain a stable-release gate/is);
   assert.match(html, /OEM image is unavailable and unrecoverable/i);
   assert.match(html, /Preparation does not touch USB/i);
   assert.match(
@@ -135,15 +126,15 @@ test("landing page exposes the project and guarded device flow", async () => {
     /This bundled image cannot be programmed from the site yet/i,
   );
   assert.match(html, /local BIN chooser below is read-only on this page/i);
-  assert.match(html, /This page.*cannot reset configuration, erase, or program/is);
+  assert.match(html, /tools below can inspect.*without changing it/is);
   assert.match(html, /B1144C_250901.*B1144C_260404.*CH582M/is);
   assert.match(html, /KEY2.*nearest USB on.*250901.*farther from USB on.*260404/is);
   assert.match(html, /Ordinary long-press entry works only after compatible FOSSASIA.*FrogAlert firmware/is);
   assert.match(html, /Original or unknown firmware.*expert-recovery boundary/is);
   assert.match(html, /one dot lights near the middle/i);
   assert.match(html, /4348:55e0.*1a86:55e0.*9–13 second/is);
-  assert.match(html, /Hardware-verified lab build/i);
-  assert.match(html, /Download selected hardware-verified lab BIN/i);
+  assert.match(html, /Additional test firmware/i);
+  assert.match(html, /Download selected test firmware/i);
   assert.match(html, /compar(?:e|ed) both sides.*reference photos/i);
   assert.match(html, /USB identification only proves the MCU family/i);
   assert.doesNotMatch(html, /factory reset/i);
@@ -158,6 +149,12 @@ test("landing page exposes the project and guarded device flow", async () => {
     "hardware gates, and receipts",
     "guarded destructive workflow",
     "same tiny",
+    "Keep the nametag. Tap KEY2 for the counter.",
+    "What works, and what still needs a badge test",
+    "Next candidate:",
+    "Host tests passing",
+    "Two hardware-tested beta images",
+    "Concept UI",
   ]) {
     assert.ok(!html.includes(stalePhrase), `landing copy should omit ${stalePhrase}`);
   }
@@ -172,14 +169,24 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /option\.value = release\.id/);
   assert.doesNotMatch(app, /option\.value = JSON\.stringify\(release\)/);
   assert.match(app, /sortReleaseCatalogNewestFirst\(/);
-  assert.match(app, /wchisp-protocol\.js\?v=5/);
+  assert.match(app, /wchisp-protocol\.js\?v=6/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=16/);
+  assert.match(html, /site\/app\.js\?v=19/);
+  assert.match(html, /id="flash-lab"[^>]+hidden/);
+  assert.match(app, /latest\[0\]\.published_at/);
   assert.match(app, /flash-support\.js\?v=2/);
-  assert.match(app, /latest approved/);
+  assert.match(app, /const latestVersion = state\.releases\[0\]\?\.version/);
+  assert.match(app, /release\.version === latestVersion/);
+  assert.match(app, /release\.pcb_markings\.includes\("B1144C_260404"\)/);
+  assert.match(app, /release\.pcb_markings\.includes\("B1144C_250901"\)/);
+  assert.match(app, /setLatestDownload\(elements\.latestTopDownload, top, "top"\)/);
+  assert.match(app, /setLatestDownload\(elements\.latestBottomDownload, bottom, "bottom"\)/);
+  assert.match(app, /elements\.latestReleaseNotes\.href = latest\[0\]\.release_url/);
+  assert.match(html, /<caption>Built-in alert examples<\/caption>/);
+  assert.match(app, /validatePairedUsbCReleaseCatalog\(/);
+  assert.match(app, /!\[4, 5\]\.includes\(manifest\.schema_version\)/);
   assert.match(app, /loads the matching image after it observes the button path/);
-  assert.match(html, /newest semantic version.*never selected automatically/i);
   assert.match(app, /elements\.releaseDownload\.href = firmwareArtifactUrl\(release\.file/);
   assert.match(app, /elements\.releaseLink\.href = release\.release_url/);
   assert.match(app, /typeof navigator\.usb\?\.requestDevice === "function"/);
@@ -187,8 +194,8 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.doesNotMatch(app, /"usb" in navigator/);
   assert.match(app, /return destructivePage && elements\.flashPhrase\?\.value\.trim\(\) === "ERASE THIS BADGE"/);
   assert.match(app, /if \(destructivePage && elements\.flashButton\)/);
-  assert.match(app, /Private developer BINs may be selected locally for qualified bench testing only/);
-  assert.match(app, /Private survey builds remain local, hardware-unverified developer artifacts/);
+  assert.doesNotMatch(app, /Private developer BINs may be selected locally for qualified bench testing only/);
+  assert.doesNotMatch(app, /Private survey builds remain local, hardware-unverified developer artifacts/);
 });
 
 test("dedicated flash route exposes one safe wizard step at a time", async () => {
@@ -236,7 +243,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=16/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=19/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   for (const step of ["firmware", "confirm", "flash", "success"]) {
@@ -263,6 +270,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /FrogAlert will identify it automatically/);
   assert.match(app, /Not detected\? Open the chooser/);
   assert.match(app, /elements\.usbButton\.hidden = true/);
+  assert.match(app, /elements\.wizardApplicationTitle\?\.focus\(\)/);
   assert.match(app, /badgeUsbMode\(candidate\) === "application"/);
   assert.match(app, /showApplicationUsbDevice\(applicationMatches\[0\]\)/);
   assert.match(app, /BADGE_USB_CHOOSER_FILTERS/);
@@ -280,7 +288,9 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /profile: "B1144C_260404_USB_C"/);
   assert.match(app, /imageLabel: "bottom-button image"/);
   assert.match(app, /imageLabel: "top-button image"/);
-  assert.match(html, /Preparing the update/);
+  assert.match(html, /Firmware found/);
+  assert.match(html, /Matching firmware will be downloaded and verified/);
+  assert.match(html, /keep the badge connected until verification finishes/i);
   assert.doesNotMatch(html, /type="file"|Choose a local firmware file|id="firmware-file"/);
   assert.doesNotMatch(
     html.slice(0, html.indexOf('class="legacy-flasher"')),
@@ -323,6 +333,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /focusIspEntryPhaseControl\(state\.ispEntryPhase\)/);
   assert.doesNotMatch(app, /set(?:Timeout|Interval)\([^)]*requestDevice/s);
   assert.match(flashCss, /\.flash-page \[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
+  assert.match(flashCss, /\.wizard-home-link\s*\{[^}]*color:\s*var\(--frog-bright\)/s);
   assert.match(flashCss, /\.isp-guide-overview\s*\{\s*grid-template-columns:\s*repeat\(5,/s);
   assert.match(html, /current (?:application )?firmware.*(?:unknown|cannot|not)/is);
   assert.match(html, /PCB revision.*cannot.*detect/is);
@@ -426,9 +437,29 @@ test("publication waits for successful same-repository CI and deploys only after
   assert.match(workflow, /workflows: \[CI\]/);
   assert.match(workflow, /workflow_run\.conclusion == 'success'/);
   assert.match(workflow, /workflow_run\.event == 'push'/);
+  assert.match(workflow, /workflow_run\.path == '\.github\/workflows\/ci\.yml'/);
   assert.match(workflow, /workflow_run\.head_branch == 'main'/);
   assert.match(workflow, /workflow_run\.head_repository\.full_name == github\.repository/);
   assert.match(workflow, /workflow_run\.head_sha/);
+  assert.match(
+    workflow,
+    /current-main:[\s\S]*permissions:\s+contents: read[\s\S]*github\.rest\.git\.getRef/,
+  );
+  assert.match(workflow, /ref: "heads\/main"/);
+  assert.match(workflow, /currentMain\.object\.sha === triggeringSha/);
+  assert.match(
+    workflow,
+    /prepare:\s+needs: current-main\s+if: needs\.current-main\.outputs\.is_current == 'true'/,
+  );
+  assert.ok(
+    workflow.indexOf("github.rest.git.getRef") <
+      workflow.indexOf("uses: actions/checkout@v4"),
+    "current main must be checked before repository code is checked out",
+  );
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /attestations: read/);
+  assert.match(workflow, /node scripts\/materialize-firmware-artifacts\.mjs tmp\/release-artifacts/);
+  assert.match(workflow, /FROGALERT_RELEASE_ASSET_ROOT: tmp\/release-artifacts/);
   assert.match(workflow, /node scripts\/assemble-site\.mjs _site/);
   assert.match(workflow, /node scripts\/firmware-release-plan\.mjs tmp\/release-publication/);
   assert.match(workflow, /publishFirmwareReleaseBundle/);
@@ -442,6 +473,7 @@ test("publication waits for successful same-repository CI and deploys only after
   assert.match(assembler, /assertCh58xUserOptionMagic/);
   assert.match(assembler, /manifest\.lab_images/);
   assert.match(assembler, /validateFirmwarePublicationManifest/);
+  assert.match(assembler, /validatePairedUsbCReleaseCatalog/);
   assert.match(assembler, /firmware", "quarantine\.json"/);
   assert.match(assembler, /join\(repositoryRoot, "flash"\)/);
   assert.match(ci, /run: \.\/scripts\/verify/);
@@ -451,30 +483,25 @@ test("publication waits for successful same-repository CI and deploys only after
 
 test("release manifest separates releases, hosted labs, and pinned open recovery", async () => {
   const manifest = JSON.parse(await read("firmware/releases/manifest.json"));
-  assert.equal(manifest.schema_version, 4);
+  assert.equal(manifest.schema_version, 5);
   assert.equal(manifest.github_repository, "pierce403/frogalert");
-  assert.equal(manifest.releases.length, 2);
+  assert.deepEqual(manifest.legacy_repository_release_tags, ["v0.1.0-beta.1"]);
+  assert.ok(manifest.releases.length >= 2);
+  assert.ok(
+    manifest.releases.every(
+      (release) =>
+        release.hardware_verified === true &&
+        typeof release.version === "string" &&
+        typeof release.channel === "string",
+    ),
+  );
+  const latestVersion = manifest.releases[0].version;
+  const latestProfiles = manifest.releases
+    .filter((release) => release.version === latestVersion)
+    .map((release) => release.hardware_revisions[0]);
   assert.deepEqual(
-    manifest.releases.map(({ version, channel, hardware_revisions, hardware_verified }) => ({
-      version,
-      channel,
-      hardware_revisions,
-      hardware_verified,
-    })),
-    [
-      {
-        version: "0.1.0-beta.1",
-        channel: "beta",
-        hardware_revisions: ["B1144C_260404_USB_C"],
-        hardware_verified: true,
-      },
-      {
-        version: "0.1.0-beta.1",
-        channel: "beta",
-        hardware_revisions: ["B1144C_250901_USB_C"],
-        hardware_verified: true,
-      },
-    ],
+    new Set(latestProfiles),
+    new Set(["B1144C_260404_USB_C", "B1144C_250901_USB_C"]),
   );
   assert.deepEqual(manifest.lab_images, []);
   await assert.rejects(

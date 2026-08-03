@@ -11,13 +11,14 @@ import {
   readConfigPacket,
   sha256Hex,
   sortReleaseCatalogNewestFirst,
+  validatePairedUsbCReleaseCatalog,
   validateFirmware,
   validateLabDescriptor,
   validateLabHardwareBinding,
   validateReleaseCatalogDescriptor,
   validateRecoveryDescriptor,
   validateReleaseDescriptor,
-} from "./wchisp-protocol.js?v=5";
+} from "./wchisp-protocol.js?v=6";
 import {
   artifactBoardBinding,
   canEnableFlash,
@@ -108,7 +109,7 @@ const state = {
   labImages: [],
   recoveryImages: [],
   quarantinedFirmwareHashes: null,
-  labImageSummary: { message: "Loading hardware-verified lab metadata…", tone: "neutral" },
+  labImageSummary: { message: "Loading additional firmware…", tone: "neutral" },
   releaseSummary: { message: "Loading release manifest…", tone: "neutral" },
   wakeLock: null,
   activeStage: null,
@@ -240,6 +241,13 @@ const elements = {
   wizardProfileHint: $("#wizard-profile-hint"),
   wizardResult: $("#wizard-result"),
   wizardRestart: $("#wizard-restart"),
+  latestReleaseChannel: $("#latest-release-channel"),
+  latestReleaseVersion: $("#latest-release-version"),
+  latestReleaseSummary: $("#latest-release-summary"),
+  latestReleaseMarkings: $("#latest-release-markings"),
+  latestTopDownload: $("#latest-top-download"),
+  latestBottomDownload: $("#latest-bottom-download"),
+  latestReleaseNotes: $("#latest-release-notes"),
   stages: {
     identify: $("#stage-identify"),
     config: $("#stage-config"),
@@ -394,6 +402,7 @@ function artifactReadyForWizard() {
 }
 
 function showApplicationUsbDevice(device) {
+  const moveFocus = document.activeElement === elements.usbButton;
   state.applicationUsbDevice = device;
   state.applicationEntryAttempt = "nearest";
   state.applicationProfileHint = null;
@@ -420,6 +429,7 @@ function showApplicationUsbDevice(device) {
     "success",
   );
   updateWizardUi();
+  if (moveFocus) elements.wizardApplicationTitle?.focus();
 }
 
 function renderApplicationEntryGuide() {
@@ -555,11 +565,11 @@ function updateWizardUi() {
   if (elements.wizardFirmwareStatus) {
     const message = !state.firmware
       ? state.applicationProfileHint
-        ? `Looking for an approved ${state.applicationProfileHint.imageLabel}…`
-        : "FrogAlert needs to observe which button entered ISP before it can select an update."
+        ? `Looking for the ${state.applicationProfileHint.imageLabel}…`
+        : "Return to the previous step and use a button to enter ISP mode."
       : artifactReady
-        ? "The matching update was downloaded and verified."
-        : "The automatic update did not pass every profile and evidence check.";
+        ? "Firmware downloaded and verified."
+        : "This firmware could not be verified.";
     setStatus(elements.wizardFirmwareStatus, message, artifactReady ? "good" : "neutral");
   }
   if (elements.wizardDeviceSummary && state.chip && state.config) {
@@ -571,7 +581,7 @@ function updateWizardUi() {
     elements.wizardProfileHint.hidden = !hint;
     if (hint) {
       elements.wizardProfileHint.textContent =
-        `The ${hint.position} button entered ISP, so FrogAlert will use the ${hint.imageLabel} (${hint.marking}).`;
+        `${hint.position === "top" ? "Top" : "Bottom"} button selected the ${hint.marking} image.`;
     }
   }
   if (wizardStep === WIZARD_STEP.FLASH) renderWizardFinalSummary();
@@ -1938,6 +1948,55 @@ function loadReleaseManifest() {
   return releaseManifestPromise;
 }
 
+function setLatestDownload(link, release, position) {
+  if (!link) return;
+  link.hidden = !release;
+  if (!release) {
+    link.removeAttribute("href");
+    link.removeAttribute("download");
+    return;
+  }
+  const marking = release.pcb_markings[0];
+  link.href = firmwareArtifactUrl(release.file, import.meta.url);
+  link.download = release.file;
+  link.textContent = `Download ${position}-button image — ${marking}`;
+}
+
+function renderLatestRelease() {
+  if (!elements.latestReleaseVersion) return;
+  const latestVersion = state.releases[0]?.version;
+  const latest = latestVersion
+    ? state.releases.filter((release) => release.version === latestVersion)
+    : [];
+  if (latest.length === 0) {
+    elements.latestReleaseChannel.textContent = "Unavailable";
+    elements.latestReleaseVersion.textContent = "No firmware release available";
+    elements.latestReleaseSummary.textContent = "Latest firmware is unavailable right now.";
+    elements.latestReleaseMarkings.textContent = "None";
+    setLatestDownload(elements.latestTopDownload, null, "top");
+    setLatestDownload(elements.latestBottomDownload, null, "bottom");
+    if (elements.latestReleaseNotes) elements.latestReleaseNotes.hidden = true;
+    return;
+  }
+
+  const top = latest.find((release) => release.pcb_markings.includes("B1144C_260404"));
+  const bottom = latest.find((release) => release.pcb_markings.includes("B1144C_250901"));
+  const markings = [...new Set(latest.flatMap((release) => release.pcb_markings))];
+  const channel = latest[0].channel;
+  const published = latest[0].published_at ? ` · ${latest[0].published_at}` : "";
+  elements.latestReleaseChannel.textContent = `${channel[0].toUpperCase()}${channel.slice(1)} release${published}`;
+  elements.latestReleaseVersion.textContent = `FrogAlert ${latestVersion}`;
+  elements.latestReleaseSummary.textContent =
+    "Tested on CH582M BadgeMagic badges with an 11×44 LED matrix.";
+  elements.latestReleaseMarkings.textContent = markings.join(" and ");
+  setLatestDownload(elements.latestTopDownload, top, "top");
+  setLatestDownload(elements.latestBottomDownload, bottom, "bottom");
+  if (elements.latestReleaseNotes) {
+    elements.latestReleaseNotes.href = latest[0].release_url;
+    elements.latestReleaseNotes.hidden = false;
+  }
+}
+
 async function fetchReleaseManifest() {
   try {
     const [response, quarantineResponse] = await Promise.all([
@@ -1954,7 +2013,7 @@ async function fetchReleaseManifest() {
     ]);
     state.quarantinedFirmwareHashes = parseFirmwareQuarantineRegistry(quarantine);
     if (
-      manifest.schema_version !== 4 ||
+      ![4, 5].includes(manifest.schema_version) ||
       manifest.github_repository !== FROGALERT_GITHUB_REPOSITORY ||
       !Array.isArray(manifest.releases) ||
       !Array.isArray(manifest.lab_images) ||
@@ -1970,24 +2029,29 @@ async function fetchReleaseManifest() {
       }
       releaseIds.add(release.id);
     }
+    validatePairedUsbCReleaseCatalog(
+      manifest.releases,
+      manifest.github_repository,
+    );
     state.releases = sortReleaseCatalogNewestFirst(
       manifest.releases,
       manifest.github_repository,
     );
+    renderLatestRelease();
     if (state.releases.length === 0) {
-      setReleaseSummary("No hardware-verified FrogAlert firmware has been released. Private developer BINs may be selected locally for qualified bench testing only.", "warning");
+      setReleaseSummary("No FrogAlert firmware release is available.", "warning");
     } else {
       const latestApprovedVersion = state.releases[0].version;
       for (const release of state.releases) {
         const option = document.createElement("option");
         option.value = release.id;
         const latestLabel =
-          release.version === latestApprovedVersion ? " · latest approved" : "";
+          release.version === latestApprovedVersion ? " · latest" : "";
         option.textContent = `${release.label} ${release.version} · ${release.channel}${latestLabel} · ${release.hardware_revisions[0]}`;
         elements.releaseSelect.append(option);
       }
       elements.releaseSelect.disabled = state.flashing;
-      setReleaseSummary(`${state.releases.length} hardware-verified release${state.releases.length === 1 ? "" : "s"} available; ${latestApprovedVersion} is the newest approved version. The flasher loads the matching image after it observes the button path.`, "good");
+      setReleaseSummary(`FrogAlert ${latestApprovedVersion} is the latest release. The flasher loads the matching image after it observes the button path.`, "good");
     }
 
     const labIds = new Set();
@@ -2000,12 +2064,12 @@ async function fetchReleaseManifest() {
       labIds.add(lab.id);
       const option = document.createElement("option");
       option.value = lab.id;
-      option.textContent = `${lab.label} ${lab.version} · ${lab.hardware_revisions.join(", ")} · hardware-verified lab`;
+      option.textContent = `${lab.label} ${lab.version} · ${lab.hardware_revisions.join(", ")} · test image`;
       elements.labImageSelect.append(option);
     }
     state.labImages = [...manifest.lab_images];
     if (state.labImages.length === 0) {
-      setLabImageSummary("No hosted FrogAlert lab images are published. Private survey builds remain local, hardware-unverified developer artifacts.", "neutral");
+      setLabImageSummary("No additional test firmware is available.", "neutral");
     } else {
       elements.labImageSelect.disabled = state.flashing;
       setLabImageSummary(
@@ -2027,6 +2091,7 @@ async function fetchReleaseManifest() {
     state.releases = [];
     state.labImages = [];
     state.recoveryImages = [];
+    renderLatestRelease();
     setReleaseSummary(`Release list unavailable: ${error.message}`, "bad");
     setLabImageSummary(`Hosted lab image list unavailable: ${error.message}`, "bad");
     setStatus(elements.recoveryStatus, `Open BadgeMagic descriptor unavailable: ${error.message}`, "bad");

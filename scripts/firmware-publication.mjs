@@ -12,7 +12,15 @@ const RELEASE_TAG_PATTERN =
 const RELEASE_NOTES_PATTERN =
   /^firmware\/releases\/notes\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.md$/;
 const GITHUB_REPOSITORY_PATTERN = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
+const ACTIONS_ARTIFACT_NAME_PATTERN = /^frogalert-candidate-[a-f0-9]{40}$/;
+const ACTIONS_ARTIFACT_DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
 const RELEASE_CHANNELS = new Set(["alpha", "beta", "stable"]);
+const CANDIDATE_BUILD_LANES = new Set(["survey", "frogs"]);
+const FIRMWARE_VARIANTS = new Map([
+  ["counter", "survey"],
+  ["frogs", "frogs"],
+]);
+const LEGACY_REPOSITORY_RELEASE_TAGS = Object.freeze(["v0.1.0-beta.1"]);
 const RECOVERY_USB_IDS = new Set(["4348:55e0", "1a86:55e0"]);
 const USER_CONFIRMED_BETA_BASIS = "user-confirmed-beta";
 const KNOWN_GOOD_REFLASH_SHA256_BY_PROFILE = new Map([
@@ -24,6 +32,32 @@ const KNOWN_GOOD_REFLASH_SHA256_BY_PROFILE = new Map([
 
 function requireNonemptyString(value, message) {
   if (typeof value !== "string" || !value.trim()) throw new Error(message);
+}
+
+export function validateGithubCandidateProvenance(
+  provenance,
+  description = "FrogAlert release",
+) {
+  if (
+    !provenance ||
+    typeof provenance !== "object" ||
+    Array.isArray(provenance) ||
+    provenance.kind !== "github-actions-candidate" ||
+    !Number.isSafeInteger(provenance.workflow_run_id) ||
+    provenance.workflow_run_id < 1 ||
+    !Number.isSafeInteger(provenance.artifact_id) ||
+    provenance.artifact_id < 1 ||
+    provenance.workflow_path !== ".github/workflows/ci.yml" ||
+    !Number.isSafeInteger(provenance.workflow_run_attempt) ||
+    provenance.workflow_run_attempt < 1 ||
+    !ACTIONS_ARTIFACT_NAME_PATTERN.test(provenance.artifact_name || "") ||
+    !ACTIONS_ARTIFACT_DIGEST_PATTERN.test(provenance.artifact_digest || "") ||
+    !SHA256_PATTERN.test(provenance.candidate_metadata_sha256 || "") ||
+    !CANDIDATE_BUILD_LANES.has(provenance.build_lane)
+  ) {
+    throw new Error(`${description} GitHub Actions candidate provenance is invalid`);
+  }
+  return true;
 }
 
 export function validateFirmwareQuarantine(quarantine) {
@@ -399,6 +433,16 @@ export function validateFrogAlertReleaseMetadata(
   if (!RELEASE_NOTES_PATTERN.test(release.release_notes || "")) {
     throw new Error(`${description} release notes path is invalid`);
   }
+  if (!TEST_DATE_PATTERN.test(release.published_at || "")) {
+    throw new Error(`${description} publication date is invalid`);
+  }
+  if (
+    release.build_provenance &&
+    FIRMWARE_VARIANTS.get(release.firmware_variant) !==
+      release.build_provenance.build_lane
+  ) {
+    throw new Error(`${description} firmware variant does not match its build lane`);
+  }
   if (
     typeof release.debug_file !== "string" ||
     !/^[a-zA-Z0-9._-]+\.elf$/.test(release.debug_file)
@@ -418,8 +462,12 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
   if (
     !manifest ||
     typeof manifest !== "object" ||
-    manifest.schema_version !== 4 ||
+    manifest.schema_version !== 5 ||
     !GITHUB_REPOSITORY_PATTERN.test(manifest.github_repository || "") ||
+    !Array.isArray(manifest.legacy_repository_release_tags) ||
+    manifest.legacy_repository_release_tags.some(
+      (tag) => !RELEASE_TAG_PATTERN.test(tag),
+    ) ||
     !Array.isArray(manifest.releases) ||
     !Array.isArray(manifest.lab_images) ||
     !Array.isArray(manifest.recovery_images)
@@ -431,9 +479,29 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
   const artifactIds = new Set();
   const artifactFiles = new Set();
   const releaseGroups = new Map();
+  const legacyTags = new Set(manifest.legacy_repository_release_tags);
+  if (
+    manifest.legacy_repository_release_tags.some(
+      (tag) => !LEGACY_REPOSITORY_RELEASE_TAGS.includes(tag),
+    )
+  ) {
+    throw new Error("firmware publication manifest legacy release list is immutable");
+  }
+  if (legacyTags.size !== manifest.legacy_repository_release_tags.length) {
+    throw new Error("firmware publication manifest has duplicate legacy release tags");
+  }
   for (const release of manifest.releases) {
     validatePublishableFrogAlertArtifact(release, quarantinedHashes, "FrogAlert release");
     validateFrogAlertReleaseMetadata(release, manifest.github_repository);
+    if (legacyTags.has(release.release_tag)) {
+      if (release.build_provenance !== undefined) {
+        throw new Error(
+          `legacy repository release ${release.release_tag} must not claim cloud candidate provenance`,
+        );
+      }
+    } else {
+      validateGithubCandidateProvenance(release.build_provenance);
+    }
     if (artifactIds.has(release.id)) {
       throw new Error(`duplicate FrogAlert publication id: ${release.id}`);
     }
@@ -455,6 +523,11 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
       release_url: release.release_url,
       release_notes: release.release_notes,
       source_commit: release.source_commit,
+      published_at: release.published_at,
+      firmware_variant: release.firmware_variant,
+      build_provenance: release.build_provenance
+        ? JSON.stringify(release.build_provenance)
+        : undefined,
     };
     if (group) {
       for (const [field, value] of Object.entries(groupIdentity)) {
@@ -466,6 +539,11 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
       }
     } else {
       releaseGroups.set(release.release_tag, groupIdentity);
+    }
+  }
+  for (const legacyTag of legacyTags) {
+    if (!releaseGroups.has(legacyTag)) {
+      throw new Error(`unused legacy repository release tag: ${legacyTag}`);
     }
   }
   for (const lab of manifest.lab_images) {

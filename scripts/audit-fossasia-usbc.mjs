@@ -12,6 +12,7 @@ import {
   decodeFirmwareConfig,
   findUniqueFirmwareConfigBlock,
 } from "../site/firmware-config.js";
+import { loadFirmwareVersion } from "./frogalert-version.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(scriptDirectory, "..");
@@ -426,7 +427,13 @@ function contains(haystack, needle) {
   return haystack.indexOf(needle) !== -1;
 }
 
-export async function verifyBinary(file, mode, lock, profile = lock.default_profile) {
+export async function verifyBinary(
+  file,
+  mode,
+  lock,
+  profile = lock.default_profile,
+  { verifyOutputLock = true } = {},
+) {
   validateMode(mode);
   assert.ok(supportedProfiles.includes(profile), "unsupported hardware profile");
   const image = await readFile(file);
@@ -473,6 +480,19 @@ export async function verifyBinary(file, mode, lock, profile = lock.default_prof
     `dancing-frog marker mismatch for ${mode} build`,
   );
   if (isSurveyMode(mode)) {
+    const declaredVersion = await loadFirmwareVersion(
+      path.join(repositoryRoot, "firmware/fossasia-usbc/version.json"),
+    );
+    for (const text of [
+      "FOSSASIA",
+      declaredVersion.version,
+      declaredVersion.display_version,
+    ]) {
+      assert.ok(
+        contains(image, Buffer.from(text, "ascii")),
+        `embedded boot/version text missing from BIN: ${text}`,
+      );
+    }
     for (const text of lock.build.required_survey_ascii) {
       assert.ok(
         contains(image, Buffer.from(text, "ascii")),
@@ -504,11 +524,18 @@ export async function verifyBinary(file, mode, lock, profile = lock.default_prof
     );
   }
 
-  await verifyLockedFile(
-    file,
-    lockedProfileImage(lock, profile, mode),
-    `locked FOSSASIA USB-C ${profile} ${mode}`,
-  );
+  if (verifyOutputLock) {
+    await verifyLockedFile(
+      file,
+      lockedProfileImage(lock, profile, mode),
+      `locked FOSSASIA USB-C ${profile} ${mode}`,
+    );
+  } else {
+    assert.ok(
+      isSurveyMode(mode),
+      "candidate output-lock bypass is limited to survey and frogs",
+    );
+  }
 }
 
 async function main(argv) {
@@ -526,12 +553,17 @@ async function main(argv) {
       break;
     }
     case "binary": {
-      assert.equal(parameters.length, 3, "binary requires PROFILE, MODE, and BIN");
+      assert.ok(
+        parameters.length === 3 ||
+          (parameters.length === 4 && parameters[3] === "--candidate"),
+        "binary requires PROFILE, MODE, BIN, and optional --candidate",
+      );
       await verifyBinary(
         path.resolve(parameters[2]),
         parameters[1],
         lock,
         parameters[0],
+        { verifyOutputLock: parameters[3] !== "--candidate" },
       );
       break;
     }
@@ -560,7 +592,7 @@ async function main(argv) {
     }
     default:
       throw new Error(
-        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary PROFILE MODE BIN|symbols MODE NM|disassembly FILE|vectors HIGHCODE NM|ram NM}",
+        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary PROFILE MODE BIN [--candidate]|symbols MODE NM|disassembly FILE|vectors HIGHCODE NM|ram NM}",
       );
   }
 }

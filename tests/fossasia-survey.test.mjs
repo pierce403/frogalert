@@ -5,8 +5,10 @@ import test from "node:test";
 
 import {
   applyAnimationHooks,
+  applyBatteryPowerHooks,
   applyButtonHeaderHooks,
   applyButtonHooks,
+  applyDeviceInfoHooks,
   applyMainHooks,
   applyPeripheralHooks,
   applyPowerHooks,
@@ -75,6 +77,86 @@ test("survey hooks detect either KEY1 rail without touching KEY2", () => {
   }
 });
 
+test("survey battery hooks calibrate, average, and clamp the real ADC reading", () => {
+  const power = [
+    '#include "debug.h"',
+    "void power_init()",
+    "{",
+    "\tGPIOA_ModeCfg(GPIO_Pin_5, GPIO_ModeIN_Floating);",
+    "\tADC_ExtSingleChSampInit(SampleFreq_3_2, ADC_PGA_0);",
+    "",
+    "\tint16_t adc_calib = ADC_DataCalib_Rough();",
+    '\tPRINT("RoughCalib_Value = %d \\n", adc_calib);',
+    "",
+    "\tADC_ChannelCfg(1);",
+    "}",
+    "int batt_raw()",
+    "{",
+    "\tint ret = 0;",
+    "",
+    '\tPRINT("ADC reading: \\n");',
+    "\tuint16_t buf[20];",
+    "\tfor(int i = 0; i < 20; i++) {",
+    "\t\tuint16_t adc = ADC_ExcutSingleConver();",
+    "\t\tret += adc;",
+    '\t\tPRINT("%d \\n", adc);',
+    "\t}",
+    "",
+    "\treturn ret / 20;",
+    "}",
+    "#define ZERO_PERCENT_THRES      (3.3)",
+    "#define _100_PERCENT_THRES      (4.2)",
+    "#define ADC_MAX_VAL             (4096.0) // 12 bit",
+    "#define ADC_MAX_VOLT            (2.1)   // Volt",
+    "#define R1                      (182.0) // kOhm",
+    "#define R2                      (100.0) // kOhm",
+    "#define PERCENT_RANGE           (_100_PERCENT_THRES - ZERO_PERCENT_THRES)",
+    "#define VOLT_DIV(v)             ((v) / (R1 + R2) * R2) // Voltage divider",
+    "#define VOLT_DIV_INV(v)         ((v) / R2 * (R1 + R2)) // .. Inverse",
+    "#define ADC2VOLT(raw)           ((raw) / ADC_MAX_VAL * ADC_MAX_VOLT)",
+    "#define VOLT2ADC(volt)          ((volt) / ADC_MAX_VOLT * ADC_MAX_VAL)",
+    "",
+    "int batt_raw2percent(int r)",
+    "{",
+    "\tfloat vadc = ADC2VOLT(r);",
+    "\tfloat vbat = VOLT_DIV_INV(vadc);",
+    "\tfloat strip = vbat - ZERO_PERCENT_THRES;",
+    "\tif (strip < PERCENT_RANGE) {",
+    "\t\t// Negative values meaning the battery is not connected or died",
+    "\t\treturn (int)(strip / PERCENT_RANGE * 100.0);",
+    "\t}",
+    "\treturn 100;",
+    "}",
+  ].join("\n");
+  const deviceInfo = [
+    "static const uint8_t    firmwareRev_val[] = USBC_VER_PREFIX VERSION;",
+    'static const uint8_t    mfr_name_val[] = "FOSSASIA";',
+  ].join("\n");
+  const patchedPower = applyBatteryPowerHooks(power);
+  const patchedDeviceInfo = applyDeviceInfoHooks(deviceInfo);
+
+  assert.match(patchedPower, /static int16_t frogalert_adc_calibration/);
+  assert.match(
+    patchedPower,
+    /frogalert_adc_calibration = ADC_DataCalib_Rough\(\)/,
+  );
+  assert.match(
+    patchedPower,
+    /\(void\)ADC_ExcutSingleConver\(\);[\s\S]*ADC_ExcutSingleConver\(\) \+[\s\S]*frogalert_adc_calibration/,
+  );
+  assert.match(patchedPower, /adc < 0[\s\S]*adc > 4095/);
+  assert.match(
+    patchedPower,
+    /r < 0[\s\S]*r > 4095[\s\S]*frogalert_battery_from_raw/,
+  );
+  assert.doesNotMatch(patchedPower, /float|ADC2VOLT|PERCENT_RANGE/);
+  assert.match(
+    patchedDeviceInfo,
+    /firmwareRev_val\[\] = "FrogAlert " FROGALERT_VERSION " \/ FOSSASIA " VERSION/,
+  );
+  assert.match(patchedDeviceInfo, /mfr_name_val\[\] = "FOSSASIA"/);
+});
+
 test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => {
   const peripheral = [
     '#include "setup.h"',
@@ -106,6 +188,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "}",
   ].join("\r\n");
   const main = [
+    '#include "power.h"',
     '#include "ble/setup.h"',
     '#include "ble/profile.h"',
     "#define ANI_NEXT_STEP       (1 << 0)",
@@ -161,7 +244,26 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\t}",
     "static void disp_charging()",
     "{",
+    "\tint blink = 0;",
+    "\twhile (mode == BOOT) {",
+    "\t\tbtn_tick();",
+    "\t\tint percent = batt_raw2percent(batt_raw());",
     "",
+    "\t\tif (charging_status()) {",
+    "\t\t\tdisp_bat_stt(blink ? percent : 0, 2, 2);",
+    "\t\t\tif (ani_xbm_next_frame(&fabm_xbm, fb, 16, 0) == 0) {",
+    "\t\t\t\tfb_puts(VERSION_ABBR, sizeof(VERSION_ABBR), 16, 2);",
+    "\t\t\t\tfb_putchar(' ', 40, 2);",
+    "\t\t\t}",
+    "\t\t\tblink = !blink;",
+    "\t\t\tDelayMs(500);",
+    "\t\t} else {",
+    "\t\t\tdisp_bat_stt(percent, 7, 2);",
+    "\t\t\tDelayMs(500);",
+    "\t\t\treturn;",
+    "\t\t}",
+    "\t}",
+    "}",
     "\t// Disable bitmap transition while in download mode",
     "\tbtn_onOnePress(KEY2, NULL);",
     "",
@@ -191,6 +293,9 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\tbtn_onOnePress(KEY1, change_mode);",
     "\tbtn_onOnePress(KEY2, bm_transition);",
     "\tbtn_onLongPress(KEY1, change_brightness);",
+    "\tpower_init();",
+    "\tdisp_charging();",
+    "\tcfg_init();",
     "\tTMR0_TimerInit((FREQ_SYS / 2000) / 2);",
     "\tload_bmlist();",
     "",
@@ -216,6 +321,19 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     /GAPRole_TerminateLink\([^;]+;[\s\S]{0,80}enable_advertising\(TRUE\);/,
   );
   assert.match(patchedMain, /peripheral_init\(\);[\s\S]*frogalert_survey_init\(\);/);
+  assert.match(patchedMain, /#include "frogalert-boot-status.h"/);
+  assert.match(
+    patchedMain,
+    /frogalert_display_boot_status\(void\)[\s\S]*frogalert_battery_from_raw[\s\S]*frogalert_boot_render_credit[\s\S]*frogalert_boot_render_battery/,
+  );
+  assert.match(
+    patchedMain,
+    /power_init\(\);[\s\S]*disp_charging\(\);[\s\S]*frogalert_display_boot_status\(\);[\s\S]*cfg_init\(\);/,
+  );
+  assert.doesNotMatch(
+    patchedMain.match(/#ifdef FROGALERT_SURVEY[\s\S]*?#else/)?.[0] ?? "",
+    /VERSION_ABBR/,
+  );
   assert.match(
     patchedMain,
     /Android app connects to the first matching FEE0 advertiser[\s\S]*frogalert_survey_open_app_window\(\)/,

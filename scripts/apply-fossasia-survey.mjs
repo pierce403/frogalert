@@ -285,8 +285,134 @@ ${originalWake}
   return result;
 }
 
+export function applyBatteryPowerHooks(source) {
+  let result = normalizeLineEndings(source);
+  result = replaceOnce(
+    result,
+    '#include "debug.h"\n',
+    '#include "debug.h"\n#include "frogalert-boot-status.h"\n',
+    "bounded battery conversion include",
+  );
+  result = replaceOnce(
+    result,
+    `void power_init()
+{`,
+    `static int16_t frogalert_adc_calibration;
+
+void power_init()
+{`,
+    "retained ADC calibration",
+  );
+  result = replaceOnce(
+    result,
+    `	int16_t adc_calib = ADC_DataCalib_Rough();
+	PRINT("RoughCalib_Value = %d \\n", adc_calib);`,
+    `	frogalert_adc_calibration = ADC_DataCalib_Rough();
+	PRINT("RoughCalib_Value = %d \\n", frogalert_adc_calibration);`,
+    "ADC calibration capture",
+  );
+  result = replaceOnce(
+    result,
+    `int batt_raw()
+{
+	int ret = 0;
+
+	PRINT("ADC reading: \\n");
+	uint16_t buf[20];
+	for(int i = 0; i < 20; i++) {
+		uint16_t adc = ADC_ExcutSingleConver();
+		ret += adc;
+		PRINT("%d \\n", adc);
+	}
+
+	return ret / 20;
+}`,
+    `int batt_raw()
+{
+	uint32_t total = 0;
+
+	PRINT("ADC reading: \\n");
+	/* WCH recommends discarding the first conversion after selecting the
+	 * external channel. Apply the signed rough-calibration offset to every
+	 * retained sample before averaging. */
+	(void)ADC_ExcutSingleConver();
+	for (int i = 0; i < 20; i++) {
+		int32_t adc = (int32_t)ADC_ExcutSingleConver() +
+			      frogalert_adc_calibration;
+		if (adc < 0)
+			adc = 0;
+		else if (adc > 4095)
+			adc = 4095;
+		total += (uint16_t)adc;
+		PRINT("%d \\n", (int)adc);
+	}
+
+	return (int)(total / 20U);
+}`,
+    "calibrated averaged battery ADC samples",
+  );
+  result = replaceOnce(
+    result,
+    `#define ZERO_PERCENT_THRES      (3.3)
+#define _100_PERCENT_THRES      (4.2)
+#define ADC_MAX_VAL             (4096.0) // 12 bit
+#define ADC_MAX_VOLT            (2.1)   // Volt
+#define R1                      (182.0) // kOhm
+#define R2                      (100.0) // kOhm
+#define PERCENT_RANGE           (_100_PERCENT_THRES - ZERO_PERCENT_THRES)
+#define VOLT_DIV(v)             ((v) / (R1 + R2) * R2) // Voltage divider
+#define VOLT_DIV_INV(v)         ((v) / R2 * (R1 + R2)) // .. Inverse
+#define ADC2VOLT(raw)           ((raw) / ADC_MAX_VAL * ADC_MAX_VOLT)
+#define VOLT2ADC(volt)          ((volt) / ADC_MAX_VOLT * ADC_MAX_VAL)
+
+int batt_raw2percent(int r)
+{
+	float vadc = ADC2VOLT(r);
+	float vbat = VOLT_DIV_INV(vadc);
+	float strip = vbat - ZERO_PERCENT_THRES;
+	if (strip < PERCENT_RANGE) {
+		// Negative values meaning the battery is not connected or died
+		return (int)(strip / PERCENT_RANGE * 100.0);
+	}
+	return 100;
+}`,
+    `int batt_raw2percent(int r)
+{
+	if (r < 0)
+		r = 0;
+	else if (r > 4095)
+		r = 4095;
+	return frogalert_battery_from_raw((uint16_t)r).percent;
+}`,
+    "fixed-point bounded battery percentage",
+  );
+  return result;
+}
+
+export function applyDeviceInfoHooks(source) {
+  let result = normalizeLineEndings(source);
+  result = replaceOnce(
+    result,
+    "static const uint8_t    firmwareRev_val[] = USBC_VER_PREFIX VERSION;",
+    'static const uint8_t    firmwareRev_val[] = "FrogAlert " FROGALERT_VERSION " / FOSSASIA " VERSION;',
+    "exact FrogAlert BLE firmware revision",
+  );
+  assert.match(
+    result,
+    /static const uint8_t\s+mfr_name_val\[\] = "FOSSASIA";/,
+    "FOSSASIA Device Information manufacturer credit drifted",
+  );
+  return result;
+}
+
 export function applyMainHooks(source) {
   let result = normalizeLineEndings(source);
+  result = replaceOnce(
+    result,
+    '#include "power.h"\n',
+    '#include "power.h"\n#ifdef FROGALERT_SURVEY\n#include "frogalert-boot-status.h"\n#endif\n',
+    "compact boot status include",
+  );
   result = replaceOnce(
     result,
     "#define ANI_NEXT_STEP       (1 << 0)\n",
@@ -832,6 +958,84 @@ static void disp_charging()
   );
   result = replaceOnce(
     result,
+    `static void disp_charging()
+{`,
+    `#ifdef FROGALERT_SURVEY
+static void frogalert_display_boot_status(void)
+{
+	frogalert_battery_reading_t reading;
+
+	/* Sample against a blank panel, then show two short, fixed boot cards.
+	 * This credit is independent of the user-configurable splash. */
+	for (uint8_t column = 0; column < LED_COLS; column++)
+		fb[column] = 0;
+	DelayMs(10);
+	reading = frogalert_battery_from_raw((uint16_t)batt_raw());
+	frogalert_boot_render_credit(fb);
+	DelayMs(750);
+	frogalert_boot_render_battery(fb, reading);
+	DelayMs(750);
+}
+#endif
+
+static void disp_charging()
+{`,
+    "immutable FOSSASIA, version, profile, and battery boot cards",
+  );
+  result = replaceOnce(
+    result,
+    `		if (charging_status()) {
+			disp_bat_stt(blink ? percent : 0, 2, 2);
+			if (ani_xbm_next_frame(&fabm_xbm, fb, 16, 0) == 0) {
+				fb_puts(VERSION_ABBR, sizeof(VERSION_ABBR), 16, 2);
+				fb_putchar(' ', 40, 2);
+			}
+			blink = !blink;
+			DelayMs(500);
+		} else {
+			disp_bat_stt(percent, 7, 2);
+			DelayMs(500);
+			return;
+		}`,
+    `#ifdef FROGALERT_SURVEY
+		(void)blink;
+		(void)percent;
+		if (charging_status())
+			frogalert_display_boot_status();
+		else
+			return;
+#else
+		if (charging_status()) {
+			disp_bat_stt(blink ? percent : 0, 2, 2);
+			if (ani_xbm_next_frame(&fabm_xbm, fb, 16, 0) == 0) {
+				fb_puts(VERSION_ABBR, sizeof(VERSION_ABBR), 16, 2);
+				fb_putchar(' ', 40, 2);
+			}
+			blink = !blink;
+			DelayMs(500);
+		} else {
+			disp_bat_stt(percent, 7, 2);
+			DelayMs(500);
+			return;
+		}
+#endif`,
+    "charging screen uses real FrogAlert boot metadata",
+  );
+  result = replaceOnce(
+    result,
+    `	power_init();
+	disp_charging();
+	cfg_init();`,
+    `	power_init();
+	disp_charging();
+#ifdef FROGALERT_SURVEY
+	frogalert_display_boot_status();
+#endif
+	cfg_init();`,
+    "immutable boot cards precede configured splash",
+  );
+  result = replaceOnce(
+    result,
     `	// Disable bitmap transition while in download mode
 	btn_onOnePress(KEY2, NULL);
 
@@ -1091,7 +1295,8 @@ export async function applySurveyHooks(sourceDirectory) {
   const buttonPath = path.join(sourceDirectory, "src/button.c");
   const buttonHeaderPath = path.join(sourceDirectory, "src/button.h");
   const powerPath = path.join(sourceDirectory, "src/power.c");
-  const [peripheral, main, animation, button, buttonHeader, power] =
+  const deviceInfoPath = path.join(sourceDirectory, "src/ble/profile/devinfo.c");
+  const [peripheral, main, animation, button, buttonHeader, power, deviceInfo] =
     await Promise.all([
     readFile(peripheralPath, "utf8"),
     readFile(mainPath, "utf8"),
@@ -1099,6 +1304,7 @@ export async function applySurveyHooks(sourceDirectory) {
     readFile(buttonPath, "utf8"),
     readFile(buttonHeaderPath, "utf8"),
     readFile(powerPath, "utf8"),
+    readFile(deviceInfoPath, "utf8"),
   ]);
   await Promise.all([
     writeFile(peripheralPath, applyPeripheralHooks(peripheral), "utf8"),
@@ -1106,7 +1312,12 @@ export async function applySurveyHooks(sourceDirectory) {
     writeFile(animationPath, applyAnimationHooks(animation), "utf8"),
     writeFile(buttonPath, applyButtonHooks(button), "utf8"),
     writeFile(buttonHeaderPath, applyButtonHeaderHooks(buttonHeader), "utf8"),
-    writeFile(powerPath, applyPowerHooks(power), "utf8"),
+    writeFile(
+      powerPath,
+      applyBatteryPowerHooks(applyPowerHooks(power)),
+      "utf8",
+    ),
+    writeFile(deviceInfoPath, applyDeviceInfoHooks(deviceInfo), "utf8"),
   ]);
 }
 

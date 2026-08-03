@@ -56,6 +56,10 @@ The public site is a dependency-free static application. It separates:
   polarity, and shutdown-wake patch for the selected USB-C board
 - `scripts/firmware-candidate.mjs` — packages an audited, commit-bound,
   explicitly unverified CI candidate under ignored `tmp/`
+- `firmware/fossasia-usbc/version.json` — semantic and compact firmware
+  versions embedded before the cloud candidate build
+- `scripts/materialize-firmware-artifacts.mjs` — retrieves one exact approved
+  Actions candidate or copies an explicitly listed legacy release into `tmp/`
 - `scripts/audit-ch58x-vectors.mjs` — post-link standalone Rust regression gate
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
@@ -66,7 +70,7 @@ The public site is a dependency-free static application. It separates:
 - `skills/` — focused repo-local procedures
 - `agent-memory/` — dated technical notes and work logs
 - `FEATURES.md` — authoritative requirements and readiness tracker
-- `index.html` — public landing page and read-only browser inspection lab
+- `index.html` — public landing page and manifest-driven latest release card
 - `flash/index.html` — dedicated mobile-first flashing and KEY2 recovery surface
 
 ## Safety invariants
@@ -178,12 +182,12 @@ host verification:
 ```bash
 ./scripts/build-fossasia-usbc baseline --check
 ./scripts/build-fossasia-usbc canary --check
-./scripts/build-fossasia-usbc survey --check
-./scripts/build-fossasia-usbc frogs --check
+./scripts/build-fossasia-usbc survey --candidate
+./scripts/build-fossasia-usbc frogs --candidate
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
-./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
-./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --candidate
+./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --candidate
 ```
 
 The omitted profile selects default `B1144C_260404_USB_C`. An active-firmware
@@ -193,6 +197,13 @@ artifact with separate counter and `frogs` directories. Candidate metadata
 must keep `hardware_verified`,
 `flash_approved`, `publishable`, and `hosted_on_site` false; this build lane
 never edits the public manifest or creates a GitHub Release.
+The GitHub candidate job uses `--candidate`, so new survey/frog outputs are
+calculated receipts rather than pre-build lock inputs. It retains every
+source/toolchain/vector/ELF/BIN/profile audit, records GitHub run provenance,
+attests the output, and keeps the archive for 90 days. `workflow_dispatch`
+allows a phone/cloud-only rebuild. Local `--check` remains the exact current
+baseline/canary lock regression command; active survey/frog source uses
+`--candidate` and records calculated receipts.
 Successful local builds also copy the audited bytes to
 `frogalert-top-b1144c-260404.{bin,elf}` or
 `frogalert-bottom-b1144c-250901.{bin,elf}` in the matching profile directory.
@@ -288,7 +299,25 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   explicit local-only request or a reported remote/authentication blocker.
 - A firmware release requires a versioned `.bin`, SHA-256 checksum, manifest,
   source commit, build provenance, hardware smoke evidence, and release notes.
-- Successful `main` commits reconcile only already-approved schema-v4 manifest
+- Manifest schema 5 lists `v0.1.0-beta.1` as the only legacy
+  repository-backed tag. Every new release descriptor must bind the exact
+  GitHub Actions run id/attempt/workflow path, artifact id/name/digest,
+  candidate-metadata digest, firmware variant, and lane. Publication accepts
+  only a successful canonical `main` CI run, verifies attestations, and
+  materializes those bytes under `tmp/`; never commit a freshly built
+  FrogAlert BIN/ELF for a new version.
+- Each published firmware version is an atomic pair: one top/`260404` image
+  and one bottom/`250901` image. Site assembly and the browser catalog must
+  fail closed on a partial or duplicate pair so “latest” cannot silently mean
+  different versions on different boards.
+- Ordinary CI runs source/unit checks without remote release bytes, then a
+  separate non-PR `publication-assets` job with scoped Actions/attestation read
+  access materializes and verifies them. Pages additionally requires its
+  triggering workflow path to be exactly `.github/workflows/ci.yml`; a display
+  name of `CI` is not a trust identity. Before checkout, a read-only ref gate
+  must also prove that the triggering SHA is still `refs/heads/main`, so an
+  older CI run that finishes late cannot redeploy stale source.
+- Successful `main` commits reconcile only already-approved schema-v5 manifest
   release entries into GitHub Releases. Revalidate exact bytes and evidence,
   publish through a verified draft, and finish release reconciliation before
   Pages exposes the catalog. Empty catalogs are a no-op; never turn an ordinary
@@ -300,6 +329,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - Keep the same-origin manifest and BIN as the browser's sole executable
   release source. GitHub Releases are provenance and alternate downloads; do
   not add a GitHub API or runtime asset dependency to the flasher.
+- Phone/cloud edits and candidate builds use `workflow_dispatch`; they do not
+  by themselves provide a safe phone-to-badge path for unverified bytes. The
+  preferred future test surface is an ignored, generated Codespaces-only lab
+  that downloads and validates the Actions artifact server-side and serves it
+  through a private HTTPS forwarded port without exposing a GitHub token. Do
+  not put candidates in Pages or the public manifest. First prove a top-level
+  `*.app.github.dev` page retains Android Chrome WebUSB and is not blocked by a
+  `Permissions-Policy: usb=()` response.
 - FrogAlert survey candidates keep unattended normal-mode GATT advertising off
   because BadgeMagic app commit `42c98bc` defaults to “any” and connects to the
   first matching `FEE0` advertiser without a chooser. Either short button must
@@ -407,7 +444,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   that one-shot frame event and the selected frog view resumes afterward. Its
   visible app-readiness cue lasts one second while advertising remains open
   for ten, preventing repeated mode presses from indefinitely hiding the frog
-  view. Its current hardware-unverified locked images are 206,304 bytes:
+  view. The preceding pre-boot-status reference images were 206,304 bytes:
   top/`260404` `5c69637a…00ea8ce`, bottom/`250901`
   `5634194f…7964bd`. Keep the entire
   frog-only event branch inside `FROGALERT_DANCING_FROG_MODE`; an empty
@@ -420,7 +457,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `250901`, four `low/low` samples select `260404`, and the ordinary open
   `low/high` state selects nothing. A confirmed result corrects KEY1 polarity,
   both short-button roles, and shutdown wake for the current boot. The current
-  blank-fallback, Meta-pair, and stable-counter 206,216-byte candidates are `260404`
+  preceding blank-fallback, Meta-pair, and stable-counter 206,216-byte candidates were `260404`
   `a3cb748194965c2f2aa54ec541df02e66c3f38f8e375179f620a2cae9bcc444e`
   and `250901`
   `cb2780b1f11818f4560fd14d01dfa1e32ab7317766cb9dc876d428fc7df0706a`.
@@ -428,6 +465,24 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   hardware-unverified. Test each on its matching board and deliberately
   cross-flashed board, including KEY2-before-detection, brightness,
   download/power/wake, and KEY2-only ISP, before release promotion.
+- Current source version is declared in `firmware/fossasia-usbc/version.json`.
+  Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
+  compact FrogAlert version, and compile-time top/up or bottom/down marker;
+  the full semantic version is exposed through BLE Device Information. The
+  boot battery frame uses a first-sample discard, WCH rough ADC calibration,
+  clamped fixed-point millivolts, and bounded approximate percentage shared
+  with Battery GATT. The pre-CI `0.2.0-beta.1` receipts are counter top
+  `cd546bc16b4c310d60f46ada0a5ab57cace3b95231242d14c6b934f6e4700022`,
+  counter bottom
+  `054c6ebd158f982f1045e9293041181fbc97c14f7f04e37ef97636fc2d220621`,
+  frogs top
+  `76a43c8320325f2b3ccf56e3a9022914d59c4e88088db60804f1217d95b23bda`,
+  and frogs bottom
+  `ef6da5d1eeaa889922d80441ca9e0aceb8a40d0ba0b8b8eb5ac147ef6619bdd2`.
+  GitHub must reproduce/attest the exact commit-bound bytes. These changes are
+  source/build evidence only until both
+  boards confirm voltage, percentage, text, arrow orientation, app upload,
+  and KEY2 recovery.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
   blank for about ten seconds, then alternate between `11` and an apparent
   three-digit value before a Flipper overlay restored `11`. The counter caps at

@@ -31,6 +31,10 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   animation; an entirely blank nametag falls back to scrolling `503.PARTY`
   without modifying data flash; the current beta bundle predates this candidate and remains
   published together as `0.1.0-beta.1` and available to the flasher
+- boot status: current source always credits FOSSASIA, then shows the compact
+  FrogAlert version, a top/up or bottom/down build marker, and calibrated
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.1`
+  source remains hardware-unverified until its cloud-built bytes are tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
   passive surveys, alerts, BadgeMagic app window, adaptive buttons, and KEY2
   recovery, but replaces the visible Bluetooth counter with three frogs
@@ -38,16 +42,19 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - static project site: implemented
 - Web Bluetooth BadgeMagic compatibility probe: experimental
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
-- full BadgeMagic-compatible FrogAlert firmware: not implemented
+- BadgeMagic-compatible FrogAlert firmware: implemented in the retained
+  FOSSASIA USB/BLE shell and user-confirmed on both published beta profiles;
+  the current `0.2.0-beta.1` cloud candidate still needs exact-board retesting
 - downloadable FrogAlert beta BINs: same-origin top-button (`260404`) and
   bottom-button (`250901`) artifacts are linked on the front page and selected
   automatically by `/flash/`
 - public artifact safety: failed SHA permanently quarantined; site assembly
   rejects every FrogAlert BIN without hash-bound physical smoke evidence, and
   the browser refuses the failed SHA even if it is manually reselected
-- commit-driven release publication: successful `main` commits reconcile only
-  physically approved manifest entries into draft-then-verified GitHub
-  Releases, then deploy the same-origin website catalog
+- phone/cloud release path: GitHub Actions builds, audits, and attests declared
+  firmware versions without a local toolchain; a later evidence-only approval
+  commit retrieves that exact Actions artifact, publishes a verified GitHub
+  Release, and deploys the identical same-origin website bytes
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -63,9 +70,10 @@ status and acceptance evidence.
 ## Detection rules
 
 The Rust detection core contains these rules. The survey firmware enables the
-same built-in target groups by default, and the local web flasher can disable
-groups or add bounded custom name, public-OUI, and 16-bit-service rules before
-producing a new local BIN and SHA-256:
+same built-in target groups by default. The tested configuration codec can
+derive a profile-bound BIN with selected groups or bounded custom name,
+public-OUI, and 16-bit-service rules, but the public flasher intentionally does
+not expose unverified derivatives:
 
 | Signal | Match | Rule label | Badge alert |
 | --- | --- | --- | --- |
@@ -78,8 +86,8 @@ producing a new local BIN and SHA-256:
 | Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
 | Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
 | Manufacturer ID and advertised 16-bit service in the same packet | `0x01AB` + `0xFD5F` | Meta passive pair | `COP DETECTED` |
-| Exact advertised name | `LED Badge Magic` | BadgeMagic name | two-frame three-frog animation, one second per frame |
-| Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | two-frame three-frog animation, one second per frame |
+| Exact advertised name | `LED Badge Magic` | BadgeMagic name | three-frame frog animation, one second per frame |
+| Advertised 16-bit service | `0xFEE0` | BadgeMagic-compatible service | three-frame frog animation, one second per frame |
 
 Detection names use case-insensitive substring matching except for two narrow
 rules: KARR requires `QT ` at the beginning plus a non-empty serial value, and
@@ -269,8 +277,8 @@ toolchain (about 345 MB). Omitting a profile selects the newer Nyx
 ```sh
 ./scripts/build-fossasia-usbc baseline --check
 ./scripts/build-fossasia-usbc canary --check
-./scripts/build-fossasia-usbc survey --check
-./scripts/build-fossasia-usbc frogs --check
+./scripts/build-fossasia-usbc survey --candidate
+./scripts/build-fossasia-usbc frogs --candidate
 ```
 
 Pass the legacy profile explicitly when building for the older board:
@@ -278,14 +286,14 @@ Pass the legacy profile explicitly when building for the older board:
 ```sh
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
-./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
-./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --candidate
+./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --candidate
 ```
 
 The default may also be named explicitly:
 
 ```sh
-./scripts/build-fossasia-usbc B1144C_260404_USB_C survey --check
+./scripts/build-fossasia-usbc B1144C_260404_USB_C survey --candidate
 ```
 
 The resulting test images are named
@@ -302,10 +310,12 @@ wchisp -r 30 flash \
 ```
 
 The first derived canary adds only an inert identifying string. The survey and
-frog lanes add the passive detector and embed the compiled profile id. Every
-profile/lane pair has its own locked size and SHA-256 in
-`firmware/fossasia-usbc/upstream-lock.json`; a hash for one profile is never
-evidence for the other.
+frog lanes add the passive detector and embed the compiled profile id.
+Baseline and canary outputs have immutable size/SHA-256 locks in
+`firmware/fossasia-usbc/upstream-lock.json`. GitHub's `--candidate` mode keeps all
+structural audits while calculating new output hashes as a build receipt, so a
+phone/cloud source change does not need a laptop-built hash update first. A
+hash for one profile is never evidence for the other.
 
 All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts
 never invoke `wchisp`, copy a BIN into `firmware/releases/`, or update the site
@@ -346,18 +356,19 @@ flasher and recovery flow. It provides two distinct device surfaces:
   exact CH582 target before enabling a separately confirmed erase/program/verify
   flow.
 
-The landing-page lab permits only inspection and artifact preparation. Its
-legacy program controls are absent, and the controller also requires explicit
-program-page mode; all destructive browser actions exist only on `/flash/`.
+The landing page is project and release information only. All destructive
+browser actions exist only on `/flash/`.
 
 On `/flash/`, the wizard observes whether the bottom or top button produced the
 ISP dot, maps that to the exact `250901` or `260404` profile, and downloads the
 matching same-origin beta BIN automatically. There is no profile selector or
-local file chooser in the public flasher. Local inspection and experimental
-configuration remain separate on the landing-page lab.
+local file chooser in the public flasher. Developer inspection and experimental
+configuration code remains host-tested but is not exposed by either public
+page.
 
-The manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and third-party
-`recovery_images` separate. It lists both exact USB-C `0.1.0-beta.1` releases;
+The schema-5 manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and
+third-party `recovery_images` separate. It lists both exact USB-C
+`0.1.0-beta.1` releases;
 the lab collection remains empty. The former
 USB-C pixel-walk artifact was removed after a physical flash produced no panel
 output and its KEY2 recovery path did not enumerate ISP. The recovery collection
@@ -365,9 +376,11 @@ contains the official FOSSASIA open v0.1 Micro-USB substitute, still
 write-disabled.
 
 After a successful CI run on `main`, the publication workflow revalidates that
-manifest, creates any missing approved GitHub Release as a draft, uploads and
-re-downloads its exact BIN/ELF/checksum/metadata assets for SHA-256 comparison,
-publishes the release, and only then deploys Pages. The browser still fetches
+manifest. For new versions it downloads the exact recorded Actions artifact,
+checks its run/id/name/archive digest/candidate receipt and every BIN/ELF hash,
+creates any missing approved GitHub Release as a draft, uploads and
+re-downloads its assets for SHA-256 comparison, publishes the release, and only
+then deploys Pages. The browser still fetches
 the same-origin manifest and BIN from `frogalert.org`; GitHub is the release
 record and alternate download, not a second trust source. See
 [docs/RELEASE.md](docs/RELEASE.md).

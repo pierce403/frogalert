@@ -22,6 +22,7 @@ import {
   resetConfigPacket,
   sha256Hex,
   sortReleaseCatalogNewestFirst,
+  validatePairedUsbCReleaseCatalog,
   validateFirmware,
   validateLabDescriptor,
   validateLabHardwareBinding,
@@ -180,6 +181,50 @@ test("approved release catalog is sorted by semantic version without selecting a
     sortReleaseCatalogNewestFirst(sameVersion).map(({ id }) => id),
     ["frogalert-a-board", "frogalert-z-board"],
     "equal versions use a deterministic id tie-break",
+  );
+});
+
+test("every published version contains one exact top and bottom image", () => {
+  const release = (profile, marking, suffix) => ({
+    id: `frogalert-0.2.0-beta.1-${suffix}`,
+    kind: "frogalert-release",
+    label: "FrogAlert",
+    version: "0.2.0-beta.1",
+    channel: "beta",
+    target: "ch582m-badgemagic-11x44",
+    hardware_verified: true,
+    hardware_revisions: [profile],
+    pcb_markings: [marking],
+    file: `frogalert-${suffix}.bin`,
+    bytes: 1024,
+    sha256: "a".repeat(64),
+    source_commit: "b".repeat(40),
+    release_tag: "v0.2.0-beta.1",
+    release_url:
+      "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.1",
+    release_notes: "firmware/releases/notes/v0.2.0-beta.1.md",
+    debug_file: `frogalert-${suffix}.elf`,
+    debug_bytes: 8192,
+    debug_sha256: "c".repeat(64),
+  });
+  const top = release(
+    "B1144C_260404_USB_C",
+    "B1144C_260404",
+    "top",
+  );
+  const bottom = release(
+    "B1144C_250901_USB_C",
+    "B1144C_250901",
+    "bottom",
+  );
+  assert.equal(validatePairedUsbCReleaseCatalog([top, bottom]), true);
+  assert.throws(
+    () => validatePairedUsbCReleaseCatalog([top]),
+    /one top and one bottom image/,
+  );
+  assert.throws(
+    () => validatePairedUsbCReleaseCatalog([top, { ...bottom, hardware_revisions: ["B1144C_260404_USB_C"], pcb_markings: ["B1144C_260404"] }]),
+    /missing its B1144C_260404 image/,
   );
 });
 

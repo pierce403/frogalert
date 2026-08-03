@@ -8,6 +8,7 @@ const workflow = await readFile(
 );
 
 test("successful active-firmware commits build a private candidate before CI completes", () => {
+  assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /firmware_candidate_required:/);
   for (const path of [
     "crates/frogalert-core/*",
@@ -25,13 +26,22 @@ test("successful active-firmware commits build a private candidate before CI com
     workflow,
     /BASE_COMMIT: \$\{\{ github\.event_name == 'pull_request' && github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/,
   );
+  assert.match(
+    workflow,
+    /if \[\[ "\$EVENT_NAME" == "workflow_dispatch" \]\]; then\s+required=true/,
+  );
   assert.doesNotMatch(
     workflow,
     /Detect active firmware input changes[\s\S]{0,120}if: github\.event_name == 'push'/,
   );
   assert.match(
     workflow,
-    /\.\/scripts\/build-fossasia-usbc B1144C_250901_USB_C survey --check/,
+    /\.\/scripts\/build-fossasia-usbc B1144C_250901_USB_C survey --candidate/,
+  );
+  assert.match(workflow, /\.\/scripts\/build-fossasia-usbc frogs --candidate/);
+  assert.match(
+    workflow,
+    /\.\/scripts\/build-fossasia-usbc B1144C_250901_USB_C frogs --candidate/,
   );
   assert.match(
     workflow,
@@ -39,20 +49,24 @@ test("successful active-firmware commits build a private candidate before CI com
   );
 });
 
-test("candidate output is an expiring Actions artifact, not release or Pages input", () => {
+test("candidate output is a retained Actions artifact, not release or Pages input", () => {
   assert.match(workflow, /name: frogalert-candidate-\$\{\{ github\.sha \}\}/);
   assert.match(workflow, /path: tmp\/firmware-candidate/);
-  assert.match(workflow, /retention-days: 30/);
+  assert.match(workflow, /retention-days: 90/);
   assert.doesNotMatch(workflow, /firmware\/releases\/.*candidate/);
   assert.doesNotMatch(workflow, /_site\/.*candidate/);
   assert.doesNotMatch(workflow, /contents: write/);
   assert.doesNotMatch(workflow, /deploy-pages/);
 });
 
-test("candidate job uses only read permission and a hash-keyed pinned toolchain cache", () => {
+test("candidate build job keeps source access read-only", () => {
   assert.match(
     workflow,
     /firmware-candidate:[\s\S]*permissions:\s+contents: read/,
+  );
+  assert.doesNotMatch(
+    workflow,
+    /firmware-candidate:[\s\S]*?permissions:[\s\S]*?contents: write/,
   );
   assert.match(
     workflow,
@@ -60,4 +74,67 @@ test("candidate job uses only read permission and a hash-keyed pinned toolchain 
   );
   assert.match(workflow, /tmp\/fossasia-usbc\/cache/);
   assert.match(workflow, /tmp\/fossasia-usbc\/toolchains/);
+});
+
+test("candidate metadata records the exact GitHub Actions execution", () => {
+  for (const [name, value] of [
+    ["FROGALERT_CANDIDATE_GITHUB_REPOSITORY", "github.repository"],
+    ["FROGALERT_CANDIDATE_GITHUB_RUN_ID", "github.run_id"],
+    ["FROGALERT_CANDIDATE_GITHUB_WORKFLOW", "github.workflow_ref"],
+    ["FROGALERT_CANDIDATE_GITHUB_RUN_ATTEMPT", "github.run_attempt"],
+  ]) {
+    assert.match(
+      workflow,
+      new RegExp(`${name}: \\$\\{\\{ ${value.replaceAll(".", "\\.")} \\}\\}`),
+    );
+  }
+  assert.match(
+    workflow,
+    /FROGALERT_CANDIDATE_GITHUB_JOB: firmware-candidate/,
+  );
+  assert.doesNotMatch(
+    workflow,
+    /FROGALERT_CANDIDATE_GITHUB_JOB:.*github\.job/,
+  );
+});
+
+test("a separate non-PR job gives cloud candidates scoped provenance attestations", () => {
+  assert.match(workflow, /attest-candidate:\s+needs: firmware-candidate/);
+  assert.match(
+    workflow,
+    /attest-candidate:[\s\S]*if: github\.event_name != 'pull_request'/,
+  );
+  assert.match(
+    workflow,
+    /attest-candidate:[\s\S]*permissions:\s+contents: read\s+attestations: write\s+artifact-metadata: write\s+id-token: write/,
+  );
+  assert.match(workflow, /uses: actions\/download-artifact@v4/);
+  assert.match(workflow, /name: Attest cloud-built candidate provenance/);
+  assert.match(workflow, /uses: actions\/attest@v4/);
+  assert.match(workflow, /tmp\/firmware-candidate\/\*\*\/\*\.bin/);
+  assert.match(workflow, /tmp\/firmware-candidate\/\*\*\/\*\.elf/);
+  assert.match(workflow, /id: candidate_upload/);
+  assert.match(workflow, /steps\.candidate_upload\.outputs\.artifact-digest/);
+  assert.match(workflow, /steps\.candidate_upload\.outputs\.artifact-url/);
+  assert.match(workflow, /GITHUB_STEP_SUMMARY/);
+  assert.match(workflow, /manifest_digest="sha256:\$manifest_digest"/);
+  assert.match(workflow, /Archive digest for manifest provenance/);
+});
+
+test("trusted main CI validates approved cloud-backed release bytes", () => {
+  assert.match(workflow, /publication-assets:\s+needs: verify/);
+  assert.match(
+    workflow,
+    /publication-assets:[\s\S]*if: github\.event_name != 'pull_request'/,
+  );
+  assert.match(
+    workflow,
+    /publication-assets:[\s\S]*permissions:\s+actions: read\s+attestations: read\s+contents: read/,
+  );
+  assert.match(
+    workflow,
+    /node scripts\/materialize-firmware-artifacts\.mjs tmp\/release-artifacts/,
+  );
+  assert.match(workflow, /FROGALERT_RELEASE_ASSET_ROOT: tmp\/release-artifacts/);
+  assert.match(workflow, /FROGALERT_SKIP_PUBLICATION_ASSETS: "1"/);
 });

@@ -7,6 +7,7 @@ import test from "node:test";
 
 import {
   buildFirmwareReleasePlan,
+  releaseDescriptorSnapshot,
   writeFirmwareReleaseBundle,
 } from "../scripts/firmware-release-plan.mjs";
 import {
@@ -93,32 +94,36 @@ async function makeFixture(t, { withRelease = true } = {}) {
   const artifactSha = sha256(image);
   const hardwareEvidence = evidence(artifactSha);
   const descriptor = {
-    id: "frogalert-0.1.0-alpha.1-b1144c-250901-usbc",
+    id: "frogalert-0.1.0-beta.1-b1144c-250901-usbc",
     kind: "frogalert-release",
     label: "FrogAlert",
-    version: "0.1.0-alpha.1",
-    channel: "alpha",
+    version: "0.1.0-beta.1",
+    channel: "beta",
     target: "ch582m-badgemagic-11x44",
     hardware_revisions: ["B1144C_250901_USB_C"],
     pcb_markings: ["B1144C_250901"],
     source_commit: SOURCE_COMMIT,
-    file: "frogalert-0.1.0-alpha.1-ch582m.bin",
+    file: "frogalert-0.1.0-beta.1-ch582m.bin",
     bytes: image.byteLength,
     sha256: artifactSha,
     hardware_verified: true,
     hardware_evidence: hardwareEvidence,
-    release_tag: "v0.1.0-alpha.1",
+    release_tag: "v0.1.0-beta.1",
     release_url:
-      "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-alpha.1",
-    release_notes: "firmware/releases/notes/v0.1.0-alpha.1.md",
-    debug_file: "frogalert-0.1.0-alpha.1-ch582m.elf",
+      "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-beta.1",
+    release_notes: "firmware/releases/notes/v0.1.0-beta.1.md",
+    published_at: "2026-07-23",
+    debug_file: "frogalert-0.1.0-beta.1-ch582m.elf",
     debug_bytes: debugImage.byteLength,
     debug_sha256: sha256(debugImage),
   };
   const manifest = {
-    schema_version: 4,
+    schema_version: 5,
     updated: "2026-07-23",
     github_repository: "pierce403/frogalert",
+    legacy_repository_release_tags: withRelease
+      ? ["v0.1.0-beta.1"]
+      : [],
     releases: withRelease ? [descriptor] : [],
     lab_images: [],
     recovery_images: [],
@@ -147,7 +152,7 @@ async function makeFixture(t, { withRelease = true } = {}) {
     );
     await writeFile(
       join(root, descriptor.release_notes),
-      "# FrogAlert 0.1.0 alpha 1\n\nFirst physically verified release fixture for automation tests.\n",
+      "# FrogAlert 0.1.0 beta 1\n\nFirst physically verified release fixture for automation tests.\n",
     );
   }
   return { root, descriptor, image };
@@ -191,6 +196,19 @@ test("release plan contains exact verified assets and mandatory safety notes", a
       `${descriptor.id}.json`,
       `${descriptor.id}.evidence.json`,
     ],
+  );
+  const descriptorAsset = release.assets.find(
+    ({ name }) => name === `${descriptor.id}.json`,
+  );
+  const publishedDescriptor = JSON.parse(descriptorAsset.content.toString("utf8"));
+  assert.equal(
+    publishedDescriptor.published_at,
+    undefined,
+    "legacy descriptor snapshots must remain byte-compatible with their published schema-4 asset",
+  );
+  assert.deepEqual(
+    publishedDescriptor,
+    releaseDescriptorSnapshot(descriptor, true),
   );
 
   const bundleRoot = join(root, "bundle");
