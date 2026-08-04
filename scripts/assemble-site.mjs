@@ -57,9 +57,11 @@ for (const artifact of quarantine.artifacts) {
 }
 
 for (const descriptor of [...manifest.releases, ...manifest.lab_images]) {
+  if (descriptor.hardware_verified !== true) continue;
+  const evidenceRecordPath = descriptor.hardware_evidence?.record;
   try {
     const evidenceRecord = JSON.parse(
-      await readFile(join(repositoryRoot, descriptor.hardware_evidence.record), "utf8"),
+      await readFile(join(repositoryRoot, evidenceRecordPath), "utf8"),
     );
     validateHardwareEvidenceRecord(descriptor, evidenceRecord, descriptor.file);
     const evidenceTranscript = await readFile(
@@ -74,7 +76,7 @@ for (const descriptor of [...manifest.releases, ...manifest.lab_images]) {
     );
   } catch {
     throw new Error(
-      `physical hardware evidence record is unavailable or invalid: ${descriptor.hardware_evidence.record}`,
+      `physical hardware evidence record is unavailable or invalid: ${evidenceRecordPath || "missing"}`,
     );
   }
 }

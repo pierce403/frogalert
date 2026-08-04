@@ -5,8 +5,9 @@
   WebUSB bulk endpoints 2 OUT and 2 IN.
 - Accept only WCH ISP USB ids `4348:55e0` or `1a86:55e0`, then require the ISP
   identify response to report CH582 (`0x82`) in CH58x family (`0x16`).
-- Selection of a USB device is never permission to erase it. Require a local
-  firmware file and explicit hardware/risk/power confirmations.
+- Selection of a USB device is never permission to erase it. Before routine ISP
+  entry, validate and retain both published profile images and require explicit
+  hardware/risk/power confirmations plus the exact destructive phrase.
 - Pad firmware to a 1 KiB boundary, enforce the CH582 448 KiB code-flash limit,
   program 56-byte chunks, and verify every programmed byte before reset.
 - Firmware bytes and chip identifiers stay inside the browser. The static site
@@ -28,8 +29,10 @@
   requires a user-initiated browser chooser.
 - From detected application mode, call the variants **bottom-button image**
   (`250901`) and **top-button image** (`260404`). Try bottom first and top
-  second with the badge display upright. Exact PCB ids remain canonical in
-  manifests and build tooling. If neither works, stop before C3.
+  second with the badge display upright only as guidance. After read-only info,
+  ask which button actually worked; the guide suggestion must not preselect the
+  profile. Exact PCB ids remain canonical in manifests and build tooling. If
+  neither worked or the user is unsure, stop before C3.
 - If a browser USB operation times out, the underlying command may still have
   completed. Treat device state as unknown and require a fresh identify plus a
   complete program/verify cycle.
@@ -49,13 +52,17 @@
   public instructions.
 - Keep that physical handoff beside the chooser as an explicit state machine.
   The approximately ten-second indicator is advisory; countdown expiry and USB
-  attach events must not invoke `requestDevice()`. Only the final user tap may
-  open the chooser, and its first transcript remains Identify plus Read Config.
+  attach events must not invoke `requestDevice()`. Only an explicit chooser tap
+  may request new permission. When permission already exists, an attach may
+  immediately claim WCH interface 0 and send only Identify plus Read Config;
+  it must never erase or program.
 - For detected application mode, make that user tap happen before the button
   hold: open a WCH-only chooser, keep it visible, then enter ISP and select the
   device as soon as it appears. This preserves the short ROM window for the
-  actual read-only probe. Native chooser hot-plug behavior remains a physical
-  browser acceptance gate.
+  immediate read-only `0xA1`/`0xA7` info exchange. After that exchange, the
+  clearly destructive Top/Bottom answer atomically selects the matching cached
+  image and starts config reset, flash, and verify without another prompt.
+  Native chooser hot-plug behavior remains a physical browser acceptance gate.
 - FOSSASIA documents a KEY2 long press only after its own open firmware is
   installed. For OEM, unknown, blank, or broken application firmware, use the
   battery-disconnected cold-entry sequence and do not infer failure from an

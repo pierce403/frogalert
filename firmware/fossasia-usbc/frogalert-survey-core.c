@@ -6,6 +6,10 @@
 #define GAP_ADTYPE_16BIT_COMPLETE      0x03
 #define GAP_ADTYPE_MANUFACTURER_SPECIFIC 0xff
 
+#define FLIPPER_SERVICE_BLACK       0x3081
+#define FLIPPER_SERVICE_WHITE       0x3082
+#define FLIPPER_SERVICE_TRANSPARENT 0x3083
+
 typedef struct {
 	const uint8_t *value;
 	uint8_t length;
@@ -177,6 +181,8 @@ static uint8_t advertisement_has_service(
 		field_type = advertisement->data[offset];
 		if (field_type == GAP_ADTYPE_16BIT_MORE ||
 		    field_type == GAP_ADTYPE_16BIT_COMPLETE) {
+			if (((uint8_t)(field_length - 1U) & 1U) != 0U)
+				return 0;
 			for (uint8_t index = 1; index + 1 < field_length;
 			     index += 2) {
 				uint16_t current =
@@ -307,8 +313,12 @@ static frogalert_survey_alert_t classify_builtins(
 			    sizeof(ray_ban_space) - 1)))
 		return FROGALERT_ALERT_COP;
 	if ((targets & FROGALERT_TARGET_FLIPPER) &&
-	    ascii_contains(name.value, name.length, flipper,
-			   sizeof(flipper) - 1))
+	    (ascii_contains(name.value, name.length, flipper,
+			    sizeof(flipper) - 1) ||
+	     advertisement_has_service(advertisement, FLIPPER_SERVICE_BLACK) ||
+	     advertisement_has_service(advertisement, FLIPPER_SERVICE_WHITE) ||
+	     advertisement_has_service(advertisement,
+			       FLIPPER_SERVICE_TRANSPARENT)))
 		return FROGALERT_ALERT_FLIPPER;
 	return FROGALERT_ALERT_NONE;
 }

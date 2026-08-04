@@ -1,4 +1,4 @@
-name: Publish verified firmware and site
+name: Publish firmware and site
 
 on:
   workflow_run:
@@ -16,12 +16,14 @@ jobs:
   current-main:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
+      (github.event.workflow_run.event == 'push' ||
+       github.event.workflow_run.event == 'workflow_dispatch') &&
       github.event.workflow_run.path == '.github/workflows/ci.yml' &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     outputs:
       is_current: ${{ steps.current_main.outputs.is_current }}
+      current_sha: ${{ steps.current_main.outputs.current_sha }}
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -37,21 +39,47 @@ jobs:
               ref: "heads/main",
             });
             const triggeringSha = context.payload.workflow_run.head_sha;
-            const isCurrent = currentMain.object.sha === triggeringSha;
+            const currentSha = currentMain.object.sha;
+            let isCurrent = currentSha === triggeringSha;
+            if (!isCurrent) {
+              const { data: commit } = await github.rest.git.getCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: currentSha,
+              });
+              const publicationBot =
+                "41898282+github-actions[bot]@users.noreply.github.com";
+              isCurrent =
+                commit.parents.length === 1 &&
+                commit.parents[0].sha === triggeringSha &&
+                commit.author?.email === publicationBot &&
+                commit.committer?.email === publicationBot &&
+                /^Publish FrogAlert (?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$/.test(
+                  commit.message.trim(),
+                );
+            }
+            core.setOutput("current_sha", currentSha);
             core.setOutput("is_current", isCurrent ? "true" : "false");
             if (!isCurrent) {
               core.notice(
-                `Skipping stale publication for ${triggeringSha}; current main is ${currentMain.object.sha}.`
+                `Skipping stale publication for ${triggeringSha}; current main is ${currentSha}.`
+              );
+            } else if (currentSha !== triggeringSha) {
+              core.notice(
+                `Resuming publication for ${triggeringSha} from generated metadata commit ${currentSha}.`
               );
             }
 
   prepare:
     needs: current-main
     if: needs.current-main.outputs.is_current == 'true'
+    outputs:
+      publish_sha: ${{ steps.publication_commit.outputs.publish_sha }}
+      release_tag: ${{ steps.record_release.outputs.release_tag }}
     permissions:
       actions: read
       attestations: read
-      contents: read
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +89,115 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Materialize exact approved firmware artifacts
+      - name: Find the triggering run's exact counter candidate
+        id: candidate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expectedName = `frogalert-candidate-${context.payload.workflow_run.head_sha}`;
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.payload.workflow_run.id,
+                per_page: 100,
+              },
+            );
+            const matches = artifacts.filter(
+              (artifact) => artifact.name === expectedName,
+            );
+            if (matches.length > 1) {
+              throw new Error(`CI run contains duplicate ${expectedName} artifacts`);
+            }
+            if (matches.length === 0) {
+              core.notice("CI run has no firmware candidate; publishing website-only changes.");
+              core.setOutput("present", "false");
+              return;
+            }
+            const [artifact] = matches;
+            if (
+              artifact.expired ||
+              !Number.isSafeInteger(artifact.id) ||
+              !/^sha256:[a-f0-9]{64}$/.test(artifact.digest || "")
+            ) {
+              throw new Error("triggering candidate artifact metadata is invalid");
+            }
+            core.setOutput("present", "true");
+            core.setOutput("id", String(artifact.id));
+            core.setOutput("name", artifact.name);
+            core.setOutput("digest", artifact.digest);
+            const publishedAt = String(
+              context.payload.workflow_run.created_at || "",
+            ).slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(publishedAt)) {
+              throw new Error("triggering workflow run has no valid publication date");
+            }
+            core.setOutput("published_at", publishedAt);
+      - name: Download the exact triggering-run candidate
+        if: steps.candidate.outputs.present == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.candidate.outputs.name }}
+          path: tmp/firmware-candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Record paired CI-audited release metadata
+        if: steps.candidate.outputs.present == 'true'
+        id: record_release
+        env:
+          FROGALERT_RELEASE_SOURCE_COMMIT: ${{ github.event.workflow_run.head_sha }}
+          FROGALERT_RELEASE_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          FROGALERT_RELEASE_WORKFLOW_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          FROGALERT_RELEASE_ARTIFACT_ID: ${{ steps.candidate.outputs.id }}
+          FROGALERT_RELEASE_ARTIFACT_NAME: ${{ steps.candidate.outputs.name }}
+          FROGALERT_RELEASE_ARTIFACT_DIGEST: ${{ steps.candidate.outputs.digest }}
+          FROGALERT_RELEASE_PUBLISHED_AT: ${{ steps.candidate.outputs.published_at }}
+        run: node scripts/record-firmware-release.mjs tmp/firmware-candidate/counter
+      - name: Create the local publication commit
+        id: publication_commit
+        shell: bash
+        env:
+          RELEASE_CHANGED: ${{ steps.record_release.outputs.changed }}
+          RELEASE_VERSION: ${{ steps.record_release.outputs.version }}
+          TRIGGERING_SHA: ${{ github.event.workflow_run.head_sha }}
+          CURRENT_MAIN_SHA: ${{ needs.current-main.outputs.current_sha }}
+        run: |
+          publish_sha="$TRIGGERING_SHA"
+          changed=false
+          if [[ "$RELEASE_CHANGED" == "true" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add firmware/releases/manifest.json firmware/releases/notes/
+            if git diff --cached --quiet; then
+              echo "release recorder reported a change without staged metadata" >&2
+              exit 1
+            fi
+            git commit -m "Publish FrogAlert $RELEASE_VERSION"
+            generated_publish_sha="$(git rev-parse HEAD)"
+            if [[ "$CURRENT_MAIN_SHA" == "$TRIGGERING_SHA" ]]; then
+              publish_sha="$generated_publish_sha"
+              changed=true
+            else
+              if ! git cat-file -e "$CURRENT_MAIN_SHA^{commit}" 2>/dev/null; then
+                git fetch --no-tags origin "$CURRENT_MAIN_SHA"
+              fi
+              current_parent="$(git rev-parse "$CURRENT_MAIN_SHA^")"
+              current_tree="$(git rev-parse "$CURRENT_MAIN_SHA^{tree}")"
+              generated_tree="$(git rev-parse "$generated_publish_sha^{tree}")"
+              if [[ "$current_parent" != "$TRIGGERING_SHA" || "$current_tree" != "$generated_tree" ]]; then
+                echo "current publication commit is not the exact generated metadata child" >&2
+                exit 1
+              fi
+              publish_sha="$CURRENT_MAIN_SHA"
+            fi
+          elif [[ "$CURRENT_MAIN_SHA" != "$TRIGGERING_SHA" ]]; then
+            echo "current main is a publication child but this CI run produced no release metadata" >&2
+            exit 1
+          fi
+          echo "publish_sha=$publish_sha" >>"$GITHUB_OUTPUT"
+          echo "changed=$changed" >>"$GITHUB_OUTPUT"
+      - name: Materialize exact release firmware artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/materialize-firmware-artifacts.mjs tmp/release-artifacts
@@ -71,7 +207,7 @@ jobs:
         run: node scripts/assemble-site.mjs _site
       - name: Prepare verified firmware release bundle
         env:
-          FROGALERT_PUBLISH_COMMIT: ${{ github.event.workflow_run.head_sha }}
+          FROGALERT_PUBLISH_COMMIT: ${{ steps.publication_commit.outputs.publish_sha }}
           FROGALERT_RELEASE_ASSET_ROOT: tmp/release-artifacts
         run: node scripts/firmware-release-plan.mjs tmp/release-publication
       - name: Upload immutable release plan
@@ -85,6 +221,24 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+      - name: Recheck main and publish validated release metadata
+        shell: bash
+        env:
+          RELEASE_CHANGED: ${{ steps.publication_commit.outputs.changed }}
+          PUBLISH_SHA: ${{ steps.publication_commit.outputs.publish_sha }}
+          TRIGGERING_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$RELEASE_CHANGED" == "true" ]]; then
+            if [[ "$current_main" != "$TRIGGERING_SHA" ]]; then
+              echo "main moved from $TRIGGERING_SHA to $current_main; refusing stale publication" >&2
+              exit 1
+            fi
+          elif [[ "$current_main" != "$PUBLISH_SHA" ]]; then
+            echo "main moved from validated commit $PUBLISH_SHA to $current_main; refusing stale publication" >&2
+            exit 1
+          fi
+          git push origin "$PUBLISH_SHA:refs/heads/main"
 
   publish-releases:
     needs: prepare
@@ -102,7 +256,8 @@ jobs:
       - name: Reconcile manifest-approved GitHub Releases
         uses: actions/github-script@v7
         env:
-          FROGALERT_PUBLISH_COMMIT: ${{ github.event.workflow_run.head_sha }}
+          FROGALERT_PUBLISH_COMMIT: ${{ needs.prepare.outputs.publish_sha }}
+          FROGALERT_RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
         with:
           script: |
             const { pathToFileURL } = require("node:url");
@@ -111,6 +266,44 @@ jobs:
                 `${process.env.GITHUB_WORKSPACE}/scripts/publish-github-releases.mjs`,
               ).href
             );
+            async function resolveTagCommit(tag) {
+              let object;
+              try {
+                const response = await github.rest.git.getRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${tag}`,
+                });
+                object = response.data.object;
+              } catch (error) {
+                if (error.status === 404) return null;
+                throw error;
+              }
+              for (let depth = 0; object.type === "tag" && depth < 4; depth++) {
+                const response = await github.rest.git.getTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_sha: object.sha,
+                });
+                object = response.data.object;
+              }
+              if (object.type !== "commit") {
+                throw new Error(`release tag ${tag} does not resolve to a commit`);
+              }
+              return object.sha;
+            }
+            const releaseTag = process.env.FROGALERT_RELEASE_TAG;
+            if (releaseTag) {
+              const existingTarget = await resolveTagCommit(releaseTag);
+              if (
+                existingTarget &&
+                existingTarget !== process.env.FROGALERT_PUBLISH_COMMIT
+              ) {
+                throw new Error(
+                  `release tag ${releaseTag} already targets ${existingTarget}, not ${process.env.FROGALERT_PUBLISH_COMMIT}`
+                );
+              }
+            }
             const count = await publisher.publishFirmwareReleaseBundle({
               github,
               owner: context.repo.owner,
@@ -119,6 +312,14 @@ jobs:
               targetCommitish: process.env.FROGALERT_PUBLISH_COMMIT,
               log: (message) => core.info(message),
             });
+            if (releaseTag) {
+              const publishedTarget = await resolveTagCommit(releaseTag);
+              if (publishedTarget !== process.env.FROGALERT_PUBLISH_COMMIT) {
+                throw new Error(
+                  `published release tag ${releaseTag} does not target ${process.env.FROGALERT_PUBLISH_COMMIT}`
+                );
+              }
+            }
             core.info(
               count === 0
                 ? "No manifest-approved FrogAlert firmware releases to publish."

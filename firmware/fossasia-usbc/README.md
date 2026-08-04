@@ -72,9 +72,9 @@ The locally rebuilt ELF itself need not be byte-identical because ELF metadata
 can carry build-path differences; the loadable raw image is the exact gate.
 
 The first integration canary adds only `frogalert-canary.c`, a retained build
-identity string with no functions or hardware references. The private survey
-candidate keeps that same C hardware shell and adds a bounded passive counter
-and classifier for the selected profile.
+identity string with no functions or hardware references. The survey candidate
+keeps that same C hardware shell and adds a bounded passive counter and
+classifier for the selected profile.
 
 This diagnostic lane starts in normal nametag view. The physical button nearest
 USB extends FOSSASIA's existing display selection with a virtual counter:
@@ -110,7 +110,8 @@ AD-structure classifier mirrors every README detector row:
   `COP DETECTED`;
 - manufacturer ID `0x01AB` together with advertised service `0xFD5F` in the
   same passive report produces `COP DETECTED`; either field alone is ignored;
-- case-insensitive `Flipper` produces `FLIPPER DETECTED`;
+- case-insensitive `Flipper` or advertised service `0x3081`, `0x3082`, or
+  `0x3083` produces `FLIPPER DETECTED`;
 - a case-insensitive `QT ` prefix followed by a non-empty serial value produces
   `KARR DETECTED`; and
 - an exact case-insensitive `LED Badge Magic` name or advertised `0xFEE0`
@@ -224,5 +225,8 @@ checksum/metadata directories with every approval flag false.
 
 It does **not** prove that a derived image boots, scans, displays correctly,
 accepts a BadgeMagic upload, enters ISP on KEY2, or recovers after a failed
-write. It also does not turn the Actions bundle into a GitHub firmware Release.
-Keep both candidates local until those checks pass on the exact physical badge.
+write. The raw Actions bundle is not itself a GitHub firmware Release. The
+post-CI workflow may publish only its audited standard counter pair with
+`hardware_verified: false`, a CI-audited basis, and exact provenance; the frog
+pair remains outside that automatic path. Physical checks upgrade the exact
+published hash's hardware status rather than gating its initial availability.

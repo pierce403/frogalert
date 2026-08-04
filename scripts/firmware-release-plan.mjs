@@ -52,24 +52,42 @@ export function releaseDescriptorSnapshot(descriptor, legacyRepositoryRelease = 
 }
 
 function releaseBody({ release, descriptors, notes, repository }) {
+  const hasCiAuditedArtifact = descriptors.some(
+    (descriptor) => descriptor.hardware_verified !== true,
+  );
   const artifactLines = descriptors.map((descriptor) => {
-    const evidence = descriptor.hardware_evidence;
-    return [
+    const lines = [
       `- \`${descriptor.file}\``,
       `  - profile: \`${descriptor.hardware_revisions[0]}\``,
       `  - physical PCB marking: \`${descriptor.pcb_markings[0]}\``,
       `  - size: ${descriptor.bytes.toLocaleString("en-US")} bytes`,
       `  - SHA-256: \`${descriptor.sha256}\``,
       `  - debug ELF: \`${descriptor.debug_file}\` · SHA-256 \`${descriptor.debug_sha256}\``,
-      `  - hardware smoke: ${evidence.tested_at}`,
-      `  - evidence: [record](https://github.com/${repository}/blob/${release.release_tag}/${evidence.record}) · [transcript](https://github.com/${repository}/blob/${release.release_tag}/${evidence.transcript})`,
-    ].join("\n");
+    ];
+    if (descriptor.hardware_verified === true) {
+      const evidence = descriptor.hardware_evidence;
+      lines.push(
+        `  - hardware smoke: ${evidence.tested_at}`,
+        `  - evidence: [record](https://github.com/${repository}/blob/${release.release_tag}/${evidence.record}) · [transcript](https://github.com/${repository}/blob/${release.release_tag}/${evidence.transcript})`,
+      );
+    } else {
+      const provenance = descriptor.build_provenance;
+      lines.push(
+        "  - verification: cloud-built and audited from the recorded GitHub Actions candidate",
+        "  - hardware status: not hardware-tested",
+        `  - Actions run: [${provenance.workflow_run_id}](https://github.com/${repository}/actions/runs/${provenance.workflow_run_id}) · attempt ${provenance.workflow_run_attempt}`,
+        `  - candidate artifact: \`${provenance.artifact_name}\` · id \`${provenance.artifact_id}\``,
+        `  - candidate archive SHA-256: \`${provenance.artifact_digest}\``,
+        `  - candidate receipt SHA-256: \`${provenance.candidate_metadata_sha256}\``,
+      );
+    }
+    return lines.join("\n");
   });
 
   return [
     notes.trim(),
     "",
-    "## Verified artifacts",
+    hasCiAuditedArtifact ? "## Audited artifacts" : "## Verified artifacts",
     "",
     ...artifactLines,
     "",
@@ -136,23 +154,30 @@ export async function buildFirmwareReleasePlan({
   );
   for (const descriptor of manifest.releases) {
     await assertSourceCommit(root, descriptor.source_commit, publishCommit);
-    const evidenceRecord = JSON.parse(
-      await readFile(
-        assertRepositoryPath(root, descriptor.hardware_evidence.record, "hardware evidence record"),
+    let evidenceRecord;
+    if (descriptor.hardware_verified === true) {
+      evidenceRecord = JSON.parse(
+        await readFile(
+          assertRepositoryPath(
+            root,
+            descriptor.hardware_evidence.record,
+            "hardware evidence record",
+          ),
+          "utf8",
+        ),
+      );
+      validateHardwareEvidenceRecord(descriptor, evidenceRecord, descriptor.file);
+      const transcript = await readFile(
+        assertRepositoryPath(root, evidenceRecord.transcript, "hardware evidence transcript"),
         "utf8",
-      ),
-    );
-    validateHardwareEvidenceRecord(descriptor, evidenceRecord, descriptor.file);
-    const transcript = await readFile(
-      assertRepositoryPath(root, evidenceRecord.transcript, "hardware evidence transcript"),
-      "utf8",
-    );
-    validateHardwareEvidenceTranscript(
-      descriptor,
-      evidenceRecord,
-      transcript,
-      descriptor.file,
-    );
+      );
+      validateHardwareEvidenceTranscript(
+        descriptor,
+        evidenceRecord,
+        transcript,
+        descriptor.file,
+      );
+    }
 
     const artifactPath = join(releaseArtifactRoot, descriptor.file);
     const artifact = await readFile(artifactPath);
@@ -222,13 +247,15 @@ export async function buildFirmwareReleasePlan({
           "application/json",
         ),
       );
-      assets.push(
-        releaseAsset(
-          `${descriptor.id}.evidence.json`,
-          `${JSON.stringify(evidenceRecord, null, 2)}\n`,
-          "application/json",
-        ),
-      );
+      if (evidenceRecord) {
+        assets.push(
+          releaseAsset(
+            `${descriptor.id}.evidence.json`,
+            `${JSON.stringify(evidenceRecord, null, 2)}\n`,
+            "application/json",
+          ),
+        );
+      }
     }
 
     releases.push({

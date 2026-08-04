@@ -34,6 +34,7 @@ export const OPEN_BADGEMAGIC_RECOVERY = Object.freeze({
   license: "Apache-2.0",
 });
 export const FROGALERT_GITHUB_REPOSITORY = "pierce403/frogalert";
+export const CI_AUDITED_RELEASE_BASIS = "ci-audited";
 export const CH58X_RESET_CONFIG = Uint8Array.of(
   0xff, 0xff, 0xff, 0xff,
   0xff, 0xff, 0xff, 0xff,
@@ -261,8 +262,31 @@ export function validateReleaseCatalogDescriptor(
   release,
   githubRepository = FROGALERT_GITHUB_REPOSITORY,
 ) {
-  if (!release || release.target !== "ch582m-badgemagic-11x44" || release.hardware_verified !== true) {
-    throw new Error("release is not hardware-verified for the FrogAlert target");
+  if (!release || release.target !== "ch582m-badgemagic-11x44") {
+    throw new Error("release does not target the FrogAlert CH582M 11×44 badge");
+  }
+  const provenance = release.build_provenance;
+  const ciAudited =
+    release.hardware_verified === false &&
+    release.verification_basis === CI_AUDITED_RELEASE_BASIS &&
+    release.flash_approved === true &&
+    release.firmware_variant === "counter" &&
+    provenance?.kind === "github-actions-candidate" &&
+    Number.isSafeInteger(provenance.workflow_run_id) &&
+    provenance.workflow_run_id > 0 &&
+    provenance.workflow_path === ".github/workflows/ci.yml" &&
+    Number.isSafeInteger(provenance.workflow_run_attempt) &&
+    provenance.workflow_run_attempt > 0 &&
+    Number.isSafeInteger(provenance.artifact_id) &&
+    provenance.artifact_id > 0 &&
+    provenance.artifact_name === `frogalert-candidate-${release.source_commit}` &&
+    /^sha256:[a-f0-9]{64}$/.test(provenance.artifact_digest || "") &&
+    /^[a-f0-9]{64}$/.test(provenance.candidate_metadata_sha256 || "") &&
+    provenance.build_lane === "survey";
+  if (release.hardware_verified !== true && !ciAudited) {
+    throw new Error(
+      "release is neither hardware-verified nor an approved CI-audited FrogAlert build",
+    );
   }
   if (githubRepository !== FROGALERT_GITHUB_REPOSITORY) {
     throw new Error("release catalog repository is not the FrogAlert repository");
@@ -328,10 +352,10 @@ export function validateReleaseCatalogDescriptor(
     throw new Error("release debug ELF metadata is invalid");
   }
   if (!Array.isArray(release.hardware_revisions) || release.hardware_revisions.length !== 1) {
-    throw new Error("release must declare exactly one verified PCB revision");
+    throw new Error("release must declare exactly one PCB-bound firmware profile");
   }
   if (!Array.isArray(release.pcb_markings) || release.pcb_markings.length !== 1) {
-    throw new Error("release must declare exactly one verified physical PCB marking");
+    throw new Error("release must declare exactly one physical PCB marking");
   }
   if (typeof release.file !== "string" || !/^[a-zA-Z0-9._-]+\.bin$/.test(release.file)) {
     throw new Error("release filename is not a safe raw BIN name");

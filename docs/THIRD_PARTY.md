@@ -19,6 +19,10 @@ FrogAlert is Apache-2.0 unless a file says otherwise.
   <https://github.com/colonelpanichacks/ouispy-detector>
 - Unagi — repository license applies. Initial advertised-name rule provenance.
   <https://github.com/pierce403/unagi>
+- BLESPloit device library — MIT. Flipper advertised-service rule provenance;
+  FrogAlert implements the small factual UUID mapping independently rather
+  than embedding BLESPloit's Lua runtime.
+  <https://github.com/BLESPloit/device-library/tree/6d940b5325924bd818f8ecccf8a25fcf87c58908/vendors/flipper_zero>
 
 The browser ISP module is an independent small implementation of the documented
 packet behavior with source attribution. Before redistributing copied or

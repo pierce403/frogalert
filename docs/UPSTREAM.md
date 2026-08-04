@@ -1,6 +1,6 @@
 # Upstream research snapshot
 
-Research performed 2026-07-17 and refreshed on 2026-07-28. The project records
+Research performed 2026-07-17 and refreshed on 2026-08-03. The project records
 exact upstream links and only vendors the build-required HAL subset and the
 explicitly attributed recovery artifact.
 
@@ -76,7 +76,7 @@ canary, followed by an ABI-only Rust canary, before any scan or panel change.
 
 ### Display refresh port
 
-The private survey lane carries the narrow PWM timing fix from Ben Kero's
+The survey lane carries the narrow PWM timing fix from Ben Kero's
 Apache-2.0 FOSSASIA fork, branch `b1144c-support`, exact commit
 [`074c448`](https://github.com/bkero/badgemagic-firmware/commit/074c448066573be2990fe83fd718a22c01b7c283).
 It changes only `src/main.c`: Timer 0 ticks at 16 kHz, and the matrix is
@@ -197,20 +197,27 @@ seeds name rules for `Axon Body`, `TASER`, `Ray-Ban`, and `Ray Ban`:
 
 <https://github.com/pierce403/unagi/blob/53099cc9b61f98c02eaf1860313c43d188aec533/app/src/main/java/ninja/unagi/alerts/DefaultAlertRules.kt>
 
+BLESPloit's device library at pinned commit
+`6d940b5325924bd818f8ecccf8a25fcf87c58908` recognizes a Flipper Zero when a
+passive advertisement contains 16-bit service `0x3081`, `0x3082`, or `0x3083`.
+Its observer maps those services to black, white, and transparent shells:
+
+- <https://github.com/BLESPloit/device-library/blob/6d940b5325924bd818f8ecccf8a25fcf87c58908/vendors/flipper_zero/manifest.json>
+- <https://github.com/BLESPloit/device-library/blob/6d940b5325924bd818f8ecccf8a25fcf87c58908/vendors/flipper_zero/observer/adv_decode.lua>
+
 Official Flipper firmware at pinned commit
-`7432d21a7e362d4a5f636e24d6209fbb2eedff1f` constructs the BLE local name as
-`xFlipper <device-name>` and passes that complete local-name field into its GAP
-advertising configuration. Its public address is derived from STM32 device and
-company identifiers; that is not a unique Flipper vendor prefix and would also
-describe unrelated STMicroelectronics products. FrogAlert therefore matches
-the advertised name case-insensitively and does not claim a Flipper OUI:
+`11c1012eaa6ad5c3c41048184871b24bd01b3493` explains the mapping. Its serial
+profile starts with service `0x3080` and ORs in hardware color; the official
+color enum assigns black `1`, white `2`, and transparent `3`. GAP places that
+16-bit service in the primary advertisement. FrogAlert can therefore use the
+same UUID signal in its existing passive scan with no GATT connection, active
+probe, larger runtime, or new badge hardware. It keeps the case-insensitive
+`Flipper` local-name rule as an independent fallback and still does not claim
+a Flipper OUI:
 
-- <https://github.com/flipperdevices/flipperzero-firmware/blob/7432d21a7e362d4a5f636e24d6209fbb2eedff1f/targets/f7/furi_hal/furi_hal_version.c>
-- <https://github.com/flipperdevices/flipperzero-firmware/blob/7432d21a7e362d4a5f636e24d6209fbb2eedff1f/targets/f7/ble_glue/gap.c>
-- <https://github.com/flipperdevices/flipperzero-firmware/blob/7432d21a7e362d4a5f636e24d6209fbb2eedff1f/targets/f7/ble_glue/profiles/serial_profile.c>
-
-The rule remains a hint: custom firmware can rename a Flipper and any other
-device can advertise a name containing `Flipper`.
+- <https://github.com/flipperdevices/flipperzero-firmware/blob/11c1012eaa6ad5c3c41048184871b24bd01b3493/targets/f7/ble_glue/profiles/serial_profile.c>
+- <https://github.com/flipperdevices/flipperzero-firmware/blob/11c1012eaa6ad5c3c41048184871b24bd01b3493/targets/furi_hal_include/furi_hal_version.h>
+- <https://github.com/flipperdevices/flipperzero-firmware/blob/11c1012eaa6ad5c3c41048184871b24bd01b3493/targets/f7/ble_glue/gap.c>
 
 The KARR rule is based on the user's observed backdoor advertisements rather
 than an OUI or an upstream code reference. It matches a local name only when it

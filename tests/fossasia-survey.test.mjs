@@ -798,6 +798,9 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(core, /"axon body"/);
   assert.match(core, /"taser"/);
   assert.match(core, /"flipper"/);
+  assert.match(core, /FLIPPER_SERVICE_BLACK\s+0x3081/);
+  assert.match(core, /FLIPPER_SERVICE_WHITE\s+0x3082/);
+  assert.match(core, /FLIPPER_SERVICE_TRANSPARENT\s+0x3083/);
   assert.match(core, /"qt "/);
   assert.match(core, /ascii_starts_with_value/);
   assert.match(core, /"led badge magic"/);
@@ -894,13 +897,25 @@ test("display refresh fix is pinned to bkero's reviewed source", async () => {
   });
 });
 
-test("Flipper name evidence is pinned to official firmware", async () => {
+test("Flipper passive service evidence is pinned to official firmware and BLESPloit", async () => {
   const lock = await loadLock();
   assert.deepEqual(lock.flipper_reference, {
     repository: "https://github.com/flipperdevices/flipperzero-firmware",
-    commit: "7432d21a7e362d4a5f636e24d6209fbb2eedff1f",
-    device_name_source: "targets/f7/furi_hal/furi_hal_version.c",
+    commit: "11c1012eaa6ad5c3c41048184871b24bd01b3493",
+    hardware_color_source: "targets/furi_hal_include/furi_hal_version.h",
     advertising_source: "targets/f7/ble_glue/gap.c",
     profile_source: "targets/f7/ble_glue/profiles/serial_profile.c",
+    service_uuid_16_by_hardware_color: {
+      black: "3081",
+      white: "3082",
+      transparent: "3083",
+    },
+  });
+  assert.deepEqual(lock.blesploit_reference, {
+    repository: "https://github.com/BLESPloit/device-library",
+    commit: "6d940b5325924bd818f8ecccf8a25fcf87c58908",
+    manifest: "vendors/flipper_zero/manifest.json",
+    observer_source: "vendors/flipper_zero/observer/adv_decode.lua",
+    service_uuid_16: ["3081", "3082", "3083"],
   });
 });

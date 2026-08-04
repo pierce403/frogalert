@@ -99,10 +99,10 @@ FROGALERT_PUBLISH_COMMIT="$(git rev-parse HEAD)" \
   node scripts/firmware-release-plan.mjs tmp/release-publication
 ```
 
-With the current catalog this prepares the two-asset `0.1.0-beta.1` release
-bundle under `tmp/`. It never builds, flashes, uploads, tags, or publishes
-firmware. GitHub writes occur only in the post-CI workflow after the same bundle
-has passed validation.
+With the current catalog this prepares the published release bundles under
+`tmp/`. It never builds, flashes, uploads, tags, or publishes firmware. GitHub
+writes occur only in the post-CI workflow after the same bundle has passed
+validation.
 
 ## Phone and cloud firmware workflow
 
@@ -112,20 +112,36 @@ source and `firmware/fossasia-usbc/version.json`, then push the commit to
 profiles and both visible-view lanes, performs the embedded audits, attests the
 outputs, and uploads `frogalert-candidate-<commit>` for 90 days. The same
 workflow can be started manually from the GitHub Actions page when a rebuild is
-needed without another source change.
+needed without another source change. Active firmware changes must strictly
+advance the semantic version; `scripts/require-firmware-version-bump.mjs`
+enforces that invariant before immutable release identities can collide.
+`workflow_dispatch` skips the expensive rebuild when that version's complete
+counter pair is already published and reconciles it instead; a missing pair
+causes the normal build-and-publish path to run. An ordinary later `main` push
+also rebuilds a still-missing current version after an earlier publication race,
+without treating that catch-up build as an active-source version change.
+
+The first publication requires the exact candidate artifact and its GitHub
+attestations. Once published, the complete GitHub Release asset set is the
+durable, hash-checked source for future site rebuilds after the Actions artifact
+expires; candidate integrity failures are never eligible for that fallback.
 
 The Actions summary identifies the declared version, top and bottom files,
-their SHA-256 values, the artifact id, archive digest, and download link. Flash
-and test those exact bytes. After physical confirmation, add only the evidence,
-release notes, and schema-5 manifest descriptors containing the recorded
-candidate provenance. The publication workflow downloads the approved
-candidate itself, creates the GitHub Release, and places the identical BINs on
-the site. Do not build or commit a replacement BIN from another machine during
-approval.
+their SHA-256 values, artifact id, archive digest, and download link. After the
+canonical build, audits, attestations, and quarantine checks succeed, the
+post-CI workflow generates the standard counter descriptor pair, publishes the
+GitHub Release, and places the identical BINs on the site. It records
+`hardware_verified: false`, `verification_basis: "ci-audited"`, and
+`flash_approved: true`, so the new version is phone-flashable immediately
+without pretending it passed a badge smoke. Do not build or commit a replacement
+BIN from another machine during publication.
 
-Changing the version creates a candidate, not an automatic hardware claim. The
-site continues to identify the last physically approved version as latest
-until the exact new bytes pass the board gate.
+Physical testing still matters: flash and test those exact published bytes,
+then add hash/profile/PCB-bound evidence before changing their hardware status.
+Changing the version creates an automatic release only after all CI publication
+gates pass; it never creates an automatic hardware claim. Lab images, the frog
+lane, local configured derivatives, and recovery firmware retain their separate
+approval rules.
 
 ## Embedded firmware
 
@@ -233,8 +249,9 @@ canary passes. All lanes use `USBC_VERSION=1`, validate pinned archive/tool
 hashes and critical sources, audit required runtime symbols and linked
 instructions, keep at least 8 KiB of stack/runtime RAM headroom, and keep
 everything under ignored `tmp/fossasia-usbc/`. Profile-specific size/SHA-256
-locks are in `firmware/fossasia-usbc/upstream-lock.json`. No build command
-flashes, publishes, or authorizes a physical test.
+locks are in `firmware/fossasia-usbc/upstream-lock.json`. No local build command
+flashes or publishes. Canonical CI alone may auto-publish the audited standard
+counter pair, and a successful build is never an automatic hardware-test claim.
 
 Set `FROGALERT_FOSSASIA_OFFLINE=1` to prohibit downloads and require an already
 populated verified cache. See `firmware/fossasia-usbc/upstream-lock.json` for

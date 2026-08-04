@@ -44,8 +44,38 @@ jobs:
         run: |
           changed_file_list="tmp/firmware-candidate-changed-files.txt"
           mkdir -p tmp
+          published_counter_pair_exists() {
+            CURRENT_VERSION="$1" node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+          const manifest = JSON.parse(
+            await readFile("firmware/releases/manifest.json", "utf8"),
+          );
+          const releases = manifest.releases.filter(
+            (release) =>
+              release.version === process.env.CURRENT_VERSION &&
+              release.kind === "frogalert-release" &&
+              release.firmware_variant === "counter" &&
+              release.flash_approved === true,
+          );
+          const profiles = new Set(
+            releases.flatMap((release) => release.hardware_revisions || []),
+          );
+          const complete =
+            releases.length === 2 &&
+            profiles.has("B1144C_260404_USB_C") &&
+            profiles.has("B1144C_250901_USB_C");
+          process.exitCode = complete ? 0 : 1;
+          NODE
+          }
+          version_bump_required=false
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            required=true
+            current_version="$(node scripts/frogalert-version.mjs | head -n 1)"
+            if published_counter_pair_exists "$current_version"; then
+              required=false
+              echo "FrogAlert $current_version is already an atomic published pair; dispatch will reconcile it without rebuilding or rebinding the version."
+            else
+              required=true
+            fi
           else
             if [[ "$BASE_COMMIT" =~ ^0+$ ]] || ! git cat-file -e "$BASE_COMMIT^{commit}" 2>/dev/null; then
               git diff-tree --no-commit-id --name-only -r "$CURRENT_COMMIT" >"$changed_file_list"
@@ -69,12 +99,40 @@ jobs:
                 scripts/prepare-fossasia-usbc|\
                 .github/workflows/ci.yml)
                   required=true
+                  version_bump_required=true
                   break
                   ;;
               esac
             done <"$changed_file_list"
+            if [[ "$EVENT_NAME" == "push" && "$required" == "false" ]]; then
+              current_version="$(node scripts/frogalert-version.mjs | head -n 1)"
+              if ! published_counter_pair_exists "$current_version"; then
+                required=true
+                echo "FrogAlert $current_version has no complete published counter pair; rebuilding it from current main after an interrupted publication."
+              fi
+            fi
           fi
           echo "required=$required" >>"$GITHUB_OUTPUT"
+          echo "version_bump_required=$version_bump_required" >>"$GITHUB_OUTPUT"
+      - name: Require active firmware changes to advance the release version
+        if: >-
+          steps.firmware_candidate_scope.outputs.version_bump_required == 'true'
+        shell: bash
+        env:
+          BASE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ "$BASE_COMMIT" =~ ^0+$ ]]; then
+            echo "No previous commit exists; accepting the repository's initial firmware version."
+            exit 0
+          fi
+          if ! git cat-file -e "$BASE_COMMIT^{commit}" 2>/dev/null; then
+            echo "Cannot validate the firmware version because base commit $BASE_COMMIT is unavailable." >&2
+            exit 1
+          fi
+          git show "$BASE_COMMIT:firmware/fossasia-usbc/version.json" >tmp/previous-firmware-version.json
+          node scripts/require-firmware-version-bump.mjs \
+            tmp/previous-firmware-version.json \
+            firmware/fossasia-usbc/version.json
 
   publication-assets:
     needs: verify

@@ -1,17 +1,23 @@
 # Structured firmware hardware evidence
 
 Every public FrogAlert release or lab image targets exactly one firmware
-profile and one physical PCB marking. Its manifest entry points to a JSON file
-in this directory. Site assembly reads that file and requires every declared
-fact to match the manifest exactly; an empty or unrelated Markdown log is not
-evidence.
+profile and one physical PCB marking. Standard counter releases may publish
+immediately after canonical CI with `hardware_verified: false`,
+`verification_basis: "ci-audited"`, and `flash_approved: true`; they do not
+fabricate a file in this directory. When a descriptor claims
+`hardware_verified: true`, its manifest entry points to a JSON record here. Site
+assembly reads that file and requires every declared fact to match exactly; an
+empty or unrelated Markdown log is not evidence. Lab images remain physically
+gated and require the same kind of record before publication.
 
-Schema 1 below remains the stable-release gate. A beta release may instead use
-schema 2 with `verification_basis: "user-confirmed-beta"` when the owner has
-confirmed the exact hash on physical hardware but transport logs were not
-captured. Schema 2 must say `transport_transcript_captured: false` and confirm
-boot, display, BadgeMagic upload, profile-specific buttons, and KEY2 dot
-recovery. It cannot be used for stable releases or lab images.
+Schema 1 below remains the complete hardware-tested/stable-status gate. A beta
+release may instead use schema 2 with `verification_basis:
+"user-confirmed-beta"` when the owner has confirmed the exact hash on physical
+hardware but transport logs were not captured. Schema 2 must say
+`transport_transcript_captured: false` and confirm boot, display, BadgeMagic
+upload, profile-specific buttons, and KEY2 dot recovery. It cannot be used for
+stable hardware-tested status or lab images. Neither schema is required for the
+initial CI-audited standard publication while hardware status remains false.
 
 A record has this shape:
 
@@ -84,4 +90,5 @@ plus these substantive sections:
 ```
 
 This beta path records missing CLI/WebUSB transcripts as a limitation instead
-of inventing evidence or deadlocking publication on a hosted browser image.
+of inventing evidence. Publication already happened through the CI-audited
+path; the record upgrades only the truthful hardware-test status.

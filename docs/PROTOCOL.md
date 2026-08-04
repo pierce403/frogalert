@@ -54,7 +54,7 @@ descriptor as a conservative “normal application mode” hint and show the KEY
 guide, but it must not treat it as a bootloader or open its application
 interfaces. It cannot prove the installed firmware or exact hardware. Only the
 WCH ids above followed by the Identify exchange may advance to firmware
-selection.
+button confirmation. They do not select a hardware profile by themselves.
 
 ## ISP command envelope
 
@@ -74,6 +74,28 @@ Commands used by the website prototype:
 | Write config | `0xA8` | Reset CH58x protection/configuration before first erase |
 | ISP end | `0xA2` | Reset/end the session |
 
+For an authorized WebUSB device, the first claimed-interface operations are
+always `0xA1` Identify followed immediately by `0xA7` Read Config with the full
+`0x1f` mask. Together they are the useful read-only portion of `wchisp info`:
+they prove `0x82/0x16`, capture bootloader/configuration facts, validate the UID
+checksum, and turn the brief no-command enumeration into an active ISP
+session. No manifest fetch, profile question, or other human-paced UI work may
+run between claiming the interface and this exchange. A USB attach event may
+start it only for a device for which the browser already has permission; attach
+and timer events must never call `requestDevice()`.
+
+Both current published profile images must already be downloaded, hashed,
+profile-checked, and quarantined-checked, and the user must already have given
+the opened-board and irreversible-flash acknowledgements before routine ISP
+entry. After the read-only exchange, the user's **Top button** or **Bottom
+button** answer selects the corresponding cached profile and serves as the
+explicit final destructive activation. The implementation must recheck the
+same captured device, info result, consent, and artifact binding at that event;
+it must stop on an unknown answer, disconnect, double activation, or stale
+artifact. The next command may then be the destructive `0xA8` config reset—no
+extra Continue or browser confirmation stands between the answer and the
+matching flash/verify sequence.
+
 Program/verify packets contain a 32-bit little-endian address, a padding byte,
 and at most 56 bytes of data XORed with an 8-byte key. With an all-zero key
 seed, the key is derived from the sum of the first eight UID bytes; the final
@@ -89,7 +111,9 @@ and exact erase-sector count so a UI bug cannot change the plan.
 Before erase, the page writes the reviewed CH58x defaults for the `0x07`
 configuration group and requires an exact readback. This mirrors the required
 `wchisp config reset` prerequisite for a protected stock badge. That write is
-the first destructive operation and is separately disclosed in the UI.
+the first destructive operation. It is disclosed and accepted before ISP
+entry, then authorized for the exact selected profile by the post-info
+Top/Bottom action.
 
 ## Implementation boundary
 

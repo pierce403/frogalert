@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { programAndVerifyFirmware } from "../site/flash-session.js";
+import {
+  programAndVerifyFirmware,
+  readBootloaderInfo,
+} from "../site/flash-session.js";
 import { CH58X_RESET_CONFIG, COMMAND, deriveXorKey } from "../site/wchisp-protocol.js";
 
 const uid = Uint8Array.of(1, 2, 3, 4, 5, 6, 0x09, 0x0c);
@@ -39,6 +42,60 @@ function fakeTransport({ badConfig = false, badVerifyAt = -1 } = {}) {
     },
   };
 }
+
+test("read-only bootloader info identifies CH582 and reads all config groups", async () => {
+  const packets = [];
+  const configPayload = new Uint8Array(26);
+  configPayload.set([0x00, 0x02, 0x90, 0x00], 14);
+  configPayload.set(uid, 18);
+
+  const result = await readBootloaderInfo({
+    transfer: async (packet) => {
+      packets.push(packet);
+      if (packet[0] === COMMAND.IDENTIFY) return Uint8Array.of(0x82, 0x16);
+      if (packet[0] === COMMAND.READ_CONFIG) return configPayload;
+      throw new Error(`unexpected command 0x${packet[0].toString(16)}`);
+    },
+  });
+
+  assert.deepEqual(
+    packets.map((packet) => packet[0]),
+    [COMMAND.IDENTIFY, COMMAND.READ_CONFIG],
+  );
+  assert.deepEqual([...packets[1]], [COMMAND.READ_CONFIG, 0x02, 0x00, 0x1f, 0x00]);
+  assert.equal(result.identity.name, "CH582");
+  assert.deepEqual([...result.config.bootloaderVersion], [0x00, 0x02, 0x90, 0x00]);
+  assert.deepEqual([...result.config.uid], [...uid]);
+  assert.ok(configPayload.every((byte) => byte === 0), "temporary config payload must be zeroed");
+});
+
+test("read-only bootloader info rejects another target before reading config", async () => {
+  const packets = [];
+  await assert.rejects(
+    readBootloaderInfo({
+      transfer: async (packet) => {
+        packets.push(packet);
+        return Uint8Array.of(0x83, 0x16);
+      },
+    }),
+    /unsupported WCH target/,
+  );
+  assert.deepEqual(packets.map((packet) => packet[0]), [COMMAND.IDENTIFY]);
+});
+
+test("read-only bootloader info zeroes a malformed config payload", async () => {
+  const configPayload = Uint8Array.of(1, 2, 3);
+  await assert.rejects(
+    readBootloaderInfo({
+      transfer: async (packet) =>
+        packet[0] === COMMAND.IDENTIFY
+          ? Uint8Array.of(0x82, 0x16)
+          : configPayload,
+    }),
+    /configuration response is missing/,
+  );
+  assert.deepEqual([...configPayload], [0, 0, 0]);
+});
 
 test("full fake session resets config before erase, finalizes program, verifies, and resets", async () => {
   const transport = fakeTransport();

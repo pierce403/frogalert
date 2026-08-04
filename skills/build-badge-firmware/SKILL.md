@@ -5,16 +5,19 @@ description: Build, inspect, test, package, or release FrogAlert firmware for th
 
 # Build Badge Firmware
 
-Apply hardware gates before build convenience. A successful cross-compile is
-not evidence that a badge is safe to flash.
+Keep build evidence and hardware evidence distinct. A successful cross-compile
+is not physical proof, but the owner has chosen to publish the standard
+counter release pair automatically after the pinned CI build, structural
+audits, provenance attestation, and quarantine checks pass.
 
 ## Workflow
 
 1. Read `docs/HARDWARE.md`, `docs/ARCHITECTURE.md`, `FEATURES.md`, and current
    firmware source before changing the target.
-2. Confirm the intended board revision is CH582M with an 11×44 matrix. If the
-   physical board is unavailable, stop at build/test and label hardware status
-   unverified.
+2. Bind every image to one supported CH582M 11×44 profile and physical PCB
+   marking. If the physical board is unavailable, keep `hardware_verified`
+   false and label that status prominently; this no longer blocks a
+   CI-audited beta release.
 3. Base CH582M badge images on the pinned FOSSASIA hardware shell. Preserve its
    startup assembly, linker layout, clocks, USB HID+CDC, BLE/TMOS service,
    display refresh, buttons, and KEY2 recovery. Keep detection policy in
@@ -39,20 +42,18 @@ not evidence that a badge is safe to flash.
    symbol as proof that the vector table reaches it.
 7. Run host tests first, then embedded build checks, then hardware smoke checks.
 8. Never perform the first irreversible flash without explicit human approval.
-9. Keep every first-test BIN only under ignored `tmp/`. For a release or public
-   lab image, produce a `.bin`, SHA-256 checksum, release manifest, source
-   commit, provenance, recovery instructions, and structured hash/source/one-
-   profile/one-PCB physical verification record. It must prove application USB,
-   display, BadgeMagic upload, KEY1/short-KEY2 behavior, KEY2-only dot-to-ISP
-   recovery, and known-good reflash, with a bound dated transcript. A
+9. Keep local build outputs under ignored `tmp/`. The trusted main-CI workflow
+   may automatically publish the standard counter top/bottom pair when it has
+   exact BIN/ELF hashes, one-profile/one-PCB binding, a commit-bound candidate
+   receipt, canonical workflow/run/artifact metadata, successful structural
+   audits, provenance attestations, and no quarantine hit. Record these as
+   `hardware_verified: false`, `verification_basis: ci-audited`, and
+   `flash_approved: true`; never fabricate physical evidence. Experimental lab
+   images and third-party recovery images keep their separate gates. A
    quarantined SHA may never be republished.
-   Promotion happens only by adding the exact approved bytes, schema-v4
-   descriptor, structured evidence, transcript, and release notes to the
-   committed manifest. The post-CI workflow reconciles that reviewed entry; it
-   must never publish the current build merely because a commit passed.
 10. Update `FEATURES.md` and `agent-memory/logs/` with evidence, not optimism.
 
-## Required hardware checks
+## Required checks before claiming hardware verification
 
 - opened PCB and readable `CH582M` package marking;
 - exactly 44 LED columns and known hardware revision;
@@ -66,9 +67,10 @@ not evidence that a badge is safe to flash.
 
 ## Validation
 
-Run `./scripts/verify`. Once firmware exists, also require a release build,
-binary-size and vector-table checks, local `wchisp info`, captured program plus
-byte verify, a separate WebUSB program plus byte verify, USB HID+CDC
-enumeration, display smoke, BadgeMagic app upload, short-button behavior, KEY2
-entry as `4348:55e0`/`1a86:55e0`, known-good reflash, and power-cycle
-repetition.
+Run `./scripts/verify`. Before automatic publication, require the pinned release
+build, binary-size/vector/RAM/instruction checks, ELF-to-BIN identity, exact
+profile pair, candidate receipt, quarantine check, and GitHub provenance
+attestations. Keep local `wchisp` and WebUSB program/byte verification, USB
+HID+CDC enumeration, display smoke, BadgeMagic upload, button behavior, KEY2
+entry, known-good reflash, and power-cycle repetition as the evidence required
+to change the truthful hardware status from unverified to verified.

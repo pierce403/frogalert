@@ -22,16 +22,14 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
 4. Never write on connect. Require a local/release firmware image bound to the
    entered PCB revision, size and SHA-256 display, all explicit safety
    confirmations, and a final click.
-   Never copy an unverified FrogAlert BIN into the public site: assembly must
-   reject quarantined hashes and require a structured, hash/source/profile/PCB-
-   bound physical evidence record for both release and lab collections. One
-   descriptor covers one exact profile/marking pair, and evidence must include
-   application USB, display, BadgeMagic upload, and KEY2-only dot-to-ISP tests;
-   separate KEY1/short-KEY2 behavior, a known-good reflash, and a bound dated
-   transcript are also required. C3 recovery alone is insufficient. First-test
-   bytes stay only under ignored `tmp/`. Load the same quarantine registry in
-   the browser and reject a matching manually selected local file after hashing
-   it.
+   The owner has authorized immediate publication of the standard counter
+   top/bottom pair after trusted main CI. Assembly may accept a release with
+   `hardware_verified: false` only when it is explicitly CI-audited and
+   flash-approved, carries exact canonical run/artifact/receipt/attestation
+   provenance, binds one profile and one PCB marking, and is absent from the
+   quarantine registry. Keep that status visible before flashing. Do not extend
+   this bypass to hosted lab or recovery images. Load the same quarantine
+   registry in the browser and reject a matching local file after hashing it.
    Keep the checked-in same-origin manifest and BIN as the executable catalog.
    GitHub Releases may supply notes and alternate downloads, but browser code
    must not query the GitHub API or flash a GitHub-hosted asset.
@@ -45,13 +43,16 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
 7. Keep all firmware bytes and device identifiers local to the browser.
 8. Preserve accessible status, keyboard navigation, reduced motion, secure
    context checks, and honest unsupported-browser messaging.
-9. Run `./scripts/verify`, then test through a local browser. Hardware changes
-   additionally require a supported-browser physical-badge run.
+9. Run `./scripts/verify`, then test through a local browser. A physical-badge
+   run is additionally required before changing an artifact's status to
+   hardware-verified, but it is not an automatic-release prerequisite.
 10. Update `FEATURES.md` and the site readiness labels with the same evidence.
-11. For publication changes, preserve the post-CI order: prepare and validate
-    an immutable bundle, publish and verify any approved GitHub Release, then
-    deploy Pages. A manifest with no approved releases must remain a successful
-    no-op.
+11. For publication changes, preserve the post-CI order: generate and validate
+    the exact CI-audited descriptor pair, materialize and attest the immutable
+    bundle, publish and verify the GitHub Release, then deploy Pages. A run with
+    no new firmware artifact remains a successful website-only path once the
+    current version's complete pair is already published; a missing pair must
+    trigger the catch-up candidate path.
 
 ## Release gate
 

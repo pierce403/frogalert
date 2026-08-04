@@ -118,6 +118,30 @@ test("lock validation rejects a moving source ref", async () => {
   );
 });
 
+test("lock validation pins Flipper service UUID evidence", async () => {
+  const movingFlipperReference = structuredClone(await loadLock());
+  movingFlipperReference.flipper_reference.commit = "a".repeat(40);
+  assert.throws(
+    () => validateLock(movingFlipperReference),
+    /Flipper service evidence must remain pinned/,
+  );
+
+  const changedColorMapping = structuredClone(await loadLock());
+  changedColorMapping.flipper_reference.service_uuid_16_by_hardware_color.white =
+    "3084";
+  assert.throws(
+    () => validateLock(changedColorMapping),
+    /Flipper service evidence must remain pinned/,
+  );
+
+  const changedBlesploitList = structuredClone(await loadLock());
+  changedBlesploitList.blesploit_reference.service_uuid_16.pop();
+  assert.throws(
+    () => validateLock(changedBlesploitList),
+    /BLESPloit evidence must remain pinned/,
+  );
+});
+
 test("canary is inert C metadata and overlay only appends it", async () => {
   const canary = await readFile(
     path.join(scaffoldDirectory, "frogalert-canary.c"),

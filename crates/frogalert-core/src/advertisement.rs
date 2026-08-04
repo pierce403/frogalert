@@ -59,6 +59,9 @@ pub fn has_service16(data: &[u8], service: u16) -> Result<bool, AdvertisementErr
         let field_type = data[offset];
         if matches!(field_type, UUID16_MORE | UUID16_COMPLETE) {
             let value = &data[offset + 1..offset + field_len];
+            if value.len() % 2 != 0 {
+                return Err(AdvertisementError::TruncatedField);
+            }
             if value
                 .chunks_exact(2)
                 .any(|uuid| u16::from_le_bytes([uuid[0], uuid[1]]) == service)
@@ -171,6 +174,15 @@ mod tests {
         );
         assert_eq!(
             has_service16(&data, 0xfd5f),
+            Err(AdvertisementError::TruncatedField)
+        );
+    }
+
+    #[test]
+    fn service_helper_rejects_an_incomplete_uuid() {
+        let data = [2, UUID16_COMPLETE, 0x81];
+        assert_eq!(
+            has_service16(&data, 0x3081),
             Err(AdvertisementError::TruncatedField)
         );
     }

@@ -259,8 +259,10 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
   assert.match(readme, new RegExp(`Version: ${FIRMWARE_VERSION}`));
   assert.match(readme, new RegExp(`Display version: ${DISPLAY_VERSION}`));
   assert.match(readme, /GitHub Actions run: 30726276951/);
-  assert.match(readme, /not approved for flashing/i);
+  assert.match(readme, /not directly approved for flashing/i);
   assert.match(readme, /never copied into the website firmware catalog/i);
+  assert.match(readme, /standard counter pair/i);
+  assert.match(readme, /dancing-frog lane is not promoted automatically/i);
 
   const firstMetadata = await readFile(join(outputRoot, "candidate.json"), "utf8");
   await buildFirmwareCandidateBundle({

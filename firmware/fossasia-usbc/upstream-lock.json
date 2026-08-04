@@ -204,10 +204,22 @@
   },
   "flipper_reference": {
     "repository": "https://github.com/flipperdevices/flipperzero-firmware",
-    "commit": "7432d21a7e362d4a5f636e24d6209fbb2eedff1f",
-    "device_name_source": "targets/f7/furi_hal/furi_hal_version.c",
+    "commit": "11c1012eaa6ad5c3c41048184871b24bd01b3493",
+    "hardware_color_source": "targets/furi_hal_include/furi_hal_version.h",
     "advertising_source": "targets/f7/ble_glue/gap.c",
-    "profile_source": "targets/f7/ble_glue/profiles/serial_profile.c"
+    "profile_source": "targets/f7/ble_glue/profiles/serial_profile.c",
+    "service_uuid_16_by_hardware_color": {
+      "black": "3081",
+      "white": "3082",
+      "transparent": "3083"
+    }
+  },
+  "blesploit_reference": {
+    "repository": "https://github.com/BLESPloit/device-library",
+    "commit": "6d940b5325924bd818f8ecccf8a25fcf87c58908",
+    "manifest": "vendors/flipper_zero/manifest.json",
+    "observer_source": "vendors/flipper_zero/observer/adv_decode.lua",
+    "service_uuid_16": ["3081", "3082", "3083"]
   },
   "known_good_upstream_elf": {
     "bin_commit": "b56cd9495738e8e3170bf723e70b445de936a5d2",

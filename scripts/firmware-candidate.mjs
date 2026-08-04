@@ -262,7 +262,7 @@ export async function buildFirmwareCandidateBundle({
     },
     artifacts,
     warning:
-      "Hardware-unverified CI build evidence only. Not a FrogAlert release, not approved for flashing, and never served by the website.",
+      "Hardware-unverified CI build evidence only. The raw candidate archive is not a FrogAlert release, is not directly approved for flashing, and is never served by the website.",
   };
 
   const readme = [
@@ -281,9 +281,9 @@ export async function buildFirmwareCandidateBundle({
       `- ${profile} (${artifacts[profile].pcb_marking}): \`${artifacts[profile].firmware.sha256}\``,
     ]),
     "",
-    "This archive is build evidence only. It is not a FrogAlert release, has not passed exact-board physical testing, is not approved for flashing, and is never copied into the website firmware catalog.",
+    "This archive is raw build evidence only. It is not itself a FrogAlert release, has not passed exact-board physical testing, is not directly approved for flashing, and is never copied into the website firmware catalog.",
     "",
-    "Only a separately reviewed manifest entry with complete hash-bound physical evidence may reach GitHub Releases or frogalert.org/flash/.",
+    "After canonical main CI succeeds, the publication workflow may bind the exact standard counter pair to separate CI-audited release descriptors and serve those hash-checked bytes. Hardware evidence remains a distinct status; the dancing-frog lane is not promoted automatically.",
     "",
   ].join("\n");
 

@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
+  CandidateArtifactUnavailableError,
+  downloadGithubCandidate,
+  githubActionsRunAttemptEndpoint,
   githubAttestationArguments,
   materializeFirmwareArtifacts,
   validateGithubActionsRun,
@@ -72,24 +75,6 @@ async function makeFixture(t) {
   await writeFile(join(candidateRoot, binName), bin);
   await writeFile(join(candidateRoot, elfName), elf);
 
-  const evidence = {
-    artifact_sha256: sha256(bin),
-    source_commit: SOURCE_COMMIT,
-    record: "firmware/evidence/release.json",
-    transcript: "agent-memory/logs/release.md",
-    tested_at: "2026-08-03",
-    hardware_profile: PROFILE,
-    pcb_marking: "B1144C_260404",
-    verification_basis: "user-confirmed-beta",
-    user_confirmed_working: true,
-    boot_observed: true,
-    display_passed: true,
-    badgemagic_upload_passed: true,
-    button_behavior_passed: true,
-    key2_dot_observed: true,
-    key2_recovery_passed: true,
-    transport_transcript_captured: false,
-  };
   const provenance = {
     kind: "github-actions-candidate",
     workflow_run_id: 123,
@@ -122,8 +107,9 @@ async function makeFixture(t) {
     debug_file: elfName,
     debug_bytes: elf.byteLength,
     debug_sha256: sha256(elf),
-    hardware_verified: true,
-    hardware_evidence: evidence,
+    hardware_verified: false,
+    verification_basis: "ci-audited",
+    flash_approved: true,
     build_provenance: provenance,
   };
   const manifest = {
@@ -143,34 +129,89 @@ async function makeFixture(t) {
     join(root, "firmware/quarantine.json"),
     `${JSON.stringify({ schema_version: 1, artifacts: [] })}\n`,
   );
-  const { record: _record, ...recordFields } = evidence;
-  await writeFile(
-    join(root, evidence.record),
-    `${JSON.stringify({ schema_version: 2, ...recordFields }, null, 2)}\n`,
-  );
-  await writeFile(
-    join(root, evidence.transcript),
-    [
-      evidence.tested_at,
-      evidence.artifact_sha256,
-      evidence.source_commit,
-      evidence.hardware_profile,
-      evidence.pcb_marking,
-      "## User hardware confirmation\nThe user confirmed this exact image is working.",
-      "## Runtime and display\nNormal boot, Bluetooth count, and display output worked.",
-      "## BadgeMagic compatibility\nBadgeMagic upload compatibility was confirmed.",
-      "## Buttons and recovery\nButton behavior and the KEY2 dot recovery path worked.",
-      "## Uncaptured transport evidence\nCLI and WebUSB program logs were not captured.",
-    ].join("\n"),
-  );
   return {
     root,
     candidateRoot: join(root, "tmp", "download-source"),
     descriptor,
     bin,
+    elf,
     candidate,
     manifest,
+    provenance,
   };
+}
+
+async function makePublishedRelease(fixture) {
+  const { root, descriptor, bin, elf } = fixture;
+  const publishCommit = "c".repeat(40);
+  const assetRoot = join(root, "tmp", "published-release-source");
+  await mkdir(assetRoot, { recursive: true });
+  const contents = new Map([
+    [descriptor.file, bin],
+    [descriptor.debug_file, elf],
+    [
+      `${descriptor.file}.sha256`,
+      Buffer.from(`${descriptor.sha256}  ${descriptor.file}\n`),
+    ],
+    [
+      `${descriptor.id}.json`,
+      Buffer.from(`${JSON.stringify(descriptor, null, 2)}\n`),
+    ],
+  ]);
+  const assets = [];
+  const assetFiles = {};
+  let assetId = 700;
+  for (const [name, content] of contents) {
+    assetId += 1;
+    const path = join(assetRoot, `asset-${assetId}`);
+    await writeFile(path, content);
+    assets.push({
+      id: assetId,
+      name,
+      size: content.byteLength,
+      state: "uploaded",
+      digest: `sha256:${sha256(content)}`,
+      url: `https://api.github.com/repos/pierce403/frogalert/releases/assets/${assetId}`,
+      browser_download_url:
+        `https://github.com/pierce403/frogalert/releases/download/${descriptor.release_tag}/${name}`,
+    });
+    assetFiles[String(assetId)] = path;
+  }
+  const published = {
+    release: {
+      id: 99,
+      url: "https://api.github.com/repos/pierce403/frogalert/releases/99",
+      html_url: descriptor.release_url,
+      tag_name: descriptor.release_tag,
+      name: `${descriptor.label} ${descriptor.version}`,
+      target_commitish: publishCommit,
+      draft: false,
+      prerelease: true,
+    },
+    assets,
+    tagTarget: publishCommit,
+    comparison: {
+      status: "ahead",
+      behind_by: 0,
+      base_commit: { sha: descriptor.source_commit },
+      merge_base_commit: { sha: descriptor.source_commit },
+      head_commit: { sha: publishCommit },
+    },
+    assetFiles,
+  };
+  const fetchPublishedRelease = async ({
+    repository,
+    releaseTag,
+    sourceCommit,
+    expectedAssetNames,
+  }) => {
+    assert.equal(repository, "pierce403/frogalert");
+    assert.equal(releaseTag, descriptor.release_tag);
+    assert.equal(sourceCommit, descriptor.source_commit);
+    assert.deepEqual(new Set(expectedAssetNames), new Set(contents.keys()));
+    return published;
+  };
+  return { published, fetchPublishedRelease };
 }
 
 test("approved release bytes can be materialized from one exact Actions candidate", async (t) => {
@@ -189,6 +230,205 @@ test("approved release bytes can be materialized from one exact Actions candidat
   assert.equal(downloads, 1);
   assert.equal(attested.length, 2);
   assert.deepEqual(await readFile(join(result.outputRoot, descriptor.file)), bin);
+});
+
+test("candidate download validates the recorded attempt and fetches the exact artifact id", async (t) => {
+  const { root, provenance: fixtureProvenance } = await makeFixture(t);
+  const archive = Buffer.from("exact artifact archive bytes");
+  const provenance = {
+    ...fixtureProvenance,
+    workflow_run_attempt: 7,
+    artifact_digest: `sha256:${sha256(archive)}`,
+  };
+  const outputRoot = join(root, "tmp", "exact-artifact-download");
+  await mkdir(outputRoot, { recursive: true });
+  const textCalls = [];
+  const binaryCalls = [];
+  const execute = async (command, args) => {
+    textCalls.push([command, ...args]);
+    const endpoint = args.at(-1);
+    if (endpoint.endsWith("/actions/runs/123/attempts/7")) {
+      return {
+        stdout: JSON.stringify({
+          id: 123,
+          path: ".github/workflows/ci.yml",
+          run_attempt: 7,
+          event: "push",
+          head_branch: "main",
+          head_sha: SOURCE_COMMIT,
+          head_repository: { full_name: "pierce403/frogalert" },
+          repository: { full_name: "pierce403/frogalert" },
+          status: "completed",
+          conclusion: "success",
+        }),
+      };
+    }
+    if (endpoint.endsWith("/actions/artifacts/456")) {
+      return {
+        stdout: JSON.stringify({
+          id: 456,
+          name: provenance.artifact_name,
+          digest: provenance.artifact_digest,
+          expired: false,
+          workflow_run: { id: 123, head_sha: SOURCE_COMMIT },
+        }),
+      };
+    }
+    throw new Error(`unexpected text command: ${command} ${args.join(" ")}`);
+  };
+  const executeBinary = async (command, args) => {
+    binaryCalls.push([command, ...args]);
+    return { stdout: archive };
+  };
+  let extracted = false;
+  await downloadGithubCandidate({
+    repository: "pierce403/frogalert",
+    provenance,
+    sourceCommit: SOURCE_COMMIT,
+    outputRoot,
+    execute,
+    executeBinary,
+    extractArchive: async ({ archivePath }) => {
+      extracted = true;
+      assert.deepEqual(await readFile(archivePath), archive);
+    },
+  });
+  assert.equal(
+    githubActionsRunAttemptEndpoint(provenance),
+    "actions/runs/123/attempts/7",
+  );
+  assert.equal(extracted, true);
+  assert.deepEqual(textCalls[0], [
+    "gh",
+    "api",
+    "repos/pierce403/frogalert/actions/runs/123/attempts/7",
+  ]);
+  assert.deepEqual(binaryCalls[0], [
+    "gh",
+    "api",
+    "repos/pierce403/frogalert/actions/artifacts/456/zip",
+    "-H",
+    "Accept: application/vnd.github+json",
+  ]);
+  assert.equal(
+    [...textCalls, ...binaryCalls].some((call) => call[1] === "run"),
+    false,
+  );
+});
+
+test("an expired candidate can be materialized from its exact published release", async (t) => {
+  const fixture = await makeFixture(t);
+  const { root, descriptor, bin, elf } = fixture;
+  const { fetchPublishedRelease } = await makePublishedRelease(fixture);
+  let candidateFetches = 0;
+  const result = await materializeFirmwareArtifacts({
+    repositoryRoot: root,
+    outputRoot: join(root, "tmp", "release-artifacts"),
+    fetchCandidate: async () => {
+      candidateFetches += 1;
+      throw new CandidateArtifactUnavailableError("candidate artifact has expired");
+    },
+    fetchPublishedRelease,
+    verifyAttestations: async () => assert.fail("published fallback must not re-attest"),
+  });
+  assert.equal(candidateFetches, 1);
+  assert.deepEqual(await readFile(join(result.outputRoot, descriptor.file)), bin);
+  assert.deepEqual(await readFile(join(result.outputRoot, descriptor.debug_file)), elf);
+});
+
+test("an unpublished release cannot bypass its candidate and attestations", async (t) => {
+  const { root } = await makeFixture(t);
+  await assert.rejects(
+    materializeFirmwareArtifacts({
+      repositoryRoot: root,
+      outputRoot: join(root, "tmp", "release-artifacts"),
+      fetchCandidate: async () => {
+        throw new CandidateArtifactUnavailableError("candidate artifact has expired");
+      },
+      fetchPublishedRelease: async () => {
+        throw new Error("release tag was not found");
+      },
+      verifyAttestations: async () => {},
+    }),
+    /candidate artifact is unavailable and published release fallback failed: release tag was not found/,
+  );
+});
+
+test("published fallback rejects drafts and prerelease status drift", async (t) => {
+  const fixture = await makeFixture(t);
+  const { root } = fixture;
+  const { published, fetchPublishedRelease } = await makePublishedRelease(fixture);
+  published.release.draft = true;
+  await assert.rejects(
+    materializeFirmwareArtifacts({
+      repositoryRoot: root,
+      outputRoot: join(root, "tmp", "release-artifacts"),
+      fetchCandidate: async () => {
+        throw new CandidateArtifactUnavailableError("gone");
+      },
+      fetchPublishedRelease,
+      verifyAttestations: async () => {},
+    }),
+    /release identity or status differs/,
+  );
+  published.release.draft = false;
+  published.release.prerelease = false;
+  await assert.rejects(
+    materializeFirmwareArtifacts({
+      repositoryRoot: root,
+      outputRoot: join(root, "tmp", "release-artifacts"),
+      fetchCandidate: async () => {
+        throw new CandidateArtifactUnavailableError("gone");
+      },
+      fetchPublishedRelease,
+      verifyAttestations: async () => {},
+    }),
+    /release identity or status differs/,
+  );
+});
+
+test("published fallback requires the exact planned release asset set", async (t) => {
+  const fixture = await makeFixture(t);
+  const { root } = fixture;
+  const { published, fetchPublishedRelease } = await makePublishedRelease(fixture);
+  published.assets.push({
+    id: 999,
+    name: "unplanned.bin",
+    size: 1,
+    state: "uploaded",
+  });
+  await assert.rejects(
+    materializeFirmwareArtifacts({
+      repositoryRoot: root,
+      outputRoot: join(root, "tmp", "release-artifacts"),
+      fetchCandidate: async () => {
+        throw new CandidateArtifactUnavailableError("gone");
+      },
+      fetchPublishedRelease,
+      verifyAttestations: async () => {},
+    }),
+    /asset set differs from the planned release/,
+  );
+});
+
+test("published fallback rehashes downloaded release bytes", async (t) => {
+  const fixture = await makeFixture(t);
+  const { root, descriptor } = fixture;
+  const { published, fetchPublishedRelease } = await makePublishedRelease(fixture);
+  const binAsset = published.assets.find((asset) => asset.name === descriptor.file);
+  await writeFile(published.assetFiles[String(binAsset.id)], Buffer.alloc(descriptor.bytes));
+  await assert.rejects(
+    materializeFirmwareArtifacts({
+      repositoryRoot: root,
+      outputRoot: join(root, "tmp", "release-artifacts"),
+      fetchCandidate: async () => {
+        throw new CandidateArtifactUnavailableError("gone");
+      },
+      fetchPublishedRelease,
+      verifyAttestations: async () => {},
+    }),
+    /release asset bytes differ/,
+  );
 });
 
 test("materialization fails closed when candidate metadata is not the approved receipt", async (t) => {

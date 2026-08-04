@@ -56,6 +56,30 @@ int main(void)
 	static const uint8_t short_flipper_name[] = {
 		8, 0x08, 'F', 'L', 'I', 'P', 'P', 'E', 'R',
 	};
+	static const uint8_t flipper_black_service[] = {
+		3, 0x02, 0x81, 0x30,
+	};
+	static const uint8_t flipper_white_service[] = {
+		3, 0x03, 0x82, 0x30,
+	};
+	static const uint8_t flipper_transparent_service[] = {
+		3, 0x03, 0x83, 0x30,
+	};
+	static const uint8_t flipper_service_below_range[] = {
+		3, 0x03, 0x80, 0x30,
+	};
+	static const uint8_t flipper_service_above_range[] = {
+		3, 0x03, 0x84, 0x30,
+	};
+	static const uint8_t truncated_flipper_service[] = {
+		2, 0x03, 0x81,
+	};
+	static const uint8_t malformed_flipper_service[] = {
+		3, 0x03, 0x81,
+	};
+	static const uint8_t odd_flipper_service[] = {
+		4, 0x03, 0x81, 0x30, 0xff,
+	};
 	static const uint8_t karr_name[] = {
 		11, 0x09, 'Q', 'T', ' ', '1', '2', '3', '4', '5', '6', '7',
 	};
@@ -91,6 +115,10 @@ int main(void)
 	static const uint8_t badge_magic_flipper[] = {
 		3, 0x02, 0xe0, 0xfe,
 		8, 0x09, 'F', 'l', 'i', 'p', 'p', 'e', 'r',
+	};
+	static const uint8_t badge_magic_flipper_service[] = {
+		3, 0x02, 0xe0, 0xfe,
+		3, 0x03, 0x81, 0x30,
 	};
 	static const uint8_t ray_ban_dash_name[] = {
 		13, 0x09, 'R', 'a', 'Y', '-', 'B', 'a', 'N', ' ', 'M', 'e', 't',
@@ -183,6 +211,30 @@ int main(void)
 		       unrelated_address, 0, short_flipper_name,
 		       sizeof(short_flipper_name)) == FROGALERT_ALERT_FLIPPER);
 	assert(classify(
+		       unrelated_address, 0, flipper_black_service,
+		       sizeof(flipper_black_service)) == FROGALERT_ALERT_FLIPPER);
+	assert(classify(
+		       unrelated_address, 0, flipper_white_service,
+		       sizeof(flipper_white_service)) == FROGALERT_ALERT_FLIPPER);
+	assert(classify(unrelated_address, 0, flipper_transparent_service,
+			sizeof(flipper_transparent_service)) ==
+	       FROGALERT_ALERT_FLIPPER);
+	assert(classify(unrelated_address, 0, flipper_service_below_range,
+			sizeof(flipper_service_below_range)) ==
+	       FROGALERT_ALERT_NONE);
+	assert(classify(unrelated_address, 0, flipper_service_above_range,
+			sizeof(flipper_service_above_range)) ==
+	       FROGALERT_ALERT_NONE);
+	assert(classify(unrelated_address, 0, truncated_flipper_service,
+			sizeof(truncated_flipper_service)) ==
+	       FROGALERT_ALERT_NONE);
+	assert(classify(unrelated_address, 0, malformed_flipper_service,
+			sizeof(malformed_flipper_service)) ==
+	       FROGALERT_ALERT_NONE);
+	assert(classify(unrelated_address, 0, odd_flipper_service,
+			sizeof(odd_flipper_service)) ==
+	       FROGALERT_ALERT_NONE);
+	assert(classify(
 		       unrelated_address, 0, karr_name, sizeof(karr_name)) ==
 	       FROGALERT_ALERT_KARR);
 	assert(classify(
@@ -216,6 +268,9 @@ int main(void)
 	assert(classify(
 		       axon_address, 1, badge_magic_flipper,
 		       sizeof(badge_magic_flipper)) ==
+	       FROGALERT_ALERT_FROG_DANCE);
+	assert(classify(axon_address, 1, badge_magic_flipper_service,
+			sizeof(badge_magic_flipper_service)) ==
 	       FROGALERT_ALERT_FROG_DANCE);
 	assert(classify(
 		       unrelated_address, 0, ray_ban_dash_name,

@@ -8,6 +8,7 @@ import {
   expectedPcbMarking,
   nextArtifactGeneration,
   physicalMarkingMatchesProfiles,
+  profileHintForIspButton,
   revisionInputTransition,
 } from "../site/flasher-state.js";
 
@@ -76,6 +77,29 @@ test("known USB-C profiles require exactly one matching physical PCB token", () 
   );
 });
 
+test("top and bottom button choices map to one exact firmware profile", () => {
+  const top = profileHintForIspButton("top");
+  assert.deepEqual(top, {
+    position: "top",
+    profile: "B1144C_260404_USB_C",
+    marking: "B1144C_260404",
+    imageLabel: "top-button image",
+  });
+  assert.deepEqual(profileHintForIspButton("bottom"), {
+    position: "bottom",
+    profile: "B1144C_250901_USB_C",
+    marking: "B1144C_250901",
+    imageLabel: "bottom-button image",
+  });
+  assert.notEqual(top, profileHintForIspButton("top"));
+});
+
+test("unknown button choices fail closed", () => {
+  for (const position of [undefined, null, "", "Top", "nearest", "left", 0, {}]) {
+    assert.equal(profileHintForIspButton(position), null);
+  }
+});
+
 test("revision input clears a prepared recovery image only after it stops matching", () => {
   assert.deepEqual(
     revisionInputTransition({
@@ -139,7 +163,7 @@ test("flash gating requires fresh device identity, configuration, and acknowledg
   );
 });
 
-test("manifest-managed artifacts fail closed until their exact image is hardware-verified", () => {
+test("published FrogAlert releases may be flash-approved by hardware or audited CI", () => {
   assert.equal(canProgramArtifact(), false, "missing artifact policy");
   assert.equal(canProgramArtifact({ artifactKind: "unknown" }), false, "unknown artifact kind");
   assert.equal(
@@ -156,18 +180,37 @@ test("manifest-managed artifacts fail closed until their exact image is hardware
     }),
     true,
   );
-  for (const artifactKind of ["frogalert-lab", "frogalert-release"]) {
-    assert.equal(
-      canProgramArtifact({ artifactKind, hardwareVerified: false }),
-      false,
-      `${artifactKind} without physical verification`,
-    );
-    assert.equal(
-      canProgramArtifact({ artifactKind, hardwareVerified: true }),
-      true,
-      `${artifactKind} with physical verification`,
-    );
-  }
+  assert.equal(
+    canProgramArtifact({ artifactKind: "frogalert-release", hardwareVerified: false }),
+    false,
+    "an unverified release still needs explicit publication approval",
+  );
+  assert.equal(
+    canProgramArtifact({
+      artifactKind: "frogalert-release",
+      hardwareVerified: false,
+      flashApproved: true,
+    }),
+    true,
+    "an audited CI release is immediately phone-flashable",
+  );
+  assert.equal(
+    canProgramArtifact({ artifactKind: "frogalert-release", hardwareVerified: true }),
+    true,
+  );
+  assert.equal(
+    canProgramArtifact({
+      artifactKind: "frogalert-lab",
+      hardwareVerified: false,
+      flashApproved: true,
+    }),
+    false,
+    "automatic approval is deliberately limited to releases",
+  );
+  assert.equal(
+    canProgramArtifact({ artifactKind: "frogalert-lab", hardwareVerified: true }),
+    true,
+  );
 });
 
 test("explicit local developer BIN route remains flashable", () => {

@@ -188,18 +188,32 @@ export function validateLock(lock) {
     lock.survey_reference.ble_heap_config,
     "EVT/EXAM/BLE/HAL/include/config.h",
   );
-  assert.equal(
-    lock.flipper_reference.repository,
-    "https://github.com/flipperdevices/flipperzero-firmware",
+  assert.deepEqual(
+    lock.flipper_reference,
+    {
+      repository: "https://github.com/flipperdevices/flipperzero-firmware",
+      commit: "11c1012eaa6ad5c3c41048184871b24bd01b3493",
+      hardware_color_source: "targets/furi_hal_include/furi_hal_version.h",
+      advertising_source: "targets/f7/ble_glue/gap.c",
+      profile_source: "targets/f7/ble_glue/profiles/serial_profile.c",
+      service_uuid_16_by_hardware_color: {
+        black: "3081",
+        white: "3082",
+        transparent: "3083",
+      },
+    },
+    "Flipper service evidence must remain pinned to the reviewed commit and UUID mapping",
   );
-  assert.match(lock.flipper_reference.commit, /^[0-9a-f]{40}$/);
-  assert.equal(
-    lock.flipper_reference.device_name_source,
-    "targets/f7/furi_hal/furi_hal_version.c",
-  );
-  assert.equal(
-    lock.flipper_reference.advertising_source,
-    "targets/f7/ble_glue/gap.c",
+  assert.deepEqual(
+    lock.blesploit_reference,
+    {
+      repository: "https://github.com/BLESPloit/device-library",
+      commit: "6d940b5325924bd818f8ecccf8a25fcf87c58908",
+      manifest: "vendors/flipper_zero/manifest.json",
+      observer_source: "vendors/flipper_zero/observer/adv_decode.lua",
+      service_uuid_16: ["3081", "3082", "3083"],
+    },
+    "BLESPloit evidence must remain pinned to the reviewed commit and UUID list",
   );
   assert.match(lock.known_good_upstream_elf.bin_commit, /^[0-9a-f]{40}$/);
   assert.equal(

@@ -26,7 +26,7 @@
     <title>FrogAlert — Bluetooth alerts on a BadgeMagic nametag</title>
     <link rel="canonical" href="https://frogalert.org/">
     <link rel="stylesheet" href="./site/styles.css">
-    <script type="module" src="./site/app.js?v=19"></script>
+    <script type="module" src="./site/app.js?v=21"></script>
   </head>
   <body data-flash-mode="inspect">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -80,7 +80,7 @@
           </article>
           <article>
             <h3>Device alerts</h3>
-            <p>A matching public OUI or advertised name shows <code>COP DETECTED</code>, <code>FLIPPER DETECTED</code>, or <code>KARR DETECTED</code> as fixed pages, one second each. A BadgeMagic name or <code>FEE0</code> service shows three one-second dancing-frog frames using two alternating poses. The nametag or counter returns after the last frame.</p>
+            <p>A matching public OUI, advertised name, or documented service signal shows <code>COP DETECTED</code>, <code>FLIPPER DETECTED</code>, or <code>KARR DETECTED</code> as fixed pages, one second each. A BadgeMagic name or <code>FEE0</code> service shows three one-second dancing-frog frames using two alternating poses. The nametag or counter returns after the last frame.</p>
           </article>
         </div>
         <aside class="caveat">
@@ -121,7 +121,7 @@
               <tr><td><code>00:25:DF</code></td><td>Axon public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
               <tr><td><code>B4:1E:52</code></td><td>Flock Safety public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
               <tr><td><code>Axon Body</code> / <code>TASER</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
-              <tr><td><code>Flipper</code></td><td>Advertised name</td><td><code>FLIPPER DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>Flipper</code> or <code>3081</code>–<code>3083</code></td><td>Advertised name or 16-bit service</td><td><code>FLIPPER DETECTED</code></td><td>Passive firmware hint</td></tr>
               <tr><td><code>QT </code> + serial</td><td>Advertised name prefix</td><td><code>KARR DETECTED</code></td><td>Case-insensitive; must start the name</td></tr>
               <tr><td><code>Ray-Ban</code> / <code>Ray Ban</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
               <tr><td><code>LED Badge Magic</code></td><td>Advertised name</td><td>Three-frog dance · 3 × 1 s</td><td>Exact, case-insensitive hint</td></tr>
@@ -136,8 +136,8 @@
         <div class="flash-intro">
           <p class="section-kicker">Browser tools</p>
           <h2 id="flash-title">Flash your badge</h2>
-          <p>The guided WebUSB flasher installs and verifies the matching release. The tools below can inspect a running badge, bootloader, or BIN without changing it.</p>
-          <p class="honesty-note"><strong>USB-C profiles:</strong> opened PCBs marked <code>B1144C_250901</code> and <code>B1144C_260404</code> have been photographed with WCH <code>CH582M</code> chips. The profiles share the LED matrix and KEY2 electrical mapping but not KEY2's physical position: it is nearest USB on <code>250901</code> and farther from USB on <code>260404</code>. The open KEY1 switch cannot be distinguished passively at boot, so select the printed PCB marking instead of relying on auto-detection. Ordinary long-press entry works only after compatible FOSSASIA or hardware-approved FrogAlert firmware supplies that hook. Original or unknown firmware reaches a revision-specific, hazardous expert-recovery boundary outside the browser tool.</p>
+          <p>The guided WebUSB flasher installs and verifies the matching release. Successful CI-audited counter builds publish automatically for phone flashing; the release card reports whether the exact build has hardware-test evidence. The tools below can inspect a running badge, bootloader, or BIN without changing it.</p>
+          <p class="honesty-note"><strong>USB-C profiles:</strong> opened PCBs marked <code>B1144C_250901</code> and <code>B1144C_260404</code> have been photographed with WCH <code>CH582M</code> chips. The profiles share the LED matrix and KEY2 electrical mapping but not KEY2's physical position: it is nearest USB on <code>250901</code> and farther from USB on <code>260404</code>. The open KEY1 switch cannot be distinguished passively at boot, so select the printed PCB marking instead of relying on auto-detection. Ordinary long-press entry works only after compatible FOSSASIA or FrogAlert firmware supplies that hook; the release card states whether that exact build has a physical recovery smoke test. Original or unknown firmware reaches a revision-specific, hazardous expert-recovery boundary outside the browser tool.</p>
           <p><a class="button button-primary" href="./flash/">Open flasher and recovery steps</a></p>
           <div id="capability-status" class="capability-pill" role="status">Checking browser capabilities…</div>
           <noscript><p class="device-status" data-tone="bad">JavaScript is required for browser hardware access. The project documentation remains available without it.</p></noscript>

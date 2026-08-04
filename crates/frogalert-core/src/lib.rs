@@ -44,6 +44,12 @@ pub struct Observation<'a> {
     /// This is a passive fallback because the open firmware places its local
     /// name in a scan response, which a passive observer cannot request.
     pub badge_magic_service: bool,
+    /// True when an official Flipper Zero hardware-color service is present.
+    ///
+    /// Flipper firmware advertises 0x3081, 0x3082, or 0x3083 for its black,
+    /// white, or transparent hardware shell. This remains a passive hint and
+    /// complements the local-name rule when no scan response is available.
+    pub flipper_service: bool,
     /// True when manufacturer-specific data starts with Meta company ID 0x01AB.
     pub meta_company_01ab: bool,
     /// True when the advertisement contains Meta-assigned 16-bit service FD5F.
@@ -62,6 +68,9 @@ impl<'a> Observation<'a> {
             public_address,
             name: advertisement::local_name(data)?,
             badge_magic_service: advertisement::has_service16(data, 0xfee0)?,
+            flipper_service: advertisement::has_service16(data, 0x3081)?
+                || advertisement::has_service16(data, 0x3082)?
+                || advertisement::has_service16(data, 0x3083)?,
             meta_company_01ab: advertisement::has_company_id(data, 0x01ab)?,
             meta_service_fd5f: advertisement::has_service16(data, 0xfd5f)?,
         })
@@ -187,6 +196,13 @@ pub fn classify(observation: &Observation<'_>) -> Option<Match> {
             });
         }
 
+        if kind == AlertKind::Flipper && observation.flipper_service {
+            return Some(Match {
+                kind,
+                label: "Flipper 3081-3083 service",
+            });
+        }
+
         if let Some(name) = observation.name {
             for rule in NAME_RULES.iter().filter(|rule| rule.kind == kind) {
                 let matches = match rule.matcher {
@@ -249,6 +265,7 @@ mod tests {
             public_address,
             name,
             badge_magic_service: false,
+            flipper_service: false,
             meta_company_01ab: false,
             meta_service_fd5f: false,
         }
@@ -279,7 +296,43 @@ mod tests {
     fn matches_names_case_insensitively() {
         let found = classify(&observation([0; 6], false, Some(b"My FLIPPER Zero"))).unwrap();
         assert_eq!(found.kind, AlertKind::Flipper);
+        assert_eq!(found.label, "Flipper name");
         assert_eq!(found.kind.message(), "FLIPPER DETECTED");
+    }
+
+    #[test]
+    fn flipper_hardware_color_services_trigger_without_a_name() {
+        for service in [0x3081_u16, 0x3082, 0x3083] {
+            let [low, high] = service.to_le_bytes();
+            let data = [3, 0x03, low, high];
+            let seen = Observation::from_advertisement([0; 6], false, &data).unwrap();
+            assert_eq!(seen.name, None);
+            assert!(seen.flipper_service);
+
+            let found = classify(&seen).unwrap();
+            assert_eq!(found.kind, AlertKind::Flipper);
+            assert_eq!(found.label, "Flipper 3081-3083 service");
+        }
+    }
+
+    #[test]
+    fn adjacent_services_are_not_flipper_hints() {
+        for service in [0x3080_u16, 0x3084] {
+            let [low, high] = service.to_le_bytes();
+            let data = [3, 0x03, low, high];
+            let seen = Observation::from_advertisement([0; 6], false, &data).unwrap();
+            assert!(!seen.flipper_service);
+            assert_eq!(classify(&seen), None);
+        }
+    }
+
+    #[test]
+    fn malformed_flipper_service_data_fails_closed() {
+        let data = [2, 0x03, 0x81];
+        assert_eq!(
+            Observation::from_advertisement([0; 6], false, &data),
+            Err(advertisement::AdvertisementError::TruncatedField)
+        );
     }
 
     #[test]
@@ -373,10 +426,12 @@ mod tests {
     fn detector_priority_is_frog_then_karr_then_cop_then_flipper() {
         let public_axon = [3, 2, 1, 0xDF, 0x25, 0x00];
 
-        let karr = observation(public_axon, true, Some(b"QT FLIPPER-42"));
+        let mut karr = observation(public_axon, true, Some(b"QT FLIPPER-42"));
+        karr.flipper_service = true;
         assert_eq!(classify(&karr).unwrap().kind, AlertKind::Karr);
 
-        let cop = observation(public_axon, true, Some(b"My FLIPPER Zero"));
+        let mut cop = observation(public_axon, true, Some(b"My FLIPPER Zero"));
+        cop.flipper_service = true;
         assert_eq!(classify(&cop).unwrap().kind, AlertKind::Cop);
     }
 

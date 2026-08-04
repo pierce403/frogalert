@@ -116,11 +116,12 @@ binds an exact BIN hash to that flash.
 
 1. Open the badge and photograph the PCB and MCU marking.
 2. Confirm exactly 44 LED columns.
-3. If the badge runs the pinned FOSSASIA USB-C application or an exact
-   hardware-approved FrogAlert image, use its application-provided KEY2-only
-   long press. Hold about 2.2 seconds, release when one dot lights near the
-   middle, and confirm ISP appears as `4348:55e0` or `1a86:55e0` during the
-   observed 9–13 second window.
+3. If the badge runs the pinned FOSSASIA USB-C application or a compatible
+   FrogAlert image, try its application-provided KEY2-only long press. Hold
+   about 2.2 seconds, release when one dot lights near the middle, and confirm
+   ISP appears as `4348:55e0` or `1a86:55e0` during the observed 9–13 second
+   window. A CI-audited FrogAlert release may be public before that exact image
+   has a recorded physical recovery smoke; the flasher must show that status.
 4. If the photographed board still runs original or unknown firmware, stop:
    ordinary KEY2 entry is not available, and RESET plus KEY2 was tested without
    success. Its first documented ISP entry used the expert-only C3 maneuver
@@ -135,9 +136,9 @@ binds an exact BIN hash to that flash.
    USB-C source disables external 32 kHz selection, powers/calibrates internal
    LSI, and a later upstream commit explicitly says the board cannot use LSE.
    The quarantined Rust count image and its HAL BLE initializer select external
-   LSE. The newer profile-specific survey candidates instead inherit
-   FOSSASIA's internal-LSI setup, but remain separate hardware-unverified bench
-   images.
+   LSE. The newer profile-specific survey images instead inherit FOSSASIA's
+   internal-LSI setup. Canonical standard builds are released automatically but
+   remain explicitly hardware-unverified until tested.
 7. Record the exact software profile only after all those checks. Build-profile
    tokens are not values discovered over USB, and chip identification cannot
    prove the PCB layout or matrix wiring. Do not treat the build default as
@@ -145,10 +146,12 @@ binds an exact BIN hash to that flash.
 8. Separately record the exact physical silkscreen/revision. If the PCB has no
    revision marking, record that fact and retain front/back photos. Do not
    substitute the `HARDWARE_REV1` software token for this physical record.
-9. Do not publish or offer end-user flashing until the specific image has
-   completed the release gates for that recorded hardware revision. An
-   explicitly authorized one-badge bench smoke is how a new image begins those
-   gates; keep its bytes under ignored `tmp/` and capture every result.
+9. Before writing, confirm that the site's selected descriptor matches the
+   recorded profile and read its hardware-test status. A CI-audited standard
+   release is intentionally offered immediately with `hardware_verified` set
+   to `false`; do not interpret availability as proof of display,
+   button, radio, or recovery behavior. Capture every result from the first
+   one-badge smoke so the exact hash can later be marked hardware-verified.
 
 ## No factory/OEM restore
 
@@ -213,7 +216,7 @@ vector table reached the expected handlers. The new post-link regression audit
 checks actual vector placement/targets, and the old builders no longer emit a
 flashable BIN.
 
-## Next physical image
+## Physical verification of a new release
 
 Every next image derives from exact FOSSASIA USB-C source `9ce885d` and keeps
 its startup, linker layout, clocks, USB HID+CDC stack, BLE/TMOS stack,
@@ -239,14 +242,17 @@ restart scrolling underneath an alert. Releasing the overlay restarts only the
 selected nametag/count view. This fixes a source-level scheduling conflict but
 still needs exact-artifact visual testing on each board.
 
-Each profile/lane pair has a separate locked BIN size and SHA-256 and lives
-under `tmp/fossasia-usbc/build/<PROFILE>/<LANE>/`. CI's candidate bundle
-contains both survey profiles and labels both hardware-unverified. Neither an
-Actions candidate nor a locally configured derivative is a public firmware
-release, flash approval, or evidence that either board tolerates repeated
-surveys.
+Each profile/lane pair has a separate BIN size and SHA-256. Local outputs live
+under `tmp/fossasia-usbc/build/<PROFILE>/<LANE>/`; CI's source-bound candidate
+bundle contains both survey profiles and labels the raw candidate
+hardware-unverified. After all automated gates pass, the publication workflow
+turns only the standard counter pair into CI-audited, flash-approved public
+descriptors. The frog lane and locally configured derivatives remain outside
+that exception. Publication is not evidence that either board tolerates
+repeated surveys.
 
-Before any derived bytes leave ignored `tmp/`, the exact artifact must pass:
+To change a published artifact from `hardware_verified: false` to true, the
+exact hash/profile pair must pass:
 
 1. captured `wchisp` program and byte verification;
 2. captured WebUSB program and byte verification after the CLI smoke proves

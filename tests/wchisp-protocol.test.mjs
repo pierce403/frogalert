@@ -133,6 +133,64 @@ test("release descriptors bind artifacts to an exact verified PCB revision", () 
   );
 });
 
+test("CI-audited releases are accepted without pretending they were hardware-tested", () => {
+  const sourceCommit = "b".repeat(40);
+  const release = {
+    id: "frogalert-0.2.0-beta.2-board-a",
+    kind: "frogalert-release",
+    label: "FrogAlert",
+    version: "0.2.0-beta.2",
+    channel: "beta",
+    target: "ch582m-badgemagic-11x44",
+    hardware_verified: false,
+    verification_basis: "ci-audited",
+    flash_approved: true,
+    hardware_revisions: ["rev-a"],
+    pcb_markings: ["BOARD-A"],
+    file: "frogalert-rev-a.bin",
+    bytes: 1024,
+    sha256: "a".repeat(64),
+    source_commit: sourceCommit,
+    release_tag: "v0.2.0-beta.2",
+    release_url:
+      "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.2",
+    release_notes: "firmware/releases/notes/v0.2.0-beta.2.md",
+    debug_file: "frogalert-rev-a.elf",
+    debug_bytes: 8192,
+    debug_sha256: "c".repeat(64),
+    firmware_variant: "counter",
+    build_provenance: {
+      kind: "github-actions-candidate",
+      workflow_run_id: 123,
+      workflow_path: ".github/workflows/ci.yml",
+      workflow_run_attempt: 1,
+      artifact_id: 456,
+      artifact_name: `frogalert-candidate-${sourceCommit}`,
+      artifact_digest: `sha256:${"d".repeat(64)}`,
+      candidate_metadata_sha256: "e".repeat(64),
+      build_lane: "survey",
+    },
+  };
+
+  assert.equal(validateReleaseDescriptor(release, "rev-a", "BOARD-A"), true);
+  assert.throws(
+    () => validateReleaseDescriptor({ ...release, flash_approved: false }, "rev-a", "BOARD-A"),
+    /neither hardware-verified nor an approved CI-audited/,
+  );
+  assert.throws(
+    () =>
+      validateReleaseDescriptor(
+        {
+          ...release,
+          build_provenance: { ...release.build_provenance, build_lane: "frogs" },
+        },
+        "rev-a",
+        "BOARD-A",
+      ),
+    /neither hardware-verified nor an approved CI-audited/,
+  );
+});
+
 test("approved release catalog is sorted by semantic version without selecting anything", () => {
   const release = (version, channel, idSuffix) => ({
     id: `frogalert-${idSuffix}`,

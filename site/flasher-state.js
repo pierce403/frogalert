@@ -38,6 +38,26 @@ const PCB_MARKING_BY_PROFILE = Object.freeze({
   B1144C_260404_USB_C: "B1144C_260404",
 });
 
+const PROFILE_HINT_BY_BUTTON = Object.freeze({
+  top: Object.freeze({
+    position: "top",
+    profile: "B1144C_260404_USB_C",
+    marking: "B1144C_260404",
+    imageLabel: "top-button image",
+  }),
+  bottom: Object.freeze({
+    position: "bottom",
+    profile: "B1144C_250901_USB_C",
+    marking: "B1144C_250901",
+    imageLabel: "bottom-button image",
+  }),
+});
+
+export function profileHintForIspButton(position) {
+  const hint = PROFILE_HINT_BY_BUTTON[position];
+  return hint ? { ...hint } : null;
+}
+
 export function expectedPcbMarking(profile) {
   return PCB_MARKING_BY_PROFILE[profile] || null;
 }
@@ -67,12 +87,16 @@ export function canProgramArtifact({
   artifactKind = "unknown",
   hardwareVerified = false,
   hardwareVerifiedByFrogalert = false,
+  flashApproved = false,
 } = {}) {
   if (artifactKind === "local-developer") return true;
   if (artifactKind === "open-badgemagic-recovery") {
     return hardwareVerifiedByFrogalert === true;
   }
-  if (artifactKind === "frogalert-release" || artifactKind === "frogalert-lab") {
+  if (artifactKind === "frogalert-release") {
+    return hardwareVerified === true || flashApproved === true;
+  }
+  if (artifactKind === "frogalert-lab") {
     return hardwareVerified === true;
   }
   return false;

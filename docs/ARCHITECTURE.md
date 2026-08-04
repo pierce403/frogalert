@@ -48,8 +48,9 @@ four consistent samples. Open reads low/high, held `250901` reads high/high,
 and held `260404` reads low/low. The runtime result corrects KEY1 polarity,
 short-button routing, and shutdown wake configuration without modifying the
 KEY2 long-press ISP path. Separate artifacts, exact printed markings, and
-profile-bound release evidence remain required because the correction is
-interactive, volatile, and hardware-unverified.
+profile-bound status remain required because the correction is interactive,
+volatile, and hardware-unverified. CI-audited publication does not convert that
+runtime fallback into board-identification proof.
 
 ## Replacement-image progression
 
@@ -103,7 +104,8 @@ is explicitly zeroed, and the code never establishes a central connection.
 The candidate mirrors every README OUI and name rule in a bounded C classifier.
 OUI rules run only for controller-reported public addresses. Complete and
 shortened local names are matched case-insensitively for `Axon Body`, `TASER`,
-`Flipper`, `Ray-Ban`, and `Ray Ban`. A name beginning with case-insensitive
+`Flipper`, `Ray-Ban`, and `Ray Ban`. Advertised 16-bit service `0x3081`,
+`0x3082`, or `0x3083` is an additional passive Flipper signal. A name beginning with case-insensitive
 `QT ` and a non-empty serial value produces `KARR DETECTED`. The Ray-Ban target
 also produces `COP DETECTED` when manufacturer ID `0x01AB` and service `0xFD5F`
 occur together in the same passive report; neither field matches alone. The resulting
@@ -124,7 +126,7 @@ and Bluetooth animation steps while FrogAlert owns the panel. They do not
 reschedule until the frame-count-derived overlay releases ownership and
 restores the selected nametag/count view.
 
-The private survey lane also carries the narrow display timing change from
+The survey lane also carries the narrow display timing change from
 `bkero/badgemagic-firmware` commit `074c448`. Timer 0 now ticks at 16 kHz.
 Because the ISR walks 22 column pairs over four PWM ticks, that produces about
 182 complete frames per second instead of about 45. The off-period releases
@@ -134,14 +136,17 @@ remain byte-locked to their previous behavior; the higher-rate survey image
 needs physical BLE, brightness, current, USB/app, and recovery testing on both
 exact profiles.
 
-Each profile/lane combination has an independent audited size and SHA-256 lock.
-All derived images are intentionally absent from the public manifest pending
-profile-specific physical evidence.
+Each profile/lane combination has an independent audited size and SHA-256. The
+canonical standard counter pair is published automatically after its source-
+bound CI build, linked-image audits, attestations, quarantine check, and atomic
+profile validation. The frog lane, canaries, and local configured derivatives
+remain outside that auto-publication path.
 
-Each stage must retain USB `0416:5020` HID+CDC enumeration, BadgeMagic app
-uploads, ordinary buttons, the visible KEY2 dot cue, and ISP enumeration as
-`4348:55e0`/`1a86:55e0` after a power cycle. No stage is copied from `tmp/` to
-the public site before that exact artifact has hash-bound evidence.
+Every published descriptor states whether USB `0416:5020` HID+CDC enumeration,
+BadgeMagic app uploads, ordinary buttons, the visible KEY2 dot cue, and ISP
+enumeration as `4348:55e0`/`1a86:55e0` have actually been observed for that
+hash. The standard auto-release starts with `hardware_verified: false`; only
+hash/profile-bound evidence may change that status.
 
 ## Monitoring configuration boundary
 
@@ -164,14 +169,16 @@ artifact.
 
 ## Release and website publication
 
-The committed schema-v5 manifest is the single source for both publication
-surfaces:
+The generated schema-v5 manifest metadata is the single source for both
+publication surfaces:
 
 ```text
 successful main CI commit
-  -> validate manifest + quarantine + structured physical evidence
-  -> retrieve the exact recorded successful main-CI Actions artifact
+  -> retrieve the exact source-bound main-CI Actions artifact
   -> verify archive metadata, candidate receipt, BIN/ELF hashes, and attestations
+  -> reject quarantined bytes and validate the atomic counter profile pair
+  -> generate CI-audited, hardware-unverified release descriptors
+  -> create a compare-and-swap metadata commit on main
   -> prepare immutable release bundle
   -> draft GitHub Release
   -> upload and download-hash every asset
@@ -182,17 +189,40 @@ successful main CI commit
 
 GitHub Releases are archival and human-facing. The browser does not query the
 GitHub API or flash its assets; it downloads the manifest-listed same-origin
-BIN and hashes it again locally. An empty release collection is a successful
-no-op, so ordinary commits cannot accidentally promote the private survey
+BIN and hashes it again locally. A website-only run creates no firmware release
+when the current version's complete pair already exists. If that pair is still
+missing after a publication race, current `main` rebuilds it as a recovery
 candidate. Published tags and assets are immutable under the reconciler:
 metadata or byte drift fails the workflow rather than overwriting a release.
 
+The phone flasher deliberately performs expensive and human-paced work before
+the short ROM-ISP window. It validates and retains both members of the latest
+atomic release pair, displays their provenance and hardware status, and
+collects opened-board plus irreversible-replacement consent while the badge is
+still in application mode. When an authorized WCH ISP device appears, the
+captured interface has priority over all remaining UI work: configuration and
+endpoint validation are followed immediately by `0xA1` Identify and `0xA7`
+Read Config. This is the browser equivalent of the useful read-only portion of
+`wchisp info` and keeps the session active for the destructive transfer.
+
+Only after that exchange proves CH582 `0x82/0x16` does the wizard ask which
+physical button produced ISP. **Top button** selects the prevalidated
+`B1144C_260404` artifact and **Bottom button** selects the prevalidated
+`B1144C_250901` artifact. The answer control is also the final destructive
+activation: it atomically binds the chosen bytes and captured device, acquires
+the cross-tab/session locks, revalidates every gate, and begins config reset,
+flash, and verify without another Continue dialog. Connection and read-only
+info can never trigger that transition, a suggested guide path cannot answer
+it automatically, and an unknown answer fails closed.
+
 The separate Actions candidate is schema-v3 build evidence containing both
 profile-specific counter or frog BIN/ELF pairs, their checksums, declared
-semantic version, and GitHub run provenance. Its metadata fixes every approval
-and publication flag to false. It is not a GitHub Release and never enters
-Pages unless a later manifest commit supplies matching physical evidence and
-the exact recorded cloud provenance.
+semantic version, and GitHub run provenance. Its raw metadata fixes every
+approval and publication flag to false. It is not itself a GitHub Release. The
+post-CI workflow may derive and publish only the standard counter pair from it,
+with exact cloud provenance, `verification_basis: "ci-audited"`,
+`flash_approved: true`, and `hardware_verified: false`. Physical evidence is an
+optional later status upgrade, not a prerequisite for that publication.
 
 ## Quarantined standalone count prototype
 

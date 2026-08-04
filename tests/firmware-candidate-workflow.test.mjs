@@ -28,7 +28,11 @@ test("successful active-firmware commits build a private candidate before CI com
   );
   assert.match(
     workflow,
-    /if \[\[ "\$EVENT_NAME" == "workflow_dispatch" \]\]; then\s+required=true/,
+    /published_counter_pair_exists\(\)[\s\S]*release\.version === process\.env\.CURRENT_VERSION[\s\S]*release\.firmware_variant === "counter"[\s\S]*release\.flash_approved === true[\s\S]*releases\.length === 2/,
+  );
+  assert.match(
+    workflow,
+    /if \[\[ "\$EVENT_NAME" == "workflow_dispatch" \]\]; then[\s\S]*if published_counter_pair_exists "\$current_version"; then[\s\S]*required=false[\s\S]*else\s+required=true/,
   );
   assert.doesNotMatch(
     workflow,
@@ -47,9 +51,21 @@ test("successful active-firmware commits build a private candidate before CI com
     workflow,
     /FROGALERT_CANDIDATE_COMMIT: \$\{\{ github\.sha \}\}/,
   );
+  assert.match(
+    workflow,
+    /Require active firmware changes to advance the release version[\s\S]*steps\.firmware_candidate_scope\.outputs\.version_bump_required == 'true'/,
+  );
+  assert.match(
+    workflow,
+    /EVENT_NAME" == "push"[\s\S]*published_counter_pair_exists[\s\S]*interrupted publication/,
+  );
+  assert.match(
+    workflow,
+    /node scripts\/require-firmware-version-bump\.mjs \\\s+tmp\/previous-firmware-version\.json \\\s+firmware\/fossasia-usbc\/version\.json/,
+  );
 });
 
-test("candidate output is a retained Actions artifact, not release or Pages input", () => {
+test("candidate output is retained while CI itself remains publication-free", () => {
   assert.match(workflow, /name: frogalert-candidate-\$\{\{ github\.sha \}\}/);
   assert.match(workflow, /path: tmp\/firmware-candidate/);
   assert.match(workflow, /retention-days: 90/);

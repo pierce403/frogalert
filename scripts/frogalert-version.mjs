@@ -23,6 +23,40 @@ export function compactFirmwareVersion(version) {
   return `v${major}.${minor}.${patch}${suffix}`;
 }
 
+function parsedFirmwareVersion(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)\.(\d+))?$/.exec(
+    version,
+  );
+  assert.ok(match, "firmware version must be stable, alpha, beta, or rc semver");
+  const [, major, minor, patch, channel, iteration] = match;
+  return {
+    core: [BigInt(major), BigInt(minor), BigInt(patch)],
+    channel: channel || "stable",
+    iteration: iteration === undefined ? 0n : BigInt(iteration),
+  };
+}
+
+export function compareFirmwareVersions(leftVersion, rightVersion) {
+  const left = parsedFirmwareVersion(leftVersion);
+  const right = parsedFirmwareVersion(rightVersion);
+  for (let index = 0; index < left.core.length; index += 1) {
+    if (left.core[index] !== right.core[index]) {
+      return left.core[index] > right.core[index] ? 1 : -1;
+    }
+  }
+  const channelRank = new Map([
+    ["alpha", 0],
+    ["beta", 1],
+    ["rc", 2],
+    ["stable", 3],
+  ]);
+  const channelDifference =
+    channelRank.get(left.channel) - channelRank.get(right.channel);
+  if (channelDifference !== 0) return channelDifference > 0 ? 1 : -1;
+  if (left.iteration === right.iteration) return 0;
+  return left.iteration > right.iteration ? 1 : -1;
+}
+
 export function validateFirmwareVersion(metadata) {
   assert.equal(metadata?.schema_version, 1, "unsupported firmware version schema");
   assert.equal(typeof metadata.version, "string", "firmware version is required");

@@ -1,7 +1,7 @@
 ---
 skills:
   curator: Create, revise, consolidate, and prune FrogAlert repo-local skills.
-  build-badge-firmware: Build and verify CH582M firmware without skipping hardware gates.
+  build-badge-firmware: Build and publish CH582M firmware while keeping CI and hardware evidence distinct.
   maintain-web-flasher: Change the WebUSB/Web Bluetooth site safely and validate its protocol contract.
 ---
 

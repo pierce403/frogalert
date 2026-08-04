@@ -23,6 +23,7 @@ const FIRMWARE_VARIANTS = new Map([
 const LEGACY_REPOSITORY_RELEASE_TAGS = Object.freeze(["v0.1.0-beta.1"]);
 const RECOVERY_USB_IDS = new Set(["4348:55e0", "1a86:55e0"]);
 const USER_CONFIRMED_BETA_BASIS = "user-confirmed-beta";
+const CI_AUDITED_RELEASE_BASIS = "ci-audited";
 const KNOWN_GOOD_REFLASH_SHA256_BY_PROFILE = new Map([
   [
     "B1144C_250901_USB_C",
@@ -56,6 +57,19 @@ export function validateGithubCandidateProvenance(
     !CANDIDATE_BUILD_LANES.has(provenance.build_lane)
   ) {
     throw new Error(`${description} GitHub Actions candidate provenance is invalid`);
+  }
+  return true;
+}
+
+function validateReleaseCandidateProvenance(release, description) {
+  validateGithubCandidateProvenance(release.build_provenance, description);
+  if (
+    release.build_provenance.artifact_name !==
+    `frogalert-candidate-${release.source_commit}`
+  ) {
+    throw new Error(
+      `${description} candidate artifact is not bound to its source commit`,
+    );
   }
   return true;
 }
@@ -348,7 +362,12 @@ export function validateHardwareEvidenceTranscript(
   return true;
 }
 
-export function validatePublishableFrogAlertArtifact(artifact, quarantinedHashes, description) {
+export function validatePublishableFrogAlertArtifact(
+  artifact,
+  quarantinedHashes,
+  description,
+  { allowCiAuditedRelease = false } = {},
+) {
   if (!artifact || typeof artifact !== "object") {
     throw new Error(`${description} descriptor is missing`);
   }
@@ -385,11 +404,26 @@ export function validatePublishableFrogAlertArtifact(artifact, quarantinedHashes
   if (quarantinedHashes.has(artifact.sha256)) {
     throw new Error(`${description} matches a quarantined firmware SHA-256`);
   }
-  if (artifact.hardware_verified !== true) {
-    throw new Error(`${description} is not physically hardware-verified`);
+  if (artifact.hardware_verified === true) {
+    validateHardwareEvidence(artifact, description);
+    return true;
   }
-  validateHardwareEvidence(artifact, description);
-  return true;
+  if (
+    allowCiAuditedRelease &&
+    artifact.kind === "frogalert-release" &&
+    artifact.hardware_verified === false &&
+    artifact.verification_basis === CI_AUDITED_RELEASE_BASIS &&
+    artifact.flash_approved === true
+  ) {
+    validateReleaseCandidateProvenance(artifact, description);
+    return true;
+  }
+  if (allowCiAuditedRelease) {
+    throw new Error(
+      `${description} is neither physically hardware-verified nor an approved CI-audited release`,
+    );
+  }
+  throw new Error(`${description} is not physically hardware-verified`);
 }
 
 export function validateFrogAlertReleaseMetadata(
@@ -491,7 +525,12 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
     throw new Error("firmware publication manifest has duplicate legacy release tags");
   }
   for (const release of manifest.releases) {
-    validatePublishableFrogAlertArtifact(release, quarantinedHashes, "FrogAlert release");
+    validatePublishableFrogAlertArtifact(
+      release,
+      quarantinedHashes,
+      "FrogAlert release",
+      { allowCiAuditedRelease: true },
+    );
     validateFrogAlertReleaseMetadata(release, manifest.github_repository);
     if (legacyTags.has(release.release_tag)) {
       if (release.build_provenance !== undefined) {
@@ -500,7 +539,7 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
         );
       }
     } else {
-      validateGithubCandidateProvenance(release.build_provenance);
+      validateReleaseCandidateProvenance(release, "FrogAlert release");
     }
     if (artifactIds.has(release.id)) {
       throw new Error(`duplicate FrogAlert publication id: ${release.id}`);
@@ -525,6 +564,9 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
       source_commit: release.source_commit,
       published_at: release.published_at,
       firmware_variant: release.firmware_variant,
+      hardware_verified: release.hardware_verified,
+      verification_basis: release.verification_basis,
+      flash_approved: release.flash_approved,
       build_provenance: release.build_provenance
         ? JSON.stringify(release.build_provenance)
         : undefined,
@@ -559,6 +601,18 @@ export function validateFirmwarePublicationManifest(manifest, quarantine) {
   }
 
   // recovery_images are reviewed third-party substitutes, not FrogAlert builds.
-  // Their separate descriptor and hardware gates are validated elsewhere.
+  // Their separate descriptor and hardware gates are validated elsewhere, and
+  // they must never inherit the CI-audited FrogAlert release exception.
+  for (const recovery of manifest.recovery_images) {
+    if (
+      recovery?.verification_basis === CI_AUDITED_RELEASE_BASIS ||
+      recovery?.flash_approved === true ||
+      recovery?.build_provenance?.kind === "github-actions-candidate"
+    ) {
+      throw new Error(
+        "CI-audited publication is limited to nonlegacy FrogAlert releases",
+      );
+    }
+  }
   return true;
 }

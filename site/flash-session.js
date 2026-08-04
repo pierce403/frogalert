@@ -6,9 +6,12 @@ import {
   dataPacket,
   deriveXorKey,
   erasePacket,
+  identifyPacket,
   isResetConfig,
   ispKeyPacket,
+  parseConfig,
   parseConfigRegisters,
+  parseIdentity,
   readConfigPacket,
   resetConfigPacket,
   xorChunk,
@@ -16,6 +19,18 @@ import {
 
 function requireFunction(value, name) {
   if (typeof value !== "function") throw new TypeError(`${name} must be a function`);
+}
+
+export async function readBootloaderInfo({ transfer }) {
+  requireFunction(transfer, "transfer");
+
+  const identity = parseIdentity(await transfer(identifyPacket()));
+  const configPayload = await transfer(readConfigPacket(0x1f));
+  try {
+    return { identity, config: parseConfig(configPayload) };
+  } finally {
+    configPayload.fill(0);
+  }
 }
 
 export async function programAndVerifyFirmware({

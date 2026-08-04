@@ -33,8 +33,9 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   published together as `0.1.0-beta.1` and available to the flasher
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.1`
-  source remains hardware-unverified until its cloud-built bytes are tested
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.2`
+  source is published automatically after its cloud build and remains clearly
+  labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
   passive surveys, alerts, BadgeMagic app window, adaptive buttons, and KEY2
   recovery, but replaces the visible Bluetooth counter with three frogs
@@ -44,17 +45,20 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 - guarded WebUSB CH582 ISP flow: implemented, not hardware-verified
 - BadgeMagic-compatible FrogAlert firmware: implemented in the retained
   FOSSASIA USB/BLE shell and user-confirmed on both published beta profiles;
-  the current `0.2.0-beta.1` cloud candidate still needs exact-board retesting
+  new CI-audited releases are phone-flashable immediately while exact-board
+  hardware-test status remains visible in the catalog
 - downloadable FrogAlert beta BINs: same-origin top-button (`260404`) and
   bottom-button (`250901`) artifacts are linked on the front page and selected
   automatically by `/flash/`
 - public artifact safety: failed SHA permanently quarantined; site assembly
-  rejects every FrogAlert BIN without hash-bound physical smoke evidence, and
-  the browser refuses the failed SHA even if it is manually reselected
+  accepts an untested standard release only with exact source-bound CI
+  provenance and an explicit audited/flash-approved status, while the browser
+  refuses the failed SHA even if it is manually reselected
 - phone/cloud release path: GitHub Actions builds, audits, and attests declared
-  firmware versions without a local toolchain; a later evidence-only approval
-  commit retrieves that exact Actions artifact, publishes a verified GitHub
-  Release, and deploys the identical same-origin website bytes
+  firmware versions without a local toolchain; the post-CI publication flow
+  records the standard top/bottom pair, publishes the GitHub Release, and
+  deploys the identical same-origin website bytes without a separate laptop or
+  physical-evidence approval step
 - official FOSSASIA open v0.1 substitute: available only for exact
   `HARDWARE_REV1`; preparation works, but destructive browser programming stays
   locked until FrogAlert completes a physical Rev1 smoke test
@@ -82,6 +86,7 @@ not expose unverified derivatives:
 | Advertised name contains | `Axon Body` | Axon name | `COP DETECTED` |
 | Advertised name contains | `TASER` | TASER name | `COP DETECTED` |
 | Advertised name contains | `Flipper` | Flipper name | `FLIPPER DETECTED` |
+| Advertised 16-bit service | `0x3081`, `0x3082`, or `0x3083` | Flipper hardware-color service | `FLIPPER DETECTED` |
 | Advertised name starts with a non-empty serial prefix | `QT ` | KARR QT serial name | `KARR DETECTED` |
 | Advertised name contains | `Ray-Ban` | Ray-Ban name | `COP DETECTED` |
 | Advertised name contains | `Ray Ban` | Ray Ban name | `COP DETECTED` |
@@ -100,9 +105,11 @@ rather than proof of device identity: names and fields can be spoofed, and
 company assignments can cover unrelated products.
 
 The current survey source mirrors every row in this table in a bounded C
-classifier. The downloadable 0.1.0-beta.1 images predate the Meta pair; a new
-candidate must pass badge testing before that rule can enter the public
-catalog. The bounded mirror lets the behavior be built and inspected while the
+classifier. The downloadable 0.1.0-beta.1 images predate the Meta pair and
+Flipper service rule. New standard counter builds enter the public catalog
+automatically after the pinned CI build, audit, provenance attestation, and
+publication checks pass; hardware-test status remains distinct and visible.
+The bounded mirror lets the behavior be built and inspected while the
 separately gated Rust ABI canary remains pending; it does not waive that gate.
 Passive discovery does not guarantee
 that a scan-response-only local name will be delivered, so the advertised
@@ -137,7 +144,7 @@ are consumed instead of being allowed to restart the normal scroll underneath
 it. The LED refresh ISR also selects a separate double-buffered FrogAlert
 framebuffer while the overlay is active, so even an unexpected base-animation
 write cannot reach the panel. Normal content resumes only when the overlay
-releases display ownership. The private survey lane also ports bkero's
+releases display ownership. The survey lane also ports bkero's
 16 kHz Timer 0 change, raising calculated complete-frame refresh from roughly
 45 Hz to 182 Hz and blanking each column pair only once per off-period. That
 should reduce visible strobing, but the higher interrupt rate and current/BLE
@@ -214,8 +221,10 @@ original firmware. A separate FOSSASIA USB-C development image has now booted
 and provided KEY2 long-press recovery on the photographed `B1144C_250901`
 badge, but its generic `BM1144-C` descriptor does not identify a unique pin
 map. FrogAlert therefore uses the exact tokens `B1144C_250901_USB_C` and
-`B1144C_260404_USB_C`; neither FrogAlert profile nor the bundled Micro-USB
-image is flash-approved.
+`B1144C_260404_USB_C`. Canonical standard counter releases for those two
+profiles are flash-approved after the audited cloud publication gate, even
+while they remain clearly hardware-unverified. The bundled Micro-USB recovery
+image is not flash-approved.
 Similar-looking badges can use different controllers or matrix sizes and may
 be permanently damaged by an incompatible image. Read
 [docs/HARDWARE.md](docs/HARDWARE.md) before device work.
@@ -319,10 +328,12 @@ hash for one profile is never evidence for the other.
 
 All downloads and outputs stay under ignored `tmp/fossasia-usbc/`. The scripts
 never invoke `wchisp`, copy a BIN into `firmware/releases/`, or update the site
-manifest. A passing build is not permission for public or end-user flashing.
-The only next step is an explicitly authorized one-badge bench smoke whose
-initial program/verify starts the physical checklist in
-[docs/HARDWARE.md](docs/HARDWARE.md).
+manifest. Local output is never publication permission; only canonical CI may
+turn the standard top/bottom pair into a provenance-bound release. After those
+automated gates pass, the pair is phone-flashable immediately with
+`hardware_verified: false`. An explicitly authorized one-badge smoke then
+starts the physical checklist in [docs/HARDWARE.md](docs/HARDWARE.md) and can
+upgrade that status for the exact hash.
 
 ## Quarantined standalone Rust prototypes
 
@@ -353,23 +364,29 @@ flasher and recovery flow. It provides two distinct device surfaces:
 - **Web Bluetooth** verifies the running badge's BadgeMagic `FEE0/FEE1` GATT
   path. That is normal nametag communication, not firmware flashing.
 - **WebUSB** communicates with the WCH factory ISP bootloader. It identifies the
-  exact CH582 target before enabling a separately confirmed erase/program/verify
-  flow.
+  exact CH582 target with an immediate read-only info exchange before the
+  separately authorized erase/program/verify flow.
 
 The landing page is project and release information only. All destructive
 browser actions exist only on `/flash/`.
 
-On `/flash/`, the wizard observes whether the bottom or top button produced the
-ISP dot, maps that to the exact `250901` or `260404` profile, and downloads the
-matching same-origin beta BIN automatically. There is no profile selector or
-local file chooser in the public flasher. Developer inspection and experimental
-configuration code remains host-tested but is not exposed by either public
-page.
+On `/flash/`, the wizard first downloads and verifies both same-origin profile
+images and collects the opened-board and irreversible-flash consent. The moment
+an authorized ISP device connects, it immediately sends the read-only `0xA1`
+Identify and `0xA7` Read Config exchange equivalent to the useful portion of
+`wchisp info`. It then asks which button actually produced flashing mode. The
+**Top button** or **Bottom button** answer binds the exact `260404` or `250901`
+image and is the final destructive action, so the matching cached firmware
+starts flashing and byte-verifying without another prompt. There is no profile
+selector or local file chooser in the public flasher. Developer inspection and
+experimental configuration code remains host-tested but is not exposed by
+either public page.
 
 The schema-5 manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and
-third-party `recovery_images` separate. It lists both exact USB-C
-`0.1.0-beta.1` releases;
-the lab collection remains empty. The former
+third-party `recovery_images` separate. Standard versions are atomic exact USB-C
+profile pairs; the legacy `0.1.0-beta.1` pair remains immutable and new pairs
+are generated automatically from successful audited CI. The lab collection
+remains empty. The former
 USB-C pixel-walk artifact was removed after a physical flash produced no panel
 output and its KEY2 recovery path did not enumerate ISP. The recovery collection
 contains the official FOSSASIA open v0.1 Micro-USB substitute, still
@@ -431,7 +448,8 @@ checks. A passing local suite does not replace a physical badge test.
   toolchain
 - [`docs/WEB_FLASHING.md`](docs/WEB_FLASHING.md) — browser/OS/safety architecture
 - [`docs/PROTOCOL.md`](docs/PROTOCOL.md) — BadgeMagic GATT vs WCH ISP contracts
-- [`docs/RELEASE.md`](docs/RELEASE.md) — artifact and hardware release gates
+- [`docs/RELEASE.md`](docs/RELEASE.md) — automatic publication and truthful
+  hardware-status gates
 - [`AGENTS.md`](AGENTS.md), [`MEMORY.md`](MEMORY.md), and [`SKILLS.md`](SKILLS.md)
   — recurse.bot-inspired repo operating system
 

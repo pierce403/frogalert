@@ -9,6 +9,8 @@ index: plain markdown and ripgrep
 
 # FrogAlert memory
 
+- [2026-08-03 prearmed post-info phone flashing](agent-memory/logs/2026-08-03-prearmed-phone-flashing.md)
+- [2026-08-03 automatic phone firmware publication](agent-memory/logs/2026-08-03-automatic-phone-firmware-publication.md)
 - [2026-07-28 compact phone flasher](agent-memory/logs/2026-07-28-compact-phone-flasher.md)
 - [2026-07-28 one-pane flasher wizard](agent-memory/logs/2026-07-28-one-pane-flasher-wizard.md)
 - [2026-07-28 application-aware flasher wizard](agent-memory/logs/2026-07-28-application-usb-wizard.md)
@@ -28,6 +30,13 @@ on chat context or filenames alone.
 
 ## Logs
 
+- [`2026-08-03-prearmed-phone-flashing.md`](agent-memory/logs/2026-08-03-prearmed-phone-flashing.md)
+  — validates both images and collects consent before ISP, runs immediate
+  read-only info on attach, then treats the post-info Top/Bottom answer as the
+  final activation for the matching flash/verify sequence.
+- [`2026-08-03-automatic-phone-firmware-publication.md`](agent-memory/logs/2026-08-03-automatic-phone-firmware-publication.md)
+  — successful audited standard builds publish immediately for phone flashing,
+  while physical status remains false until exact-hash evidence exists.
 - [`2026-07-17-project-foundation.md`](agent-memory/logs/2026-07-17-project-foundation.md)
   — initial Rust core, project site, operating docs, and flashing architecture.
 - [`2026-07-18-recovery-and-count-prototype.md`](agent-memory/logs/2026-07-18-recovery-and-count-prototype.md)

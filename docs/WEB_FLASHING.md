@@ -8,41 +8,47 @@ page retains read-only badge and artifact inspection, but its destructive
 controls have been removed. Every flashing and recovery write belongs on
 `/flash/`.
 
-`/flash/` is a one-screen-at-a-time wizard. It starts by checking previously
-authorized USB devices for either the known BadgeMagic application signature
-`0416:5020` or the WCH ISP ids. Seeing `0416:5020` keeps the wizard on the
-connection step and tries the bottom button, then the top button, with the
-badge display held upright; the page does not open or claim the application's
-HID/CDC interfaces. For
-each attempt, the user explicitly opens the WCH-only chooser first, leaves it
-open, then holds the indicated button and selects the ISP device as soon as it
-appears. This spends the short ROM window identifying the device instead of
-opening browser permission UI afterward. A
-reported dot from the bottom button maps to the **bottom-button image**
-(`B1144C_250901`); a dot from the top maps to the **top-button image**
-(`B1144C_260404`). These are the public labels; manifests and build tooling
-retain the exact PCB identifiers.
-If neither button produces the dot, the public wizard stops before C3; that
-hazardous operation remains qualified bench recovery, not profile detection.
-Seeing an ISP id starts
-only read-only USB configuration, Identify, and Read Config operations. A
-first-time badge still requires one explicit chooser tap because WebUSB does
-not expose unapproved devices. After a successful read-only identification,
-FrogAlert stores only a coarse local “WCH ISP was authorized” hint. Chrome owns
-the real device permission. On later visits the page uses
-`navigator.usb.getDevices()` and USB attach events to identify the permitted
-bootloader automatically, without another site-level Connect step. If browser
-permission was cleared, the local hint grants nothing and the guide exposes
-the native chooser as a fallback. No USB serial or device identifier is stored.
-Only after CH582 `0x82 / 0x16` identification
-succeeds does the wizard use the observed button path to download the newest
-approved matching same-origin image, verify its size, hash, profile, and
-evidence metadata, then show confirmations and finally the separate
-program-and-verify action. There is no file chooser or profile selector in the
-public wizard. If no approved image exists for that button, it stops without
-offering a developer BIN. Failure returns to the
-connection screen with the relevant KEY2 recovery hint; unrelated diagnostics
-and Bluetooth controls are not visible in the flasher.
+`/flash/` is a one-screen-at-a-time wizard optimized around the ROM's short
+no-command entry window. Before asking the user to enter ISP, it downloads and
+validates both members of the newest atomic top/bottom release pair. The page
+shows each image's profile, size, SHA-256, build provenance, and hardware-test
+status, then collects the opened-board, 11×44, irreversible replacement, stable
+power, and exact-phrase acknowledgements. This is informed pre-arming, not a
+profile choice and not permission for connection alone to write anything.
+
+The connection step checks previously authorized devices for either the known
+BadgeMagic application signature `0416:5020` or the WCH ISP ids. Seeing
+`0416:5020` keeps the wizard on the connection step and offers the routine
+button/dot guide with the display upright; the page does not open or claim the
+application's HID/CDC interfaces. The user explicitly opens the WCH-only
+chooser before the hold, leaves it open, then uses whichever supported button
+produces the dot and selects the ISP device as soon as it appears. The guide's
+suggested attempt is not treated as evidence of the hardware profile.
+
+As soon as a WCH ISP device is available, the page opens and claims interface
+0, validates the bulk endpoints, and immediately sends `0xA1` Identify followed
+by `0xA7` Read Config. No manifest fetch or profile question runs first. That
+read-only exchange is the browser equivalent of the useful portion of `wchisp
+info`: it proves CH582 `0x82 / 0x16`, validates the UID/configuration response,
+and buys the active-session time needed for the larger flash. A first-time
+badge still requires one explicit chooser tap because WebUSB does not expose
+unapproved devices. After successful info, FrogAlert stores only a coarse
+“WCH ISP was authorized” hint; Chrome owns the real permission. On later visits
+`navigator.usb.getDevices()` and authorized USB attach events may run this
+read-only info exchange automatically. They never request new permission or
+send a destructive command. No USB serial or device identifier is stored.
+
+Only after info succeeds does the wizard ask, “Which button got this badge into
+flashing mode?” With the display upright, **Top button** binds the already
+validated `B1144C_260404` image and **Bottom button** binds the already
+validated `B1144C_250901` image. That clearly labeled answer is the separate
+final destructive action: after atomically rechecking consent, artifact,
+profile, and captured-device state, it immediately begins configuration reset,
+programming, and byte verification. There is no later Continue button or
+browser confirmation. If the user is unsure, neither button worked, either
+image is unavailable, or any binding changed, the wizard stops without a
+developer-BIN fallback. Unrelated diagnostics and Bluetooth controls remain
+outside the visible flasher.
 
 | Job | Browser API | Device state |
 | --- | --- | --- |
@@ -80,9 +86,8 @@ The physically confirmed USB-C reference is an 11×44 board marked
 `B1144C_250901` with a WCH `CH582M`. It has a soldered pouch battery and no
 user-removable battery connector. Leave the cell and its leads alone.
 
-For that board running the tested FOSSASIA USB-C application—or a future
-FrogAlert image whose exact artifact passed recovery acceptance—the routine
-path is:
+For that board running the tested FOSSASIA USB-C application—or a compatible
+FrogAlert release that preserves the inherited KEY2 hook—the routine path is:
 
 1. Keep a stable data-capable USB connection.
 2. Hold the profile's KEY2 for about 2.2 seconds: the button farther from USB
@@ -114,11 +119,15 @@ An ordinary user should stop at this boundary.
 
 `/flash/` therefore keeps a routine compatible-firmware guide that confirms
 stable data USB, opens the WCH-only chooser from an explicit user tap, then asks
-the user to hold the indicated button and release at the single dot while the
-chooser is already watching. A timer or USB attach event never opens a chooser,
-runs a command, or turns the read-only connection into a write. Only the
-explicit **Start watching for ISP** action may call
-`navigator.usb.requestDevice()`.
+the user to hold a supported button and release at the single dot while the
+chooser is already watching. The user reports which button worked only after
+the read-only ISP info exchange; the guide's current suggestion must never
+silently choose the image. A timer or USB attach event never opens a chooser or
+turns a connection into a write. Only the explicit **Start watching for ISP**
+action may call `navigator.usb.requestDevice()`. When Chrome already grants
+access, an attach event may claim the WCH interface and immediately send only
+`0xA1` Identify plus `0xA7` Read Config so the ISP session does not expire while
+waiting for the final Top/Bottom answer.
 
 Pinned FOSSASIA USB-C source `9ce885d` polls KEY2/PB22 every 200 ms and, after
 more than ten consecutive held samples (about 2.2 seconds), executes a transfer
@@ -134,19 +143,23 @@ This behavior is physically confirmed on the photographed USB-C
 self-reports `BM1144-C fw: v0.1`: a KEY2-only long press displayed one dot near
 the middle and entered ISP without RESET or C3. That evidence does not transfer
 automatically to a future FrogAlert image; each FrogAlert artifact must pass the
-same recovery test.
+same recovery test before its descriptor may say `hardware_verified: true`. The
+public flasher explicitly warns when a CI-audited release has not yet passed
+that physical smoke.
 
 ## What the browser can identify
 
-After the user explicitly selects the bootloader, `/flash/` can validate:
+Before ISP entry, `/flash/` validates both published profile artifacts. After
+the user explicitly selects—or Chrome exposes a previously authorized—
+bootloader, it can validate:
 
 - WCH USB vendor/product descriptors without displaying or logging a serial;
 - configuration 1, interface 0, and bulk endpoint 2 in both directions;
 - chip id `0x82` and family/type `0x16` from the Identify response;
 - the bootloader version, UID checksum, and a conservative configuration
   summary from the read-only configuration response; and
-- the selected artifact's local length, padding/erase plan, SHA-256,
-  provenance, declared profile, and hardware-evidence status.
+- the preloaded top and bottom artifacts' local lengths, padding/erase plans,
+  SHA-256 values, provenance, declared profiles, and hardware-evidence status.
 
 The USB bootloader cannot identify the exact installed application firmware,
 PCB revision, matrix wiring, physical MCU package marking, LSE population,
@@ -163,10 +176,12 @@ device is connected,” not that the browser proved the firmware, PCB revision,
 MCU marking, or display geometry. The wizard advances only after the separate
 ROM ISP identity exchange succeeds.
 
-Every FrogAlert image must preserve and physically prove FOSSASIA's deliberate
-KEY2 recovery affordance before it is flash-approved. Keep the upstream TMOS
-polling/task, display cue, and address-zero transfer intact rather than
-reconstructing the hook in a new runtime. Acceptance requires a short press to retain its normal
+Every standard FrogAlert image must preserve FOSSASIA's deliberate KEY2
+recovery affordance before CI publication; source, symbol, and linked-image
+audits guard the upstream TMOS polling/task, display cue, and address-zero
+transfer rather than reconstructing the hook in a new runtime. Physical
+acceptance is still required before marking the image hardware-verified: a
+short press must retain its normal
 application action and a roughly 2.2-second hold to re-enumerate as
 `4348:55e0`, followed by successful program and byte verification. A broken or
 blank application cannot provide this convenience; on the confirmed USB-C
@@ -193,17 +208,21 @@ USB on `250901`. Their KEY1 switch is open while untouched, so there is no
 reliable read-only boot probe:
 PA1 simply follows the internal pull selected by firmware. The browser cannot
 infer the profile from CH582 identity, USB descriptors, case color, generic
-`BM1144-C` text, or an untouched button. It instead records which guided
-button attempt actually produced the dot and ISP device. Entering the page
-while the badge is already in ISP provides no such evidence, so automatic
-selection stops and asks the user to let the badge return to normal mode and
-repeat the guided entry.
+`BM1144-C` text, an untouched button, or the guide's currently suggested
+attempt. After read-only ISP info succeeds, it asks the user which physical
+button actually produced flashing mode. The explicit answer, not an inferred
+guide state, binds the profile. A badge that is already in ISP may proceed only
+when the user can still answer that question reliably; **Neither / not sure**
+closes the read-only session without writing and directs the user to repeat the
+entry.
 
-Every configurable survey BIN embeds its compiled profile id. The page rejects
-a mismatch between that id and the button-derived profile. `/flash/` contains
-no file input, including in hidden or legacy markup. Read-only local artifact
-inspection remains on the project landing page and cannot provide a fallback
-when an approved release is missing.
+Every configurable survey BIN embeds its compiled profile id. Before ISP entry,
+the page rejects either member of the atomic pair if that id mismatches its
+declared top/bottom profile. At the final answer it promotes only the matching
+prevalidated bytes and rechecks the binding before the first `0xA8` write.
+`/flash/` contains no file input, including in hidden or legacy markup.
+Read-only local artifact inspection remains on the project landing page and
+cannot provide a fallback when a published release is missing.
 
 ## Local monitoring customization
 
@@ -211,7 +230,7 @@ After a compatible local FrogAlert survey BIN is loaded, `/flash/` exposes five
 built-in target groups:
 
 - Axon/TASER/Flock indicators;
-- Flipper names;
+- Flipper names and the official serial-profile services `0x3081`–`0x3083`;
 - KARR `QT ` names;
 - Ray-Ban names and the same-report Meta `0x01AB` + `0xFD5F` pair; and
 - BadgeMagic/FrogAlert badges.
@@ -234,41 +253,54 @@ previous patches.
 Configuration never changes the compiled hardware profile. The resulting
 bytes are labeled a local developer artifact with
 `hardware_verified: false`; they do not inherit a CI candidate's or future
-release's physical evidence. A customized hash needs its own exact-board
-program/verify and full smoke record before it could ever become public.
+release's publication approval or physical evidence. A customized hash remains
+local unless a future canonical build lane audits and publishes that exact
+derivative; exact-board program/verify and a full smoke record would still be
+required to mark it hardware-verified.
 
 ## Browser safety state machine
 
 The browser page must progress through these states:
 
 1. `unsupported` or `ready` — inspect secure-context and API availability.
-2. `permission` — user explicitly chooses a WCH ISP device.
-3. `identified` — descriptor/endpoint validation and a read-only probe confirm
-   chip `0x82`, type `0x16`; raw UID and serial data are not logged.
-4. `artifact-ready` — a revision-bound local or released raw BIN passes size,
-   profile, configuration, and SHA-256 checks. Unapplied monitoring edits block
-   this state. Preparing an open BadgeMagic image stops here and sends no USB
-   commands.
-5. `armed` — user records the observed physical PCB marking separately from the
-   firmware profile and confirms CH582M, 11×44 matrix,
-   configuration reset, the unavailable and unrecoverable OEM image, and
-   stable power, then types `ERASE THIS BADGE`.
-6. `config-reset` — first destructive command; write reviewed CH58x defaults
+2. `pair-ready` — both members of the newest atomic published release pair pass
+   descriptor, length, SHA-256, embedded-profile, provenance, quarantine, and
+   programming-policy checks and remain in memory.
+3. `prearmed` — before routine ISP entry, the user confirms the opened badge is
+   a supported CH582M 11×44 board, reviews both artifacts and their hardware
+   status, accepts configuration reset and unrecoverable replacement, promises
+   stable power, and types `ERASE THIS BADGE`. No profile is selected yet.
+4. `permission` — the user explicitly chooses a new WCH ISP device, or Chrome
+   exposes one already authorized; neither case is destructive.
+5. `info` — immediately after interface/endpoint validation, `0xA1` Identify
+   and `0xA7` Read Config confirm chip `0x82`, type `0x16`, bootloader/config,
+   and UID integrity. Raw UID and serial data are not logged. No network or
+   human-paced UI work precedes this exchange after claim.
+6. `button-answer` — the user explicitly answers Top or Bottom. This binds the
+   corresponding cached profile/PCB marking to the same captured info session
+   and is the final destructive activation. Neither, uncertainty, stale bytes,
+   disconnect, or a repeated activation fails closed.
+7. `config-reset` — first destructive command; write reviewed CH58x defaults
    through `0xA8`, then require exact `0xA7` readback.
-7. `erasing` — erase only after configuration readback succeeds.
-8. `programming` — write 56-byte encrypted chunks and a final empty write.
-9. `verifying` — compare all programmed chunks through ISP command `0xA6`.
-10. `success` — only after verification; distinguish reset acknowledgement
+8. `erasing` — erase only after configuration readback succeeds.
+9. `programming` — write 56-byte encrypted chunks and a final empty write.
+10. `verifying` — compare all programmed chunks through ISP command `0xA6`.
+11. `success` — only after verification; distinguish reset acknowledgement
     from a sent reset whose response was lost during disconnect.
-11. `failed` — retain the artifact and show how to re-enter ISP and retry.
+12. `failed` — retain the validated pair but invalidate the device/answer
+    binding and show how to prearm again, re-enter ISP, and retry.
 
-Connecting is never consent to alter configuration or erase. No destructive command may run before
-state 6. When supported, an exclusive Web Lock prevents another FrogAlert tab
-from entering the destructive session, and a screen wake lock is requested for
-the duration. A timeout is always reported as an unknown device state because
-the underlying USB command may have completed after the browser stopped
-waiting; recovery requires a fresh identify followed by a complete
-program-and-verify cycle.
+Connecting is never consent to alter configuration or erase. The prearmed
+acknowledgements permit the later Top/Bottom control to be the one immediate
+final action, but no destructive command may run before state 7. The answer
+handler must disable both choices synchronously, acquire the exclusive Web Lock
+when supported, and revalidate the same device, info result, consent, and exact
+cached artifact before sending `0xA8`; a double tap must not open a second
+session. A screen wake lock is requested for the destructive duration. A
+timeout is always reported as an unknown device state because the underlying
+USB command may have completed after the browser stopped waiting; recovery
+requires a fresh info exchange followed by a complete program-and-verify
+cycle.
 
 ## Open BadgeMagic recovery path
 
@@ -313,9 +345,9 @@ can read from the board.
 ## Artifact policy
 
 The public artifact path uses same-origin, versioned `.bin` files listed in
-`firmware/releases/manifest.json`. The manifest keeps physically approved
-FrogAlert releases, physically approved experimental FrogAlert builds, and
-third-party open recovery images in separate `releases`, `lab_images`, and
+`firmware/releases/manifest.json`. The manifest keeps standard FrogAlert
+releases, physically approved experimental FrogAlert builds, and third-party
+open recovery images in separate `releases`, `lab_images`, and
 `recovery_images` collections. Each entry must contain:
 
 - release version;
@@ -324,7 +356,7 @@ third-party open recovery images in separate `releases`, `lab_images`, and
 - byte length;
 - SHA-256;
 - same-origin artifact filename and optional GitHub release URL;
-- hardware verification record.
+- an explicit hardware-verification status and its required basis.
 
 Schema v5 also carries the canonical FrogAlert GitHub repository, release id,
 semantic version, publication date, channel, `v<version>` tag, GitHub notes
@@ -337,28 +369,35 @@ the same-origin verified BIN and the human-readable GitHub Release.
 The same-origin manifest remains the only executable catalog. The browser does
 not call the GitHub API or download a GitHub-hosted asset, so a missing GitHub
 service response cannot alter firmware selection and the static
-`connect-src 'self'` policy remains intact. After successful CI on `main`, the
-publication workflow retrieves the one recorded successful main-CI artifact,
-verifies its archive metadata, candidate receipt, BIN/ELF hashes, and build
-attestations, then publishes any new manifest-approved GitHub Release before
+`connect-src 'self'` policy remains intact. After successful firmware CI on
+current `main`, the publication workflow retrieves the one source-bound
+artifact, verifies its archive metadata, candidate receipt, BIN/ELF hashes,
+build attestations, lane, profile pair, and quarantine status, then generates
+the standard counter descriptors and publishes the GitHub Release before
 deploying the Pages artifact that exposes the same bytes.
 
-Site assembly rejects a FrogAlert release or lab image unless
-`hardware_verified` is true and its evidence is bound to the exact SHA-256,
-firmware profile, and PCB marking. Stable schema-1 evidence must confirm
-program/verify, boot, power cycle, short-button safety, and long-press ROM-ISP
-recovery. Beta schema-2 evidence may instead bind an exact user-confirmed image
-while explicitly disclosing that CLI/WebUSB transport logs were not captured.
-It also
-rejects every hash in `firmware/quarantine.json`, even if a later descriptor
-claims that hash was verified. First-test images stay under ignored `tmp/`.
+Site assembly accepts `hardware_verified: false` only for a standard counter
+release whose exact source-bound Actions provenance is paired with
+`verification_basis: "ci-audited"` and `flash_approved: true`. It keeps that
+untested status visible at the point of action. Changing the flag to true still
+requires evidence bound to the exact SHA-256, firmware profile, and PCB
+marking. Stable schema-1 evidence must confirm program/verify, boot, power
+cycle, short-button safety, and long-press ROM-ISP recovery. Schema-2 evidence
+may bind an exact user-confirmed beta while explicitly disclosing that
+CLI/WebUSB transport logs were not captured.
 
-The manifest contains user-confirmed `0.1.0-beta.1` releases for both exact
-USB-C profiles; `lab_images` remains empty. The first display-only USB-C
-pixel-walk build was
+Lab images do not receive the CI-audited exception: they still require physical
+evidence. The assembler rejects every hash in `firmware/quarantine.json`, even
+if a later descriptor claims that hash was verified. Local builds, configured
+derivatives, and nonstandard candidates stay under ignored `tmp/`.
+
+The manifest's legacy pair contains user-confirmed `0.1.0-beta.1` releases for
+both exact USB-C profiles; subsequent successful audited standard builds are
+added automatically as an atomic top/bottom pair, and `lab_images` remains
+empty. The first display-only USB-C pixel-walk build was
 withdrawn after it booted blank and failed application-provided KEY2 recovery.
-No failed or merely build-audited FrogAlert bytes may remain downloadable from
-the public site.
+No failed, quarantined, nonstandard, or provenance-incomplete FrogAlert bytes
+may remain downloadable from the public site.
 
 The reviewed FOSSASIA v0.1 substitute may appear in `recovery_images` while
 retaining `hardware_verified_by_frogalert: false`. The experimental page also

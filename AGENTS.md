@@ -56,10 +56,15 @@ The public site is a dependency-free static application. It separates:
   polarity, and shutdown-wake patch for the selected USB-C board
 - `scripts/firmware-candidate.mjs` — packages an audited, commit-bound,
   explicitly unverified CI candidate under ignored `tmp/`
+- `scripts/record-firmware-release.mjs` — turns a successful canonical main-CI
+  counter candidate into the exact public top/bottom release descriptor pair
+- `scripts/require-firmware-version-bump.mjs` — requires active firmware
+  changes to advance the immutable release version
 - `firmware/fossasia-usbc/version.json` — semantic and compact firmware
   versions embedded before the cloud candidate build
-- `scripts/materialize-firmware-artifacts.mjs` — retrieves one exact approved
-  Actions candidate or copies an explicitly listed legacy release into `tmp/`
+- `scripts/materialize-firmware-artifacts.mjs` — retrieves one exact attested
+  Actions candidate, or after artifact expiry verifies the immutable published
+  GitHub Release assets, before materializing bytes under `tmp/`
 - `scripts/audit-ch58x-vectors.mjs` — post-link standalone Rust regression gate
 - `tools/simulator/` — host-side observation simulator
 - `site/` — static site assets and browser device logic
@@ -90,47 +95,57 @@ The public site is a dependency-free static application. It separates:
   hardware-unverified by FrogAlert; preparation may work, but the public site
   must not arm destructive use until its manifest verification flag is backed
   by a recorded physical smoke test.
-- Browser flashing must identify chip id `0x82`, family/type `0x16`, record the
-  observed physical PCB marking separately, and bind the selected artifact to
-  the entered firmware profile before any write.
+- Before browser ISP entry, validate and retain the atomic published top/bottom
+  pair, show both artifacts' profile, hash, provenance, and hardware status,
+  and collect the opened-board and irreversible-replacement confirmations plus
+  the exact destructive phrase. After ISP identification, the user's explicit
+  top/bottom answer binds the corresponding profile and PCB marking.
 - The first destructive step must reset CH58x protection/configuration with
   command `0xA8` and require an exact `0xA7` readback before erase.
-- Never erase or write on connect. Require a user-selected firmware file,
-  explicit confirmations, and a separate final action.
+- Never erase or write merely because a device connected. Once an authorized
+  WCH ISP device is available, claim it and immediately run the read-only
+  `0xA1` Identify plus `0xA7` Read Config exchange equivalent to the useful
+  portion of `wchisp info`; do not put a manifest fetch or UI question ahead of
+  those commands. The post-info **Top button** or **Bottom button** answer is
+  the separate final destructive action, and may start only the already
+  validated matching image after all pre-connect confirmations are complete.
 - Keep the routine KEY2 guide adjacent to the WebUSB chooser, but offer it only
-  for compatible FOSSASIA or exact hardware-approved FrogAlert firmware: hold
+  for compatible FOSSASIA or FrogAlert firmware: hold
   the profile-specific KEY2 for about 2.2 seconds (`260404`: farther from USB;
   `250901`: nearest USB), release when one dot lights near the middle, then
-  choose promptly. Original or unknown firmware on the
+  choose promptly. State plainly that an automatically published CI-audited
+  release may not have a physical recovery smoke. Original or unknown firmware on the
   confirmed USB-C board must reach an ordinary-user stop boundary; its
   documented C3 entry is hazardous expert recovery, not a browser checklist.
   Timers and USB attach events must never call `requestDevice()`; only an
-  explicit final user action may.
+  explicit chooser action may request new permission. An already authorized
+  ISP attach may run the read-only info exchange automatically, but never a
+  configuration write, erase, or program command.
 - Keep every destructive browser action restricted to `/flash/`; the landing
   lab may inspect a badge or artifact but contains no program control.
 - Bind an active flash to the captured USB device and prohibit reconnecting a
   replacement device until that session exits.
 - Always verify the programmed bytes before reporting success.
-- Unverified FrogAlert BINs stay only under ignored `tmp/`; never copy them to
-  `firmware/releases/`. Public release and lab collections both require
-  `hardware_verified: true` plus hash/profile/PCB-bound physical evidence.
-  One descriptor covers exactly one profile and one physical PCB marking. Its
-  structured `firmware/evidence/*.json` record must repeat the exact hash,
-  source, and board. Stable schema-1 evidence additionally requires captured
-  CLI, WebUSB, application USB, display, BadgeMagic upload, KEY2-only
-  dot-to-ISP, button, and known-good-reflash results. A beta release may use
-  schema-2 `user-confirmed-beta` evidence for an exact image the owner confirms
-  working; it must disclose uncaptured transport logs and cannot satisfy stable
-  promotion. C3 entry does not satisfy the KEY2 gate.
+- Local build outputs stay under ignored `tmp/`; never commit generated BIN/ELF
+  bytes for a new version. The standard counter top/bottom pair publishes
+  automatically after canonical main CI builds and audits both profiles,
+  records exact BIN/ELF hashes and candidate metadata, passes the quarantine
+  check, and receives GitHub provenance attestations. Such descriptors must
+  remain truthful: `hardware_verified: false`, `verification_basis:
+  ci-audited`, and `flash_approved: true`. One descriptor covers exactly one
+  profile and one physical PCB marking. Physically tested releases may retain
+  their hash-bound `firmware/evidence/*.json` record; labs and the third-party
+  recovery image keep their existing physical gates. Never fabricate hardware
+  evidence to make a release flashable.
   `firmware/quarantine.json` is a permanent SHA denylist checked during site
   assembly and after hashing any browser-selected local file. If the browser
   cannot load that registry, artifact preparation must fail closed.
 - Every FrogAlert image must preserve FOSSASIA's application-level KEY2 task
-  before it is flash-approved. The bootloader remains the CH582 mask-ROM ISP;
+  before CI publication. The bootloader remains the CH582 mask-ROM ISP;
   do not bundle or replace it. Keep the proven 200 ms TMOS poll, more-than-ten
   held samples (about 2.2 seconds), dot cue, and address-zero transfer intact.
-  Prove enumeration as `4348:55e0`/`1a86:55e0` and short-press safety on the
-  exact physical artifact.
+  Record enumeration as `4348:55e0`/`1a86:55e0` and short-press safety when the
+  exact physical artifact is tested; until then keep hardware status false.
 - Every packaged CH58x BIN must contain WCH's startup sentinel `0xF5F9BDA9`
   in the reserved core-vector word at raw offset `0x14`. The FOSSASIA shell
   emits it directly and its audit must observe it without post-build mutation.
@@ -194,14 +209,19 @@ The omitted profile selects default `B1144C_260404_USB_C`. An active-firmware
 `main` commit runs both survey variants for both profiles after the ordinary CI
 contract and uploads one expiring `frogalert-candidate-<commit>` Actions
 artifact with separate counter and `frogs` directories. Candidate metadata
-must keep `hardware_verified`,
-`flash_approved`, `publishable`, and `hosted_on_site` false; this build lane
-never edits the public manifest or creates a GitHub Release.
+remains raw build evidence with `hardware_verified`, `flash_approved`,
+`publishable`, and `hosted_on_site` false. After the build and attestation jobs
+succeed, the post-CI publication workflow generates a separate CI-audited,
+flash-approved release descriptor for the standard counter pair and publishes
+those exact candidate bytes.
 The GitHub candidate job uses `--candidate`, so new survey/frog outputs are
 calculated receipts rather than pre-build lock inputs. It retains every
 source/toolchain/vector/ELF/BIN/profile audit, records GitHub run provenance,
-attests the output, and keeps the archive for 90 days. `workflow_dispatch`
-allows a phone/cloud-only rebuild. Local `--check` remains the exact current
+attests the output, and keeps the archive for 90 days. Published releases remain
+rebuildable after that window from their exact hash-checked GitHub Release
+assets. `workflow_dispatch`
+builds a missing current version or reconciles an already published pair.
+Local `--check` remains the exact current
 baseline/canary lock regression command; active survey/frog source uses
 `--candidate` and records calculated receipts.
 Successful local builds also copy the audited bytes to
@@ -278,17 +298,23 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   invalidation. When an app dependency changes exports or state contracts, bump
   both pages' `app.js` query and the changed dependency query in `site/app.js`;
   reload a browser that previously opened the old site and check console errors.
-- Keep `/flash/` as a one-pane wizard: connect/read-only identify, automatically
-  prepare the approved button-matched image, confirmations, flash/verify,
-  terminal result. Never reveal a later pane before its gate passes.
+- Keep `/flash/` as a one-pane wizard: validate and retain both published
+  profile images, collect informed destructive consent, connect and immediately
+  run read-only ISP info, ask which button produced ISP, then flash/verify the
+  matching image and show a terminal result. Never reveal a later pane before
+  its gate passes. The top/bottom answer itself is the explicit final
+  destructive activation; do not add another Continue or confirmation prompt
+  after it.
   `getDevices()` may automatically identify one
   previously authorized WCH ISP badge; a new badge still needs an explicit
   chooser tap, and USB attach must never synthesize `requestDevice()`. Keep
   unrelated Bluetooth, catalog, and diagnostic surfaces out of the visible
   flasher. Do not include a file input anywhere in `/flash/`, even hidden;
-  profile and marking controls must not be visible in the public wizard.
-  If no approved image matches, or ISP was entered before the wizard observed
-  a bottom/top button path, stop without offering a developer BIN.
+  profile and marking controls must not be visible in the public wizard. If
+  the complete published pair cannot be downloaded and verified before entry,
+  or the user cannot say which top/bottom button produced ISP, stop without
+  offering a developer BIN. Do not infer the profile from the guide state or
+  silently reuse a previous answer.
 - After a successful CH582 ISP identification, store only a coarse local
   permission hint. Chrome remains authoritative through `getDevices()` and USB
   attach events; never store a serial or device identifier. Reuse authorized
@@ -308,7 +334,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `origin/main` and local `main` matches the remote. The only exceptions are an
   explicit local-only request or a reported remote/authentication blocker.
 - A firmware release requires a versioned `.bin`, SHA-256 checksum, manifest,
-  source commit, build provenance, hardware smoke evidence, and release notes.
+  source commit, exact profile/PCB binding, build provenance, and release notes.
+  Hardware smoke evidence is required to claim `hardware_verified: true`, not
+  to publish a CI-audited beta.
 - Manifest schema 5 lists `v0.1.0-beta.1` as the only legacy
   repository-backed tag. Every new release descriptor must bind the exact
   GitHub Actions run id/attempt/workflow path, artifact id/name/digest,
@@ -327,26 +355,26 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   name of `CI` is not a trust identity. Before checkout, a read-only ref gate
   must also prove that the triggering SHA is still `refs/heads/main`, so an
   older CI run that finishes late cannot redeploy stale source.
-- Successful `main` commits reconcile only already-approved schema-v5 manifest
-  release entries into GitHub Releases. Revalidate exact bytes and evidence,
-  publish through a verified draft, and finish release reconciliation before
-  Pages exposes the catalog. Empty catalogs are a no-op; never turn an ordinary
-  build or commit into firmware promotion.
-- Active firmware changes may produce a commit-bound Actions candidate only
-  after the locked embedded build audits pass. The candidate is build evidence,
-  expires, and remains outside GitHub Releases and Pages until a later manifest
-  commit supplies the exact physical evidence required above.
+- Successful firmware-changing `main` commits automatically turn the exact
+  canonical CI counter candidate into an atomic schema-v5 descriptor pair.
+  The publication workflow revalidates the run, artifact digest, receipt,
+  hashes, quarantine status, and attestations, creates a CAS-safe metadata
+  commit, publishes through a verified draft, and finishes GitHub Release
+  reconciliation before Pages exposes the same bytes. A website-only run is a
+  successful firmware no-op when the current version's pair already exists; if
+  an earlier publication race left that pair missing, the newer `main` run
+  rebuilds it without requiring a false version bump.
+- Active firmware changes produce a commit-bound Actions candidate only after
+  the locked embedded build audits pass. The raw candidate remains build
+  evidence; separate release descriptors explicitly authorize its standard
+  counter pair for public phone flashing while keeping hardware status false.
 - Keep the same-origin manifest and BIN as the browser's sole executable
   release source. GitHub Releases are provenance and alternate downloads; do
   not add a GitHub API or runtime asset dependency to the flasher.
-- Phone/cloud edits and candidate builds use `workflow_dispatch`; they do not
-  by themselves provide a safe phone-to-badge path for unverified bytes. The
-  preferred future test surface is an ignored, generated Codespaces-only lab
-  that downloads and validates the Actions artifact server-side and serves it
-  through a private HTTPS forwarded port without exposing a GitHub token. Do
-  not put candidates in Pages or the public manifest. First prove a top-level
-  `*.app.github.dev` page retains Android Chrome WebUSB and is not blocked by a
-  `Permissions-Policy: usb=()` response.
+- Phone/cloud edits and candidate builds use `workflow_dispatch` when needed.
+  The standard counter pair becomes same-origin and phone-flashable after the
+  successful post-CI publication flow; the browser must show that a CI-audited
+  release is not the same as a physical hardware smoke.
 - FrogAlert survey candidates keep unattended normal-mode GATT advertising off
   because BadgeMagic app commit `42c98bc` defaults to “any” and connects to the
   first matching `FEE0` advertiser without a chooser. Either short button must
@@ -390,7 +418,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The likely software failure was startup ordering: FOSSASIA started Peripheral
   before the survey registered its Central callback, so a combined-role
   `GAP_DEVICE_INIT_DONE_EVENT` could be missed and no scan scheduled.
-- The replacement private survey is built as independently locked `260404`
+- The replacement survey is built as independently locked `260404`
   and `250901` candidates. It treats a successful Central start as ready
   instead of depending only on that callback, consumes both live reports and
   the discovery completion list. The counter displays only the last completed
@@ -407,7 +435,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   requires a case-insensitive `QT ` prefix at the start plus a non-empty serial
   value. There is no unique Flipper
   OUI: official firmware derives a public MAC from STM32 identifiers, so an ST
-  OUI would overmatch, and custom firmware can rename or spoof the device.
+  OUI would overmatch. BLESPloit commit `6d940b5` instead matches official
+  serial-profile services `0x3081`, `0x3082`, and `0x3083`; Flipper firmware
+  commit `11c1012` derives those by ORing hardware color 1/2/3 into `0x3080`
+  and places the UUID in the primary advertisement. FrogAlert mirrors that
+  passive signal and retains the case-insensitive name fallback.
   A physical Linux raw-passive run on 2026-08-01 observed Meta company ID
   `0x01AB` and service `0xFD5F` together in one report at RSSI -69 with AD
   types `01,03,FF`. The Ray-Ban target now requires that exact same-report pair
@@ -474,7 +506,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   They pass locked ELF/BIN/vector/USB/BLE/display/KEY2 audits but are
   hardware-unverified. Test each on its matching board and deliberately
   cross-flashed board, including KEY2-before-detection, brightness,
-  download/power/wake, and KEY2-only ISP, before release promotion.
+  download/power/wake, and KEY2-only ISP, before claiming hardware verification.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;
@@ -489,10 +521,16 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `76a43c8320325f2b3ccf56e3a9022914d59c4e88088db60804f1217d95b23bda`,
   and frogs bottom
   `ef6da5d1eeaa889922d80441ca9e0aceb8a40d0ba0b8b8eb5ac147ef6619bdd2`.
-  GitHub must reproduce/attest the exact commit-bound bytes. These changes are
-  source/build evidence only until both
+  GitHub must reproduce/attest the exact commit-bound bytes. Those receipts
+  remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
+- Current source declares `0.2.0-beta.2` / `v0.2.0b2` and adds the passive
+  Flipper `0x3081`–`0x3083` service rule. Per the owner's 2026-08-03 policy
+  decision, a successful canonical CI build automatically publishes the
+  standard top/bottom counter pair for phone flashing with
+  `hardware_verified: false`, `verification_basis: ci-audited`, and
+  `flash_approved: true`; physical evidence remains a separate status upgrade.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
   blank for about ten seconds, then alternate between `11` and an apparent
   three-digit value before a Flipper overlay restored `11`. The counter caps at
@@ -529,7 +567,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   on display-ownership transition. Because original animation events may
   already be queued, patched handlers also consume their events without
   rescheduling while an overlay owns the panel. This addresses the competing
-  scroll. The private survey lane now also ports
+  scroll. The survey lane now also ports
   `bkero/badgemagic-firmware` commit `074c448`: Timer 0 ticks at 16 kHz for
   about 182 complete frames per second and releases the matrix only on the
   first off-period tick. Baseline/canary timing remains unchanged. Treat the
@@ -563,7 +601,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   pinned FOSSASIA `9ce885d` advances `still()` frames by `LED_COLS` (44).
   Its first slice is therefore two blanks plus only 42 content columns, and
   later slices lose frame alignment. Normal text uses a different encoder
-  path. The private survey build now changes only `ani_fixed` and
+  path. The survey build now changes only `ani_fixed` and
   `ani_animation`: every 48-column block must have blank columns 0, 1, 46, and
   47 before the helper uses a 48-column stride and copies inner columns 2
   through 45. Otherwise it preserves the original 44-column path. Host tests
@@ -636,7 +674,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   about 9–13 seconds and the `0416:5020` application re-enumerating when no
   useful ISP operation kept the session active. Treat that transition as the
   normal ISP-entry window expiring, not as proof of a bad cable or bricked
-  badge. Browser permission plus identify/config reads must complete promptly.
+  badge. Browser permission plus the `0xA1` Identify and `0xA7` Read Config
+  exchange must complete immediately after the interface is claimed; that is
+  the browser's `wchisp info` equivalent and buys time for the already prepared
+  image rather than spending the window on network fetches or profile UI.
   For CLI testing, start `wchisp -r 30 ...` before the KEY2 long press so the
   tool is already polling when the dot cue appears.
 - Android Chrome may expose WebUSB through a data-capable USB OTG connection;
@@ -654,11 +695,18 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - In public wizard copy, call `B1144C_250901` the **bottom-button image** and
   `B1144C_260404` the **top-button image**, with the badge display upright.
   Keep exact PCB identifiers canonical in manifests, evidence, and build
-  tooling. If neither button works, stop; do not turn C3 into a public step.
+  tooling. Ask for this answer only after the read-only ISP info exchange. Its
+  clearly destructive Top/Bottom control is the user's final action and must
+  immediately promote the matching prevalidated bytes into the captured-device
+  flash/verify session. If neither button worked or the user is unsure, stop;
+  do not turn C3 into a public step.
 - Open the application-mode WCH-only chooser from an explicit user tap before
-  the button hold, then ask the user to select ISP as soon as it appears.
-  Timers and attach events still must not call `requestDevice()`. Treat native
-  chooser hot-plug behavior as unverified until a physical browser test.
+  the button hold, then ask the user to select ISP as soon as it appears. The
+  guide may suggest a button but must not record that suggestion as the profile;
+  only the post-info Top/Bottom answer binds it. Timers and attach events still
+  must not call `requestDevice()`, although an authorized attach may run the
+  read-only info exchange. Treat native chooser hot-plug behavior as unverified
+  until a physical browser test.
 - WebUSB and Web Bluetooth support varies by browser and operating system.
 - USB permission or driver binding can block WebUSB even when the browser API
   exists; do not describe that as a firmware failure.

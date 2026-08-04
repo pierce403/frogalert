@@ -76,7 +76,7 @@ function evidenceTranscript(record) {
   ].join("\n");
 }
 
-async function makeFixture(t, { withRelease = true } = {}) {
+async function makeFixture(t, { withRelease = true, ciAudited = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), "frogalert-release-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(join(root, "firmware", "releases", "notes"), { recursive: true });
@@ -93,27 +93,45 @@ async function makeFixture(t, { withRelease = true } = {}) {
   debugImage.set([0x7f, 0x45, 0x4c, 0x46], 0);
   const artifactSha = sha256(image);
   const hardwareEvidence = evidence(artifactSha);
+  const version = ciAudited ? "0.2.0-beta.1" : "0.1.0-beta.1";
   const descriptor = {
-    id: "frogalert-0.1.0-beta.1-b1144c-250901-usbc",
+    id: `frogalert-${version}-b1144c-250901-usbc`,
     kind: "frogalert-release",
     label: "FrogAlert",
-    version: "0.1.0-beta.1",
+    version,
     channel: "beta",
     target: "ch582m-badgemagic-11x44",
     hardware_revisions: ["B1144C_250901_USB_C"],
     pcb_markings: ["B1144C_250901"],
     source_commit: SOURCE_COMMIT,
-    file: "frogalert-0.1.0-beta.1-ch582m.bin",
+    file: `frogalert-${version}-ch582m.bin`,
     bytes: image.byteLength,
     sha256: artifactSha,
-    hardware_verified: true,
-    hardware_evidence: hardwareEvidence,
-    release_tag: "v0.1.0-beta.1",
+    hardware_verified: !ciAudited,
+    ...(ciAudited
+      ? {
+          verification_basis: "ci-audited",
+          flash_approved: true,
+          firmware_variant: "counter",
+          build_provenance: {
+            kind: "github-actions-candidate",
+            workflow_run_id: 123456789,
+            workflow_path: ".github/workflows/ci.yml",
+            workflow_run_attempt: 1,
+            artifact_id: 987654321,
+            artifact_name: `frogalert-candidate-${SOURCE_COMMIT}`,
+            artifact_digest: `sha256:${"d".repeat(64)}`,
+            candidate_metadata_sha256: "f".repeat(64),
+            build_lane: "survey",
+          },
+        }
+      : { hardware_evidence: hardwareEvidence }),
+    release_tag: `v${version}`,
     release_url:
-      "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-beta.1",
-    release_notes: "firmware/releases/notes/v0.1.0-beta.1.md",
+      `https://github.com/pierce403/frogalert/releases/tag/v${version}`,
+    release_notes: `firmware/releases/notes/v${version}.md`,
     published_at: "2026-07-23",
-    debug_file: "frogalert-0.1.0-beta.1-ch582m.elf",
+    debug_file: `frogalert-${version}-ch582m.elf`,
     debug_bytes: debugImage.byteLength,
     debug_sha256: sha256(debugImage),
   };
@@ -121,7 +139,7 @@ async function makeFixture(t, { withRelease = true } = {}) {
     schema_version: 5,
     updated: "2026-07-23",
     github_repository: "pierce403/frogalert",
-    legacy_repository_release_tags: withRelease
+    legacy_repository_release_tags: withRelease && !ciAudited
       ? ["v0.1.0-beta.1"]
       : [],
     releases: withRelease ? [descriptor] : [],
@@ -142,17 +160,19 @@ async function makeFixture(t, { withRelease = true } = {}) {
       join(root, "firmware", "releases", descriptor.debug_file),
       debugImage,
     );
-    await writeFile(
-      join(root, descriptor.hardware_evidence.record),
-      `${JSON.stringify({ schema_version: 1, ...hardwareEvidence }, null, 2)}\n`,
-    );
-    await writeFile(
-      join(root, descriptor.hardware_evidence.transcript),
-      evidenceTranscript(hardwareEvidence),
-    );
+    if (!ciAudited) {
+      await writeFile(
+        join(root, descriptor.hardware_evidence.record),
+        `${JSON.stringify({ schema_version: 1, ...hardwareEvidence }, null, 2)}\n`,
+      );
+      await writeFile(
+        join(root, descriptor.hardware_evidence.transcript),
+        evidenceTranscript(hardwareEvidence),
+      );
+    }
     await writeFile(
       join(root, descriptor.release_notes),
-      "# FrogAlert 0.1.0 beta 1\n\nFirst physically verified release fixture for automation tests.\n",
+      `# FrogAlert ${version}\n\nRelease fixture with enough notes for automation tests.\n`,
     );
   }
   return { root, descriptor, image };
@@ -185,6 +205,7 @@ test("release plan contains exact verified assets and mandatory safety notes", a
   const [release] = plan.releases;
   assert.equal(release.tag, descriptor.release_tag);
   assert.equal(release.prerelease, true);
+  assert.match(release.body, /## Verified artifacts/);
   assert.match(release.body, /OEM image cannot be backed up or restored/);
   assert.match(release.body, new RegExp(descriptor.sha256));
   assert.deepEqual(
@@ -215,6 +236,33 @@ test("release plan contains exact verified assets and mandatory safety notes", a
   await writeFirmwareReleaseBundle(plan, bundleRoot);
   const loaded = await loadFirmwareReleaseBundle(bundleRoot);
   assert.equal(loaded.releases[0].assets[0].sha256, descriptor.sha256);
+});
+
+test("CI-audited release plans disclose missing hardware tests and omit evidence assets", async (t) => {
+  const { root, descriptor } = await makeFixture(t, { ciAudited: true });
+  const plan = await buildFirmwareReleasePlan({
+    repositoryRoot: root,
+    repository: "pierce403/frogalert",
+    publishCommit: PUBLISH_COMMIT,
+  });
+  const [release] = plan.releases;
+  assert.match(release.body, /## Audited artifacts/);
+  assert.match(release.body, /cloud-built and audited/i);
+  assert.match(release.body, /not hardware-tested/i);
+  assert.match(release.body, /actions\/runs\/123456789/);
+  assert.match(release.body, /artifact.*987654321/i);
+  assert.match(release.body, new RegExp(`sha256:${"d".repeat(64)}`));
+  assert.match(release.body, new RegExp("f".repeat(64)));
+  assert.doesNotMatch(release.body, /evidence: \[record\]/i);
+  assert.deepEqual(
+    release.assets.map(({ name }) => name),
+    [
+      descriptor.file,
+      descriptor.debug_file,
+      `${descriptor.file}.sha256`,
+      `${descriptor.id}.json`,
+    ],
+  );
 });
 
 test("release planning rejects changed bytes before publication", async (t) => {

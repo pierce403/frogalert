@@ -22,6 +22,7 @@ fn main() {
         public_address,
         name: name.as_deref().map(str::as_bytes),
         badge_magic_service: false,
+        flipper_service: false,
         meta_company_01ab: false,
         meta_service_fd5f: false,
     };

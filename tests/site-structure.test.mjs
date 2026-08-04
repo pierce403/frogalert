@@ -169,10 +169,12 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /option\.value = release\.id/);
   assert.doesNotMatch(app, /option\.value = JSON\.stringify\(release\)/);
   assert.match(app, /sortReleaseCatalogNewestFirst\(/);
-  assert.match(app, /wchisp-protocol\.js\?v=6/);
+  assert.match(app, /wchisp-protocol\.js\?v=7/);
+  assert.match(app, /flasher-state\.js\?v=4/);
+  assert.match(app, /flash-session\.js\?v=2/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=19/);
+  assert.match(html, /site\/app\.js\?v=21/);
   assert.match(html, /id="flash-lab"[^>]+hidden/);
   assert.match(app, /latest\[0\]\.published_at/);
   assert.match(app, /flash-support\.js\?v=2/);
@@ -186,7 +188,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(html, /<caption>Built-in alert examples<\/caption>/);
   assert.match(app, /validatePairedUsbCReleaseCatalog\(/);
   assert.match(app, /!\[4, 5\]\.includes\(manifest\.schema_version\)/);
-  assert.match(app, /loads the matching image after it observes the button path/);
+  assert.match(app, /both latest images are hash-verified in memory/i);
   assert.match(app, /elements\.releaseDownload\.href = firmwareArtifactUrl\(release\.file/);
   assert.match(app, /elements\.releaseLink\.href = release\.release_url/);
   assert.match(app, /typeof navigator\.usb\?\.requestDevice === "function"/);
@@ -202,6 +204,8 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   const html = await read("flash/index.html");
   const app = await read("site/app.js");
   const flashCss = await read("site/flash.css");
+  const flasherState = await read("site/flasher-state.js");
+  const flashSession = await read("site/flash-session.js");
   for (const required of [
     "site/app.js",
     "site/flash.css",
@@ -237,22 +241,64 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     "id=\"recovery-prepare\"",
     "id=\"flash-button\"",
     "id=\"flash-phrase\"",
+    "id=\"wizard-pair-version\"",
+    "id=\"wizard-pair-top\"",
+    "id=\"wizard-pair-bottom\"",
+    "id=\"wizard-pair-provenance\"",
+    "id=\"wizard-pair-hardware-status\"",
     "class=\"flash-confirmation\"",
     "id=\"flash-log\"",
   ]) {
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=19/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=21/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
-  for (const step of ["firmware", "confirm", "flash", "success"]) {
+  assert.ok(
+    html.indexOf('class="flash-confirmation"') < html.indexOf('id="usb-connect"'),
+    "destructive consent must be collected before ISP can be opened",
+  );
+  assert.ok(
+    html.indexOf('id="wizard-pair-version"') <
+      html.indexOf('class="flash-confirmation"'),
+    "the exact prepared release pair must be visible before consent and ISP entry",
+  );
+  assert.ok(
+    html.indexOf('id="flash-phrase"') < html.indexOf('id="usb-connect"'),
+    "the exact destructive phrase must be collected before ISP can be opened",
+  );
+  assert.equal(
+    [...html.matchAll(/class="flash-confirmation"/g)].length,
+    4,
+    "the pre-connect wizard should retain all four informed-consent checks",
+  );
+  assert.match(html, /equivalent of <code>wchisp info<\/code>/i);
+  assert.match(
+    html,
+    /With the badge display upright and readable, choose the button you actually held/i,
+  );
+  assert.match(
+    html,
+    /id="wizard-button-top"[^>]+data-isp-button="top"[^>]*>Top button — erase and flash top image now<\/button>/,
+  );
+  assert.match(
+    html,
+    /id="wizard-button-bottom"[^>]+data-isp-button="bottom"[^>]*>Bottom button — erase and flash bottom image now<\/button>/,
+  );
+  assert.match(
+    html,
+    /id="wizard-button-stop"[^>]*>Not sure — stop without writing<\/button>/,
+  );
+  for (const step of ["firmware", "flash", "success"]) {
     assert.match(
       html,
       new RegExp(`data-wizard-step="${step}"[^>]*hidden`),
       `${step} must be hidden initially`,
     );
   }
+  assert.doesNotMatch(html, /data-wizard-step="confirm"/);
+  assert.doesNotMatch(html, /data-wizard-progress="confirm"/);
   assert.match(html, /class="legacy-flasher" hidden aria-hidden="true"/);
   assert.doesNotMatch(
     html.slice(0, html.indexOf('class="legacy-flasher"')),
@@ -284,25 +330,228 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /connectUsb\(\{ ispOnly: true, applicationAttempt: true \}\)/);
   assert.match(app, /filters: ispOnly \? WCH_USB_FILTERS : BADGE_USB_CHOOSER_FILTERS/);
   assert.match(app, /Qualified C3 bench recovery is outside this browser wizard/);
-  assert.match(app, /profile: "B1144C_250901_USB_C"/);
-  assert.match(app, /profile: "B1144C_260404_USB_C"/);
-  assert.match(app, /imageLabel: "bottom-button image"/);
-  assert.match(app, /imageLabel: "top-button image"/);
-  assert.match(html, /Firmware found/);
-  assert.match(html, /Matching firmware will be downloaded and verified/);
-  assert.match(html, /keep the badge connected until verification finishes/i);
+  assert.match(app, /flasher-state\.js\?v=4/);
+  assert.match(app, /flash-session\.js\?v=2/);
+  assert.match(flasherState, /top:[\s\S]*profile: "B1144C_260404_USB_C"[\s\S]*marking: "B1144C_260404"[\s\S]*imageLabel: "top-button image"/);
+  assert.match(flasherState, /bottom:[\s\S]*profile: "B1144C_250901_USB_C"[\s\S]*marking: "B1144C_250901"[\s\S]*imageLabel: "bottom-button image"/);
+  assert.match(flashSession, /export async function readBootloaderInfo\(\{ transfer \}\)/);
+  assert.match(flashSession, /parseIdentity\(await transfer\(identifyPacket\(\)\)\)/);
+  assert.match(flashSession, /await transfer\(readConfigPacket\(0x1f\)\)/);
+  assert.match(html, /Both button-matched images are verified and ready/i);
+  assert.match(
+    html,
+    /<div><dt>Build provenance<\/dt><dd id="firmware-provenance">—<\/dd><\/div>/,
+  );
+  assert.match(
+    html,
+    /<div><dt>Hardware status<\/dt><dd id="firmware-verification">—<\/dd><\/div>/,
+  );
+  assert.match(
+    app,
+    /GitHub Actions run \$\{build\.workflow_run_id\}, attempt \$\{build\.workflow_run_attempt\} · artifact \$\{build\.artifact_id\} · \$\{build\.artifact_digest\}/,
+  );
+  assert.match(html, /stable USB power.*keep this page visible until byte verification finishes/i);
   assert.doesNotMatch(html, /type="file"|Choose a local firmware file|id="firmware-file"/);
   assert.doesNotMatch(
     html.slice(0, html.indexOf('class="legacy-flasher"')),
     /Choose the firmware|Choose a local firmware file|Printed PCB revision/,
   );
-  assert.match(app, /async function prepareAutomaticButtonFirmware\(\)/);
-  assert.match(app, /await loadReleaseManifest\(\)/);
-  assert.match(app, /candidate\.hardware_revisions\[0\] === hint\.profile/);
-  assert.match(app, /No approved \$\{hint\.imageLabel\} is published yet/);
-  assert.match(app, /await prepareAutomaticButtonFirmware\(\)/);
+  const prefetchStart = app.indexOf("async function prefetchLatestButtonReleaseArtifacts");
+  const prefetchEnd = app.indexOf("\nfunction loadReleaseManifest", prefetchStart);
+  assert.ok(prefetchStart >= 0 && prefetchEnd > prefetchStart, "the latest pair prefetch must be explicit");
+  const prefetchSource = app.slice(prefetchStart, prefetchEnd);
+  assert.match(prefetchSource, /state\.releasePrefetchReady = false/);
+  assert.match(prefetchSource, /latestPair\.length !== 2/);
+  assert.match(prefetchSource, /await Promise\.all\(/);
+  assert.match(prefetchSource, /verifiedReleaseArtifactBytes/);
+  assert.match(prefetchSource, /state\.releasePrefetchReady = true/);
+  assert.ok(
+    prefetchSource.indexOf("await Promise.all") <
+      prefetchSource.indexOf("state.releasePrefetchReady = true"),
+    "ISP readiness must follow complete validation of both latest images",
+  );
+  const artifactCacheStart = app.indexOf("async function verifiedReleaseArtifactBytes");
+  const artifactCacheEnd = app.indexOf("\nasync function prefetchLatestButtonReleaseArtifacts", artifactCacheStart);
+  assert.ok(artifactCacheStart >= 0 && artifactCacheEnd > artifactCacheStart);
+  const artifactCacheSource = app.slice(artifactCacheStart, artifactCacheEnd);
+  assert.match(artifactCacheSource, /validateFirmware\(bytes, release\.file\)/);
+  assert.match(artifactCacheSource, /inspectFirmwareConfig\(bytes\)/);
+  assert.match(artifactCacheSource, /assertFirmwareHashNotQuarantined/);
+  const preparedPairStart = app.indexOf("function renderPreparedButtonReleasePair");
+  const preparedPairEnd = app.indexOf(
+    "\nasync function prefetchLatestButtonReleaseArtifacts",
+    preparedPairStart,
+  );
+  assert.ok(preparedPairStart >= 0 && preparedPairEnd > preparedPairStart);
+  const preparedPairSource = app.slice(preparedPairStart, preparedPairEnd);
+  assert.match(preparedPairSource, /profileHintForIspButton\("top"\)/);
+  assert.match(preparedPairSource, /profileHintForIspButton\("bottom"\)/);
+  assert.match(
+    preparedPairSource,
+    /`\$\{release\.hardware_revisions\[0\]\} · \$\{release\.pcb_markings\[0\]\} · \$\{release\.bytes\.toLocaleString\(\)\} bytes · SHA-256 \$\{release\.sha256\}`/,
+  );
+  assert.match(
+    preparedPairSource,
+    /GitHub Actions run \$\{build\.workflow_run_id\}, attempt \$\{build\.workflow_run_attempt\} · artifact \$\{build\.artifact_id\} · \$\{build\.artifact_digest\} · source \$\{top\.source_commit\}/,
+  );
+  assert.match(preparedPairSource, /Both exact images are marked hardware-tested/);
+  assert.match(
+    preparedPairSource,
+    /CI-audited and approved for site flashing; these exact images are not hardware-tested/,
+  );
+  assert.ok(
+    prefetchSource.indexOf("await Promise.all") <
+      prefetchSource.indexOf("renderPreparedButtonReleasePair(latestPair)"),
+    "the visible pair summary must render only after both exact images pass validation",
+  );
+  assert.match(
+    app,
+    /state\.releasePrefetchReady = false;[\s\S]*renderPreparedButtonReleasePair\(\);[\s\S]*Release list unavailable/,
+  );
+  assert.match(
+    app,
+    /const readyForIsp =\s*!destructivePage \|\| \(consentReady && state\.releasePrefetchReady\)/,
+  );
+
+  const connectStart = app.indexOf("async function connectUsb");
+  const connectEnd = app.indexOf("\nasync function detectAuthorizedUsb", connectStart);
+  const connectSource = app.slice(connectStart, connectEnd);
+  assert.match(connectSource, /preflightConsentComplete\(\)/);
+  assert.match(connectSource, /state\.releasePrefetchReady/);
+  assert.ok(
+    connectSource.indexOf("await device.claimInterface(0)") <
+      connectSource.indexOf("await readBootloaderInfo"),
+    "wchisp info must run immediately after the ISP interface is claimed",
+  );
+  assert.ok(
+    connectSource.indexOf("await readBootloaderInfo") <
+      connectSource.indexOf("setWizardStep(WIZARD_STEP.FIRMWARE)"),
+    "the top/bottom choice must appear only after read-only ISP info succeeds",
+  );
+  assert.doesNotMatch(connectSource, /fetchReleaseManifest|loadReleaseManifest|verifiedReleaseArtifactBytes/);
+
+  const detectStart = app.indexOf("async function detectAuthorizedUsb");
+  const detectEnd = app.indexOf("\nasync function closeUsb", detectStart);
+  const detectSource = app.slice(detectStart, detectEnd);
+  assert.match(detectSource, /preflightConsentComplete\(\)/);
+  assert.match(detectSource, /state\.releasePrefetchReady/);
+
+  const choiceStart = app.indexOf("async function chooseIspButtonAndFlash");
+  const choiceEnd = app.indexOf("\nasync function chooseLabImage", choiceStart);
+  assert.ok(choiceStart >= 0 && choiceEnd > choiceStart, "the post-info button action must be explicit");
+  const choiceSource = app.slice(choiceStart, choiceEnd);
+  assert.match(choiceSource, /state\.buttonFlashPending\s*\|\|\s*state\.flashing/);
+  assert.match(choiceSource, /selectApplicationProfileHint\(position\)/);
+  assert.match(choiceSource, /candidate\.hardware_revisions\[0\] === hint\.profile/);
+  assert.match(choiceSource, /loadReleaseArtifact\(release, \{ preserveConfirmations: true \}\)/);
+  assert.match(choiceSource, /state\.usbDevice !== expectedDevice/);
+  const expectedButtonFlashStart = choiceSource.indexOf(
+    "const expectedButtonFlash = Object.freeze({",
+  );
+  const expectedButtonFlashEnd = choiceSource.indexOf(
+    "const started = await startFlash",
+    expectedButtonFlashStart,
+  );
+  assert.ok(
+    expectedButtonFlashStart >= 0 &&
+      expectedButtonFlashEnd > expectedButtonFlashStart,
+    "the final button action must freeze its exact pre-armed session tuple",
+  );
+  const expectedButtonFlashSource = choiceSource.slice(
+    expectedButtonFlashStart,
+    expectedButtonFlashEnd,
+  );
+  assert.match(choiceSource, /const expectedChip = state\.chip/);
+  for (const binding of [
+    /device: expectedDevice/,
+    /chip: expectedChip/,
+    /config: expectedConfig/,
+    /firmware: state\.firmware/,
+    /artifactGeneration: state\.artifactGeneration/,
+    /position/,
+    /releaseId: release\.id/,
+    /releaseVersion: release\.version/,
+    /firmwareHash: release\.sha256/,
+    /profile: hint\.profile/,
+    /marking: hint\.marking/,
+  ]) {
+    assert.match(expectedButtonFlashSource, binding);
+  }
+  assert.match(
+    choiceSource,
+    /const started = await startFlash\(\{\s*finalActionConfirmed: true,\s*expectedButtonFlash,\s*\}\)/,
+  );
+  assert.match(choiceSource, /if \(!started\)[\s\S]*exclusive browser lock or exact pre-armed session was unavailable/);
+  assert.doesNotMatch(choiceSource, /window\.confirm/);
+  assert.doesNotMatch(app, /prepareAutomaticButtonFirmware/);
+  assert.doesNotMatch(app, /WIZARD_STEP\.CONFIRM|wizardConfirmContinue|wizardFirmwareContinue/);
+
+  const buttonMatchStart = app.indexOf("function expectedButtonFlashMatches");
+  const flashFirmwareStart = app.indexOf("async function flashFirmware", buttonMatchStart);
+  const startFlashStart = app.indexOf("async function startFlash", flashFirmwareStart);
+  assert.ok(
+    buttonMatchStart >= 0 &&
+      flashFirmwareStart > buttonMatchStart &&
+      startFlashStart > flashFirmwareStart,
+    "the frozen button-session guard must sit on the destructive path",
+  );
+  const buttonMatchSource = app.slice(buttonMatchStart, flashFirmwareStart);
+  for (const guard of [
+    /Object\.isFrozen\(expected\)/,
+    /state\.usbDevice === expected\.device/,
+    /state\.chip === expected\.chip/,
+    /state\.config === expected\.config/,
+    /state\.firmware === expected\.firmware/,
+    /state\.artifactGeneration === expected\.artifactGeneration/,
+    /state\.releasePrefetchVersion === expected\.releaseVersion/,
+    /state\.buttonReleaseIds\?\.\[expected\.position\] === expected\.releaseId/,
+    /state\.firmware\?\.releaseId === expected\.releaseId/,
+    /state\.firmware\?\.releaseVersion === expected\.releaseVersion/,
+    /state\.firmware\?\.hash\?\.toLowerCase\(\) === expected\.firmwareHash\.toLowerCase\(\)/,
+    /state\.applicationProfileHint\?\.profile === expected\.profile/,
+    /state\.applicationProfileHint\?\.marking === expected\.marking/,
+  ]) {
+    assert.match(buttonMatchSource, guard);
+  }
+
+  const flashFirmwareSource = app.slice(flashFirmwareStart, startFlashStart);
+  assert.match(
+    flashFirmwareSource,
+    /finalActionConfirmed = false,\s*expectedButtonFlash = null/,
+  );
+  assert.match(flashFirmwareSource, /if \(!finalActionConfirmed\)[\s\S]*window\.confirm/);
+  assert.ok(
+    flashFirmwareSource.indexOf("expectedButtonFlashMatches(expectedButtonFlash)") <
+      flashFirmwareSource.indexOf("await programAndVerifyFirmware"),
+    "the exact frozen session must be revalidated before the first destructive command",
+  );
+
+  const startFlashEnd = app.indexOf("\nfunction bindEvents", startFlashStart);
+  const startFlashSource = app.slice(startFlashStart, startFlashEnd);
+  assert.match(startFlashSource, /async function startFlash\(options = \{\}\)/);
+  const noLocksStart = startFlashSource.indexOf("if (!navigator.locks?.request)");
+  const noLocksEnd = startFlashSource.indexOf("\n  try", noLocksStart);
+  assert.ok(noLocksStart >= 0 && noLocksEnd > noLocksStart);
+  const noLocksSource = startFlashSource.slice(noLocksStart, noLocksEnd);
+  assert.match(noLocksSource, /return false/);
+  assert.doesNotMatch(noLocksSource, /flashFirmware/);
+  assert.match(startFlashSource, /let started = false/);
+  assert.ok(
+    startFlashSource.indexOf("await navigator.locks.request") <
+      startFlashSource.indexOf("started = await flashFirmware(options)"),
+    "the exact-session validation and flash may run only after Web Lock acquisition",
+  );
+  assert.match(
+    startFlashSource,
+    /if \(!lock\)[\s\S]*return;[\s\S]*started = await flashFirmware\(options\);[\s\S]*return started/,
+  );
+  assert.match(app, /wizardButtonTop\?\.addEventListener\("click", \(\) =>[\s\S]*chooseIspButtonAndFlash\("top"\)/);
+  assert.match(app, /wizardButtonBottom\?\.addEventListener\("click", \(\) =>[\s\S]*chooseIspButtonAndFlash\("bottom"\)/);
+  assert.match(
+    app,
+    /wizardButtonStop\?\.addEventListener\("click", \(\) =>[\s\S]*void disconnectUsbByUser\(\)/,
+  );
   assert.match(app, /state\.applicationTransitionPending = true/);
-  assert.match(app, /state\.applicationTransitionPending && !state\.applicationProfileHint/);
   assert.match(app, /setWizardStep\(WIZARD_STEP\.FIRMWARE\)/);
   assert.match(app, /setWizardStep\(WIZARD_STEP\.SUCCESS, \{ terminal: true \}\)/);
   assert.match(html, /iPhone.*WebUSB/is);
@@ -340,7 +589,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(html, /OEM (?:firmware|image).*(?:unavailable|cannot be backed up)/is);
   assert.match(html, /Connecting alone never writes/i);
   assert.match(html, /Only hash-bound images with physical boot and recovery evidence may appear here/i);
-  assert.match(html, /public flasher accepts only approved, same-origin images/i);
+  assert.match(html, /public flasher accepts same-origin published images/i);
   assert.match(html, /B1144C_260404_USB_C/);
   assert.match(html, /active-low KEY1 wiring/i);
   assert.match(html, /Axon\/TASER\/Flock/);
@@ -437,6 +686,7 @@ test("publication waits for successful same-repository CI and deploys only after
   assert.match(workflow, /workflows: \[CI\]/);
   assert.match(workflow, /workflow_run\.conclusion == 'success'/);
   assert.match(workflow, /workflow_run\.event == 'push'/);
+  assert.match(workflow, /workflow_run\.event == 'workflow_dispatch'/);
   assert.match(workflow, /workflow_run\.path == '\.github\/workflows\/ci\.yml'/);
   assert.match(workflow, /workflow_run\.head_branch == 'main'/);
   assert.match(workflow, /workflow_run\.head_repository\.full_name == github\.repository/);
@@ -446,7 +696,11 @@ test("publication waits for successful same-repository CI and deploys only after
     /current-main:[\s\S]*permissions:\s+contents: read[\s\S]*github\.rest\.git\.getRef/,
   );
   assert.match(workflow, /ref: "heads\/main"/);
-  assert.match(workflow, /currentMain\.object\.sha === triggeringSha/);
+  assert.match(workflow, /currentSha === triggeringSha/);
+  assert.match(workflow, /commit\.parents\[0\]\.sha === triggeringSha/);
+  assert.match(workflow, /commit\.author\?\.email === publicationBot/);
+  assert.match(workflow, /commit\.committer\?\.email === publicationBot/);
+  assert.match(workflow, /Resuming publication/);
   assert.match(
     workflow,
     /prepare:\s+needs: current-main\s+if: needs\.current-main\.outputs\.is_current == 'true'/,
@@ -458,12 +712,39 @@ test("publication waits for successful same-repository CI and deploys only after
   );
   assert.match(workflow, /actions: read/);
   assert.match(workflow, /attestations: read/);
+  assert.match(workflow, /github\.rest\.actions\.listWorkflowRunArtifacts/);
+  assert.match(workflow, /frogalert-candidate-\$\{context\.payload\.workflow_run\.head_sha\}/);
+  assert.match(workflow, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+  assert.match(workflow, /node scripts\/record-firmware-release\.mjs tmp\/firmware-candidate\/counter/);
+  assert.match(workflow, /git commit -m "Publish FrogAlert \$RELEASE_VERSION"/);
+  assert.match(workflow, /FROGALERT_RELEASE_PUBLISHED_AT/);
+  assert.match(workflow, /workflow_run\.created_at/);
+  assert.match(workflow, /current_tree=.*CURRENT_MAIN_SHA\^\{tree\}/);
+  assert.match(workflow, /generated_tree=.*generated_publish_sha\^\{tree\}/);
   assert.match(workflow, /node scripts\/materialize-firmware-artifacts\.mjs tmp\/release-artifacts/);
   assert.match(workflow, /FROGALERT_RELEASE_ASSET_ROOT: tmp\/release-artifacts/);
   assert.match(workflow, /node scripts\/assemble-site\.mjs _site/);
   assert.match(workflow, /node scripts\/firmware-release-plan\.mjs tmp\/release-publication/);
   assert.match(workflow, /publishFirmwareReleaseBundle/);
   assert.match(workflow, /contents: write/);
+  assert.match(workflow, /current_main="\$\(git ls-remote origin refs\/heads\/main \| cut -f1\)"/);
+  assert.match(workflow, /main moved from validated commit \$PUBLISH_SHA/);
+  assert.match(workflow, /git push origin "\$PUBLISH_SHA:refs\/heads\/main"/);
+  assert.match(workflow, /FROGALERT_PUBLISH_COMMIT: \$\{\{ needs\.prepare\.outputs\.publish_sha \}\}/);
+  assert.match(workflow, /FROGALERT_RELEASE_TAG: \$\{\{ needs\.prepare\.outputs\.release_tag \}\}/);
+  assert.match(workflow, /resolveTagCommit/);
+  assert.match(workflow, /published release tag .* does not target/);
+  assert.ok(
+    workflow.indexOf("node scripts/record-firmware-release.mjs") <
+      workflow.indexOf("node scripts/materialize-firmware-artifacts.mjs") &&
+      workflow.indexOf("node scripts/materialize-firmware-artifacts.mjs") <
+        workflow.indexOf("node scripts/assemble-site.mjs") &&
+      workflow.indexOf("node scripts/assemble-site.mjs") <
+        workflow.indexOf("node scripts/firmware-release-plan.mjs") &&
+      workflow.indexOf("node scripts/firmware-release-plan.mjs") <
+        workflow.indexOf('origin "$PUBLISH_SHA:refs/heads/main"'),
+    "generated release metadata must be fully materialized and validated before its CAS push",
+  );
   assert.match(workflow, /needs: publish-releases/);
   assert.match(workflow, /cancel-in-progress: false/);
   assert.doesNotMatch(workflow, /find firmware\/releases/);

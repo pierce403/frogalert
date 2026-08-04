@@ -102,6 +102,15 @@ const artifact = (overrides = {}) => ({
   ...overrides,
 });
 
+const ciAuditedArtifact = (overrides = {}) =>
+  artifact({
+    hardware_verified: false,
+    verification_basis: "ci-audited",
+    flash_approved: true,
+    hardware_evidence: undefined,
+    ...overrides,
+  });
+
 const manifest = (overrides = {}) => ({
   schema_version: 5,
   github_repository: "pierce403/frogalert",
@@ -135,6 +144,16 @@ test("physically verified, hash-bound FrogAlert artifacts may be published", () 
           }),
         ],
       }),
+      emptyQuarantine,
+    ),
+    true,
+  );
+});
+
+test("CI-audited nonlegacy releases may publish without physical evidence", () => {
+  assert.equal(
+    validateFirmwarePublicationManifest(
+      manifest({ releases: [ciAuditedArtifact()] }),
       emptyQuarantine,
     ),
     true,
@@ -256,6 +275,10 @@ test("release tags group board descriptors only when immutable metadata agrees",
             {
               ...secondBoard,
               source_commit: "b".repeat(40),
+              build_provenance: {
+                ...buildProvenance,
+                artifact_name: `frogalert-candidate-${"b".repeat(40)}`,
+              },
               hardware_evidence: evidence({
                 source_commit: "b".repeat(40),
                 pcb_marking: "B1144C_250902",
@@ -298,16 +321,75 @@ test("publication ids and filenames are unique across release and lab catalogs",
   );
 });
 
-test("hardware-unverified FrogAlert releases and labs are rejected before site assembly", () => {
-  for (const collection of ["releases", "lab_images"]) {
+test("hardware-unverified releases require explicit CI approval and labs cannot use it", () => {
+  for (const override of [
+    { verification_basis: undefined },
+    { verification_basis: "self-asserted" },
+    { flash_approved: false },
+    { flash_approved: undefined },
+    { build_provenance: undefined },
+  ]) {
     assert.throws(
       () =>
         validateFirmwarePublicationManifest(
-          manifest({ [collection]: [artifact({ hardware_verified: false })] }),
+          manifest({ releases: [ciAuditedArtifact(override)] }),
           emptyQuarantine,
         ),
-      /not physically hardware-verified/,
-      collection,
+      /CI-audited release|candidate provenance/,
+    );
+  }
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          lab_images: [
+            ciAuditedArtifact({
+              id: "frogalert-ci-audited-lab",
+              kind: "frogalert-lab",
+            }),
+          ],
+        }),
+        emptyQuarantine,
+      ),
+    /not physically hardware-verified/,
+  );
+});
+
+test("CI-audited releases bind candidate provenance to the exact source commit", () => {
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          releases: [
+            ciAuditedArtifact({
+              build_provenance: {
+                ...buildProvenance,
+                artifact_name: `frogalert-candidate-${"b".repeat(40)}`,
+              },
+            }),
+          ],
+        }),
+        emptyQuarantine,
+      ),
+    /not bound to its source commit/,
+  );
+});
+
+test("CI-audited publication still requires exact BIN, source, and ELF metadata", () => {
+  for (const [override, pattern] of [
+    [{ sha256: "short" }, /SHA-256 is invalid/],
+    [{ source_commit: "short" }, /source commit is invalid/],
+    [{ debug_file: undefined }, /debug ELF filename is invalid/],
+    [{ debug_bytes: 0 }, /debug ELF byte length is invalid/],
+    [{ debug_sha256: "short" }, /debug ELF SHA-256 is invalid/],
+  ]) {
+    assert.throws(
+      () =>
+        validateFirmwarePublicationManifest(
+          manifest({ releases: [ciAuditedArtifact(override)] }),
+          emptyQuarantine,
+        ),
+      pattern,
     );
   }
 });
@@ -543,6 +625,20 @@ test("a quarantined SHA cannot be republished even with claimed hardware evidenc
     () => validateFirmwarePublicationManifest(manifest({ lab_images: [failed] }), quarantine),
     /matches a quarantined firmware SHA-256/,
   );
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          releases: [
+            ciAuditedArtifact({
+              sha256: FAILED_SHA,
+            }),
+          ],
+        }),
+        quarantine,
+      ),
+    /matches a quarantined firmware SHA-256/,
+  );
 });
 
 test("third-party recovery descriptors remain outside the FrogAlert publication evidence gate", () => {
@@ -553,6 +649,23 @@ test("third-party recovery descriptors remain outside the FrogAlert publication 
   assert.equal(
     validateFirmwarePublicationManifest(manifest({ recovery_images: [recovery] }), emptyQuarantine),
     true,
+  );
+  assert.throws(
+    () =>
+      validateFirmwarePublicationManifest(
+        manifest({
+          recovery_images: [
+            {
+              ...recovery,
+              verification_basis: "ci-audited",
+              flash_approved: true,
+              build_provenance: buildProvenance,
+            },
+          ],
+        }),
+        emptyQuarantine,
+      ),
+    /limited to nonlegacy FrogAlert releases/,
   );
 });
 
