@@ -525,7 +525,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.2` / `v0.2.0b2` and adds the passive
+- Current source declares `0.2.0-beta.3` / `v0.2.0b3` and adds the passive
   Flipper `0x3081`–`0x3083` service rule. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with

@@ -33,7 +33,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   published together as `0.1.0-beta.1` and available to the flasher
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.2`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.3`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
