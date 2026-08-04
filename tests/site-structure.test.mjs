@@ -174,7 +174,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /flash-session\.js\?v=2/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=21/);
+  assert.match(html, /site\/app\.js\?v=22/);
   assert.match(html, /id="flash-lab"[^>]+hidden/);
   assert.match(app, /latest\[0\]\.published_at/);
   assert.match(app, /flash-support\.js\?v=2/);
@@ -194,7 +194,6 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /typeof navigator\.usb\?\.requestDevice === "function"/);
   assert.match(app, /window\.matchMedia\?\.\("\(prefers-reduced-motion: reduce\)"\)\?\.matches/);
   assert.doesNotMatch(app, /"usb" in navigator/);
-  assert.match(app, /return destructivePage && elements\.flashPhrase\?\.value\.trim\(\) === "ERASE THIS BADGE"/);
   assert.match(app, /if \(destructivePage && elements\.flashButton\)/);
   assert.doesNotMatch(app, /Private developer BINs may be selected locally for qualified bench testing only/);
   assert.doesNotMatch(app, /Private survey builds remain local, hardware-unverified developer artifacts/);
@@ -240,39 +239,39 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     "id=\"lab-image-download\"",
     "id=\"recovery-prepare\"",
     "id=\"flash-button\"",
-    "id=\"flash-phrase\"",
     "id=\"wizard-pair-version\"",
     "id=\"wizard-pair-top\"",
     "id=\"wizard-pair-bottom\"",
     "id=\"wizard-pair-provenance\"",
     "id=\"wizard-pair-hardware-status\"",
-    "class=\"flash-confirmation\"",
     "id=\"flash-log\"",
   ]) {
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=21/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=22/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
-  assert.ok(
-    html.indexOf('class="flash-confirmation"') < html.indexOf('id="usb-connect"'),
-    "destructive consent must be collected before ISP can be opened",
+  const visibleWizard = html.slice(0, html.indexOf('class="legacy-flasher"'));
+  const connectStep = visibleWizard.slice(
+    visibleWizard.indexOf('data-wizard-step="connect"'),
+    visibleWizard.indexOf('data-wizard-step="firmware"'),
   );
   assert.ok(
-    html.indexOf('id="wizard-pair-version"') <
-      html.indexOf('class="flash-confirmation"'),
-    "the exact prepared release pair must be visible before consent and ISP entry",
+    connectStep.indexOf('id="wizard-pair-version"') <
+      connectStep.indexOf('id="usb-connect"'),
+    "the exact prepared release pair must be visible before ISP entry",
   );
-  assert.ok(
-    html.indexOf('id="flash-phrase"') < html.indexOf('id="usb-connect"'),
-    "the exact destructive phrase must be collected before ISP can be opened",
+  assert.match(
+    connectStep,
+    /hold[\s\S]{0,100}top[\s\S]{0,100}bottom[\s\S]{0,140}(?:ISP|flashing mode)/i,
+    "the first screen must directly tell the user how to enter flashing mode",
   );
-  assert.equal(
-    [...html.matchAll(/class="flash-confirmation"/g)].length,
-    4,
-    "the pre-connect wizard should retain all four informed-consent checks",
-  );
+  assert.doesNotMatch(visibleWizard, /class="flash-confirmation"/);
+  assert.doesNotMatch(visibleWizard, /id="flash-phrase"/);
+  assert.doesNotMatch(visibleWizard, /ERASE THIS BADGE/i);
+  assert.doesNotMatch(visibleWizard, /type="checkbox"/);
+  assert.doesNotMatch(visibleWizard, />\s*Continue\s*</i);
   assert.match(html, /equivalent of <code>wchisp info<\/code>/i);
   assert.match(
     html,
@@ -313,7 +312,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /window\.localStorage\.setItem\(ISP_PERMISSION_HINT_KEY, "yes"\)/);
   assert.match(app, /state\.ispPermissionRemembered = true/);
   assert.match(app, /Chrome remembers this bootloader/);
-  assert.match(app, /FrogAlert will identify it automatically/);
+  assert.match(app, /FrogAlert will identify WCH ISP automatically/);
   assert.match(app, /Not detected\? Open the chooser/);
   assert.match(app, /elements\.usbButton\.hidden = true/);
   assert.match(app, /elements\.wizardApplicationTitle\?\.focus\(\)/);
@@ -322,14 +321,17 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /BADGE_USB_CHOOSER_FILTERS/);
   assert.match(html, /id="wizard-application-guide"[^>]+hidden/);
   assert.match(html, /Badge detected in normal mode/);
-  assert.match(html, /Try the bottom button/);
-  assert.match(html, /Tap Start watching first.*Keep the chooser open/is);
-  assert.match(html, /Start watching for ISP/);
-  assert.match(html, /No dot — try the top button/);
-  assert.match(app, /Try the top button/);
+  assert.match(html, /Hold Top or Bottom/);
+  assert.match(
+    html,
+    /Tap Start watching first.*Keep the chooser open.*hold either the top or bottom button/is,
+  );
+  assert.match(html, /Start watching for flashing mode/);
+  assert.doesNotMatch(visibleWizard, /No dot — try the top button/i);
+  assert.doesNotMatch(visibleWizard, /id="wizard-application-next"/);
+  assert.doesNotMatch(app, /wizardApplicationNext|advanceApplicationEntryAttempt/);
   assert.match(app, /connectUsb\(\{ ispOnly: true, applicationAttempt: true \}\)/);
   assert.match(app, /filters: ispOnly \? WCH_USB_FILTERS : BADGE_USB_CHOOSER_FILTERS/);
-  assert.match(app, /Qualified C3 bench recovery is outside this browser wizard/);
   assert.match(app, /flasher-state\.js\?v=4/);
   assert.match(app, /flash-session\.js\?v=2/);
   assert.match(flasherState, /top:[\s\S]*profile: "B1144C_260404_USB_C"[\s\S]*marking: "B1144C_260404"[\s\S]*imageLabel: "top-button image"/);
@@ -350,7 +352,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     app,
     /GitHub Actions run \$\{build\.workflow_run_id\}, attempt \$\{build\.workflow_run_attempt\} · artifact \$\{build\.artifact_id\} · \$\{build\.artifact_digest\}/,
   );
-  assert.match(html, /stable USB power.*keep this page visible until byte verification finishes/i);
+  assert.match(app, /Programming has started\. Keep this page visible and do not disconnect\./);
   assert.doesNotMatch(html, /type="file"|Choose a local firmware file|id="firmware-file"/);
   assert.doesNotMatch(
     html.slice(0, html.indexOf('class="legacy-flasher"')),
@@ -404,24 +406,54 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
       prefetchSource.indexOf("renderPreparedButtonReleasePair(latestPair)"),
     "the visible pair summary must render only after both exact images pass validation",
   );
+  const fetchManifestStart = app.indexOf("async function fetchReleaseManifest");
+  const fetchManifestEnd = app.indexOf("\nasync function loadReleaseArtifact", fetchManifestStart);
+  assert.ok(fetchManifestStart >= 0 && fetchManifestEnd > fetchManifestStart);
+  const fetchManifestSource = app.slice(fetchManifestStart, fetchManifestEnd);
+  assert.match(fetchManifestSource, /await prefetchLatestButtonReleaseArtifacts\(\)/);
+  assert.ok(
+    fetchManifestSource.indexOf("await prefetchLatestButtonReleaseArtifacts()") <
+      fetchManifestSource.indexOf("void detectAuthorizedUsb()"),
+    "automatic device detection may start only after both images are prefetched",
+  );
+  assert.doesNotMatch(
+    fetchManifestSource,
+    /preflightConsentComplete|confirmationsComplete|typedPhraseComplete|ERASE THIS BADGE/,
+  );
   assert.match(
     app,
     /state\.releasePrefetchReady = false;[\s\S]*renderPreparedButtonReleasePair\(\);[\s\S]*Release list unavailable/,
   );
+  const readinessStart = app.indexOf("function updateConnectionReadiness");
+  const readinessEnd = app.indexOf("\nfunction stopIspEntryCountdown", readinessStart);
+  assert.ok(readinessStart >= 0 && readinessEnd > readinessStart);
+  const readinessSource = app.slice(readinessStart, readinessEnd);
   assert.match(
-    app,
-    /const readyForIsp =\s*!destructivePage \|\| \(consentReady && state\.releasePrefetchReady\)/,
+    readinessSource,
+    /const readyForIsp =\s*!destructivePage \|\| state\.releasePrefetchReady/,
+  );
+  assert.doesNotMatch(
+    readinessSource,
+    /preflightConsentComplete|confirmationsComplete|typedPhraseComplete|consentReady/,
   );
 
   const connectStart = app.indexOf("async function connectUsb");
   const connectEnd = app.indexOf("\nasync function detectAuthorizedUsb", connectStart);
   const connectSource = app.slice(connectStart, connectEnd);
-  assert.match(connectSource, /preflightConsentComplete\(\)/);
   assert.match(connectSource, /state\.releasePrefetchReady/);
+  assert.doesNotMatch(
+    connectSource,
+    /preflightConsentComplete|confirmationsComplete|typedPhraseComplete|ERASE THIS BADGE/,
+  );
   assert.ok(
     connectSource.indexOf("await device.claimInterface(0)") <
       connectSource.indexOf("await readBootloaderInfo"),
     "wchisp info must run immediately after the ISP interface is claimed",
+  );
+  assert.match(
+    connectSource,
+    /await device\.claimInterface\(0\);\s*const \{ identity, config \} = await readBootloaderInfo/,
+    "no prompt, fetch, or delay may sit between claiming ISP and the A1/A7 info exchange",
   );
   assert.ok(
     connectSource.indexOf("await readBootloaderInfo") <
@@ -429,21 +461,45 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     "the top/bottom choice must appear only after read-only ISP info succeeds",
   );
   assert.doesNotMatch(connectSource, /fetchReleaseManifest|loadReleaseManifest|verifiedReleaseArtifactBytes/);
+  assert.doesNotMatch(
+    connectSource,
+    /programAndVerifyFirmware|startFlash\(|flashFirmware\(|COMMAND\.(?:WRITE_CONFIG|ERASE|PROGRAM)/,
+    "connection and bootloader info must not enter a destructive path",
+  );
 
   const detectStart = app.indexOf("async function detectAuthorizedUsb");
   const detectEnd = app.indexOf("\nasync function closeUsb", detectStart);
   const detectSource = app.slice(detectStart, detectEnd);
-  assert.match(detectSource, /preflightConsentComplete\(\)/);
   assert.match(detectSource, /state\.releasePrefetchReady/);
+  assert.doesNotMatch(
+    detectSource,
+    /preflightConsentComplete|confirmationsComplete|typedPhraseComplete|ERASE THIS BADGE/,
+  );
+
+  const wizardUiStart = app.indexOf("function updateWizardUi");
+  const wizardUiEnd = app.indexOf("\nfunction setWizardStep", wizardUiStart);
+  assert.ok(wizardUiStart >= 0 && wizardUiEnd > wizardUiStart);
+  const wizardUiSource = app.slice(wizardUiStart, wizardUiEnd);
+  assert.match(wizardUiSource, /state\.releasePrefetchReady/);
+  assert.match(wizardUiSource, /!state\.buttonFlashPending/);
+  assert.match(wizardUiSource, /!state\.flashing/);
+  assert.doesNotMatch(
+    wizardUiSource,
+    /preflightConsentComplete|confirmationsComplete|typedPhraseComplete/,
+  );
 
   const choiceStart = app.indexOf("async function chooseIspButtonAndFlash");
   const choiceEnd = app.indexOf("\nasync function chooseLabImage", choiceStart);
   assert.ok(choiceStart >= 0 && choiceEnd > choiceStart, "the post-info button action must be explicit");
   const choiceSource = app.slice(choiceStart, choiceEnd);
   assert.match(choiceSource, /state\.buttonFlashPending\s*\|\|\s*state\.flashing/);
+  assert.doesNotMatch(
+    choiceSource,
+    /preflightConsentComplete|confirmationsComplete|typedPhraseComplete|ERASE THIS BADGE/,
+  );
   assert.match(choiceSource, /selectApplicationProfileHint\(position\)/);
   assert.match(choiceSource, /candidate\.hardware_revisions\[0\] === hint\.profile/);
-  assert.match(choiceSource, /loadReleaseArtifact\(release, \{ preserveConfirmations: true \}\)/);
+  assert.match(choiceSource, /loadReleaseArtifact\(release/);
   assert.match(choiceSource, /state\.usbDevice !== expectedDevice/);
   const expectedButtonFlashStart = choiceSource.indexOf(
     "const expectedButtonFlash = Object.freeze({",
@@ -481,7 +537,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     choiceSource,
     /const started = await startFlash\(\{\s*finalActionConfirmed: true,\s*expectedButtonFlash,\s*\}\)/,
   );
-  assert.match(choiceSource, /if \(!started\)[\s\S]*exclusive browser lock or exact pre-armed session was unavailable/);
+  assert.match(choiceSource, /if \(!started\)[\s\S]*exclusive browser lock or exact button-selected session was unavailable/);
   assert.doesNotMatch(choiceSource, /window\.confirm/);
   assert.doesNotMatch(app, /prepareAutomaticButtonFirmware/);
   assert.doesNotMatch(app, /WIZARD_STEP\.CONFIRM|wizardConfirmContinue|wizardFirmwareContinue/);
@@ -499,6 +555,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   for (const guard of [
     /Object\.isFrozen\(expected\)/,
     /state\.usbDevice === expected\.device/,
+    /expected\.device\?\.opened/,
     /state\.chip === expected\.chip/,
     /state\.config === expected\.config/,
     /state\.firmware === expected\.firmware/,
@@ -520,6 +577,21 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     /finalActionConfirmed = false,\s*expectedButtonFlash = null/,
   );
   assert.match(flashFirmwareSource, /if \(!finalActionConfirmed\)[\s\S]*window\.confirm/);
+  assert.doesNotMatch(
+    flashFirmwareSource,
+    /preflightConsentComplete|confirmationsComplete|typedPhraseComplete|ERASE THIS BADGE/,
+    "the explicit button choice must not depend on a second consent control",
+  );
+  assert.ok(
+    [...flashFirmwareSource.matchAll(/expectedButtonFlashMatches\(expectedButtonFlash\)/g)]
+      .length >= 2,
+    "the frozen button session must be checked before arming and again immediately before writes",
+  );
+  assert.match(
+    flashFirmwareSource,
+    /await acquireWakeLock\(\);\s*try\s*\{\s*if \(\s*finalActionConfirmed\s*&&\s*!expectedButtonFlashMatches\(expectedButtonFlash\)/,
+    "wake-lock acquisition must be followed by a fresh exact-session check before A8",
+  );
   assert.ok(
     flashFirmwareSource.indexOf("expectedButtonFlashMatches(expectedButtonFlash)") <
       flashFirmwareSource.indexOf("await programAndVerifyFirmware"),
@@ -547,6 +619,11 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   );
   assert.match(app, /wizardButtonTop\?\.addEventListener\("click", \(\) =>[\s\S]*chooseIspButtonAndFlash\("top"\)/);
   assert.match(app, /wizardButtonBottom\?\.addEventListener\("click", \(\) =>[\s\S]*chooseIspButtonAndFlash\("bottom"\)/);
+  assert.match(
+    app,
+    /usbButton\.addEventListener\("click", \(\) =>\s*\{\s*void connectUsb\(destructivePage \? \{ ispOnly: true \} : \{\}\);/,
+    "the program-page Start watching action must open the ISP-only chooser directly",
+  );
   assert.match(
     app,
     /wizardButtonStop\?\.addEventListener\("click", \(\) =>[\s\S]*void disconnectUsbByUser\(\)/,
@@ -771,10 +848,24 @@ test("release manifest separates releases, hosted labs, and pinned open recovery
   assert.ok(
     manifest.releases.every(
       (release) =>
-        release.hardware_verified === true &&
         typeof release.version === "string" &&
-        typeof release.channel === "string",
+        typeof release.channel === "string" &&
+        (release.hardware_verified === true ||
+          (release.hardware_verified === false &&
+            release.flash_approved === true &&
+            release.verification_basis === "ci-audited" &&
+            release.build_provenance?.kind === "github-actions-candidate")),
     ),
+    "every release must be hardware-verified or an explicitly flash-approved CI-audited candidate",
+  );
+  assert.ok(
+    manifest.releases.some(
+      (release) =>
+        release.hardware_verified === false &&
+        release.flash_approved === true &&
+        release.verification_basis === "ci-audited",
+    ),
+    "the generated catalog should exercise the CI-audited immediate-publication policy",
   );
   const latestVersion = manifest.releases[0].version;
   const latestProfiles = manifest.releases

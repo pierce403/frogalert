@@ -86,7 +86,7 @@ The `/flash/` page can configure a locally loaded survey BIN entirely in the
 browser. Select the exact printed `260404` or `250901` profile first. The page
 requires the embedded configuration profile to match, preserves the immutable
 base bytes in memory, patches a copy, computes a new SHA-256, resets all
-destructive confirmations, and offers the configured BIN for download.
+prepared-flash bindings, and offers the configured BIN for download.
 Changing a checkbox or custom rule makes the current artifact dirty and blocks
 flashing until **Apply monitoring options** succeeds. Node tests cover the
 binary codec, CRC, exact-one-block rule, canonical values, profile mismatch,

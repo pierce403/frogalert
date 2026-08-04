@@ -14,14 +14,22 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
    protocol tests.
 2. Keep packet construction and validation pure in `site/wchisp-protocol.js`;
    keep permission prompts and WebUSB transport in `site/app.js`.
-3. On connect, filter only WCH ISP ids, claim interface 0, and identify the
-   exact CH582/type `0x16` before enabling destructive actions.
-   Keep the KEY2 cold-entry steps beside the chooser. A timer or USB attach
-   event may update guidance but must never open `requestDevice()`; only the
-   user's explicit final chooser action may do that.
-4. Never write on connect. Require a local/release firmware image bound to the
-   entered PCB revision, size and SHA-256 display, all explicit safety
-   confirmations, and a final click.
+3. Begin fetching and validating the atomic published top/bottom pair as soon
+   as the page loads; do not gate that preparation on an acknowledgement. The
+   first screen must lead with the instruction to hold Top or Bottom and
+   remember which worked. For first-time permission, pair-ready enables one
+   **Start watching for ISP** tap that opens the WCH-only chooser before the
+   physical hold; remembered permission can auto-detect the attach. On connect,
+   filter only WCH ISP ids, claim interface 0, then immediately send `0xA1`
+   Identify followed by `0xA7` Read Config before any question or network work.
+   A timer or USB attach event may update guidance but must never open
+   `requestDevice()`; only a user gesture may open the first-time chooser.
+4. Never write on connect. Show both images' PCB/profile binding, size, SHA-256,
+   provenance, and hardware status without checkboxes, a typed phrase, or a
+   separate review gate. After read-only info, the clearly destructive Top or
+   Bottom choice is the sole in-page consent and must immediately flash and
+   byte-verify the matching prevalidated image. Do not add another Continue,
+   confirmation, or profile selection.
    The owner has authorized immediate publication of the standard counter
    top/bottom pair after trusted main CI. Assembly may accept a release with
    `hardware_verified: false` only when it is explicitly CI-audited and
@@ -39,7 +47,9 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
    or success. Distinguish a reset acknowledgement from a sent reset whose
    response was lost during disconnect.
 6. Capture one USB device for the entire destructive session, check it before
-   every transfer, and keep reconnect locked until the session exits.
+   every transfer, require an exclusive Web Lock before `0xA8`, and keep
+   reconnect locked until the session exits. Missing or denied Web Locks fail
+   closed.
 7. Keep all firmware bytes and device identifiers local to the browser.
 8. Preserve accessible status, keyboard navigation, reduced motion, secure
    context checks, and honest unsupported-browser messaging.

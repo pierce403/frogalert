@@ -174,10 +174,13 @@ flasher derives “latest” only from validated semantic versions in the
 `releases` collection. Before asking the user to enter ISP, the public wizard
 downloads and validates the complete newest top/bottom pair, including each
 descriptor, byte length, SHA-256, embedded profile, provenance, quarantine
-status, and hardware-test status. It then collects the opened-board and
-irreversible-replacement confirmations and exact destructive phrase. These
-steps prepare both possible answers without choosing a profile or writing the
-device.
+status, and hardware-test status. This preparation starts automatically and is
+not gated by an acknowledgement, typed phrase, or review step. The wizard
+visibly discloses the target boundary, irreversibility, provenance, and
+hardware-unverified status. Its first visible instruction tells the user to
+hold Top or Bottom to enter ISP and remember which button worked while
+preparation continues in the background. Both possible answers must be ready
+before the ISP claim without choosing a profile or writing the device.
 
 ## Phone-first release boundary
 
@@ -188,14 +191,15 @@ can be selected from `/flash/` on a supported Android/Chromium WebUSB setup.
 Browser JavaScript never receives a GitHub token and never reads an expiring
 Actions artifact.
 
-Immediate availability does not remove informed consent or imply a physical
-smoke. The flasher shows the CI-audited, hardware-untested status and collects
-informed consent before the short ISP entry window. As soon as the captured ISP
-device is claimed it runs `0xA1` Identify and `0xA7` Read Config—the useful
+Immediate availability does not imply a physical smoke. The flasher shows the
+CI-audited, hardware-untested status without adding confirmation gates. As soon
+as the captured ISP device is claimed it runs `0xA1` Identify and `0xA7` Read
+Config—the useful
 read-only `wchisp info` exchange—before any question or network work. Only
 after CH582 `0x82/0x16` identification succeeds does it ask whether the top or
-bottom button produced ISP. That clearly destructive answer is the separate
-final user action: it binds the exact profile/marking and immediately starts
+bottom button produced ISP. That clearly destructive answer is the sole
+in-page consent and final user action: it binds the exact profile/marking and
+immediately starts
 config reset, flash, and byte verification with the already validated matching
 image. An uncertain or missing answer stops without writing. Lab images,
 configured local derivatives, and third-party recovery firmware do not inherit

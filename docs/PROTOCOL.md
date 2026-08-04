@@ -53,8 +53,8 @@ enumerated their running application as `0416:5020`. The flasher may use that
 descriptor as a conservative “normal application mode” hint and show the KEY2
 guide, but it must not treat it as a bootloader or open its application
 interfaces. It cannot prove the installed firmware or exact hardware. Only the
-WCH ids above followed by the Identify exchange may advance to firmware
-button confirmation. They do not select a hardware profile by themselves.
+WCH ids above followed by the Identify exchange may advance to the post-info
+Top/Bottom action. They do not select a hardware profile by themselves.
 
 ## ISP command envelope
 
@@ -85,12 +85,12 @@ start it only for a device for which the browser already has permission; attach
 and timer events must never call `requestDevice()`.
 
 Both current published profile images must already be downloaded, hashed,
-profile-checked, and quarantined-checked, and the user must already have given
-the opened-board and irreversible-flash acknowledgements before routine ISP
-entry. After the read-only exchange, the user's **Top button** or **Bottom
-button** answer selects the corresponding cached profile and serves as the
-explicit final destructive activation. The implementation must recheck the
-same captured device, info result, consent, and artifact binding at that event;
+profile-checked, and quarantine-checked before routine ISP entry. This
+preparation runs automatically and is not gated by acknowledgements. After the
+read-only exchange, the user's **Top button** or **Bottom button** answer selects
+the corresponding cached profile and serves as the sole in-page consent and
+final destructive activation. The implementation must recheck the same
+captured device, info result, and artifact binding at that event;
 it must stop on an unknown answer, disconnect, double activation, or stale
 artifact. The next command may then be the destructive `0xA8` config reset—no
 extra Continue or browser confirmation stands between the answer and the
@@ -111,16 +111,15 @@ and exact erase-sector count so a UI bug cannot change the plan.
 Before erase, the page writes the reviewed CH58x defaults for the `0x07`
 configuration group and requires an exact readback. This mirrors the required
 `wchisp config reset` prerequisite for a protected stock badge. That write is
-the first destructive operation. It is disclosed and accepted before ISP
-entry, then authorized for the exact selected profile by the post-info
-Top/Bottom action.
+the first destructive operation. It is visibly disclosed, then authorized for
+the exact selected profile only by the post-info Top/Bottom action.
 
 ## Implementation boundary
 
 `site/wchisp-protocol.js` contains deterministic packet and validation helpers.
 `site/flash-session.js` owns the transport-independent destructive order and
 zeroes its derived key on every exit. `site/app.js` owns WebUSB permission,
-captured-device binding, timeouts, progress, safety confirmations, and failure
+captured-device binding, timeouts, progress, target/risk disclosure, and failure
 recovery. Node tests run a complete fake reset/readback/erase/program/finalize/
 verify/reset session plus configuration and verify failures. Physical
 acceptance still requires captured request/response fixtures and a confirmed

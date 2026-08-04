@@ -54,12 +54,13 @@ bump when firmware inputs did not change.
 
 ## Safety that did not change
 
-The flasher still requires an exact top/bottom answer, CH582 `0x82/0x16`
-identification, opened-board CH582M/11×44 confirmation, stable power, and
-explicit acknowledgement that the read-protected OEM image cannot be restored.
-A later 2026-08-03 owner decision moved those acknowledgements before ISP,
+The flasher still requires an exact top/bottom answer and CH582 `0x82/0x16`
+identification, and it visibly discloses the CH582M/11×44 target, stable-power
+need, and the fact that the read-protected OEM image cannot be restored. A later
+2026-08-03 owner decision removed acknowledgement, phrase, and review gates,
 made immediate `0xA1`/`0xA7` info the first claimed-interface work, and made the
-post-info Top/Bottom answer the separate final destructive action. See
+post-info Top/Bottom answer the sole in-page consent and final destructive
+action. See
 `2026-08-03-prearmed-phone-flashing.md`. Availability is not a claim that the
 display, buttons, radio, BadgeMagic upload, Android WebUSB path, or KEY2 recovery
 has passed on that exact release.

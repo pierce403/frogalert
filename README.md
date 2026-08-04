@@ -370,17 +370,22 @@ flasher and recovery flow. It provides two distinct device surfaces:
 The landing page is project and release information only. All destructive
 browser actions exist only on `/flash/`.
 
-On `/flash/`, the wizard first downloads and verifies both same-origin profile
-images and collects the opened-board and irreversible-flash consent. The moment
-an authorized ISP device connects, it immediately sends the read-only `0xA1`
-Identify and `0xA7` Read Config exchange equivalent to the useful portion of
-`wchisp info`. It then asks which button actually produced flashing mode. The
-**Top button** or **Bottom button** answer binds the exact `260404` or `250901`
-image and is the final destructive action, so the matching cached firmware
-starts flashing and byte-verifying without another prompt. There is no profile
-selector or local file chooser in the public flasher. Developer inspection and
-experimental configuration code remains host-tested but is not exposed by
-either public page.
+On `/flash/`, both same-origin profile images download and verify automatically;
+there are no acknowledgement checkboxes, typed phrase, or review gate. The
+first instruction is to hold either **Top** or **Bottom**, with the display
+upright, until the badge enters ISP and to remember which button worked. For a
+first-time WebUSB permission, the single **Start watching for ISP** action opens
+the chooser before that physical hold; remembered permission can auto-detect
+the attach. The
+moment an authorized ISP device connects, the page immediately sends the
+read-only `0xA1` Identify and `0xA7` Read Config exchange equivalent to the
+useful portion of `wchisp info`. It then asks which button produced flashing
+mode. That clearly destructive **Top button** or **Bottom button** choice is the
+sole in-page consent: it binds the exact `260404` or `250901` image and
+immediately starts flashing and byte-verifying without another prompt. There is
+no profile selector or local file chooser in the public flasher. Developer
+inspection and experimental configuration code remains host-tested but is not
+exposed by either public page.
 
 The schema-5 manifest keeps FrogAlert `releases`, FrogAlert `lab_images`, and
 third-party `recovery_images` separate. Standard versions are atomic exact USB-C

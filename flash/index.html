@@ -41,15 +41,16 @@
 
     <main id="flash-main" class="wizard-shell">
       <nav class="wizard-progress" aria-label="Flashing progress">
-        <span data-wizard-progress="connect" aria-current="step"><b>1</b> Prepare</span>
+        <span data-wizard-progress="connect" aria-current="step"><b>1</b> Enter ISP</span>
         <span data-wizard-progress="firmware"><b>2</b> Choose button</span>
         <span data-wizard-progress="flash"><b>3</b> Flash</span>
       </nav>
 
       <section class="wizard-step" data-wizard-step="connect" aria-labelledby="wizard-connect-title">
         <p class="section-kicker">Step 1 of 3</p>
-        <h1 id="wizard-connect-title" tabindex="-1">Prepare, then connect</h1>
-        <p>Complete the consent below before entering ISP. The moment the bootloader connects, FrogAlert runs the read-only equivalent of <code>wchisp info</code>. Your later top/bottom answer is the final destructive action and starts the matching flash immediately.</p>
+        <h1 id="wizard-connect-title" tabindex="-1">Hold Top or Bottom</h1>
+        <p>Keep the badge display upright and remember which button you use. Tap <strong>Start watching</strong>, leave Chrome's chooser open, then hold either the <strong>Top</strong> or <strong>Bottom</strong> button for about 2.2 seconds. Release when the dot appears and select <strong>WCH ISP</strong>. If no dot appears, repeat with the other button.</p>
+        <p>FrogAlert immediately runs the read-only equivalent of <code>wchisp info</code> to keep the ISP session active. It then asks which button you held; that single click immediately erases, flashes, and verifies the matching image.</p>
         <p id="capability-status" class="wizard-capability" role="status" aria-live="polite">Checking WebUSB…</p>
         <dl class="wizard-artifact-summary" aria-label="Prepared top and bottom firmware pair">
           <div><dt>Release pair</dt><dd id="wizard-pair-version">Loading the latest published pair…</dd></div>
@@ -58,38 +59,26 @@
           <div><dt>Build provenance</dt><dd id="wizard-pair-provenance">Not verified yet</dd></div>
           <div><dt>Hardware status</dt><dd id="wizard-pair-hardware-status">Not verified yet</dd></div>
         </dl>
-        <fieldset class="wizard-confirmations">
-          <legend>Confirm before connecting</legend>
-          <label><input class="flash-confirmation" type="checkbox"> This opened badge has a <strong>CH582M</strong> and an <strong>11×44</strong> matrix, and I will truthfully choose the button I used to enter ISP.</label>
-          <label><input class="flash-confirmation" type="checkbox"> I understand FrogAlert will download and hash-check the latest published image for that button; its hardware-test status will be recorded in the session.</label>
-          <label><input class="flash-confirmation" type="checkbox"> I understand the top/bottom answer resets configuration and erases the unrecoverable current firmware without another prompt.</label>
-          <label><input class="flash-confirmation" type="checkbox"> I am using stable USB power and will keep this page visible until byte verification finishes.</label>
-        </fieldset>
-        <div class="field-group">
-          <label for="flash-phrase">Type <code>ERASE THIS BADGE</code></label>
-          <input id="flash-phrase" type="text" autocomplete="off" spellcheck="false" placeholder="ERASE THIS BADGE">
-        </div>
-        <p id="armed-status" class="wizard-inline-status" role="status" aria-live="polite">Complete the four checks and exact phrase before connecting.</p>
+        <p id="armed-status" class="wizard-inline-status" role="status" aria-live="polite">Preparing and hash-checking both button-matched images…</p>
         <div class="wizard-device-state" aria-live="polite">
           <span class="wizard-state-dot" aria-hidden="true"></span>
-          <p id="usb-status">Looking for a CH582 badge in ISP mode…</p>
+          <p id="usb-status">Preparing firmware before opening the WCH ISP chooser…</p>
         </div>
-        <button id="usb-connect" class="button button-primary wizard-primary-action" type="button" disabled>Check connected badge</button>
+        <button id="usb-connect" class="button button-primary wizard-primary-action" type="button" disabled>Start watching for flashing mode</button>
         <button id="usb-disconnect" class="text-button wizard-disconnect" type="button" disabled>Disconnect badge</button>
 
         <section id="wizard-application-guide" class="wizard-mode-guide" aria-labelledby="wizard-application-title" hidden>
           <p class="section-kicker">Badge detected in normal mode</p>
-          <h2 id="wizard-application-title" tabindex="-1">Try the bottom button</h2>
-          <p id="wizard-application-instruction">With the badge display upright, tap Start watching first. Keep the chooser open, then hold the bottom button for about 2.2 seconds. Release at the dot and select WCH ISP when it appears.</p>
+          <h2 id="wizard-application-title" tabindex="-1">Hold Top or Bottom</h2>
+          <p id="wizard-application-instruction">With the badge display upright, tap Start watching first. Keep the chooser open, then hold either the top or bottom button for about 2.2 seconds. Release at the dot, select WCH ISP, and remember which button you held.</p>
           <div class="wizard-entry-actions">
-            <button id="wizard-application-success" class="button button-primary" type="button">Start watching for ISP</button>
-            <button id="wizard-application-next" class="button button-secondary" type="button">No dot — try the top button</button>
+            <button id="wizard-application-success" class="button button-primary" type="button">Start watching for flashing mode</button>
           </div>
         </section>
 
         <details id="wizard-isp-help" class="wizard-help">
           <summary>Badge not detected?</summary>
-          <p>If compatible firmware is running, keep USB connected and hold KEY2 for about 2.2 seconds. Release when one dot lights near the middle, then tap <strong>Check connected badge</strong> promptly.</p>
+          <p>If compatible firmware is running, tap <strong>Start watching</strong>, keep Chrome's chooser open, then hold either button for about 2.2 seconds. Release when one dot lights near the middle and select WCH ISP promptly.</p>
           <p><code>260404</code>: KEY2 is farther from USB. <code>250901</code>: KEY2 is nearest USB.</p>
           <p>Original or unknown firmware may require qualified C3 bench recovery. Do not disturb the soldered battery.</p>
         </details>
@@ -721,6 +710,6 @@
       <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
       <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
     </footer>
-    <script type="module" src="../site/app.js?v=21"></script>
+    <script type="module" src="../site/app.js?v=22"></script>
   </body>
 </html>

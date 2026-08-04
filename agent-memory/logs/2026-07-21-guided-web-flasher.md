@@ -65,9 +65,10 @@ software path, not a production-ready hardware promise.
 - The CI-gated Pages run `29873200005` deployed that exact commit.
 - Live <https://frogalert.org/> had no program button or destructive
   confirmations and linked to the full tool.
-- Live <https://frogalert.org/flash/> exposed eight confirmations plus the
-  exact typed phrase, reported WebUSB as API-eligible rather than device-proven,
-  had no document-level horizontal overflow, and produced no app errors.
+- Live <https://frogalert.org/flash/> exposed the original confirmation-heavy
+  experimental flow, reported WebUSB as API-eligible rather than device-proven,
+  had no document-level horizontal overflow, and produced no app errors. That
+  interaction model was later retired by the minimized-click phone flow.
 - Live preparation loaded the 155,672-byte pinned recovery image, reproduced
   SHA-256 `7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9`,
   labeled it hardware-unverified, and kept the destructive button disabled.

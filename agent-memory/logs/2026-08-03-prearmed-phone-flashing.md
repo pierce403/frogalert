@@ -1,12 +1,19 @@
-# Prearmed post-info phone flashing
+# Minimized-click post-info phone flashing
 
-The owner changed the public phone-flasher interaction to make the most of the
-CH582 ROM ISP's short no-command window. The flasher must download and fully
-validate the newest atomic top/bottom release pair before asking the user to
-enter ISP. It must also show both images' provenance and hardware status and
-collect the opened-board, irreversible-replacement, stable-power, and exact
-phrase acknowledgements before entry. This is pre-arming only: connection must
-never select a profile or write flash.
+The owner changed the public phone-flasher interaction to minimize clicks while
+making the most of the CH582 ROM ISP's short no-command window. The flasher
+must automatically download and fully validate the newest atomic top/bottom
+release pair. It shows both images' provenance, hardware-unverified status, and
+concise target/risk disclosure, but preparation and ISP entry are not gated by
+checkboxes, a typed phrase, or a review step. Connection must never select a
+profile or write flash.
+
+The first instruction tells the user, with the display upright, to hold either
+**Top** or **Bottom** until the badge enters flashing mode and to remember which
+button worked. For first-time browser permission, pair-ready enables one
+**Start watching for ISP** tap that opens the WCH-only chooser before the
+physical hold; the user leaves it open, performs the hold, and selects WCH.
+Previously authorized devices should auto-detect the attach.
 
 When an authorized `4348:55e0` or `1a86:55e0` device becomes available, the
 page must claim interface 0 and immediately send `0xA1` Identify followed by
@@ -20,16 +27,18 @@ destructive command.
 After info proves CH582 `0x82/0x16`, the page asks which physical button, with
 the display upright, produced flashing mode. **Top button** maps to
 `B1144C_260404_USB_C` / `B1144C_260404`; **Bottom button** maps to
-`B1144C_250901_USB_C` / `B1144C_250901`. The guide's suggested attempt is not
-evidence and must not preselect an answer. A badge already in ISP can proceed
+`B1144C_250901_USB_C` / `B1144C_250901`. No guide state preselects an answer. A
+badge already in ISP can proceed
 only if the user can answer reliably; neither/unsure stops read-only.
 
-The Top/Bottom answer is the explicit final destructive activation. Its handler
-must atomically promote only the matching prevalidated bytes, disable both
+The Top/Bottom answer is the sole in-page consent and final destructive
+activation. Its handler must atomically promote only the matching prevalidated
+bytes, disable both
 choices against double taps, acquire the existing cross-tab/session locks,
-revalidate consent plus captured device/info/artifact binding, and immediately
+revalidate the captured device/info/artifact binding, and immediately
 run config reset, erase, program, and byte verification. There is no later
-Continue button or browser confirmation. Disconnects, stale artifacts, failed
+Continue button or browser confirmation, and there is no earlier
+acknowledgement gate. Disconnects, stale artifacts, failed
 info, missing pair members, lock denial, or ambiguous answers fail before
 `0xA8`.
 

@@ -95,11 +95,12 @@ The public site is a dependency-free static application. It separates:
   hardware-unverified by FrogAlert; preparation may work, but the public site
   must not arm destructive use until its manifest verification flag is backed
   by a recorded physical smoke test.
-- Before browser ISP entry, validate and retain the atomic published top/bottom
-  pair, show both artifacts' profile, hash, provenance, and hardware status,
-  and collect the opened-board and irreversible-replacement confirmations plus
-  the exact destructive phrase. After ISP identification, the user's explicit
-  top/bottom answer binds the corresponding profile and PCB marking.
+- Start downloading and validating the atomic published top/bottom pair as soon
+  as `/flash/` loads. Show both artifacts' profile, hash, provenance, and
+  hardware status, including the hardware-unverified disclosure, but never gate
+  preparation or ISP entry on checkboxes, a typed phrase, or a separate review
+  step. After ISP identification, the user's explicit top/bottom answer binds
+  the corresponding profile and PCB marking.
 - The first destructive step must reset CH58x protection/configuration with
   command `0xA8` and require an exact `0xA7` readback before erase.
 - Never erase or write merely because a device connected. Once an authorized
@@ -107,13 +108,19 @@ The public site is a dependency-free static application. It separates:
   `0xA1` Identify plus `0xA7` Read Config exchange equivalent to the useful
   portion of `wchisp info`; do not put a manifest fetch or UI question ahead of
   those commands. The post-info **Top button** or **Bottom button** answer is
-  the separate final destructive action, and may start only the already
-  validated matching image after all pre-connect confirmations are complete.
-- Keep the routine KEY2 guide adjacent to the WebUSB chooser, but offer it only
-  for compatible FOSSASIA or FrogAlert firmware: hold
-  the profile-specific KEY2 for about 2.2 seconds (`260404`: farther from USB;
-  `250901`: nearest USB), release when one dot lights near the middle, then
-  choose promptly. State plainly that an automatically published CI-audited
+  the sole in-page destructive consent and must immediately start only the
+  already validated matching image. Do not require any earlier acknowledgement
+  or any later confirmation.
+- Make the routine KEY2 guide the first visible instruction while background
+  preparation runs: with the display upright, hold either **Top** or **Bottom**
+  for about 2.2 seconds, remember which one worked, and release when one dot
+  lights near the middle. For first-time WebUSB permission, wait until the pair
+  is ready, tap **Start watching for ISP** to open the WCH-only chooser, then
+  perform that hold and select the WCH ISP device promptly. A remembered WCH
+  permission may auto-detect the attach. Top maps to `260404` (KEY2 farther
+  from USB) and Bottom maps to `250901` (KEY2 nearest USB). Offer this only for
+  compatible FOSSASIA or FrogAlert firmware. State plainly that an
+  automatically published CI-audited
   release may not have a physical recovery smoke. Original or unknown firmware on the
   confirmed USB-C board must reach an ordinary-user stop boundary; its
   documented C3 entry is hazardous expert recovery, not a browser checklist.
@@ -124,7 +131,8 @@ The public site is a dependency-free static application. It separates:
 - Keep every destructive browser action restricted to `/flash/`; the landing
   lab may inspect a badge or artifact but contains no program control.
 - Bind an active flash to the captured USB device and prohibit reconnecting a
-  replacement device until that session exits.
+  replacement device until that session exits. Require an exclusive Web Lock
+  before `0xA8`; a missing or denied lock must fail closed.
 - Always verify the programmed bytes before reporting success.
 - Local build outputs stay under ignored `tmp/`; never commit generated BIN/ELF
   bytes for a new version. The standard counter top/bottom pair publishes
@@ -275,7 +283,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - Keep protocol encoders pure and unit-tested separately from WebUSB transport.
 - Keep the survey configuration fixed-size, CRC-protected, and bound to the
   compiled profile. The browser must patch an immutable copy, recompute
-  SHA-256, clear flash confirmations, and mark every configured derivative
+  SHA-256, clear any prepared-flash binding, and mark every configured derivative
   hardware-unverified. Never use configuration to change hardware profile.
 - When a FrogAlert overlay owns the display, consume already queued original
   animation events without rescheduling them; release the selected base view
@@ -299,12 +307,13 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   both pages' `app.js` query and the changed dependency query in `site/app.js`;
   reload a browser that previously opened the old site and check console errors.
 - Keep `/flash/` as a one-pane wizard: validate and retain both published
-  profile images, collect informed destructive consent, connect and immediately
+  profile images in the background without an acknowledgement gate, first
+  instruct the user to hold Top or Bottom to enter ISP, connect and immediately
   run read-only ISP info, ask which button produced ISP, then flash/verify the
-  matching image and show a terminal result. Never reveal a later pane before
-  its gate passes. The top/bottom answer itself is the explicit final
-  destructive activation; do not add another Continue or confirmation prompt
-  after it.
+  matching image and show a terminal result. The top/bottom answer itself is
+  the sole in-page consent and final destructive activation; do not add
+  checkboxes, a typed phrase, a review step, another Continue, or another
+  confirmation prompt.
   `getDevices()` may automatically identify one
   previously authorized WCH ISP badge; a new badge still needs an explicit
   chooser tap, and USB attach must never synthesize `requestDevice()`. Keep
@@ -700,10 +709,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   immediately promote the matching prevalidated bytes into the captured-device
   flash/verify session. If neither button worked or the user is unsure, stop;
   do not turn C3 into a public step.
-- Open the application-mode WCH-only chooser from an explicit user tap before
-  the button hold, then ask the user to select ISP as soon as it appears. The
-  guide may suggest a button but must not record that suggestion as the profile;
-  only the post-info Top/Bottom answer binds it. Timers and attach events still
+- Lead with the Top/Bottom hold instruction, but for first-time permission wait
+  for pair-ready, then open the WCH-only chooser from one explicit **Start
+  watching for ISP** tap before the physical hold. Keep it open while the user
+  holds a button, releases at the dot, and selects WCH promptly. An authorized
+  attach proceeds automatically. Only the post-info Top/Bottom answer binds the
+  profile. Timers and attach events still
   must not call `requestDevice()`, although an authorized attach may run the
   read-only info exchange. Treat native chooser hot-plug behavior as unverified
   until a physical browser test.

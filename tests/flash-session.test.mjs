@@ -43,7 +43,7 @@ function fakeTransport({ badConfig = false, badVerifyAt = -1 } = {}) {
   };
 }
 
-test("read-only bootloader info identifies CH582 and reads all config groups", async () => {
+test("read-only bootloader info sends only A1 then A7 before the button choice", async () => {
   const packets = [];
   const configPayload = new Uint8Array(26);
   configPayload.set([0x00, 0x02, 0x90, 0x00], 14);
@@ -62,6 +62,19 @@ test("read-only bootloader info identifies CH582 and reads all config groups", a
     packets.map((packet) => packet[0]),
     [COMMAND.IDENTIFY, COMMAND.READ_CONFIG],
   );
+  for (const postChoiceCommand of [
+    COMMAND.WRITE_CONFIG,
+    COMMAND.ERASE,
+    COMMAND.ISP_KEY,
+    COMMAND.PROGRAM,
+    COMMAND.VERIFY,
+    COMMAND.ISP_END,
+  ]) {
+    assert.ok(
+      !packets.some((packet) => packet[0] === postChoiceCommand),
+      `read-only info must not send post-choice command 0x${postChoiceCommand.toString(16)}`,
+    );
+  }
   assert.deepEqual([...packets[1]], [COMMAND.READ_CONFIG, 0x02, 0x00, 0x1f, 0x00]);
   assert.equal(result.identity.name, "CH582");
   assert.deepEqual([...result.config.bootloaderVersion], [0x00, 0x02, 0x90, 0x00]);

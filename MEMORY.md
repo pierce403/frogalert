@@ -31,9 +31,9 @@ on chat context or filenames alone.
 ## Logs
 
 - [`2026-08-03-prearmed-phone-flashing.md`](agent-memory/logs/2026-08-03-prearmed-phone-flashing.md)
-  — validates both images and collects consent before ISP, runs immediate
-  read-only info on attach, then treats the post-info Top/Bottom answer as the
-  final activation for the matching flash/verify sequence.
+  — automatically validates both images without acknowledgement gates, runs
+  immediate read-only info on attach, then treats the post-info Top/Bottom
+  answer as the sole in-page consent and immediate matching flash/verify action.
 - [`2026-08-03-automatic-phone-firmware-publication.md`](agent-memory/logs/2026-08-03-automatic-phone-firmware-publication.md)
   — successful audited standard builds publish immediately for phone flashing,
   while physical status remains false until exact-hash evidence exists.

@@ -12,18 +12,22 @@ controls have been removed. Every flashing and recovery write belongs on
 no-command entry window. Before asking the user to enter ISP, it downloads and
 validates both members of the newest atomic top/bottom release pair. The page
 shows each image's profile, size, SHA-256, build provenance, and hardware-test
-status, then collects the opened-board, 11×44, irreversible replacement, stable
-power, and exact-phrase acknowledgements. This is informed pre-arming, not a
-profile choice and not permission for connection alone to write anything.
+status plus a concise target/risk disclosure. Downloading, validation, and ISP
+entry are not gated by checkboxes, a typed phrase, or a separate review step.
+The Top/Bottom choice made only after read-only info is the sole in-page consent;
+connection alone never writes anything.
 
 The connection step checks previously authorized devices for either the known
 BadgeMagic application signature `0416:5020` or the WCH ISP ids. Seeing
 `0416:5020` keeps the wizard on the connection step and offers the routine
 button/dot guide with the display upright; the page does not open or claim the
-application's HID/CDC interfaces. The user explicitly opens the WCH-only
-chooser before the hold, leaves it open, then uses whichever supported button
-produces the dot and selects the ISP device as soon as it appears. The guide's
-suggested attempt is not treated as evidence of the hardware profile.
+application's HID/CDC interfaces. The first screen leads with the instruction to
+hold either **Top** or **Bottom**, remember which one worked, and release when
+the dot appears. For first-time permission, pair-ready enables one **Start
+watching for ISP** tap that opens the WCH-only chooser before the physical hold;
+the user leaves it open, performs the hold, and selects the WCH device promptly.
+Remembered permission can auto-detect the attach. The entry guide does not
+preselect a hardware profile.
 
 As soon as a WCH ISP device is available, the page opens and claims interface
 0, validates the bulk endpoints, and immediately sends `0xA1` Identify followed
@@ -42,8 +46,9 @@ Only after info succeeds does the wizard ask, “Which button got this badge int
 flashing mode?” With the display upright, **Top button** binds the already
 validated `B1144C_260404` image and **Bottom button** binds the already
 validated `B1144C_250901` image. That clearly labeled answer is the separate
-final destructive action: after atomically rechecking consent, artifact,
-profile, and captured-device state, it immediately begins configuration reset,
+final destructive action and sole in-page consent: after atomically rechecking
+artifact, profile, and captured-device state, it immediately begins
+configuration reset,
 programming, and byte verification. There is no later Continue button or
 browser confirmation. If the user is unsure, neither button worked, either
 image is unavailable, or any binding changed, the wizard stops without a
@@ -89,12 +94,15 @@ user-removable battery connector. Leave the cell and its leads alone.
 For that board running the tested FOSSASIA USB-C application—or a compatible
 FrogAlert release that preserves the inherited KEY2 hook—the routine path is:
 
-1. Keep a stable data-capable USB connection.
-2. Hold the profile's KEY2 for about 2.2 seconds: the button farther from USB
-   on `B1144C_260404`, or the button nearest USB on `B1144C_250901`.
-3. Release when one dot lights near the middle of the panel.
-4. Open the WebUSB chooser promptly and accept only `4348:55e0` or
-   `1a86:55e0`.
+1. Keep a stable data-capable USB connection and the display upright.
+2. Wait for both images to finish validating. If Chrome needs first-time
+   permission, tap **Start watching for ISP** and leave the WCH-only chooser
+   open. A remembered permission needs no chooser tap.
+3. Hold either **Top** or **Bottom** for about 2.2 seconds and remember which
+   one worked. Top is the `B1144C_260404` path (KEY2 farther from USB); Bottom
+   is the `B1144C_250901` path (KEY2 nearest USB).
+4. Release when one dot lights near the middle of the panel. If the chooser is
+   open, promptly select only `4348:55e0` or `1a86:55e0`.
 
 No RESET or multi-button combination is needed. This is application-provided
 entry into the CH582 mask-ROM ISP, not a bundled replacement bootloader. Four
@@ -117,15 +125,16 @@ That hazardous rail-collapse maneuver is expert-only, is not a battery
 operation, and is deliberately not implemented as a public website checklist.
 An ordinary user should stop at this boundary.
 
-`/flash/` therefore keeps a routine compatible-firmware guide that confirms
-stable data USB, opens the WCH-only chooser from an explicit user tap, then asks
-the user to hold a supported button and release at the single dot while the
-chooser is already watching. The user reports which button worked only after
-the read-only ISP info exchange; the guide's current suggestion must never
-silently choose the image. A timer or USB attach event never opens a chooser or
-turns a connection into a write. Only the explicit **Start watching for ISP**
-action may call `navigator.usb.requestDevice()`. When Chrome already grants
-access, an attach event may claim the WCH interface and immediately send only
+`/flash/` therefore keeps a routine compatible-firmware guide whose first screen
+leads with the Top/Bottom hold instruction. If Chrome still needs permission,
+pair-ready enables one **Start watching for ISP** action that opens the WCH-only
+chooser before the user holds a button, releases at the single dot, and selects
+WCH promptly. Remembered permission can auto-detect the attach. The user reports
+which button worked only after the read-only ISP info exchange. A timer
+or USB attach event never opens a chooser or turns a connection into a write.
+Only that explicit connection action may call `navigator.usb.requestDevice()`.
+When Chrome already grants access, an attach event may claim the WCH interface
+and immediately send only
 `0xA1` Identify plus `0xA7` Read Config so the ISP session does not expire while
 waiting for the final Top/Bottom answer.
 
@@ -208,8 +217,8 @@ USB on `250901`. Their KEY1 switch is open while untouched, so there is no
 reliable read-only boot probe:
 PA1 simply follows the internal pull selected by firmware. The browser cannot
 infer the profile from CH582 identity, USB descriptors, case color, generic
-`BM1144-C` text, an untouched button, or the guide's currently suggested
-attempt. After read-only ISP info succeeds, it asks the user which physical
+`BM1144-C` text, or an untouched button. After read-only ISP info succeeds, it
+asks the user which physical
 button actually produced flashing mode. The explicit answer, not an inferred
 guide state, binds the profile. A badge that is already in ISP may proceed only
 when the user can still answer that question reliably; **Neither / not sure**
@@ -244,7 +253,7 @@ These are spoofable signals, not device-identity proof.
 The browser locates exactly one 384-byte `FROGALERTCFGv1` block, validates its
 schema/profile/CRC/padding, and preserves an immutable copy of the original
 BIN. **Apply monitoring options** encodes the selected settings into a new
-copy, calculates a new SHA-256, resets every destructive confirmation, and
+copy, calculates a new SHA-256, resets every prepared-flash binding, and
 offers the configured local BIN for download. Editing any option makes the
 current selection dirty and blocks flashing until it is applied. Restoring the
 base options derives again from the immutable source, not from a chain of
@@ -263,13 +272,14 @@ required to mark it hardware-verified.
 The browser page must progress through these states:
 
 1. `unsupported` or `ready` — inspect secure-context and API availability.
-2. `pair-ready` — both members of the newest atomic published release pair pass
-   descriptor, length, SHA-256, embedded-profile, provenance, quarantine, and
-   programming-policy checks and remain in memory.
-3. `prearmed` — before routine ISP entry, the user confirms the opened badge is
-   a supported CH582M 11×44 board, reviews both artifacts and their hardware
-   status, accepts configuration reset and unrecoverable replacement, promises
-   stable power, and types `ERASE THIS BADGE`. No profile is selected yet.
+2. `preparing` — immediately start validating the newest atomic release pair,
+   show the target/risk and hardware-unverified disclosures, and make the first
+   visible instruction tell the user to hold Top or Bottom to enter ISP and
+   remember which worked. This state has no checkbox, typed phrase, or separate
+   review gate.
+3. `pair-ready` — both members pass descriptor, length, SHA-256,
+   embedded-profile, provenance, quarantine, and programming-policy checks and
+   remain in memory. No profile is selected yet.
 4. `permission` — the user explicitly chooses a new WCH ISP device, or Chrome
    exposes one already authorized; neither case is destructive.
 5. `info` — immediately after interface/endpoint validation, `0xA1` Identify
@@ -288,15 +298,16 @@ The browser page must progress through these states:
 11. `success` — only after verification; distinguish reset acknowledgement
     from a sent reset whose response was lost during disconnect.
 12. `failed` — retain the validated pair but invalidate the device/answer
-    binding and show how to prearm again, re-enter ISP, and retry.
+    binding and show how to re-enter ISP and retry.
 
-Connecting is never consent to alter configuration or erase. The prearmed
-acknowledgements permit the later Top/Bottom control to be the one immediate
-final action, but no destructive command may run before state 7. The answer
-handler must disable both choices synchronously, acquire the exclusive Web Lock
-when supported, and revalidate the same device, info result, consent, and exact
-cached artifact before sending `0xA8`; a double tap must not open a second
-session. A screen wake lock is requested for the destructive duration. A
+Connecting is never consent to alter configuration or erase. The later
+Top/Bottom control is the sole in-page consent and immediate final action, but
+no destructive command may run before state 7. The answer
+handler must disable both choices synchronously, require and acquire the
+exclusive Web Lock, and revalidate the same device, info result, and exact
+cached artifact before sending `0xA8`; a missing or denied lock fails closed,
+and a double tap must not open a second session. A screen wake lock is requested
+for the destructive duration. A
 timeout is always reported as an unknown device state because the underlying
 USB command may have completed after the browser stopped waiting; recovery
 requires a fresh info exchange followed by a complete program-and-verify
@@ -313,9 +324,9 @@ explicit substitute: FOSSASIA's Apache-2.0 BadgeMagic-compatible firmware v0.1,
 not the original OEM image. Its preparation button only fetches the same-origin
 artifact, checks its byte length and SHA-256 locally, and binds it to the exact
 revision. It does not connect to USB or send reset, erase, program, or verify
-commands. Programming still requires the separate destructive button and every
-ordinary hardware, identity, confirmation, session-binding, and verification
-gate. While `hardware_verified_by_frogalert` is false, the site goes further:
+commands. Programming still requires its recovery-specific destructive button
+and every target, identity, session-binding, and verification gate. While
+`hardware_verified_by_frogalert` is false, the site goes further:
 it permits preparation and inspection but refuses to arm destructive
 programming for the bundled image.
 

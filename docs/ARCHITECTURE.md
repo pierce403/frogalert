@@ -195,11 +195,13 @@ missing after a publication race, current `main` rebuilds it as a recovery
 candidate. Published tags and assets are immutable under the reconciler:
 metadata or byte drift fails the workflow rather than overwriting a release.
 
-The phone flasher deliberately performs expensive and human-paced work before
-the short ROM-ISP window. It validates and retains both members of the latest
-atomic release pair, displays their provenance and hardware status, and
-collects opened-board plus irreversible-replacement consent while the badge is
-still in application mode. When an authorized WCH ISP device appears, the
+The phone flasher deliberately performs expensive work before the short
+ROM-ISP window. It automatically validates and retains both members of the
+latest atomic release pair and displays their provenance, hardware status, and
+concise target/risk disclosure without an acknowledgement gate. Its first
+instruction is to hold either Top or Bottom, with the display upright, to enter
+ISP and remember which button worked. When an authorized WCH ISP device
+appears, the
 captured interface has priority over all remaining UI work: configuration and
 endpoint validation are followed immediately by `0xA1` Identify and `0xA7`
 Read Config. This is the browser equivalent of the useful read-only portion of
@@ -208,8 +210,9 @@ Read Config. This is the browser equivalent of the useful read-only portion of
 Only after that exchange proves CH582 `0x82/0x16` does the wizard ask which
 physical button produced ISP. **Top button** selects the prevalidated
 `B1144C_260404` artifact and **Bottom button** selects the prevalidated
-`B1144C_250901` artifact. The answer control is also the final destructive
-activation: it atomically binds the chosen bytes and captured device, acquires
+`B1144C_250901` artifact. The answer control is also the sole in-page consent
+and final destructive activation: it atomically binds the chosen bytes and
+captured device, acquires
 the cross-tab/session locks, revalidates every gate, and begins config reset,
 flash, and verify without another Continue dialog. Connection and read-only
 info can never trigger that transition, a suggested guide path cannot answer
