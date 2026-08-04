@@ -14,7 +14,7 @@ import {
   validateReleaseCatalogDescriptor,
   validateRecoveryDescriptor,
   validateReleaseDescriptor,
-} from "./wchisp-protocol.js?v=7";
+} from "./wchisp-protocol.js?v=8";
 import {
   artifactBoardBinding,
   canEnableFlash,
@@ -28,7 +28,7 @@ import {
 import {
   programAndVerifyFirmware,
   readBootloaderInfo,
-} from "./flash-session.js?v=2";
+} from "./flash-session.js?v=3";
 import {
   assertFirmwareHashNotQuarantined,
   parseFirmwareQuarantineRegistry,
@@ -73,7 +73,7 @@ import {
   protectedFirmwareExplanation,
   usbDescriptorSummary,
   validateWchUsbConfiguration,
-} from "./flash-support.js?v=2";
+} from "./flash-support.js?v=3";
 
 const USB_ENDPOINT = 2;
 const USB_READ_BYTES = 64;
@@ -2601,7 +2601,7 @@ async function flashFirmware({
     `Artifact: ${artifactDescription}`,
     `Image: ${state.firmware.raw.byteLength.toLocaleString()} bytes (${state.firmware.padded.byteLength.toLocaleString()} padded)`,
     `SHA-256: ${state.firmware.hash}`,
-    `Erase plan: ${state.firmware.eraseSectors} × 1 KiB sectors after exact config reset/readback`,
+    `Erase plan: ${state.firmware.eraseSectors} × 1 KiB sectors after accepted CH582 config reset/readback`,
     "",
     "The current application firmware is unknown. The OEM image is unavailable and cannot be backed up or restored. Continue only if every line matches the opened badge.",
   ].join("\n");
@@ -2662,7 +2662,7 @@ async function flashFirmware({
             break;
           case "config-verified":
             setStage("config", "complete");
-            log("Configuration reset readback matched before erase.", "success");
+            log("Configuration reset reached an accepted CH582 readback before erase.", "success");
             break;
           case "erase":
             setStage("erase", "active");

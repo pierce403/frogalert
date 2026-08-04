@@ -109,10 +109,31 @@ access. The destructive session independently revalidates the aligned length
 and exact erase-sector count so a UI bug cannot change the plan.
 
 Before erase, the page writes the reviewed CH58x defaults for the `0x07`
-configuration group and requires an exact readback. This mirrors the required
-`wchisp config reset` prerequisite for a protected stock badge. That write is
-the first destructive operation. It is visibly disclosed, then authorized for
-the exact selected profile only by the post-info Top/Bottom action.
+configuration group. The complete request is:
+
+```text
+a8 0e 00 07 00 ff ff ff ff ff ff ff ff 4f ff 0f d5
+```
+
+The following `0xA7` response must have a successful status, a valid envelope,
+and exactly one of two reviewed 12-byte register values:
+
+- the requested bytes, `ff ff ff ff ff ff ff ff 4f ff 0f d5`; or
+- the CH582/BTVER 02.40 canonical readback,
+  `ff ff ff ff ff ff ff ff 4f 3f 0f 45`.
+
+The second form is not a failed reset. A physical BadgeMagic CH582 running
+bootloader 02.40 was recorded changing the requested final word
+`4f ff 0f d5` to `4f 3f 0f 45`, then erasing, programming, and verifying
+successfully in
+[FOSSASIA issue #110](https://github.com/fossasia/badgemagic-firmware/issues/110).
+Those cleared reserved/signature bits are therefore an accepted hardware
+canonicalization; any other readback still stops before `0xA4` erase. This
+mirrors the required `wchisp config reset` prerequisite for a protected stock
+badge without imposing byte equality that the hardware does not preserve.
+That `0xA8` write is the first destructive operation. It is visibly disclosed,
+then authorized for the exact selected profile only by the post-info
+Top/Bottom action.
 
 ## Implementation boundary
 
@@ -131,4 +152,10 @@ read protected application bytes or determine an arbitrary current firmware
 version. Exact PCB revision, matrix mapping, and component population also
 remain outside the protocol.
 
-Primary reference implementation: <https://github.com/ch32-rs/wchisp>.
+Primary reference implementation: pinned `ch32-rs/wchisp` commit
+[`cefd8707df345f1fbd7795e15367281f440bbf05`](https://github.com/ch32-rs/wchisp/commit/cefd8707df345f1fbd7795e15367281f440bbf05).
+Its
+[`reset_config`](https://github.com/ch32-rs/wchisp/blob/cefd8707df345f1fbd7795e15367281f440bbf05/src/flashing.rs)
+path checks the `0xA8` write and follow-up `0xA7` response status but does not
+require the returned register bytes to equal the bytes sent. FrogAlert retains
+the narrower two-value allowlist above.

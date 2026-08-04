@@ -16,7 +16,10 @@ import {
   usbDescriptorSummary,
   validateWchUsbConfiguration,
 } from "../site/flash-support.js";
-import { CH58X_RESET_CONFIG } from "../site/wchisp-protocol.js";
+import {
+  CH58X_CANONICAL_RESET_READBACK,
+  CH58X_RESET_CONFIG,
+} from "../site/wchisp-protocol.js";
 
 test("capability report treats Android WebUSB as phone-capable but feature-gated", () => {
   const report = browserCapabilityReport({
@@ -91,7 +94,11 @@ test("USB descriptors omit serial data and configuration is conservatively summa
     },
   );
   assert.equal(configurationSummary(CH58X_RESET_CONFIG).matchesReviewedDefaults, true);
-  assert.match(configurationSummary(new Uint8Array(12)).label, /does not match.*reset.*before erase/);
+  assert.equal(
+    configurationSummary(CH58X_CANONICAL_RESET_READBACK).matchesReviewedDefaults,
+    true,
+  );
+  assert.match(configurationSummary(new Uint8Array(12)).label, /differs.*reset.*before erase/);
   assert.match(protectedFirmwareExplanation(), /current firmware remains unknown/);
 });
 

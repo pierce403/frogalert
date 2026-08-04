@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   CH582_FLASH_BYTES,
+  CH58X_CANONICAL_RESET_READBACK,
   CH58X_RESET_CONFIG,
   COMMAND,
   OPEN_BADGEMAGIC_RECOVERY,
@@ -40,7 +41,7 @@ test("read config requests all config groups", () => {
   assert.deepEqual([...readConfigPacket()], [0xa7, 0x02, 0x00, 0x1f, 0x00]);
 });
 
-test("CH58x reset config writes reviewed defaults and requires exact readback", () => {
+test("CH58x reset config accepts the write image and canonical physical readback", () => {
   assert.deepEqual([...resetConfigPacket()], [
     0xa8, 0x0e, 0x00, 0x07, 0x00,
     ...CH58X_RESET_CONFIG,
@@ -49,8 +50,17 @@ test("CH58x reset config writes reviewed defaults and requires exact readback", 
   response.set(CH58X_RESET_CONFIG, 2);
   const registers = parseConfigRegisters(response);
   assert.equal(isResetConfig(registers), true);
-  registers[0] = 0;
-  assert.equal(isResetConfig(registers), false);
+  assert.deepEqual([...CH58X_CANONICAL_RESET_READBACK], [
+    0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff,
+    0x4f, 0x3f, 0x0f, 0x45,
+  ]);
+  assert.equal(isResetConfig(CH58X_CANONICAL_RESET_READBACK), true);
+
+  const unsupported = CH58X_CANONICAL_RESET_READBACK.slice();
+  unsupported[11] ^= 0x01;
+  assert.equal(isResetConfig(unsupported), false);
+  assert.equal(isResetConfig(CH58X_CANONICAL_RESET_READBACK.slice(0, 11)), false);
 });
 
 test("ISP session and reset packets match the protocol envelopes", () => {

@@ -9,6 +9,7 @@ index: plain markdown and ripgrep
 
 # FrogAlert memory
 
+- [2026-08-03 CH582 canonical configuration readback](agent-memory/logs/2026-08-03-ch58x-config-readback.md)
 - [2026-08-03 prearmed post-info phone flashing](agent-memory/logs/2026-08-03-prearmed-phone-flashing.md)
 - [2026-08-03 automatic phone firmware publication](agent-memory/logs/2026-08-03-automatic-phone-firmware-publication.md)
 - [2026-07-28 compact phone flasher](agent-memory/logs/2026-07-28-compact-phone-flasher.md)
@@ -30,6 +31,9 @@ on chat context or filenames alone.
 
 ## Logs
 
+- [`2026-08-03-ch58x-config-readback.md`](agent-memory/logs/2026-08-03-ch58x-config-readback.md)
+  — physical BadgeMagic evidence that CH582 bootloader 02.40 canonicalizes
+  selected config bits after `0xA8`, plus the narrow two-value pre-erase gate.
 - [`2026-08-03-prearmed-phone-flashing.md`](agent-memory/logs/2026-08-03-prearmed-phone-flashing.md)
   — automatically validates both images without acknowledgement gates, runs
   immediate read-only info on attach, then treats the post-info Top/Bottom

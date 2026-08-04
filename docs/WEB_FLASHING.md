@@ -291,7 +291,8 @@ The browser page must progress through these states:
    and is the final destructive activation. Neither, uncertainty, stale bytes,
    disconnect, or a repeated activation fails closed.
 7. `config-reset` — first destructive command; write reviewed CH58x defaults
-   through `0xA8`, then require exact `0xA7` readback.
+   through `0xA8`, then accept only the exact requested `0xA7` register bytes
+   or the documented CH582/BTVER 02.40 canonical readback described below.
 8. `erasing` — erase only after configuration readback succeeds.
 9. `programming` — write 56-byte encrypted chunks and a final empty write.
 10. `verifying` — compare all programmed chunks through ISP command `0xA6`.
@@ -299,6 +300,31 @@ The browser page must progress through these states:
     from a sent reset whose response was lost during disconnect.
 12. `failed` — retain the validated pair but invalidate the device/answer
     binding and show how to re-enter ISP and retry.
+
+### CH582 configuration readback
+
+The `0xA8` reset requests these 12 configuration bytes:
+
+```text
+ff ff ff ff ff ff ff ff 4f ff 0f d5
+```
+
+CH582 bootloader 02.40 may canonicalize that value and return:
+
+```text
+ff ff ff ff ff ff ff ff 4f 3f 0f 45
+```
+
+This exact transition preceded a successful erase, program, and verify on
+physical BadgeMagic hardware in
+[FOSSASIA issue #110](https://github.com/fossasia/badgemagic-firmware/issues/110).
+The public flasher therefore accepts the requested value or that one canonical
+value after validating the `0xA8` and `0xA7` response envelopes and statuses.
+It does not ignore the readback or broadly mask differences: every other value
+fails before `0xA4` erase. Pinned upstream `wchisp` commit
+[`cefd8707df345f1fbd7795e15367281f440bbf05`](https://github.com/ch32-rs/wchisp/commit/cefd8707df345f1fbd7795e15367281f440bbf05)
+checks both command responses without comparing the returned register bytes,
+so FrogAlert's two-value rule remains the narrower policy.
 
 Connecting is never consent to alter configuration or erase. The later
 Top/Bottom control is the sole in-page consent and immediate final action, but

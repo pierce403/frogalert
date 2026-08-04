@@ -1,4 +1,4 @@
-import { WCH_USB_FILTERS, isResetConfig } from "./wchisp-protocol.js";
+import { WCH_USB_FILTERS, isResetConfig } from "./wchisp-protocol.js?v=8";
 
 export const BADGE_SERVICE = 0xfee0;
 export const BADGE_CHARACTERISTIC = 0xfee1;
@@ -160,8 +160,8 @@ export function configurationSummary(registers) {
   return {
     matchesReviewedDefaults,
     label: matchesReviewedDefaults
-      ? "reviewed CH58x defaults already present"
-      : "does not match the reviewed defaults; an exact reset + readback is required before erase",
+      ? "reviewed CH58x reset state already present (including canonical bootloader readback)"
+      : "differs from the reviewed reset state; a standard reset plus accepted readback is required before erase",
   };
 }
 

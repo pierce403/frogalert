@@ -15,7 +15,7 @@ import {
   readConfigPacket,
   resetConfigPacket,
   xorChunk,
-} from "./wchisp-protocol.js";
+} from "./wchisp-protocol.js?v=8";
 
 function requireFunction(value, name) {
   if (typeof value !== "function") throw new TypeError(`${name} must be a function`);
@@ -77,7 +77,7 @@ export async function programAndVerifyFirmware({
     await transfer(resetConfigPacket());
     const resetRegisters = parseConfigRegisters(await transfer(readConfigPacket(0x07)));
     if (!isResetConfig(resetRegisters)) {
-      throw new Error("CH58x configuration reset did not match readback");
+      throw new Error("CH58x configuration reset did not match an accepted readback");
     }
     emit({ phase: "config-verified", chunks });
 

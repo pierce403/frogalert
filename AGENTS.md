@@ -102,7 +102,18 @@ The public site is a dependency-free static application. It separates:
   step. After ISP identification, the user's explicit top/bottom answer binds
   the corresponding profile and PCB marking.
 - The first destructive step must reset CH58x protection/configuration with
-  command `0xA8` and require an exact `0xA7` readback before erase.
+  command `0xA8` and require an accepted `0xA7` readback before erase. The
+  allowlist is deliberately narrow: either the exact 12 requested bytes
+  `ff ff ff ff ff ff ff ff 4f ff 0f d5`, or the physically documented
+  CH582/BTVER 02.40 canonical readback
+  `ff ff ff ff ff ff ff ff 4f 3f 0f 45`. The latter is the CH582
+  normalization recorded before a successful BadgeMagic flash in
+  [FOSSASIA issue #110](https://github.com/fossasia/badgemagic-firmware/issues/110).
+  Every other value must stop before `0xA4` erase. This remains stricter than
+  pinned upstream `wchisp` commit
+  [`cefd870`](https://github.com/ch32-rs/wchisp/commit/cefd8707df345f1fbd7795e15367281f440bbf05),
+  which validates the `0xA8`/`0xA7` command responses but does not compare the
+  returned register bytes.
 - Never erase or write merely because a device connected. Once an authorized
   WCH ISP device is available, claim it and immediately run the read-only
   `0xA1` Identify plus `0xA7` Read Config exchange equivalent to the useful

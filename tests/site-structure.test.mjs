@@ -169,15 +169,15 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /option\.value = release\.id/);
   assert.doesNotMatch(app, /option\.value = JSON\.stringify\(release\)/);
   assert.match(app, /sortReleaseCatalogNewestFirst\(/);
-  assert.match(app, /wchisp-protocol\.js\?v=7/);
+  assert.match(app, /wchisp-protocol\.js\?v=8/);
   assert.match(app, /flasher-state\.js\?v=4/);
-  assert.match(app, /flash-session\.js\?v=2/);
+  assert.match(app, /flash-session\.js\?v=3/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=22/);
+  assert.match(html, /site\/app\.js\?v=23/);
   assert.match(html, /id="flash-lab"[^>]+hidden/);
   assert.match(app, /latest\[0\]\.published_at/);
-  assert.match(app, /flash-support\.js\?v=2/);
+  assert.match(app, /flash-support\.js\?v=3/);
   assert.match(app, /const latestVersion = state\.releases\[0\]\?\.version/);
   assert.match(app, /release\.version === latestVersion/);
   assert.match(app, /release\.pcb_markings\.includes\("B1144C_260404"\)/);
@@ -249,7 +249,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=22/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=23/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   const visibleWizard = html.slice(0, html.indexOf('class="legacy-flasher"'));
@@ -333,7 +333,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
   assert.match(app, /connectUsb\(\{ ispOnly: true, applicationAttempt: true \}\)/);
   assert.match(app, /filters: ispOnly \? WCH_USB_FILTERS : BADGE_USB_CHOOSER_FILTERS/);
   assert.match(app, /flasher-state\.js\?v=4/);
-  assert.match(app, /flash-session\.js\?v=2/);
+  assert.match(app, /flash-session\.js\?v=3/);
   assert.match(flasherState, /top:[\s\S]*profile: "B1144C_260404_USB_C"[\s\S]*marking: "B1144C_260404"[\s\S]*imageLabel: "top-button image"/);
   assert.match(flasherState, /bottom:[\s\S]*profile: "B1144C_250901_USB_C"[\s\S]*marking: "B1144C_250901"[\s\S]*imageLabel: "bottom-button image"/);
   assert.match(flashSession, /export async function readBootloaderInfo\(\{ transfer \}\)/);

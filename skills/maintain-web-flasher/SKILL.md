@@ -41,11 +41,21 @@ button. Preserve the difference between Web Bluetooth and WebUSB.
    Keep the checked-in same-origin manifest and BIN as the executable catalog.
    GitHub Releases may supply notes and alternate downloads, but browser code
    must not query the GitHub API or flash a GitHub-hosted asset.
-5. Reset CH58x protection/configuration through `0xA8`, require exact `0xA7`
-   readback, then pad, erase, program, verify, and request reset in that order.
-   If verification fails, report failure prominently and do not claim recovery
-   or success. Distinguish a reset acknowledgement from a sent reset whose
-   response was lost during disconnect.
+5. Reset CH58x protection/configuration through `0xA8`, validate the follow-up
+   `0xA7` envelope/status, and accept only the exact requested 12 bytes
+   `ff ff ff ff ff ff ff ff 4f ff 0f d5` or the physically documented
+   CH582/BTVER 02.40 canonical readback
+   `ff ff ff ff ff ff ff ff 4f 3f 0f 45`. FOSSASIA
+   [issue #110](https://github.com/fossasia/badgemagic-firmware/issues/110)
+   records that canonical value before a successful flash. Every other
+   readback must stop before erase. Then pad, erase, program, verify, and
+   request reset in that order. Pinned upstream `wchisp`
+   [`cefd870`](https://github.com/ch32-rs/wchisp/commit/cefd8707df345f1fbd7795e15367281f440bbf05)
+   checks command success without byte equality; do not broaden FrogAlert to
+   that status-only rule without new physical evidence. If verification fails,
+   report failure prominently and do not claim recovery or success.
+   Distinguish a reset acknowledgement from a sent reset whose response was
+   lost during disconnect.
 6. Capture one USB device for the entire destructive session, check it before
    every transfer, require an exclusive Web Lock before `0xA8`, and keep
    reconnect locked until the session exits. Missing or denied Web Locks fail

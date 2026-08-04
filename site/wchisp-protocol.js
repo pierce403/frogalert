@@ -40,6 +40,13 @@ export const CH58X_RESET_CONFIG = Uint8Array.of(
   0xff, 0xff, 0xff, 0xff,
   0x4f, 0xff, 0x0f, 0xd5,
 );
+// CH582 bootloader 02.40 canonicalizes reserved/signature bits after A8.
+// Physical BadgeMagic transcripts record this value before a successful flash.
+export const CH58X_CANONICAL_RESET_READBACK = Uint8Array.of(
+  0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff,
+  0x4f, 0x3f, 0x0f, 0x45,
+);
 
 export const COMMAND = Object.freeze({
   IDENTIFY: 0xa1,
@@ -196,7 +203,9 @@ export function isResetConfig(registers) {
   return (
     registers instanceof Uint8Array &&
     registers.byteLength === CH58X_RESET_CONFIG.byteLength &&
-    registers.every((byte, index) => byte === CH58X_RESET_CONFIG[index])
+    [CH58X_RESET_CONFIG, CH58X_CANONICAL_RESET_READBACK].some((accepted) =>
+      registers.every((byte, index) => byte === accepted[index]),
+    )
   );
 }
 

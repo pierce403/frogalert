@@ -5,17 +5,28 @@ import {
   programAndVerifyFirmware,
   readBootloaderInfo,
 } from "../site/flash-session.js";
-import { CH58X_RESET_CONFIG, COMMAND, deriveXorKey } from "../site/wchisp-protocol.js";
+import {
+  CH58X_CANONICAL_RESET_READBACK,
+  CH58X_RESET_CONFIG,
+  COMMAND,
+  deriveXorKey,
+} from "../site/wchisp-protocol.js";
 
 const uid = Uint8Array.of(1, 2, 3, 4, 5, 6, 0x09, 0x0c);
 
-function validConfigPayload() {
+function validConfigPayload(registers = CH58X_RESET_CONFIG) {
   const payload = new Uint8Array(14);
-  payload.set(CH58X_RESET_CONFIG, 2);
+  payload.set([0x07, 0x00]);
+  payload.set(registers, 2);
   return payload;
 }
 
-function fakeTransport({ badConfig = false, badVerifyAt = -1 } = {}) {
+function fakeTransport({
+  configRegisters = CH58X_RESET_CONFIG,
+  configPayload = null,
+  badConfig = false,
+  badVerifyAt = -1,
+} = {}) {
   const packets = [];
   let verifyIndex = 0;
   const keyChecksum = deriveXorKey(uid).reduce((sum, byte) => (sum + byte) & 0xff, 0);
@@ -25,8 +36,8 @@ function fakeTransport({ badConfig = false, badVerifyAt = -1 } = {}) {
       packets.push(packet);
       switch (packet[0]) {
         case COMMAND.READ_CONFIG: {
-          const payload = validConfigPayload();
-          if (badConfig) payload[2] ^= 0xff;
+          const payload = configPayload?.slice() || validConfigPayload(configRegisters);
+          if (badConfig) payload[6] = 0x23;
           return payload;
         }
         case COMMAND.ISP_KEY:
@@ -146,7 +157,29 @@ test("full fake session resets config before erase, finalizes program, verifies,
   assert.equal(events.at(-1).phase, "complete");
 });
 
-test("configuration readback mismatch stops before erase", async () => {
+test("canonical CH582 reset normalization proceeds to erase and verification", async () => {
+  const transport = fakeTransport({
+    configRegisters: CH58X_CANONICAL_RESET_READBACK,
+  });
+  const result = await programAndVerifyFirmware({
+    padded: new Uint8Array(1024),
+    eraseSectors: 8,
+    uid,
+    transfer: transport.transfer,
+    reset: async () => true,
+    randomByte: () => 0,
+    wait: async () => {},
+  });
+
+  assert.deepEqual(transport.packets.slice(0, 3).map((packet) => packet[0]), [
+    COMMAND.WRITE_CONFIG,
+    COMMAND.READ_CONFIG,
+    COMMAND.ERASE,
+  ]);
+  assert.equal(result.chunks, 19);
+});
+
+test("unsupported configuration readback stops before erase", async () => {
   const transport = fakeTransport({ badConfig: true });
   await assert.rejects(
     programAndVerifyFirmware({
@@ -157,7 +190,26 @@ test("configuration readback mismatch stops before erase", async () => {
       reset: async () => true,
       randomByte: () => 0,
     }),
-    /configuration reset did not match/,
+    /configuration reset did not match an accepted readback/,
+  );
+  assert.deepEqual(transport.packets.map((packet) => packet[0]), [
+    COMMAND.WRITE_CONFIG,
+    COMMAND.READ_CONFIG,
+  ]);
+});
+
+test("malformed configuration readback stops before erase", async () => {
+  const transport = fakeTransport({ configPayload: new Uint8Array(13) });
+  await assert.rejects(
+    programAndVerifyFirmware({
+      padded: new Uint8Array(1024),
+      eraseSectors: 8,
+      uid,
+      transfer: transport.transfer,
+      reset: async () => true,
+      randomByte: () => 0,
+    }),
+    /configuration response is missing CH58x registers/,
   );
   assert.deepEqual(transport.packets.map((packet) => packet[0]), [
     COMMAND.WRITE_CONFIG,
