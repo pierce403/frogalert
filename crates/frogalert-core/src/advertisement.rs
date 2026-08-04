@@ -59,7 +59,7 @@ pub fn has_service16(data: &[u8], service: u16) -> Result<bool, AdvertisementErr
         let field_type = data[offset];
         if matches!(field_type, UUID16_MORE | UUID16_COMPLETE) {
             let value = &data[offset + 1..offset + field_len];
-            if value.len() % 2 != 0 {
+            if !value.len().is_multiple_of(2) {
                 return Err(AdvertisementError::TruncatedField);
             }
             if value
