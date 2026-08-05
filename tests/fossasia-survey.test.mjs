@@ -347,26 +347,23 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain.match(/#ifdef FROGALERT_SURVEY[\s\S]*?#else/)?.[0] ?? "",
     /VERSION_ABBR/,
   );
-  assert.match(
-    patchedMain,
-    /Android app connects to the first matching FEE0 advertiser[\s\S]*frogalert_survey_open_app_window\(\)/,
-  );
   assert.doesNotMatch(patchedMain, /frogalert_key1_transition/);
-  assert.match(
+  const key2Transition = patchedMain.match(
+    /static void frogalert_key2_transition\(void\)\n\{[\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(key2Transition);
+  assert.match(key2Transition, /mode == NORMAL[\s\S]*frogalert_view_transition\(\)/);
+  assert.doesNotMatch(
+    key2Transition,
+    /frogalert_survey_open_app_window|ble_enable_advertise|start_ble_animation/,
+  );
+  assert.doesNotMatch(
     patchedMain,
-    /frogalert_key2_transition\(void\)[\s\S]*frogalert_view_transition\(\);[\s\S]*frogalert_open_app_window\(\)/,
+    /frogalert_open_app_window|frogalert_display_app_attention/,
   );
   assert.match(
     patchedMain,
     /frogalert_badgemagic_persistent_advertising\(void\)[\s\S]*badge_cfg\.ble_always_on \|\| mode == DOWNLOAD/,
-  );
-  assert.match(
-    patchedMain,
-    /frogalert_display_app_attention_start\(void\)[\s\S]*frogalert_display_survey_relinquish\(\);[\s\S]*start_ble_animation\(\)/,
-  );
-  assert.match(
-    patchedMain,
-    /frogalert_display_app_attention_end\(void\)[\s\S]*mode != NORMAL \|\| streaming_enabled[\s\S]*start_normal_animation\(\);[\s\S]*frogalert_survey_view_changed\(\)/,
   );
   assert.match(
     patchedMain,
@@ -411,7 +408,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.doesNotMatch(viewTransition, /bm_transition\(\)/);
   assert.match(
     patchedMain,
-    /frogalert_survey_on_disconnect\(void\)[\s\S]*streaming_enabled = 0;[\s\S]*mode != NORMAL[\s\S]*start_ble_animation\(\);[\s\S]*frogalert_display_app_attention_end\(\)/,
+    /frogalert_survey_on_disconnect\(void\)[\s\S]*streaming_enabled = 0;[\s\S]*mode != NORMAL[\s\S]*start_ble_animation\(\);[\s\S]*mode == NORMAL[\s\S]*start_normal_animation\(\);[\s\S]*frogalert_survey_view_changed\(\)/,
   );
   assert.match(
     patchedMain,
@@ -760,47 +757,13 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     survey,
     /advertise_when_idle && !peripheral_is_connected\(\)/,
   );
-  assert.match(survey, /SURVEY_APP_WINDOW_END_EVENT/);
-  assert.match(survey, /SURVEY_APP_WINDOW_TIME/);
-  assert.match(
-    survey,
-    /app_window_active = 0;[\s\S]*advertise_when_idle = 0;[\s\S]*restore_advertising = 0;[\s\S]*frogalert_badgemagic_persistent_advertising\(\)[\s\S]*ble_disable_advertise\(\)/,
-  );
-  assert.match(
-    survey,
-    /frogalert_survey_open_app_window\(void\)[\s\S]*app_window_active = 1;[\s\S]*frogalert_survey_suspend\(TRUE\)[\s\S]*SURVEY_APP_WINDOW_END_EVENT/,
-  );
-  assert.match(
-    survey,
-    /frogalert_survey_open_app_window\(void\)[\s\S]*frogalert_display_app_attention_start\(\)/,
-  );
-  assert.match(survey, /SURVEY_APP_CUE_TIME\s+TMOS_TICKS_FROM_MS\(1000U\)/);
-  assert.match(
-    survey,
-    /frogalert_survey_open_app_window\(void\)[\s\S]*app_cue_active = 1;[\s\S]*SURVEY_APP_CUE_END_EVENT[\s\S]*SURVEY_APP_CUE_TIME/,
-  );
-  const appWindowEnd = survey.slice(
-    survey.indexOf("if (events & SURVEY_APP_WINDOW_END_EVENT)"),
-    survey.indexOf("if (events & SURVEY_APP_CUE_END_EVENT)"),
-  );
-  const appCueEnd = survey.slice(
-    survey.indexOf("if (events & SURVEY_APP_CUE_END_EVENT)"),
-    survey.indexOf("if (events & SURVEY_DISPLAY_PAGE_EVENT)"),
-  );
-  assert.match(appWindowEnd, /if \(!peripheral_is_connected\(\)\)/);
-  assert.match(
-    appWindowEnd,
-    /\}\s*if \(app_cue_active\)\s*frogalert_display_app_attention_end\(\);\s*app_cue_active = 0;/,
-    "the display cue must end even when the radio remains connected",
-  );
   assert.doesNotMatch(
-    appCueEnd,
-    /peripheral_is_connected/,
-    "connection state must not consume the one-shot display-cue timeout",
+    survey,
+    /SURVEY_APP_|app_window_active|app_cue_active|frogalert_survey_open_app_window|frogalert_display_app_attention/,
   );
   assert.match(
-    appCueEnd,
-    /if \(app_cue_active\)[\s\S]*app_cue_active = 0;[\s\S]*frogalert_display_app_attention_end\(\)/,
+    survey,
+    /frogalert_survey_should_advertise\(void\)\s*\{\s*return frogalert_badgemagic_persistent_advertising\(\);\s*\}/,
   );
   assert.doesNotMatch(survey, /SURVEY_PHASE_|show_survey\(/);
   const observeAdvertisement = survey.match(
@@ -894,15 +857,7 @@ test("dancing-frog lane replaces only the visible counter view", async () => {
     survey,
     /SURVEY_FROG_VIEW_FRAME_EVENT[\s\S]*frog_view_frame \^= 1U/,
   );
-  assert.match(survey, /SURVEY_APP_CUE_TIME\s+TMOS_TICKS_FROM_MS\(1000U\)/);
-  assert.match(
-    survey,
-    /SURVEY_APP_CUE_END_EVENT[\s\S]*frogalert_display_app_attention_end\(\)/,
-  );
-  assert.match(
-    survey,
-    /SURVEY_APP_WINDOW_TIME\s+TMOS_TICKS_FROM_MS\(10000U\)/,
-  );
+  assert.doesNotMatch(survey, /SURVEY_APP_|app_window|app_cue/);
   assert.match(build, /image_variant="-frogs"/);
 });
 

@@ -8,7 +8,6 @@
 void frogalert_survey_role_init(void);
 void frogalert_survey_init(void);
 uint8_t frogalert_survey_suspend(uint8_t advertise_after);
-void frogalert_survey_open_app_window(void);
 uint8_t frogalert_survey_should_advertise(void);
 void frogalert_survey_on_disconnect(void);
 void frogalert_survey_view_changed(void);
@@ -26,7 +25,5 @@ void frogalert_display_survey_relinquish(void);
 void frogalert_display_survey_release(void);
 void frogalert_display_survey_page_step(void);
 void frogalert_display_survey_page_redraw(void);
-void frogalert_display_app_attention_start(void);
-void frogalert_display_app_attention_end(void);
 
 #endif

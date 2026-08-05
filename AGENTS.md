@@ -397,13 +397,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   release is not the same as a physical hardware smoke.
 - FrogAlert survey candidates keep unattended normal-mode GATT advertising off
   because BadgeMagic app commit `42c98bc` defaults to “any” and connects to the
-  first matching `FEE0` advertiser without a chooser. Either short button must
-  show the same Bluetooth animation, open an app-attention window, and pause
-  surveying, so an accidental top-image/bottom-image mismatch cannot make
-  uploads depend on the correctly routed download button. The view-button
-  window expires back to its selected view; the system button retains ordinary
-  download mode. A connection suspends surveys until disconnect; KEY2
-  long-press ISP remains independent.
+  first matching `FEE0` advertiser without a chooser. Keep upstream's strict
+  role separation: KEY2 short changes only the name/count or name/frog view and
+  must never advertise or show the Bluetooth animation; KEY1 short enters
+  ordinary persistent download mode and the next KEY1 short returns to normal
+  without entering shutdown. A connection suspends surveys until disconnect;
+  KEY2 long-press ISP remains independent.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 
@@ -502,11 +501,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   blocker.
 - The optional `frogs` lane retains the entire private survey/alert/app/recovery
   shell and changes only the alternate visible view: three fixed frogs
-  alternate poses every 500 ms. Alerts and the BadgeMagic readiness cue stop
-  that one-shot frame event and the selected frog view resumes afterward. Its
-  visible app-readiness cue lasts one second while advertising remains open
-  for ten, preventing repeated mode presses from indefinitely hiding the frog
-  view. The preceding pre-boot-status reference images were 206,304 bytes:
+  alternate poses every 500 ms. Alerts stop that one-shot frame event and the
+  selected frog view resumes afterward. KEY2 view selection has no advertising
+  or Bluetooth-animation side effect; KEY1 alone owns download mode. The
+  preceding pre-boot-status reference images were 206,304 bytes:
   top/`260404` `5c69637a…00ea8ce`, bottom/`250901`
   `5634194f…7964bd`. Keep the entire
   frog-only event branch inside `FROGALERT_DANCING_FROG_MODE`; an empty
@@ -544,6 +542,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   frogs top `55b5cb13…c81345a0`, and frogs bottom `4380b3a2…62419203` (both
   200,552 bytes). These are build evidence only until physical retest;
   canonical CI must independently reproduce and attest the standard pair.
+  The strict upstream-role `0.2.0-beta.8` local calculated receipts are counter
+  top `f679dafd…35df88c`, counter bottom `7974b245…f6d28ae1` (both 200,148
+  bytes), frogs top `61d8f495…75fb57fe`, and frogs bottom
+  `33ace6e6…022c0fba` (both 200,220 bytes). These are build evidence only until
+  physical retest; canonical CI must independently reproduce and attest the
+  standard pair.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;
@@ -562,9 +566,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.7` / `v0.2.0b7`, adds the passive
+- Current source declares `0.2.0-beta.8` / `v0.2.0b8`, adds the passive
   Flipper `0x3081`–`0x3083` service rule, and removes the reachable shutdown
-  transition from FrogAlert builds. Per the owner's 2026-08-03 policy
+  transition plus KEY2 app-attention compatibility window from FrogAlert
+  builds. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
@@ -596,9 +601,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   advertising/mode race until exact radio logs prove otherwise. A briefly
   tested always-on response was rejected because the Android app connects to
   the first matching `FEE0` advertiser, which is unsafe in a room of badges.
-  Current source retains upstream persistent download mode on KEY1 and opens a
-  bounded app-attention window from the KEY2 display/count action while
-  retaining connection-suspension rules. Both paths show the Bluetooth cue.
+  Current source retains upstream persistent download mode on KEY1 and removes
+  the rejected bounded app-attention window from KEY2 display/count selection.
+  Only KEY1 shows the Bluetooth cue; connection-suspension rules remain.
 - On 2026-08-05 the user reported that exact `0.2.0-beta.5` on the bottom badge
   produced download then power-off from the near-USB button, while repeated
   short presses on the other button inconsistently changed brightness before
@@ -616,6 +621,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   press perform `DOWNLOAD → NORMAL`, disables persistent advertising, and
   never exposes `POWER_OFF`. Do not weaken or replace the separate continuous
   more-than-ten-sample KEY2-to-address-zero recovery path.
+- On 2026-08-05 exact bottom `0.2.0-beta.7` showed the Bluetooth animation and
+  enabled advertising on a KEY2 display/count press. The electrical mapping was
+  correct; `frogalert_key2_transition()` still called the cross-image
+  compatibility `frogalert_survey_open_app_window()`. The owner rejected that
+  compatibility behavior and requires strict upstream roles. Current source
+  removes the app-window API, timers, and display callbacks: KEY2 short changes
+  only the visible view, while KEY1 alone enters/exits download mode. Tests must
+  reject advertising and Bluetooth-animation calls from the KEY2 transition.
 - On 2026-08-05 the user reported that `0.2.0-beta.3` top firmware sometimes
   remains on the Bluetooth readiness animation after a bottom-button counter
   selection. The one-second `SURVEY_APP_CUE_END_EVENT` restores the selected

@@ -78,7 +78,8 @@ separate roughly 2.2-second KEY2-to-ISP poll is unchanged. These logical
 roles do not change by firmware profile; only the buttons' physical positions
 and KEY1 electrical polarity differ. The view choice is
 presentation state rather than radio state, so disconnected passive surveys
-continue while either the nametag or counter is visible.
+continue while either the nametag or counter is visible. KEY2 never enables
+advertising or starts the Bluetooth animation; only KEY1 download mode does.
 
 FrogAlert renders fixed counts, alert pages, and frog frames into the inactive
 one of two private 44-column buffers, then switches buffers only after the

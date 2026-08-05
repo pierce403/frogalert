@@ -27,9 +27,7 @@
 #define SURVEY_DISPLAY_PAGE_EVENT (1U << 3)
 #define SURVEY_WATCHDOG_EVENT     (1U << 4)
 #define SURVEY_ALERT_END_EVENT    (1U << 5)
-#define SURVEY_APP_WINDOW_END_EVENT (1U << 6)
-#define SURVEY_FROG_VIEW_FRAME_EVENT (1U << 7)
-#define SURVEY_APP_CUE_END_EVENT     (1U << 8)
+#define SURVEY_FROG_VIEW_FRAME_EVENT (1U << 6)
 
 #define TMOS_TICKS_FROM_MS(ms) ((uint32_t)(ms) * 1000U / 625U)
 #define SURVEY_CYCLE_TIME_MS  20000U
@@ -44,8 +42,6 @@
 #define SURVEY_FROG_VIEW_FRAME_TIME TMOS_TICKS_FROM_MS(500U)
 #define SURVEY_WATCHDOG_TIME  TMOS_TICKS_FROM_MS(5000U)
 #define SURVEY_SCAN_TICKS     TMOS_TICKS_FROM_MS(SURVEY_SCAN_TIME_MS)
-#define SURVEY_APP_WINDOW_TIME TMOS_TICKS_FROM_MS(10000U)
-#define SURVEY_APP_CUE_TIME    TMOS_TICKS_FROM_MS(1000U)
 
 #define SURVEY_CANCEL_NONE    0
 #define SURVEY_CANCEL_TIMEOUT 1
@@ -74,8 +70,6 @@ static uint8_t scan_active;
 static uint8_t restore_advertising;
 static uint8_t cancel_reason;
 static uint8_t advertise_when_idle;
-static uint8_t app_window_active;
-static uint8_t app_cue_active;
 static uint8_t latest_count;
 static uint8_t latest_saturated;
 static uint8_t completed_count;
@@ -544,29 +538,6 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		return events ^ SURVEY_ALERT_END_EVENT;
 	}
 
-	if (events & SURVEY_APP_WINDOW_END_EVENT) {
-		app_window_active = 0;
-		advertise_when_idle = 0;
-		restore_advertising = 0;
-		tmos_stop_task(survey_task_id, SURVEY_APP_CUE_END_EVENT);
-		if (!peripheral_is_connected()) {
-			if (!frogalert_badgemagic_persistent_advertising())
-				ble_disable_advertise();
-		}
-		if (app_cue_active)
-			frogalert_display_app_attention_end();
-		app_cue_active = 0;
-		return events ^ SURVEY_APP_WINDOW_END_EVENT;
-	}
-
-	if (events & SURVEY_APP_CUE_END_EVENT) {
-		if (app_cue_active) {
-			app_cue_active = 0;
-			frogalert_display_app_attention_end();
-		}
-		return events ^ SURVEY_APP_CUE_END_EVENT;
-	}
-
 	if (events & SURVEY_DISPLAY_PAGE_EVENT) {
 		if (alert_visible &&
 		    alert_frame_index + 1 < alert_frame_count) {
@@ -650,26 +621,7 @@ uint8_t frogalert_survey_suspend(uint8_t advertise_after)
 
 uint8_t frogalert_survey_should_advertise(void)
 {
-	return app_window_active ||
-	       frogalert_badgemagic_persistent_advertising();
-}
-
-void frogalert_survey_open_app_window(void)
-{
-	app_window_active = 1;
-	tmos_stop_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT);
-#ifdef FROGALERT_DANCING_FROG_MODE
-	tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
-#endif
-	tmos_stop_task(survey_task_id, SURVEY_APP_CUE_END_EVENT);
-	app_cue_active = 1;
-	if (frogalert_survey_suspend(TRUE))
-		ble_enable_advertise();
-	frogalert_display_app_attention_start();
-	tmos_start_task(survey_task_id, SURVEY_APP_CUE_END_EVENT,
-			SURVEY_APP_CUE_TIME);
-	tmos_start_task(survey_task_id, SURVEY_APP_WINDOW_END_EVENT,
-			SURVEY_APP_WINDOW_TIME);
+	return frogalert_badgemagic_persistent_advertising();
 }
 
 void frogalert_survey_role_init(void)

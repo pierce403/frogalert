@@ -545,17 +545,6 @@ static void frogalert_view_transition(void)
 	frogalert_survey_view_changed();
 }
 
-static void frogalert_open_app_window(void)
-{
-	/*
-	 * The Android app connects to the first matching FEE0 advertiser. Keep
-	 * unattended FrogAlert badges quiet, but let the upstream display button
-	 * make this badge discoverable without entering persistent download mode.
-	 */
-	if (mode == NORMAL)
-		frogalert_survey_open_app_window();
-}
-
 uint8_t frogalert_badgemagic_persistent_advertising(void)
 {
 	return badge_cfg.ble_always_on || mode == DOWNLOAD;
@@ -565,22 +554,7 @@ static void frogalert_key2_transition(void)
 {
 	if (mode == NORMAL) {
 		frogalert_view_transition();
-		frogalert_open_app_window();
 	}
-}
-
-void frogalert_display_app_attention_start(void)
-{
-	frogalert_display_survey_relinquish();
-	start_ble_animation();
-}
-
-void frogalert_display_app_attention_end(void)
-{
-	if (mode != NORMAL || streaming_enabled)
-		return;
-	start_normal_animation();
-	frogalert_survey_view_changed();
 }
 #endif
 
@@ -862,7 +836,10 @@ void frogalert_survey_on_disconnect(void)
 		if (mode != NORMAL)
 			start_ble_animation();
 	}
-	frogalert_display_app_attention_end();
+	if (mode == NORMAL) {
+		start_normal_animation();
+		frogalert_survey_view_changed();
+	}
 }
 #endif
 
