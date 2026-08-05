@@ -448,8 +448,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter` on both profiles;
   this compiles as KEY1 on `260404` and KEY2 on `250901`. The physical top
   button compiles as the other key and cycles normal, download, recoverable
-  screen off, and normal. KEY1 long brightness and the independent long-KEY2
-  ISP task remain inherited. Surveys
+  screen off, and normal. KEY1 long brightness remains inherited; `260404`
+  keeps the upstream 25-sample threshold while bottom/`250901` requires 125
+  samples, about 2.5 seconds, for its physical top/KEY1 brightness gesture.
+  The independent long-KEY2 ISP task is unchanged. Surveys
   continue in either visible view. A CRC/profile-bound configuration enables
   built-in groups and up to eight custom rules. The bounded C mirror implements
   every README OUI/name row. The counter is one centered fixed frame; built-in
@@ -555,10 +557,21 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   receipts are counter top `bb6d3f15…5a29259`, counter bottom
   `f0e40355…343f059` (both 200,340 bytes), frogs top
   `f486da88…040c9346`, and frogs bottom `88fcea61…f427b42` (both 200,412
-  bytes). The compiled top artifact binds KEY1 to view and KEY2 to system; the
-  bottom artifact binds KEY2 to view and KEY1 to system. These are build
-  evidence only until physical retest; canonical CI must independently
-  reproduce and attest the standard pair.
+  bytes). Main compiled the intended physical-position role mapping, but the
+  button module did not include the header defining the symbolic profile
+  constants. In the bottom build its `#if` therefore silently selected top
+  active-low KEY1 polarity and top shutdown-wake configuration. Do not use
+  beta.9 as evidence of corrected bottom buttons.
+  The bottom-brightness `0.2.0-beta.10` local calculated receipts are counter
+  top `22806e43…525c136` (200,340 bytes), counter bottom
+  `441495ed…4ad00b3a` (200,348 bytes), frogs top
+  `89839dea…0ccf696` (200,412 bytes), and frogs bottom
+  `9bcf2013…265f7b0` (200,420 bytes). The button header now imports the profile
+  constants and fails compilation for a missing or unsupported profile. The
+  bottom disassembly reads KEY1 active-high and compares KEY1 holds against
+  125 samples while leaving KEY2 at 25; top keeps the upstream 25-sample
+  comparison. These remain hardware-unverified until physical retest;
+  canonical CI must independently reproduce and attest the standard pair.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;
@@ -577,7 +590,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.9` / `v0.2.0b9`, adds the passive
+- Current source declares `0.2.0-beta.10` / `v0.2.0b10`, adds the passive
   Flipper `0x3081`–`0x3083` service rule, removes the app-attention
   compatibility window, restores fixed physical-position button roles, and
   replaces CH58x shutdown with a recoverable screen-off state. Screen off
@@ -585,7 +598,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   drive while retaining TMR3 button polling, TMOS, USB, and the long-KEY2 ISP
   task. Every asynchronous suspend overwrites its deferred advertising request
   and rechecks the current mode before enabling it, so a quick download/off
-  sequence cannot advertise after dark. Per the owner's 2026-08-03 policy
+  sequence cannot advertise after dark. The button translation now includes
+  the shared profile constants and rejects an unknown compile-time profile;
+  bottom/`250901` uses active-high KEY1 plus a fivefold 125-sample brightness
+  threshold, while top/`260404` keeps active-low KEY1 and the upstream
+  25-sample threshold. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
@@ -628,7 +645,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   profile-position wrappers. The beta.6 response removed those wrappers and
   kept logical KEY roles identical, but beta.8 testing later proved that choice
   broke physical-position consistency on the top badge. Do not restore the
-  unsafe runtime probe; use the beta.9 compile-time mapping instead.
+  unsafe runtime probe; use the beta.10 compile-time mapping and fail-closed
+  profile include instead.
 - On 2026-08-05 exact bottom `0.2.0-beta.6` showed that two KEY1 short presses
   deliberately followed FOSSASIA's `NORMAL → DOWNLOAD → POWER_OFF` cycle, but
   the profile-specific KEY1 shutdown edge did not wake the badge. Once shut

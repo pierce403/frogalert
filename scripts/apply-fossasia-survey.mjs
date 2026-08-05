@@ -111,6 +111,16 @@ export function applyButtonHeaderHooks(source) {
     result,
     originalPressed,
     `#ifdef FROGALERT_SURVEY
+#include "ble/frogalert-monitor-config.h"
+
+#ifndef FROGALERT_HARDWARE_PROFILE_ID
+#error "FROGALERT_HARDWARE_PROFILE_ID must identify the compiled button profile"
+#endif
+#if FROGALERT_HARDWARE_PROFILE_ID != FROGALERT_PROFILE_B1144C_250901_USB_C && \
+    FROGALERT_HARDWARE_PROFILE_ID != FROGALERT_PROFILE_B1144C_260404_USB_C
+#error "unsupported FrogAlert button hardware profile"
+#endif
+
 int btn_key1_pressed(void);
 void btn_configure_key1_wake(void);
 
@@ -149,6 +159,13 @@ int btn_key1_pressed(void)
 #endif
 }
 
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+#define FROGALERT_LONGPRESS_THRESHOLD(key) \
+\t((key) == KEY1 ? (LONGPRESS_THRES * 5) : LONGPRESS_THRES)
+#else
+#define FROGALERT_LONGPRESS_THRESHOLD(key) LONGPRESS_THRES
+#endif
+
 void btn_configure_key1_wake(void)
 {
 #if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
@@ -164,6 +181,18 @@ void btn_configure_key1_wake(void)
 void btn_init()
 `,
     "profile-bound KEY1 implementation",
+  );
+  result = replaceOnce(
+    result,
+    "hold[k] >= LONGPRESS_THRES && is_longpress[k] == 0",
+    "hold[k] >= FROGALERT_LONGPRESS_THRESHOLD(k) && is_longpress[k] == 0",
+    "profile-bound long-press activation threshold",
+  );
+  result = replaceOnce(
+    result,
+    "hold[k] > 0 && hold[k] < LONGPRESS_THRES",
+    "hold[k] > 0 && hold[k] < FROGALERT_LONGPRESS_THRESHOLD(k)",
+    "profile-bound short-press release threshold",
   );
   return result;
 }

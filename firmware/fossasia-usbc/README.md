@@ -79,7 +79,10 @@ extends bitmap selection with a virtual counter:
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. It compiles as
 KEY1 on `260404` and KEY2 on `250901`. The physical top button compiles as the
 other key and cycles normal → download → recoverable screen off → normal. KEY1
-long-press brightness and the separate long-KEY2 ISP task remain unchanged.
+long-press brightness remains upstream-timed on `260404`; the bottom/`250901`
+image requires 125 button samples, about 2.5 seconds, before its physical
+top/KEY1 press changes brightness. The separate long-KEY2 ISP task is
+unchanged.
 Screen off stops the display timer and releases its pins without stopping
 button/TMOS/ISP tasks. Passive surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio

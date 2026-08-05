@@ -29,6 +29,22 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
     "{",
     "\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);",
     "\tGPIOB_ModeCfg(KEY2_PIN, GPIO_ModeIN_PU);",
+    "}",
+    "",
+    "static void check(int k)",
+    "{",
+    "\tstatic int hold[KEY_INDEX], is_longpress[KEY_INDEX];",
+    "\tif (debounce(k, isPressed(k))) {",
+    "\t\thold[k]++;",
+    "\t\tif (hold[k] >= LONGPRESS_THRES && is_longpress[k] == 0) {",
+    "\t\t\tis_longpress[k] = 1;",
+    "\t\t}",
+    "\t} else {",
+    "\t\tif (hold[k] > 0 && hold[k] < LONGPRESS_THRES) {",
+    "\t\t\tonePressPending[k] = true;",
+    "\t\t}",
+    "\t}",
+    "}",
   ].join("\n");
   const activeHighHeader = [
     "#define isPressed(key) \t\t((key) ? \\",
@@ -59,12 +75,40 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
   );
   assert.doesNotMatch(patchedButton, /btn_key1_profile_detected/);
   assert.doesNotMatch(patchedButton, /btn_key1_profile\(void\)/);
+  assert.match(
+    patchedButton,
+    /FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*\(key\) == KEY1 \? \(LONGPRESS_THRES \* 5\) : LONGPRESS_THRES[\s\S]*#define FROGALERT_LONGPRESS_THRESHOLD\(key\) LONGPRESS_THRES/,
+  );
+  assert.match(
+    patchedButton,
+    /hold\[k\] >= FROGALERT_LONGPRESS_THRESHOLD\(k\) && is_longpress\[k\] == 0/,
+  );
+  assert.match(
+    patchedButton,
+    /hold\[k\] > 0 && hold\[k\] < FROGALERT_LONGPRESS_THRESHOLD\(k\)/,
+  );
+  assert.doesNotMatch(
+    patchedButton,
+    /hold\[k\] (?:>=|<) LONGPRESS_THRES/,
+  );
   assert.equal(
     patchedButton.match(/GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)/g)?.length,
     1,
   );
   for (const header of [activeHighHeader, activeLowHeader]) {
     const patchedHeader = applyButtonHeaderHooks(header);
+    assert.match(
+      patchedHeader,
+      /#include "ble\/frogalert-monitor-config\.h"/,
+    );
+    assert.match(
+      patchedHeader,
+      /#ifndef FROGALERT_HARDWARE_PROFILE_ID[\s\S]*#error "FROGALERT_HARDWARE_PROFILE_ID must identify the compiled button profile"/,
+    );
+    assert.match(
+      patchedHeader,
+      /FROGALERT_HARDWARE_PROFILE_ID != FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*FROGALERT_HARDWARE_PROFILE_ID != FROGALERT_PROFILE_B1144C_260404_USB_C[\s\S]*#error "unsupported FrogAlert button hardware profile"/,
+    );
     assert.match(patchedHeader, /btn_key1_pressed\(\)/);
     assert.match(patchedHeader, /!GPIOB_ReadPortPin\(KEY2_PIN\)/);
   }

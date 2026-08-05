@@ -46,6 +46,12 @@ static void test_battery_conversion(void)
 static void test_credit_and_profile_marker(void)
 {
 	uint16_t framebuffer[FROGALERT_BOOT_COLUMNS];
+	const size_t version_length = strlen(FROGALERT_DISPLAY_VERSION);
+	const uint8_t version_width =
+		(uint8_t)(version_length ? version_length * 4U - 1U : 0U);
+	const uint8_t marker_column =
+		(uint8_t)((FROGALERT_BOOT_COLUMNS - (version_width + 5U)) / 2U +
+			  version_width + 2U);
 
 	assert(strcmp(frogalert_boot_full_version(), FROGALERT_VERSION) == 0);
 	assert(strcmp(frogalert_boot_display_version(),
@@ -53,18 +59,20 @@ static void test_credit_and_profile_marker(void)
 	frogalert_boot_render_credit(framebuffer);
 	assert_frame_bounds(framebuffer);
 
-	/* v0.2.0b1 occupies columns 4..34. Columns 35..36 are the gap and
-	 * columns 37..39 are the compiled profile arrow. */
-	assert((framebuffer[35] & 0x7c0U) == 0);
-	assert((framebuffer[36] & 0x7c0U) == 0);
+	/* The two-column gap and three-column marker follow the centered compact
+	 * version, including versions with two-digit prerelease iterations. */
+	assert(marker_column >= 2U);
+	assert(marker_column + 2U < FROGALERT_BOOT_COLUMNS);
+	assert((framebuffer[marker_column - 2U] & 0x7c0U) == 0);
+	assert((framebuffer[marker_column - 1U] & 0x7c0U) == 0);
 #if FROGALERT_HARDWARE_PROFILE_ID == 2
-	assert(framebuffer[37] == 0x080);
-	assert(framebuffer[38] == 0x7c0);
-	assert(framebuffer[39] == 0x080);
+	assert(framebuffer[marker_column] == 0x080);
+	assert(framebuffer[marker_column + 1U] == 0x7c0);
+	assert(framebuffer[marker_column + 2U] == 0x080);
 #elif FROGALERT_HARDWARE_PROFILE_ID == 1
-	assert(framebuffer[37] == 0x200);
-	assert(framebuffer[38] == 0x7c0);
-	assert(framebuffer[39] == 0x200);
+	assert(framebuffer[marker_column] == 0x200);
+	assert(framebuffer[marker_column + 1U] == 0x7c0);
+	assert(framebuffer[marker_column + 2U] == 0x200);
 #else
 #error "test requires a supported FrogAlert hardware profile"
 #endif

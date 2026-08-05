@@ -191,8 +191,10 @@ bottom button rotates
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`; it is KEY1 on
 `260404` and KEY2 on `250901`. The physical top button is the other key and
 cycles normal → download → recoverable screen off → normal. KEY1 long
-brightness and the separate long-KEY2 ISP poll remain inherited in both exact
-profiles. The bottom/view transition does not advertise or start the Bluetooth
+brightness remains inherited, but the bottom/`250901` profile raises only its
+KEY1 threshold from 25 to 125 samples (about 0.5 to 2.5 seconds); the
+top/`260404` threshold and separate long-KEY2 ISP poll are unchanged. The
+bottom/view transition does not advertise or start the Bluetooth
 animation; the top/system transition owns that behavior. Screen off disables
 TMR0 display refresh and releases the matrix but keeps button/TMOS/ISP tasks.
 Scanning continues in either

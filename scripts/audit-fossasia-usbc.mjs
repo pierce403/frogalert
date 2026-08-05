@@ -421,6 +421,63 @@ export function verifyDisassembly(disassembly) {
   );
 }
 
+function disassembledFunction(disassembly, name) {
+  const match = disassembly.match(
+    new RegExp(
+      `[0-9a-f]+ <${name}>:\\n([\\s\\S]*?)(?=\\n[0-9a-f]+ <[^>]+>:\\n|$)`,
+    ),
+  );
+  assert.ok(match, `button disassembly is missing ${name}`);
+  return match[1];
+}
+
+function immediateCount(disassembly, value) {
+  return disassembly.match(
+    new RegExp(`\\bli\\s+[a-z0-9]+,${value}\\b`, "g"),
+  )?.length ?? 0;
+}
+
+export function verifyButtonDisassembly(disassembly, profile) {
+  assert.ok(supportedProfiles.includes(profile), "unsupported hardware profile");
+  const key1Read = disassembledFunction(disassembly, "btn_key1_pressed");
+  const check = disassembledFunction(disassembly, "check");
+
+  if (profile === "B1144C_250901_USB_C") {
+    assert.doesNotMatch(
+      key1Read,
+      /\bxori\b/,
+      "bottom KEY1 must compile as active-high",
+    );
+    assert.equal(
+      immediateCount(check, 125),
+      2,
+      "bottom KEY1 must use 125 samples on activation and release",
+    );
+    assert.equal(
+      immediateCount(check, 25),
+      2,
+      "bottom KEY2 must retain the upstream 25-sample threshold",
+    );
+  } else {
+    assert.match(key1Read, /\bxori\b/, "top KEY1 must compile as active-low");
+    assert.equal(
+      immediateCount(check, 125),
+      0,
+      "top buttons must not use the bottom brightness threshold",
+    );
+    assert.equal(
+      immediateCount(check, 24),
+      1,
+      "top long-press activation must retain the optimized 25-sample comparison",
+    );
+    assert.equal(
+      immediateCount(check, 23),
+      1,
+      "top short-press release must retain the optimized 25-sample comparison",
+    );
+  }
+}
+
 export function lockedProfileImage(lock, profile, mode) {
   assert.ok(supportedProfiles.includes(profile), "unsupported hardware profile");
   validateMode(mode);
@@ -591,6 +648,18 @@ async function main(argv) {
       verifyDisassembly(await readFile(parameters[0], "utf8"));
       break;
     }
+    case "buttons": {
+      assert.equal(
+        parameters.length,
+        2,
+        "buttons requires PROFILE and a disassembly file",
+      );
+      verifyButtonDisassembly(
+        await readFile(parameters[1], "utf8"),
+        parameters[0],
+      );
+      break;
+    }
     case "vectors": {
       assert.equal(parameters.length, 2, "vectors requires highcode and nm output");
       verifyVectorTable(
@@ -606,7 +675,7 @@ async function main(argv) {
     }
     default:
       throw new Error(
-        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary PROFILE MODE BIN [--candidate]|symbols MODE NM|disassembly FILE|vectors HIGHCODE NM|ram NM}",
+        "usage: node scripts/audit-fossasia-usbc.mjs {lock|source DIR|binary PROFILE MODE BIN [--candidate]|symbols MODE NM|disassembly FILE|buttons PROFILE FILE|vectors HIGHCODE NM|ram NM}",
       );
   }
 }

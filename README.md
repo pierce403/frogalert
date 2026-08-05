@@ -33,7 +33,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   published together as `0.1.0-beta.1` and available to the flasher
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.9`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.10`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
@@ -127,9 +127,12 @@ content as `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → �
 the physical top/system role and cycles normal → Bluetooth download →
 recoverable screen off → normal. Screen off disables the display refresh,
 matrix drive, advertising, and surveys without stopping the button or ISP
-tasks. KEY1 long press still changes brightness,
-and the independent farther-button long-KEY2 ISP path remains in the inherited
-shell on `260404`. Passive
+tasks. KEY1 long press still changes brightness. On the bottom/`250901`
+profile, KEY1 is the physical top/system button and now requires about 2.5
+seconds (125 samples at 50 Hz), instead of upstream's roughly 0.5 seconds, to
+avoid accidental brightness changes. The top/`260404` profile keeps upstream's
+threshold. The independent farther-button long-KEY2 ISP path remains in the
+inherited shell on `260404`. Passive
 surveys continue in both nametag and counter views. `COP DETECTED`,
 `FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
 one second per generated frame, then the selected view resumes without

@@ -10,6 +10,7 @@ import {
   sha256File,
   validateLock,
   verifyBinary,
+  verifyButtonDisassembly,
   verifyDisassembly,
   verifyLockedFile,
   verifyRamLayout,
@@ -22,6 +23,59 @@ const scaffoldDirectory = path.join(
   repositoryRoot,
   "firmware/fossasia-usbc",
 );
+
+const topButtonDisassembly = `20004080 <btn_key1_pressed>:
+20004080:\txori\ta0,a0,1
+20004084:\tret
+
+20004086 <check>:
+20004086:\tli\ta4,24
+20004088:\tli\ta4,23
+2000408a:\tret
+`;
+
+const bottomButtonDisassembly = `20004080 <btn_key1_pressed>:
+20004080:\tandi\ta0,a0,1
+20004084:\tret
+
+20004086 <check>:
+20004086:\tli\ta5,125
+20004088:\tli\ta5,25
+2000408a:\tli\ta5,125
+2000408c:\tli\ta5,25
+2000408e:\tret
+`;
+
+test("button disassembly binds polarity and thresholds to the exact profile", () => {
+  assert.doesNotThrow(() =>
+    verifyButtonDisassembly(
+      topButtonDisassembly,
+      "B1144C_260404_USB_C",
+    ),
+  );
+  assert.doesNotThrow(() =>
+    verifyButtonDisassembly(
+      bottomButtonDisassembly,
+      "B1144C_250901_USB_C",
+    ),
+  );
+  assert.throws(
+    () =>
+      verifyButtonDisassembly(
+        topButtonDisassembly,
+        "B1144C_250901_USB_C",
+      ),
+    /bottom KEY1 must compile as active-high/,
+  );
+  assert.throws(
+    () =>
+      verifyButtonDisassembly(
+        bottomButtonDisassembly,
+        "B1144C_260404_USB_C",
+      ),
+    /top KEY1 must compile as active-low/,
+  );
+});
 
 function utf16LittleEndian(text) {
   const result = Buffer.alloc(text.length * 2);
@@ -196,6 +250,7 @@ test("build wrappers gate the exact profile and keep outputs local", async () =>
   assert.match(build, /image_position="bottom"/);
   assert.match(build, /image_position="top"/);
   assert.match(build, /audit-fossasia-usbc\.mjs/);
+  assert.match(build, /buttons "\$profile" "\$disassembly"/);
   assert.match(build, /objcopy" -O binary -S "\$elf" "\$elf_bin"/);
   assert.match(build, /cmp -s "\$bin" "\$elf_bin"/);
   assert.match(prepare, /FROGALERT_FOSSASIA_OFFLINE/);

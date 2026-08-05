@@ -207,6 +207,10 @@ node "$repo_root/scripts/audit-fossasia-usbc.mjs" symbols "$build_mode" "$nm_out
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" vectors "$highcode" "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" ram "$nm_output"
 node "$repo_root/scripts/audit-fossasia-usbc.mjs" disassembly "$disassembly"
+if [[ "$build_mode" == "survey" || "$build_mode" == "frogs" ]]; then
+  node "$repo_root/scripts/audit-fossasia-usbc.mjs" \
+    buttons "$profile" "$disassembly"
+fi
 binary_audit=(binary "$profile" "$build_mode" "$bin")
 if [[ "$audit_mode" == "--candidate" ]]; then
   binary_audit+=(--candidate)
