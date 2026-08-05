@@ -580,6 +580,16 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   the first matching `FEE0` advertiser, which is unsafe in a room of badges.
   Current source instead opens an app-attention window from either short button
   while retaining connection-suspension rules.
+- On 2026-08-05 the user reported that `0.2.0-beta.3` top firmware sometimes
+  remains on the Bluetooth readiness animation after a bottom-button counter
+  selection. The one-second `SURVEY_APP_CUE_END_EVENT` restores the selected
+  view only when `peripheral_is_connected()` is false; a fast BadgeMagic
+  connection, or a fail-closed GAP state read, consumes the one-shot timeout
+  without clearing `app_cue_active`. Disconnect normally restores the view,
+  but an enduring connection can therefore look stuck. Existing tests check
+  only that the timeout and restoration call exist, not the connected-timeout
+  transition. Reproduce with the app/nearby phones disconnected before changing
+  the display-versus-radio ownership contract.
 - The user observed survey-display flicker. Pinned FOSSASIA scanned 22
   Charlieplex source phases at roughly 45 Hz, which can be visible. The survey hook also
   called `stop_all_animation()` every 100 ms, clearing the live framebuffer and
