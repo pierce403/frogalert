@@ -21,7 +21,7 @@ const firmwareDirectory = path.join(
   "firmware/fossasia-usbc",
 );
 
-test("survey hooks detect either KEY1 rail without touching KEY2", () => {
+test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
   const button = [
     "static uint16_t btn_task(tmosTaskID, uint16_t);",
     "",
@@ -51,16 +51,13 @@ test("survey hooks detect either KEY1 rail without touching KEY2", () => {
   const patchedButton = applyButtonHooks(button);
   assert.match(
     patchedButton,
-    /GPIO_ModeIN_PD[\s\S]*pulled_down[\s\S]*GPIO_ModeIN_PU[\s\S]*pulled_up/,
+    /FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*return GPIOA_ReadPortPin\(KEY1_PIN\) != 0;[\s\S]*return GPIOA_ReadPortPin\(KEY1_PIN\) == 0;/,
   );
-  assert.match(
+  assert.doesNotMatch(
     patchedButton,
-    /pulled_down && pulled_up[\s\S]*FROGALERT_KEY1_PROFILE_250901/,
+    /DelayUs|pulled_down|pulled_up|candidate|confidence/,
   );
-  assert.match(
-    patchedButton,
-    /!pulled_down && !pulled_up[\s\S]*FROGALERT_KEY1_PROFILE_260404/,
-  );
+  assert.doesNotMatch(patchedButton, /btn_key1_profile_detected/);
   assert.equal(
     patchedButton.match(/GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)/g)?.length,
     1,
@@ -407,10 +404,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain,
     /btn_onOnePress\(KEY2, frogalert_key2_transition\)/,
   );
-  assert.match(
-    patchedMain,
-    /!btn_key1_profile_detected\(\)[\s\S]*mode == NORMAL[\s\S]*frogalert_view_transition\(\);[\s\S]*return;/,
-  );
+  assert.doesNotMatch(patchedMain, /!btn_key1_profile_detected\(\)/);
   assert.match(
     patchedMain,
     /frogalert_survey_suspend\(TRUE\)[\s\S]*ble_enable_advertise\(\)/,
@@ -423,7 +417,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /Route both buttons through the detected KEY1 electrical profile[\s\S]*btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);/,
+    /Route both buttons through the artifact-bound hardware profile[\s\S]*btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);/,
   );
   assert.match(patchedMain, /frogalert_survey_text/);
   assert.match(

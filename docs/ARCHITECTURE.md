@@ -40,17 +40,13 @@ Both profiles retain the same `USBC_VERSION=1` 23-net LED matrix and
 KEY2/PB22 active-low path. The newer profile applies only the three pinned
 KEY1 source transformations before compilation.
 
-There is no passive boot-time profile probe. An untouched KEY1 switch is open
-on both boards, and PA1 follows whichever internal pull the firmware chooses.
-The survey lane retains the compiled profile as its boot fallback, then samples
-PA1 with weak pull-down and pull-up configurations until a held KEY1 produces
-four consistent samples. Open reads low/high, held `250901` reads high/high,
-and held `260404` reads low/low. The runtime result corrects KEY1 polarity,
-short-button routing, and shutdown wake configuration without modifying the
-KEY2 long-press ISP path. Separate artifacts, exact printed markings, and
-profile-bound status remain required because the correction is interactive,
-volatile, and hardware-unverified. CI-audited publication does not convert that
-runtime fallback into board-identification proof.
+There is no safe runtime profile probe. An untouched KEY1 switch is open on
+both boards, and PA1 follows whichever internal pull the firmware chooses. A
+held-KEY1 weak-pull experiment was removed after a physical `250901` test
+falsely selected `260404` and swapped the short-button roles. The survey lane
+therefore keeps the compiled exact profile for KEY1 polarity, short-button
+routing, and shutdown wake without modifying the KEY2 long-press ISP path.
+Separate artifacts and exact printed markings remain mandatory.
 
 ## Replacement-image progression
 

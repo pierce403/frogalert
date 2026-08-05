@@ -33,11 +33,11 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   published together as `0.1.0-beta.1` and available to the flasher
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.4`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.5`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
-  passive surveys, alerts, BadgeMagic app window, adaptive buttons, and KEY2
+  passive surveys, alerts, BadgeMagic app window, profile-bound buttons, and KEY2
   recovery, but replaces the visible Bluetooth counter with three frogs
   alternating poses every half-second
 - static project site: implemented
@@ -187,13 +187,12 @@ active-low presses, and falling-edge wake.
 
 There is no safe passive boot-time auto-detection for that distinction. With
 KEY1 untouched, the switch is open on both boards and the input simply follows
-whichever internal pull the firmware selected. The current development
-candidate adds mismatch recovery: while KEY1 is held, it samples PA1 with both
-weak pull directions. An open switch follows the pulls, a `250901` press stays
-high, and a `260404` press stays low. Four consistent samples correct the
-button roles and shutdown wake edge for that boot without changing KEY2's
-long-press ISP path. This is not yet hardware-verified, so select the exact
-printed PCB marking for first flash; the fallback does not replace that check.
+whichever internal pull the firmware selected. An experimental held-KEY1 probe
+was removed after a `250901` test showed that an open PA1 could be falsely
+classified as `260404`, swapping the short-button roles. Each image now keeps
+its compiled profile for KEY1 polarity, button routing, and shutdown wake.
+Select the exact printed PCB marking for every flash; cross-profile flashing is
+not repaired at runtime.
 
 Once compatible FOSSASIA firmware is installed, holding KEY2 for about
 2.2 seconds shows one dot near the middle and exposes WCH ISP as `4348:55e0`

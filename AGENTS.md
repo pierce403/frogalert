@@ -512,21 +512,26 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   frog-only event branch inside `FROGALERT_DANCING_FROG_MODE`; an empty
   runtime branch still changed the counter BIN by eight bytes and broke its
   locked CI hash.
-- Current post-beta survey source adds mismatch recovery without changing the
-  common LED map or KEY2/PB22 path. Until KEY1 is held, each image uses its
-  compiled profile. The 50 Hz button scan then samples PA1 after a 2 us settle
-  under pull-down and pull-up; four consistent `high/high` samples select
-  `250901`, four `low/low` samples select `260404`, and the ordinary open
-  `low/high` state selects nothing. A confirmed result corrects KEY1 polarity,
-  both short-button roles, and shutdown wake for the current boot. The current
-  preceding blank-fallback, Meta-pair, and stable-counter 206,216-byte candidates were `260404`
+- The held-KEY1 mismatch probe is rejected. A physical `0.2.0-beta.4` bottom
+  test showed that open PA1 on `250901` could be classified as `260404`, which
+  swapped the short-button roles and made bottom/near-USB KEY2 enter persistent
+  BadgeMagic download mode instead of selecting the counter. Current source
+  always uses the artifact's compiled KEY1 polarity, short-button routing, and
+  shutdown wake edge; exact printed-marking/profile selection is mandatory and
+  cross-profile flashing is not repaired at runtime. The preceding
+  blank-fallback, Meta-pair, and stable-counter 206,216-byte candidates were `260404`
   `a3cb748194965c2f2aa54ec541df02e66c3f38f8e375179f620a2cae9bcc444e`
   and `250901`
   `cb2780b1f11818f4560fd14d01dfa1e32ab7317766cb9dc876d428fc7df0706a`.
   They pass locked ELF/BIN/vector/USB/BLE/display/KEY2 audits but are
-  hardware-unverified. Test each on its matching board and deliberately
-  cross-flashed board, including KEY2-before-detection, brightness,
-  download/power/wake, and KEY2-only ISP, before claiming hardware verification.
+  hardware-unverified. Test each corrected image on its matching board,
+  including brightness, both short-button roles, download/power/wake, and
+  KEY2-only ISP, before claiming hardware verification.
+  The `0.2.0-beta.5` local calculated receipts are counter top
+  `005525cd…6f62a45`, counter bottom `5c465e59…18f4cce` (both 200,576 bytes),
+  frogs top `92bd6ea0…18c93989`, and frogs bottom `c6b0a008…e54f0e4d`
+  (both 200,660 bytes). Canonical CI must independently reproduce and attest
+  the standard counter pair before website publication.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;

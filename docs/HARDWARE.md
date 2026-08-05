@@ -39,20 +39,13 @@ shifted LED matrix. The `260404` values and KEY2 position come from Nyx's board
 notes and FOSSASIA commit `696bbd71`; they still require an exact-board
 FrogAlert smoke test.
 
-Safe passive boot-time auto-detection is not available. Before KEY1 has been
-pressed, its switch is open on both boards, so PA1 only reflects the internal
-pull selected by the running firmware. The current survey candidate therefore
-boots with its compiled profile as a fallback, but probes PA1 under both weak
-pull directions until KEY1 is held. An open switch reads low then high; a held
-`250901` switch remains high under both pulls; and a held `260404` switch
-remains low under both. Four consistent 50 Hz samples confirm the runtime
-profile, after which FrogAlert corrects the KEY1 polarity, both short-button
-roles, and the shutdown wake edge. This makes an accidentally mismatched image
-recover after one KEY1 press without changing the common KEY2 long-press ISP
-path. Before that confirmation, a short KEY2 press may select the counter but
-cannot advance toward shutdown, preventing the most hazardous wrong-profile
-fallback. It remains hardware-unverified and does not relax first-flash
-profile selection or artifact/evidence binding.
+Safe runtime auto-detection is not available. An unpressed KEY1 is open on both
+boards, so PA1 reflects the internal pull selected by the running firmware. An
+experimental held-KEY1 weak-pull probe was also unsafe: a physical `250901`
+test showed open PA1 could be classified as `260404`, swapping the short-button
+roles. Current firmware always retains its compiled KEY1 polarity, button
+routing, and shutdown wake edge. This leaves the common KEY2 long-press ISP
+path unchanged and makes exact printed-marking/profile selection mandatory.
 
 ## Current physical badge evidence
 
@@ -282,7 +275,7 @@ wchisp -r 30 flash \
 ```
 
 Run the flash command before holding bottom-button KEY2 so `wchisp` is already
-polling during the short ISP window. The locally built adaptive image remains
+polling during the short ISP window. The locally built profile-bound image remains
 hardware-unverified; it is not the published beta. Do not substitute either
 quarantined standalone Rust image or a temporary canary merely because it
 builds, and do not mistake the upstream open v0.1 substitute for the original
