@@ -186,13 +186,16 @@ into one hash or infer the profile from an untouched KEY1 input.
 The canary adds one retained C metadata string and owns no functions or
 hardware. The survey lane keeps the same shell, uses WCH's combined
 central/peripheral role pattern, and adds only a disconnected three-second
-passive scan plus a button-selectable fixed aggregate-count frame. Upstream's
-KEY2 display button rotates
-`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`. KEY1 keeps download
-mode and long brightness, but the next short press returns to normal instead
-of entering shutdown. The separate long-KEY2 ISP poll remains inherited in
-both exact profiles. KEY2 view selection does not advertise or start the
-Bluetooth animation; KEY1 download mode owns that behavior. Scanning continues in either
+passive scan plus a button-selectable fixed aggregate-count frame. The physical
+bottom button rotates
+`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`; it is KEY1 on
+`260404` and KEY2 on `250901`. The physical top button is the other key and
+cycles normal → download → recoverable screen off → normal. KEY1 long
+brightness and the separate long-KEY2 ISP poll remain inherited in both exact
+profiles. The bottom/view transition does not advertise or start the Bluetooth
+animation; the top/system transition owns that behavior. Screen off disables
+TMR0 display refresh and releases the matrix but keeps button/TMOS/ISP tasks.
+Scanning continues in either
 visible view. The counter retains the last completed result while a new scan is
 running, then changes once when that scan completes. It consumes the final
 discovery list and feeds

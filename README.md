@@ -33,7 +33,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   published together as `0.1.0-beta.1` and available to the flasher
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.8`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.9`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
@@ -124,7 +124,10 @@ hardware-unverified local artifact even when its base BIN came from CI.
 In these beta images, the physical button nearest USB rotates the visible
 content as `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`: that is KEY2 on
 `250901`, but KEY1 on the reversed `260404` layout. The other short press keeps
-FOSSASIA's normal system-mode action. KEY1 long press still changes brightness,
+the physical top/system role and cycles normal → Bluetooth download →
+recoverable screen off → normal. Screen off disables the display refresh,
+matrix drive, advertising, and surveys without stopping the button or ISP
+tasks. KEY1 long press still changes brightness,
 and the independent farther-button long-KEY2 ISP path remains in the inherited
 shell on `260404`. Passive
 surveys continue in both nametag and counter views. `COP DETECTED`,
@@ -157,12 +160,13 @@ fixed in place and alternates between its two poses every 500 ms. Temporary
 detector overlays preempt the frogs, then the frogs resume. This variant is
 separate from the published counter beta and remains hardware-unverified.
 
-Current FrogAlert candidates preserve the upstream separation between the two
-short-button actions. KEY2 changes only the selected name/count or name/frog
-view; it never enables advertising or starts the Bluetooth animation. KEY1
-enters persistent BadgeMagic download mode and shows the Bluetooth animation;
-the next KEY1 short press stops advertising and returns to normal instead of
-entering the board's unverified shutdown path. Unattended badges do not
+Current FrogAlert candidates preserve the separation between the two physical
+short-button actions on both exact boards. The bottom button changes only the
+selected name/count or name/frog view; it never enables advertising or starts
+the Bluetooth animation. The top button enters persistent BadgeMagic download
+mode, then recoverable screen off, and wakes to normal on the next short press.
+This is compile-time routing (`260404`: KEY1 view/KEY2 system; `250901`: KEY2
+view/KEY1 system), never runtime profile guessing. Unattended badges do not
 advertise continuously, avoiding a room full of identical `FEE0` candidates.
 A successful app connection suspends surveys for the entire upload.
 

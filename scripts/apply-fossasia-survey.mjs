@@ -316,6 +316,17 @@ export function applyMainHooks(source) {
   let result = normalizeLineEndings(source);
   result = replaceOnce(
     result,
+    `static void mode_setup_download();
+static void mode_setup_normal();`,
+    `static void mode_setup_download();
+static void mode_setup_normal();
+#ifdef FROGALERT_SURVEY
+static void mode_setup_screen_off(void);
+#endif`,
+    "recoverable screen-off mode declaration",
+  );
+  result = replaceOnce(
+    result,
     `	if (modes[mode])
 		modes[mode]();
 }
@@ -329,22 +340,25 @@ static void bm_transition()`,
 __HIGH_CODE
 static void frogalert_change_mode()
 {
-	/* The upstream third step enters shutdown and only KEY1 can wake it.
-	 * Keep download mode, but never strand a badge whose profile-specific
-	 * shutdown edge has not been physically proven. */
-	if (mode == DOWNLOAD) {
+	/* Keep the upstream visible cycle without entering CH58x shutdown. The
+	 * application-level screen-off state leaves the button task and KEY2 ISP
+	 * poll alive, so the badge can always wake without USB power. */
+	if (mode == NORMAL) {
+		mode = DOWNLOAD;
+		mode_setup_download();
+	} else if (mode == DOWNLOAD) {
+		mode = POWER_OFF;
+		mode_setup_screen_off();
+	} else {
 		mode = NORMAL;
-		ble_disable_advertise();
 		mode_setup_normal();
-		return;
 	}
-	change_mode();
 }
 #endif
 
 __HIGH_CODE
 static void bm_transition()`,
-    "survey system button cannot enter unrecoverable shutdown",
+    "survey system button uses recoverable screen-off state",
   );
   result = replaceOnce(
     result,
@@ -547,19 +561,33 @@ static void frogalert_view_transition(void)
 
 uint8_t frogalert_badgemagic_persistent_advertising(void)
 {
-	return badge_cfg.ble_always_on || mode == DOWNLOAD;
+	return mode != POWER_OFF &&
+	       (badge_cfg.ble_always_on || mode == DOWNLOAD);
+}
+
+static void frogalert_key1_transition(void)
+{
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+	frogalert_change_mode();
+#else
+	if (mode == NORMAL)
+		frogalert_view_transition();
+#endif
 }
 
 static void frogalert_key2_transition(void)
 {
-	if (mode == NORMAL) {
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+	if (mode == NORMAL)
 		frogalert_view_transition();
-	}
+#else
+	frogalert_change_mode();
+#endif
 }
 #endif
 
 void play_splash`,
-    "KEY2 virtual counter-view rotation",
+    "profile-bound physical button roles",
   );
   result = replaceOnce(
     result,
@@ -801,6 +829,49 @@ static void disp_charging()
   );
   result = replaceOnce(
     result,
+    `static void stop_all_animation()
+{
+	tmos_stop_task(common_taskid, ANI_NEXT_STEP);
+	tmos_stop_task(common_taskid, ANI_MARQUE);
+	tmos_stop_task(common_taskid, ANI_FLASH);
+	tmos_stop_task(common_taskid, BLE_NEXT_STEP);
+	memset(fb, 0, sizeof(fb));
+}
+
+int streaming_enabled;`,
+    `static void stop_all_animation()
+{
+	tmos_stop_task(common_taskid, ANI_NEXT_STEP);
+	tmos_stop_task(common_taskid, ANI_MARQUE);
+	tmos_stop_task(common_taskid, ANI_FLASH);
+	tmos_stop_task(common_taskid, BLE_NEXT_STEP);
+	memset(fb, 0, sizeof(fb));
+}
+#ifdef FROGALERT_SURVEY
+static void mode_setup_screen_off(void)
+{
+	/* This is intentionally not poweroff(): LowPower_Shutdown stops the TMOS
+	 * task that polls KEY2 for ISP and proved unable to wake on a real badge.
+	 * Release the LED matrix and stop its 16 kHz timer while preserving TMR3
+	 * button scanning, TMOS, USB, and the long-KEY2 recovery task. */
+	ble_disable_advertise();
+	(void)frogalert_survey_suspend(FALSE);
+	frogalert_display_survey_relinquish();
+	stop_all_animation();
+	TMR0_ITCfg(DISABLE, TMR0_3_IT_CYC_END);
+	PFIC_DisableIRQ(TMR0_IRQn);
+	TMR0_Disable();
+	leds_releaseall();
+	btn_onOnePress(KEY1, frogalert_key1_transition);
+	btn_onOnePress(KEY2, frogalert_key2_transition);
+}
+#endif
+
+int streaming_enabled;`,
+    "recoverable display-off mode preserves buttons and ISP",
+  );
+  result = replaceOnce(
+    result,
     `	if (params[0] == 0x00) { // enter streaming mode
 		stop_all_animation();
 		streaming_enabled = 1;
@@ -947,9 +1018,10 @@ static void disp_charging()
 	// the Bluetooth animation
 	ble_enable_advertise();
 	start_ble_animation();`,
-    `	// Preserve upstream download mode: KEY1 advances the system mode and
-	// KEY2 has no short-press display action until normal mode resumes.
-	btn_onOnePress(KEY2, NULL);
+    `	// Route physical top/bottom roles through the compiled board profile.
+	// The view button is inert outside normal mode; the system button advances.
+	btn_onOnePress(KEY1, frogalert_key1_transition);
+	btn_onOnePress(KEY2, frogalert_key2_transition);
 
 	// Take control of the current bitmap to display
 	// the Bluetooth animation. Never advertise during Central discovery.
@@ -992,9 +1064,19 @@ static void disp_charging()
     `static void mode_setup_normal()
 {
 #ifdef FROGALERT_SURVEY
+	TMR0_ClearITFlag(TMR0_3_IT_CYC_END);
+	TMR0_Enable();
+	TMR0_ITCfg(ENABLE, TMR0_3_IT_CYC_END);
+	PFIC_EnableIRQ(TMR0_IRQn);
 	frogalert_counter_view = FALSE;
 	frogalert_display_survey_relinquish();
+	btn_onOnePress(KEY1, frogalert_key1_transition);
 	btn_onOnePress(KEY2, frogalert_key2_transition);
+	if (badge_cfg.ble_always_on) {
+		uint8_t frogalert_radio_idle = frogalert_survey_suspend(TRUE);
+		if (frogalert_radio_idle)
+			ble_enable_advertise();
+	}
 #else
 	btn_onOnePress(KEY2, bm_transition);
 #endif
@@ -1035,7 +1117,7 @@ static void disp_charging()
 	btn_onOnePress(KEY2, bm_transition);
 	btn_onLongPress(KEY1, change_brightness);`,
     `#ifdef FROGALERT_SURVEY
-	btn_onOnePress(KEY1, frogalert_change_mode);
+	btn_onOnePress(KEY1, frogalert_key1_transition);
 	btn_onOnePress(KEY2, frogalert_key2_transition);
 #else
 	btn_onOnePress(KEY1, change_mode);

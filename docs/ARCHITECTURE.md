@@ -70,16 +70,17 @@ callback: FOSSASIA starts Peripheral first, so that combined-role event may
 precede registration of the survey callback. A successful Central start also
 arms the first scan.
 
-FOSSASIA's KEY2 display-selection button gains a virtual counter view:
-`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. KEY1 keeps
-upstream download mode and long-press brightness, but a second short press
-returns to normal instead of entering the unverified shutdown/wake path. The
-separate roughly 2.2-second KEY2-to-ISP poll is unchanged. These logical
-roles do not change by firmware profile; only the buttons' physical positions
-and KEY1 electrical polarity differ. The view choice is
+The physical bottom button gains a virtual counter view:
+`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. This is KEY1 on
+`260404` and KEY2 on `250901`. The physical top button is the other key and
+cycles normal → download → recoverable screen off → normal. Screen off stops
+the LED timer and pin drive but preserves TMR3 button scanning, TMOS, USB, and
+the separate roughly 2.2-second KEY2-to-ISP poll. No button calls CH58x
+shutdown. The view choice is
 presentation state rather than radio state, so disconnected passive surveys
-continue while either the nametag or counter is visible. KEY2 never enables
-advertising or starts the Bluetooth animation; only KEY1 download mode does.
+continue while either the nametag or counter is visible. The profile-mapped
+bottom/view transition never enables advertising or starts the Bluetooth
+animation; only the physical top/system transition does.
 
 FrogAlert renders fixed counts, alert pages, and frog frames into the inactive
 one of two private 44-column buffers, then switches buffers only after the

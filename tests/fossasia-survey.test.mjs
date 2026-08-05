@@ -190,6 +190,8 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     '#include "ble/setup.h"',
     '#include "ble/profile.h"',
     "#define ANI_NEXT_STEP       (1 << 0)",
+    "static void mode_setup_download();",
+    "static void mode_setup_normal();",
     "\tif(events & ANI_NEXT_STEP) {",
     "",
     "\t\tstatic int (*animations[])(bm_t *bm, uint16_t *fb) = {",
@@ -244,6 +246,16 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\t}",
     "",
     "\tdevInfo_registerService();",
+    "static void stop_all_animation()",
+    "{",
+    "\ttmos_stop_task(common_taskid, ANI_NEXT_STEP);",
+    "\ttmos_stop_task(common_taskid, ANI_MARQUE);",
+    "\ttmos_stop_task(common_taskid, ANI_FLASH);",
+    "\ttmos_stop_task(common_taskid, BLE_NEXT_STEP);",
+    "\tmemset(fb, 0, sizeof(fb));",
+    "}",
+    "",
+    "int streaming_enabled;",
     "\tif (params[0] == 0x00) { // enter streaming mode",
     "\t\tstop_all_animation();",
     "\t\tstreaming_enabled = 1;",
@@ -347,14 +359,24 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain.match(/#ifdef FROGALERT_SURVEY[\s\S]*?#else/)?.[0] ?? "",
     /VERSION_ABBR/,
   );
-  assert.doesNotMatch(patchedMain, /frogalert_key1_transition/);
+  const key1Transition = patchedMain.match(
+    /static void frogalert_key1_transition\(void\)\n\{[\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(key1Transition);
+  assert.match(
+    key1Transition,
+    /FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*frogalert_change_mode\(\);[\s\S]*#else[\s\S]*mode == NORMAL[\s\S]*frogalert_view_transition\(\)/,
+  );
   const key2Transition = patchedMain.match(
     /static void frogalert_key2_transition\(void\)\n\{[\s\S]*?\n\}/,
   )?.[0];
   assert.ok(key2Transition);
-  assert.match(key2Transition, /mode == NORMAL[\s\S]*frogalert_view_transition\(\)/);
-  assert.doesNotMatch(
+  assert.match(
     key2Transition,
+    /FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*mode == NORMAL[\s\S]*frogalert_view_transition\(\)[\s\S]*#else[\s\S]*frogalert_change_mode\(\)/,
+  );
+  assert.doesNotMatch(
+    `${key1Transition}\n${key2Transition}`,
     /frogalert_survey_open_app_window|ble_enable_advertise|start_ble_animation/,
   );
   assert.doesNotMatch(
@@ -363,7 +385,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /frogalert_badgemagic_persistent_advertising\(void\)[\s\S]*badge_cfg\.ble_always_on \|\| mode == DOWNLOAD/,
+    /frogalert_badgemagic_persistent_advertising\(void\)[\s\S]*mode != POWER_OFF[\s\S]*badge_cfg\.ble_always_on \|\| mode == DOWNLOAD/,
   );
   assert.match(
     patchedMain,
@@ -412,7 +434,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /btn_onOnePress\(KEY2, frogalert_key2_transition\)/,
+    /btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\)/,
   );
   assert.doesNotMatch(patchedMain, /!btn_key1_profile_detected\(\)/);
   assert.match(
@@ -421,17 +443,42 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(patchedMain, /mode = NORMAL;[\s\S]*mode_setup_normal\(\)/);
   assert.match(patchedMain, /stop_all_animation\(\);/);
+  assert.doesNotMatch(patchedMain, /btn_onOnePress\(KEY2, NULL\)/);
   assert.match(
     patchedMain,
-    /Preserve upstream download mode[\s\S]*btn_onOnePress\(KEY2, NULL\);/,
+    /btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);[\s\S]*btn_onLongPress\(KEY1, change_brightness\);/,
   );
   assert.match(
     patchedMain,
-    /btn_onOnePress\(KEY1, frogalert_change_mode\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);[\s\S]*btn_onLongPress\(KEY1, change_brightness\);/,
+    /frogalert_change_mode\(\)[\s\S]*mode == NORMAL[\s\S]*mode = DOWNLOAD;[\s\S]*mode_setup_download\(\);[\s\S]*mode == DOWNLOAD[\s\S]*mode = POWER_OFF;[\s\S]*mode_setup_screen_off\(\);[\s\S]*mode = NORMAL;[\s\S]*mode_setup_normal\(\);/,
+  );
+  const frogModeTransition = patchedMain.match(
+    /static void frogalert_change_mode\(\)\n\{[\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(frogModeTransition);
+  assert.doesNotMatch(
+    frogModeTransition,
+    /(?:^|\s)change_mode\(\);|poweroff\(/,
+  );
+  const screenOffSetup = patchedMain.match(
+    /static void mode_setup_screen_off\(void\)\n\{[\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(screenOffSetup);
+  assert.match(
+    screenOffSetup,
+    /ble_disable_advertise\(\);[\s\S]*frogalert_survey_suspend\(FALSE\)[\s\S]*stop_all_animation\(\);[\s\S]*TMR0_ITCfg\(DISABLE[\s\S]*PFIC_DisableIRQ\(TMR0_IRQn\);[\s\S]*TMR0_Disable\(\);[\s\S]*leds_releaseall\(\);/,
+  );
+  assert.doesNotMatch(
+    screenOffSetup,
+    /\n\s*(?:poweroff|LowPower_Shutdown)\(/,
   );
   assert.match(
     patchedMain,
-    /frogalert_change_mode\(\)[\s\S]*mode == DOWNLOAD[\s\S]*mode = NORMAL;[\s\S]*ble_disable_advertise\(\);[\s\S]*mode_setup_normal\(\);[\s\S]*change_mode\(\);/,
+    /static void mode_setup_normal\(\)[\s\S]*TMR0_ClearITFlag[\s\S]*TMR0_Enable\(\);[\s\S]*TMR0_ITCfg\(ENABLE[\s\S]*PFIC_EnableIRQ\(TMR0_IRQn\);/,
+  );
+  assert.match(
+    patchedMain,
+    /mode_setup_normal\(\)[\s\S]*badge_cfg\.ble_always_on[\s\S]*frogalert_survey_suspend\(TRUE\)[\s\S]*ble_enable_advertise\(\)/,
   );
   assert.match(
     patchedMain,
@@ -755,7 +802,11 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
   assert.match(survey, /restore_completed_view\(\)/);
   assert.match(
     survey,
-    /advertise_when_idle && !peripheral_is_connected\(\)/,
+    /advertise_when_idle && frogalert_survey_should_advertise\(\) &&[\s\S]*!peripheral_is_connected\(\)/,
+  );
+  assert.match(
+    survey,
+    /advertise_when_idle = advertise_after \? 1 : 0;/,
   );
   assert.doesNotMatch(
     survey,

@@ -397,12 +397,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   release is not the same as a physical hardware smoke.
 - FrogAlert survey candidates keep unattended normal-mode GATT advertising off
   because BadgeMagic app commit `42c98bc` defaults to “any” and connects to the
-  first matching `FEE0` advertiser without a chooser. Keep upstream's strict
-  role separation: KEY2 short changes only the name/count or name/frog view and
-  must never advertise or show the Bluetooth animation; KEY1 short enters
-  ordinary persistent download mode and the next KEY1 short returns to normal
-  without entering shutdown. A connection suspends surveys until disconnect;
-  KEY2 long-press ISP remains independent.
+  first matching `FEE0` advertiser without a chooser. Preserve the user's
+  physical-position roles with compile-time profile routing: the bottom button
+  changes only the name/count or name/frog view and must never advertise; the
+  top button cycles normal → persistent download → recoverable screen off →
+  normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
+  system on `250901`. Never infer or adapt the profile at runtime. A connection
+  suspends surveys until disconnect; KEY2 long-press ISP remains independent
+  and must keep running in screen-off state.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 
@@ -442,11 +444,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   instead of depending only on that callback, consumes both live reports and
   the discovery completion list. The counter displays only the last completed
   result, holds it throughout the next scan, and keeps initialization, scan,
-  error, and timeout state in debug output. Upstream's electrical KEY2 display
-  button rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter` on
-  both profiles. KEY1 keeps download mode and long brightness, but its next
-  short press returns to normal instead of shutdown. The independent long-KEY2
-  ISP task remains inherited. Surveys
+  error, and timeout state in debug output. The physical bottom button rotates
+  `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter` on both profiles;
+  this compiles as KEY1 on `260404` and KEY2 on `250901`. The physical top
+  button compiles as the other key and cycles normal, download, recoverable
+  screen off, and normal. KEY1 long brightness and the independent long-KEY2
+  ISP task remain inherited. Surveys
   continue in either visible view. A CRC/profile-bound configuration enables
   built-in groups and up to eight custom rules. The bounded C mirror implements
   every README OUI/name row. The counter is one centered fixed frame; built-in
@@ -476,10 +479,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   20 seconds while disconnected; a continuously present match can retrigger
   once in each new window. It caps and zeroes 64 addresses, restores
   advertising, cancels a stuck scan after five seconds, and preserves audited
-  FOSSASIA USB/BLE/display/KEY2 symbols. Current source does not adapt logical
-  button roles for physical position or cross-profile flashing: KEY1 keeps the
-  upstream system/brightness role and KEY2 keeps display selection plus ISP in
-  both exact artifacts. The published beta `260404` image is 205,152 bytes at SHA-256
+  FOSSASIA USB/BLE/display/KEY2 symbols. Current source binds physical button
+  roles to the compiled exact artifact and does not attempt cross-profile
+  compatibility. The published beta `260404` image is 205,152 bytes at SHA-256
   `c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9`;
   the published beta `250901` image is 205,128 bytes at SHA-256
   `f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9`.
@@ -502,8 +504,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
 - The optional `frogs` lane retains the entire private survey/alert/app/recovery
   shell and changes only the alternate visible view: three fixed frogs
   alternate poses every 500 ms. Alerts stop that one-shot frame event and the
-  selected frog view resumes afterward. KEY2 view selection has no advertising
-  or Bluetooth-animation side effect; KEY1 alone owns download mode. The
+  selected frog view resumes afterward. The profile-mapped physical bottom
+  button selects the frog view with no advertising or Bluetooth-animation side
+  effect; the physical top button owns download and screen-off modes. The
   preceding pre-boot-status reference images were 206,304 bytes:
   top/`260404` `5c69637a…00ea8ce`, bottom/`250901`
   `5634194f…7964bd`. Keep the entire
@@ -514,8 +517,8 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   test showed that open PA1 on `250901` could be classified as `260404`, which
   swapped the short-button roles and made bottom/near-USB KEY2 enter persistent
   BadgeMagic download mode instead of selecting the counter. Current source
-  always uses the artifact's compiled KEY1 polarity and shutdown wake edge;
-  logical button roles now remain upstream-identical across profiles. Exact
+  always uses the artifact's compiled KEY1 polarity and fixed physical roles;
+  it performs no runtime probing or cross-profile correction. Exact
   printed-marking/profile selection is mandatory and
   cross-profile flashing is not repaired at runtime. The preceding
   blank-fallback, Meta-pair, and stable-counter 206,216-byte candidates were `260404`
@@ -548,6 +551,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `33ace6e6…022c0fba` (both 200,220 bytes). These are build evidence only until
   physical retest; canonical CI must independently reproduce and attest the
   standard pair.
+  The physical-position/recoverable-off `0.2.0-beta.9` local calculated
+  receipts are counter top `bb6d3f15…5a29259`, counter bottom
+  `f0e40355…343f059` (both 200,340 bytes), frogs top
+  `f486da88…040c9346`, and frogs bottom `88fcea61…f427b42` (both 200,412
+  bytes). The compiled top artifact binds KEY1 to view and KEY2 to system; the
+  bottom artifact binds KEY2 to view and KEY1 to system. These are build
+  evidence only until physical retest; canonical CI must independently
+  reproduce and attest the standard pair.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;
@@ -566,10 +577,15 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.8` / `v0.2.0b8`, adds the passive
-  Flipper `0x3081`–`0x3083` service rule, and removes the reachable shutdown
-  transition plus KEY2 app-attention compatibility window from FrogAlert
-  builds. Per the owner's 2026-08-03 policy
+- Current source declares `0.2.0-beta.9` / `v0.2.0b9`, adds the passive
+  Flipper `0x3081`–`0x3083` service rule, removes the app-attention
+  compatibility window, restores fixed physical-position button roles, and
+  replaces CH58x shutdown with a recoverable screen-off state. Screen off
+  disables advertising, surveys, the 16 kHz display timer/IRQ, and matrix pin
+  drive while retaining TMR3 button polling, TMOS, USB, and the long-KEY2 ISP
+  task. Every asynchronous suspend overwrites its deferred advertising request
+  and rechecks the current mode before enabling it, so a quick download/off
+  sequence cannot advertise after dark. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
@@ -601,34 +617,44 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   advertising/mode race until exact radio logs prove otherwise. A briefly
   tested always-on response was rejected because the Android app connects to
   the first matching `FEE0` advertiser, which is unsafe in a room of badges.
-  Current source retains upstream persistent download mode on KEY1 and removes
-  the rejected bounded app-attention window from KEY2 display/count selection.
-  Only KEY1 shows the Bluetooth cue; connection-suspension rules remain.
+  Current source retains persistent download mode only on the profile-mapped
+  physical top/system button and removes the rejected bounded app-attention
+  window from the physical bottom/view button. Only the top button shows the
+  Bluetooth cue; connection-suspension rules remain.
 - On 2026-08-05 the user reported that exact `0.2.0-beta.5` on the bottom badge
   produced download then power-off from the near-USB button, while repeated
   short presses on the other button inconsistently changed brightness before
   eventually selecting the counter. This behavior contradicts the intended
-  profile-position wrappers. The adopted fix removes those wrappers and any
-  cross-profile role adaptation: preserve upstream KEY1 short system, KEY1
-  long brightness, KEY2 short display/count, and long-KEY2 ISP roles, while
-  retaining only the exact profile's KEY1 polarity and shutdown wake.
+  profile-position wrappers. The beta.6 response removed those wrappers and
+  kept logical KEY roles identical, but beta.8 testing later proved that choice
+  broke physical-position consistency on the top badge. Do not restore the
+  unsafe runtime probe; use the beta.9 compile-time mapping instead.
 - On 2026-08-05 exact bottom `0.2.0-beta.6` showed that two KEY1 short presses
   deliberately followed FOSSASIA's `NORMAL → DOWNLOAD → POWER_OFF` cycle, but
   the profile-specific KEY1 shutdown edge did not wake the badge. Once shut
   down, the application-level 200 ms KEY2 poll was no longer running, so KEY2
-  could not enter ISP; attaching USB caused a full reboot. Current FrogAlert
-  source keeps the first KEY1 download transition but makes the next short
-  press perform `DOWNLOAD → NORMAL`, disables persistent advertising, and
-  never exposes `POWER_OFF`. Do not weaken or replace the separate continuous
+  could not enter ISP; attaching USB caused a full reboot. Beta.7 avoided all
+  off behavior; beta.9 instead implements a recoverable application-level
+  screen-off state that stops the LED timer and drive but not button/TMOS/ISP
+  tasks. Do not route a button to `poweroff()` or weaken the separate continuous
   more-than-ten-sample KEY2-to-address-zero recovery path.
 - On 2026-08-05 exact bottom `0.2.0-beta.7` showed the Bluetooth animation and
   enabled advertising on a KEY2 display/count press. The electrical mapping was
   correct; `frogalert_key2_transition()` still called the cross-image
   compatibility `frogalert_survey_open_app_window()`. The owner rejected that
-  compatibility behavior and requires strict upstream roles. Current source
-  removes the app-window API, timers, and display callbacks: KEY2 short changes
-  only the visible view, while KEY1 alone enters/exits download mode. Tests must
-  reject advertising and Bluetooth-animation calls from the KEY2 transition.
+  compatibility behavior. Beta.8 removed the app-window API, timers, and
+  display callbacks, but incorrectly standardized logical KEY roles. Current
+  tests must reject advertising and Bluetooth-animation calls from either
+  profile's physical-bottom view transition.
+- On 2026-08-05 exact top `0.2.0-beta.8` showed the physical top button changing
+  the name/count view, and the owner also confirmed that losing screen off was
+  unacceptable. Root cause was the logical KEY1/KEY2 standardization: physical
+  positions differ between the exact board profiles. Beta.9 restores only fixed
+  compile-time position mapping (`260404`: KEY1 view, KEY2 system; `250901`:
+  KEY2 view, KEY1 system), with no runtime probe or cross-image compatibility.
+  The top/system cycle is normal → download → recoverable screen off → normal.
+  Screen off must keep the 50 Hz button task and 200 ms KEY2 ISP task alive;
+  prove wake and ISP without USB on both exact images before hardware approval.
 - On 2026-08-05 the user reported that `0.2.0-beta.3` top firmware sometimes
   remains on the Bluetooth readiness animation after a bottom-button counter
   selection. The one-second `SURVEY_APP_CUE_END_EVENT` restores the selected

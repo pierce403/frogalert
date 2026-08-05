@@ -24,12 +24,10 @@ KEY2/PB22 active-low input. The build-time difference is limited to KEY1/PA1:
 
 An untouched KEY1 is an open switch on both boards and only reflects the
 firmware-selected pull, so it cannot safely auto-detect the board before first
-use. The survey candidate retains the compiled profile as its fallback, then
-uses four debounced two-pull samples while KEY1 is held to distinguish
-open (`low/high`), `250901` (`high/high`), and `260404` (`low/low`). A confirmed
-result corrects button routing and shutdown wake for the current boot. The
-build and embedded monitor configuration still carry an explicit profile id,
-and this mismatch recovery remains hardware-unverified.
+use. The rejected held-KEY1 two-pull probe misclassified a physical `250901`
+badge, so survey/frog firmware always retains the artifact's compiled profile.
+The build and embedded monitor configuration carry an explicit profile id;
+matching the printed PCB marking to the correct artifact is mandatory.
 
 ## Build lanes
 
@@ -76,24 +74,24 @@ identity string with no functions or hardware references. The survey candidate
 keeps that same C hardware shell and adds a bounded passive counter and
 classifier for the selected profile.
 
-This diagnostic lane starts in normal nametag view. Upstream's KEY2 display
-button extends its existing bitmap selection with a virtual counter:
-`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. KEY1 retains
-upstream download mode and long-press brightness, but its next short press
-returns to normal instead of entering shutdown; the separate long-KEY2 ISP
-task remains unchanged. These electrical roles
-are identical in both exact artifacts even though their physical button
-positions differ. Passive surveys run in either visible
+This diagnostic lane starts in normal nametag view. The physical bottom button
+extends bitmap selection with a virtual counter:
+`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. It compiles as
+KEY1 on `260404` and KEY2 on `250901`. The physical top button compiles as the
+other key and cycles normal → download → recoverable screen off → normal. KEY1
+long-press brightness and the separate long-KEY2 ISP task remain unchanged.
+Screen off stops the display timer and releases its pins without stopping
+button/TMOS/ISP tasks. Passive surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio
 schedule runs.
 
 The separate `frogs` lane retains that complete survey and compatibility
 shell, but renders the alternate view as three fixed frogs alternating between
 two poses every 500 ms. Detection alerts preempt the frogs through the same
-display-ownership path, then return to the frog view. KEY2 changes only this
-visible view and never starts advertising or the Bluetooth animation; KEY1
-alone enters and exits BadgeMagic download mode. The lane does not change or
-replace the locked `survey` artifacts.
+display-ownership path, then return to the frog view. The profile-mapped bottom
+button changes only this visible view and never starts advertising or the
+Bluetooth animation; the physical top button owns download and screen-off
+modes. The lane does not change or replace the locked `survey` artifacts.
 
 Counter view shows only the most recent completed result. It starts at the
 Bluetooth rune plus `00`, holds that frame while a passive scan is active, and

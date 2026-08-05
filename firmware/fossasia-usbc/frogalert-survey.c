@@ -298,7 +298,8 @@ static void finish_survey(uint8_t reason)
 	if (reason == SURVEY_CANCEL_SUSPEND) {
 		restore_advertising = 0;
 		restore_completed_view();
-		if (advertise_when_idle && !peripheral_is_connected())
+		if (advertise_when_idle && frogalert_survey_should_advertise() &&
+		    !peripheral_is_connected())
 			ble_enable_advertise();
 		advertise_when_idle = 0;
 		schedule_survey(SURVEY_RETRY_DELAY);
@@ -606,8 +607,9 @@ uint8_t frogalert_survey_suspend(uint8_t advertise_after)
 	}
 
 	cancel_reason = SURVEY_CANCEL_SUSPEND;
-	if (advertise_after)
-		advertise_when_idle = 1;
+	/* A later screen-off request must be able to revoke a deferred download
+	 * advertisement while asynchronous discovery cancellation completes. */
+	advertise_when_idle = advertise_after ? 1 : 0;
 	status = GAPRole_CentralCancelDiscovery();
 	if (status == bleIncorrectMode) {
 		finish_survey(SURVEY_CANCEL_SUSPEND);

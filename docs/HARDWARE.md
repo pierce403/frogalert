@@ -43,9 +43,11 @@ Safe runtime auto-detection is not available. An unpressed KEY1 is open on both
 boards, so PA1 reflects the internal pull selected by the running firmware. An
 experimental held-KEY1 weak-pull probe was also unsafe: a physical `250901`
 test showed open PA1 could be classified as `260404`, swapping the short-button
-roles. Current firmware always retains its compiled KEY1 polarity, button
-routing, and shutdown wake edge. This leaves the common KEY2 long-press ISP
-path unchanged and makes exact printed-marking/profile selection mandatory.
+roles. Current firmware always retains its compiled KEY1 polarity and fixed
+physical-position routing: KEY1 view/KEY2 system on `260404`, and KEY2
+view/KEY1 system on `250901`. Its system-button screen-off state does not enter
+CH58x shutdown, leaving the common KEY2 long-press ISP path active and making
+exact printed-marking/profile selection mandatory.
 
 ## Current physical badge evidence
 
