@@ -122,6 +122,7 @@ export function applyButtonHeaderHooks(source) {
 #endif
 
 int btn_key1_pressed(void);
+int btn_brightness_key(void);
 void btn_configure_key1_wake(void);
 
 #define isPressed(key) \t\t((key) ? \\
@@ -159,11 +160,17 @@ int btn_key1_pressed(void)
 #endif
 }
 
+int btn_brightness_key(void)
+{
 #if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-#define FROGALERT_LONGPRESS_THRESHOLD(key) \
-\t((key) == KEY1 ? (LONGPRESS_THRES * 5) : LONGPRESS_THRES)
+\treturn KEY2;
 #else
-#define FROGALERT_LONGPRESS_THRESHOLD(key) LONGPRESS_THRES
+\treturn KEY1;
+#endif
+}
+
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+#define FROGALERT_BRIGHTNESS_RELEASE_MAX (BUTTON_SCAN_FREQ * 2)
 #endif
 
 void btn_configure_key1_wake(void)
@@ -184,15 +191,53 @@ void btn_init()
   );
   result = replaceOnce(
     result,
-    "hold[k] >= LONGPRESS_THRES && is_longpress[k] == 0",
-    "hold[k] >= FROGALERT_LONGPRESS_THRESHOLD(k) && is_longpress[k] == 0",
-    "profile-bound long-press activation threshold",
+    `\t\tif (hold[k] >= LONGPRESS_THRES && is_longpress[k] == 0) {
+\t\t\tis_longpress[k] = 1;
+\t\t\tlongPressPending[k] = true;
+\t\t\tif (button_task_id != INVALID_TASK_ID) {
+\t\t\t\ttmos_set_event(button_task_id, BTN_PRESS);
+\t\t\t}
+\t\t}`,
+    `\t\tif (hold[k] >= LONGPRESS_THRES && is_longpress[k] == 0) {
+\t\t\tis_longpress[k] = 1;
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\t\t\t/* KEY2 is the physical bottom button on this profile. Defer its
+\t\t\t * brightness action until release, leaving a continuous hold free
+\t\t\t * for the independent 200 ms KEY2-to-ISP task. */
+\t\t\tif (k == KEY2)
+\t\t\t\treturn;
+#endif
+\t\t\tlongPressPending[k] = true;
+\t\t\tif (button_task_id != INVALID_TASK_ID) {
+\t\t\t\ttmos_set_event(button_task_id, BTN_PRESS);
+\t\t\t}
+\t\t}`,
+    "bottom KEY2 deferred brightness activation",
   );
   result = replaceOnce(
     result,
-    "hold[k] > 0 && hold[k] < LONGPRESS_THRES",
-    "hold[k] > 0 && hold[k] < FROGALERT_LONGPRESS_THRESHOLD(k)",
-    "profile-bound short-press release threshold",
+    `\t\tif (hold[k] > 0 && hold[k] < LONGPRESS_THRES) {
+\t\t\tonePressPending[k] = true;
+\t\t\tif (button_task_id != INVALID_TASK_ID) {
+\t\t\t\ttmos_set_event(button_task_id, BTN_PRESS);
+\t\t\t}
+\t\t}`,
+    `#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\t\tif (k == KEY2 && hold[k] >= LONGPRESS_THRES &&
+\t\t    hold[k] < FROGALERT_BRIGHTNESS_RELEASE_MAX) {
+\t\t\tlongPressPending[k] = true;
+\t\t\tif (button_task_id != INVALID_TASK_ID) {
+\t\t\t\ttmos_set_event(button_task_id, BTN_PRESS);
+\t\t\t}
+\t\t} else
+#endif
+\t\tif (hold[k] > 0 && hold[k] < LONGPRESS_THRES) {
+\t\t\tonePressPending[k] = true;
+\t\t\tif (button_task_id != INVALID_TASK_ID) {
+\t\t\t\ttmos_set_event(button_task_id, BTN_PRESS);
+\t\t\t}
+\t\t}`,
+    "bottom KEY2 brightness release window",
   );
   return result;
 }
@@ -1148,12 +1193,13 @@ static void disp_charging()
     `#ifdef FROGALERT_SURVEY
 	btn_onOnePress(KEY1, frogalert_key1_transition);
 	btn_onOnePress(KEY2, frogalert_key2_transition);
+	btn_onLongPress(btn_brightness_key(), change_brightness);
 #else
 	btn_onOnePress(KEY1, change_mode);
 	btn_onOnePress(KEY2, bm_transition);
-#endif
-	btn_onLongPress(KEY1, change_brightness);`,
-    "initial KEY2 virtual counter-view registration",
+	btn_onLongPress(KEY1, change_brightness);
+#endif`,
+    "initial physical button registration",
   );
   result = replaceOnce(
     result,

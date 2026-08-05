@@ -38,10 +38,17 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
     "\t\thold[k]++;",
     "\t\tif (hold[k] >= LONGPRESS_THRES && is_longpress[k] == 0) {",
     "\t\t\tis_longpress[k] = 1;",
+    "\t\t\tlongPressPending[k] = true;",
+    "\t\t\tif (button_task_id != INVALID_TASK_ID) {",
+    "\t\t\t\ttmos_set_event(button_task_id, BTN_PRESS);",
+    "\t\t\t}",
     "\t\t}",
     "\t} else {",
     "\t\tif (hold[k] > 0 && hold[k] < LONGPRESS_THRES) {",
     "\t\t\tonePressPending[k] = true;",
+    "\t\t\tif (button_task_id != INVALID_TASK_ID) {",
+    "\t\t\t\ttmos_set_event(button_task_id, BTN_PRESS);",
+    "\t\t\t}",
     "\t\t}",
     "\t}",
     "}",
@@ -77,20 +84,17 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
   assert.doesNotMatch(patchedButton, /btn_key1_profile\(void\)/);
   assert.match(
     patchedButton,
-    /FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*\(key\) == KEY1 \? \(LONGPRESS_THRES \* 5\) : LONGPRESS_THRES[\s\S]*#define FROGALERT_LONGPRESS_THRESHOLD\(key\) LONGPRESS_THRES/,
+    /int btn_brightness_key\(void\)[\s\S]*FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*return KEY2;[\s\S]*return KEY1;/,
   );
   assert.match(
     patchedButton,
-    /hold\[k\] >= FROGALERT_LONGPRESS_THRESHOLD\(k\) && is_longpress\[k\] == 0/,
+    /#define FROGALERT_BRIGHTNESS_RELEASE_MAX \(BUTTON_SCAN_FREQ \* 2\)/,
   );
   assert.match(
     patchedButton,
-    /hold\[k\] > 0 && hold\[k\] < FROGALERT_LONGPRESS_THRESHOLD\(k\)/,
+    /if \(k == KEY2\)[\s\S]*return;[\s\S]*k == KEY2 && hold\[k\] >= LONGPRESS_THRES &&[\s\S]*hold\[k\] < FROGALERT_BRIGHTNESS_RELEASE_MAX/,
   );
-  assert.doesNotMatch(
-    patchedButton,
-    /hold\[k\] (?:>=|<) LONGPRESS_THRES/,
-  );
+  assert.doesNotMatch(patchedButton, /LONGPRESS_THRES \* 5|125/);
   assert.equal(
     patchedButton.match(/GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)/g)?.length,
     1,
@@ -110,6 +114,7 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
       /FROGALERT_HARDWARE_PROFILE_ID != FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*FROGALERT_HARDWARE_PROFILE_ID != FROGALERT_PROFILE_B1144C_260404_USB_C[\s\S]*#error "unsupported FrogAlert button hardware profile"/,
     );
     assert.match(patchedHeader, /btn_key1_pressed\(\)/);
+    assert.match(patchedHeader, /btn_brightness_key\(void\)/);
     assert.match(patchedHeader, /!GPIOB_ReadPortPin\(KEY2_PIN\)/);
   }
   for (const power of [legacyPower, currentPower]) {
@@ -490,7 +495,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.doesNotMatch(patchedMain, /btn_onOnePress\(KEY2, NULL\)/);
   assert.match(
     patchedMain,
-    /btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);[\s\S]*btn_onLongPress\(KEY1, change_brightness\);/,
+    /btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);[\s\S]*btn_onLongPress\(btn_brightness_key\(\), change_brightness\);/,
   );
   assert.match(
     patchedMain,

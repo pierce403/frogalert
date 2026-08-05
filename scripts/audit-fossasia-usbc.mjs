@@ -440,6 +440,7 @@ function immediateCount(disassembly, value) {
 export function verifyButtonDisassembly(disassembly, profile) {
   assert.ok(supportedProfiles.includes(profile), "unsupported hardware profile");
   const key1Read = disassembledFunction(disassembly, "btn_key1_pressed");
+  const brightnessKey = disassembledFunction(disassembly, "btn_brightness_key");
   const check = disassembledFunction(disassembly, "check");
 
   if (profile === "B1144C_250901_USB_C") {
@@ -448,22 +449,32 @@ export function verifyButtonDisassembly(disassembly, profile) {
       /\bxori\b/,
       "bottom KEY1 must compile as active-high",
     );
-    assert.equal(
-      immediateCount(check, 125),
-      2,
-      "bottom KEY1 must use 125 samples on activation and release",
+    assert.match(
+      brightnessKey,
+      /\bli\s+a0,1\b/,
+      "bottom brightness must compile onto physical-bottom KEY2",
     );
     assert.equal(
-      immediateCount(check, 25),
-      2,
-      "bottom KEY2 must retain the upstream 25-sample threshold",
+      immediateCount(check, 74),
+      1,
+      "bottom KEY2 must compile the 25-through-99-sample brightness release window",
     );
-  } else {
-    assert.match(key1Read, /\bxori\b/, "top KEY1 must compile as active-low");
     assert.equal(
       immediateCount(check, 125),
       0,
-      "top buttons must not use the bottom brightness threshold",
+      "bottom buttons must not retain the rejected 125-sample KEY1 threshold",
+    );
+  } else {
+    assert.match(key1Read, /\bxori\b/, "top KEY1 must compile as active-low");
+    assert.match(
+      brightnessKey,
+      /\bli\s+a0,0\b/,
+      "top brightness must compile onto physical-bottom KEY1",
+    );
+    assert.equal(
+      immediateCount(check, 74),
+      0,
+      "top must not compile the bottom KEY2 release window",
     );
     assert.equal(
       immediateCount(check, 24),

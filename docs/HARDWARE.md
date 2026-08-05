@@ -255,9 +255,10 @@ exact hash/profile pair must pass:
 3. cold boot and power-cycle repetition;
 4. USB `0416:5020` HID and CDC enumeration;
 5. a BadgeMagic app nametag upload and visible display;
-6. the profile-appropriate short system/view actions and
-   KEY1 brightness/power/wake behavior, plus complete name/count/name rotation
-   and restoration after every text/frog/custom overlay;
+6. the profile-appropriate short system/view actions, physical-bottom
+   brightness behavior, top-button download/off/wake cycle, plus complete
+   name/count/name rotation and restoration after every text/frog/custom
+   overlay;
 7. long KEY2 with the dot cue and ISP `4348:55e0`/`1a86:55e0` enumeration;
 8. reflash of the known-good FOSSASIA image through that normal path.
 

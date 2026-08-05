@@ -28,25 +28,32 @@ const topButtonDisassembly = `20004080 <btn_key1_pressed>:
 20004080:\txori\ta0,a0,1
 20004084:\tret
 
-20004086 <check>:
-20004086:\tli\ta4,24
-20004088:\tli\ta4,23
-2000408a:\tret
+00004086 <btn_brightness_key>:
+00004086:\tli\ta0,0
+00004088:\tret
+
+2000408a <check>:
+2000408a:\tli\ta4,24
+2000408c:\tli\ta4,23
+2000408e:\tret
 `;
 
 const bottomButtonDisassembly = `20004080 <btn_key1_pressed>:
 20004080:\tandi\ta0,a0,1
 20004084:\tret
 
-20004086 <check>:
-20004086:\tli\ta5,125
-20004088:\tli\ta5,25
-2000408a:\tli\ta5,125
-2000408c:\tli\ta5,25
-2000408e:\tret
+00004086 <btn_brightness_key>:
+00004086:\tli\ta0,1
+00004088:\tret
+
+2000408a <check>:
+2000408a:\tli\ta5,24
+2000408c:\tli\ta5,74
+2000408e:\tli\ta5,23
+20004090:\tret
 `;
 
-test("button disassembly binds polarity and thresholds to the exact profile", () => {
+test("button disassembly binds polarity and physical-bottom brightness to the exact profile", () => {
   assert.doesNotThrow(() =>
     verifyButtonDisassembly(
       topButtonDisassembly,

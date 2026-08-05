@@ -406,9 +406,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   changes only the name/count or name/frog view and must never advertise; the
   top button cycles normal → persistent download → recoverable screen off →
   normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
-  system on `250901`. Never infer or adapt the profile at runtime. A connection
-  suspends surveys until disconnect; KEY2 long-press ISP remains independent
-  and must keep running in screen-off state.
+  system on `250901`. A physical-bottom hold changes brightness on both: KEY1
+  uses the upstream 25-sample action on `260404`; KEY2 on `250901` queues
+  brightness only when released after 25 through 99 samples, preserving a
+  continuous roughly 2.2-second hold for ISP. Never infer or adapt the profile
+  at runtime. A connection suspends surveys until disconnect; KEY2 long-press
+  ISP remains independent and must keep running in screen-off state.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 
@@ -452,10 +455,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter` on both profiles;
   this compiles as KEY1 on `260404` and KEY2 on `250901`. The physical top
   button compiles as the other key and cycles normal, download, recoverable
-  screen off, and normal. KEY1 long brightness remains inherited; `260404`
-  keeps the upstream 25-sample threshold while bottom/`250901` requires 125
-  samples, about 2.5 seconds, for its physical top/KEY1 brightness gesture.
-  The independent long-KEY2 ISP task is unchanged. Surveys
+  screen off, and normal. Physical-bottom brightness is likewise consistent:
+  `260404` keeps the upstream KEY1 action after 25 samples, while `250901`
+  defers KEY2 brightness until release after 25 through 99 samples. A
+  continued KEY2 hold remains reserved for the independent unchanged ISP task.
+  Surveys
   continue in either visible view. A CRC/profile-bound configuration enables
   built-in groups and up to eight custom rules. The bounded C mirror implements
   every README OUI/name row. The counter is one centered fixed frame; built-in
@@ -574,8 +578,19 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   constants and fails compilation for a missing or unsupported profile. The
   bottom disassembly reads KEY1 active-high and compares KEY1 holds against
   125 samples while leaving KEY2 at 25; top keeps the upstream 25-sample
-  comparison. These remain hardware-unverified until physical retest;
-  canonical CI must independently reproduce and attest the standard pair.
+  comparison. Factory-firmware testing then proved brightness belongs on the
+  physical bottom button on both boards, so beta.10 publication run
+  `31054218095` was cancelled before release, manifest commit, or Pages deploy.
+  Do not publish or recommend beta.10.
+  The factory-position `0.2.0-beta.11` local calculated receipts are counter
+  top `34f80b9b…bd68a` (200,344 bytes), counter bottom
+  `97923b1f…9e33` (200,376 bytes), frogs top
+  `ca33c4a9…4b1bc7` (200,416 bytes), and frogs bottom
+  `48a48978…877d4c` (200,448 bytes). Linked disassembly proves top brightness
+  maps to KEY1, bottom brightness maps to KEY2, and only the bottom image
+  contains the 25-through-99-sample release window. These remain
+  hardware-unverified until physical retest; canonical CI must independently
+  reproduce and attest the standard pair.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;
@@ -594,7 +609,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.10` / `v0.2.0b10`, adds the passive
+- Current source declares `0.2.0-beta.11` / `v0.2.0b11`, adds the passive
   Flipper `0x3081`–`0x3083` service rule, removes the app-attention
   compatibility window, restores fixed physical-position button roles, and
   replaces CH58x shutdown with a recoverable screen-off state. Screen off
@@ -604,9 +619,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   and rechecks the current mode before enabling it, so a quick download/off
   sequence cannot advertise after dark. The button translation now includes
   the shared profile constants and rejects an unknown compile-time profile;
-  bottom/`250901` uses active-high KEY1 plus a fivefold 125-sample brightness
-  threshold, while top/`260404` keeps active-low KEY1 and the upstream
-  25-sample threshold. Per the owner's 2026-08-03 policy
+  top/`260404` uses active-low KEY1 as its physical-bottom brightness key;
+  bottom/`250901` uses active-high KEY1 as the physical-top system key and
+  active-low KEY2 as the physical-bottom view/brightness key. Bottom KEY2
+  brightness dispatches only when released after 25 through 99 samples; a
+  continued hold remains free for ISP. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
@@ -649,7 +666,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   profile-position wrappers. The beta.6 response removed those wrappers and
   kept logical KEY roles identical, but beta.8 testing later proved that choice
   broke physical-position consistency on the top badge. Do not restore the
-  unsafe runtime probe; use the beta.10 compile-time mapping and fail-closed
+  unsafe runtime probe; use the beta.11 compile-time mapping and fail-closed
   profile include instead.
 - On 2026-08-05 exact bottom `0.2.0-beta.6` showed that two KEY1 short presses
   deliberately followed FOSSASIA's `NORMAL → DOWNLOAD → POWER_OFF` cycle, but
@@ -677,6 +694,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   The top/system cycle is normal → download → recoverable screen off → normal.
   Screen off must keep the 50 Hz button task and 200 ms KEY2 ISP task alive;
   prove wake and ISP without USB on both exact images before hardware approval.
+- On 2026-08-05 the owner tested factory firmware on both exact boards and
+  confirmed identical physical roles: bottom controls brightness, while top
+  enters Bluetooth listening and then turns the screen off. This supersedes
+  the beta.10 assumption that bottom/`250901` physical-top KEY1 should own
+  brightness. Beta.11 routes brightness to physical bottom on both profiles;
+  because `250901` physical bottom is also KEY2 recovery, it classifies a
+  released roughly 0.5-to-2-second hold as brightness and leaves a continuous
+  roughly 2.2-second hold for ISP.
 - On 2026-08-05 the user reported that `0.2.0-beta.3` top firmware sometimes
   remains on the Bluetooth readiness animation after a bottom-button counter
   selection. The one-second `SURVEY_APP_CUE_END_EVENT` restores the selected

@@ -190,10 +190,11 @@ passive scan plus a button-selectable fixed aggregate-count frame. The physical
 bottom button rotates
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`; it is KEY1 on
 `260404` and KEY2 on `250901`. The physical top button is the other key and
-cycles normal → download → recoverable screen off → normal. KEY1 long
-brightness remains inherited, but the bottom/`250901` profile raises only its
-KEY1 threshold from 25 to 125 samples (about 0.5 to 2.5 seconds); the
-top/`260404` threshold and separate long-KEY2 ISP poll are unchanged. The
+cycles normal → download → recoverable screen off → normal. Long physical-
+bottom presses change brightness on both profiles. Top/`260404` retains the
+upstream 25-sample KEY1 action. Bottom/`250901` classifies a 25-through-99-
+sample KEY2 hold as brightness only on release; holding through that window
+leaves the separate roughly 2.2-second KEY2 ISP poll unchanged. The
 bottom/view transition does not advertise or start the Bluetooth
 animation; the top/system transition owns that behavior. Screen off disables
 TMR0 display refresh and releases the matrix but keeps button/TMOS/ISP tasks.

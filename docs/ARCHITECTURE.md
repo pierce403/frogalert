@@ -76,7 +76,10 @@ The physical bottom button gains a virtual counter view:
 cycles normal → download → recoverable screen off → normal. Screen off stops
 the LED timer and pin drive but preserves TMR3 button scanning, TMOS, USB, and
 the separate roughly 2.2-second KEY2-to-ISP poll. No button calls CH58x
-shutdown. The view choice is
+shutdown. A physical-bottom hold changes brightness on either profile. The
+`250901` classifier emits KEY2 brightness only when the button is released
+between about 0.5 and 2 seconds; a continued hold therefore reaches ISP without
+first dispatching brightness. The view choice is
 presentation state rather than radio state, so disconnected passive surveys
 continue while either the nametag or counter is visible. The profile-mapped
 bottom/view transition never enables advertising or starts the Bluetooth

@@ -78,11 +78,12 @@ This diagnostic lane starts in normal nametag view. The physical bottom button
 extends bitmap selection with a virtual counter:
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. It compiles as
 KEY1 on `260404` and KEY2 on `250901`. The physical top button compiles as the
-other key and cycles normal → download → recoverable screen off → normal. KEY1
-long-press brightness remains upstream-timed on `260404`; the bottom/`250901`
-image requires 125 button samples, about 2.5 seconds, before its physical
-top/KEY1 press changes brightness. The separate long-KEY2 ISP task is
-unchanged.
+other key and cycles normal → download → recoverable screen off → normal. A
+long physical-bottom press changes brightness on both profiles. `260404` keeps
+the upstream KEY1 action at 25 button samples, about 0.5 seconds. On `250901`,
+KEY2 brightness is deferred until release after 25 through 99 samples, about
+0.5 through just under 2 seconds, so a continued hold remains reserved for the
+unchanged roughly 2.2-second KEY2-to-ISP task.
 Screen off stops the display timer and releases its pins without stopping
 button/TMOS/ISP tasks. Passive surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio
