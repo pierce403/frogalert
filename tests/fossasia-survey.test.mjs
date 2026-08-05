@@ -199,6 +199,17 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\t\tbm_t *bm = bmlist_current();",
     "\tif (events & BLE_NEXT_STEP) {",
     "\t\tani_xbm_next_frame(&bluetooth, fb, 10, 0);",
+    "\tif (events & SCAN_BOOTLD_BTN) {",
+    "\t\tstatic uint32_t hold;",
+    "\t\thold = isPressed(KEY2) ? hold + 1 : 0;",
+    "\t\tif (hold > 10) {",
+    "\t\t\treset_jump();",
+    "\t\t}",
+    "\tif (modes[mode])",
+    "\t\tmodes[mode]();",
+    "}",
+    "",
+    "__HIGH_CODE",
     "static void bm_transition()",
     "{",
     "\tif (is_play_sequentially) {",
@@ -262,6 +273,10 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\t\t}",
     "\t}",
     "}",
+    "\t// If always-on BLE is enabled, then skip this mode, jump to next mode",
+    "\tif (badge_cfg.ble_always_on) {",
+    "\t\tchange_mode();",
+    "\t}",
     "\t// Disable bitmap transition while in download mode",
     "\tbtn_onOnePress(KEY2, NULL);",
     "",
@@ -415,7 +430,19 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /btn_onOnePress\(KEY1, change_mode\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);[\s\S]*btn_onLongPress\(KEY1, change_brightness\);/,
+    /btn_onOnePress\(KEY1, frogalert_change_mode\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);[\s\S]*btn_onLongPress\(KEY1, change_brightness\);/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_change_mode\(\)[\s\S]*mode == DOWNLOAD[\s\S]*mode = NORMAL;[\s\S]*ble_disable_advertise\(\);[\s\S]*mode_setup_normal\(\);[\s\S]*change_mode\(\);/,
+  );
+  assert.match(
+    patchedMain,
+    /events & SCAN_BOOTLD_BTN[\s\S]*hold = isPressed\(KEY2\) \? hold \+ 1 : 0;[\s\S]*hold > 10[\s\S]*reset_jump\(\);/,
+  );
+  assert.match(
+    patchedMain,
+    /badge_cfg\.ble_always_on[\s\S]*frogalert_change_mode\(\);[\s\S]*return;/,
   );
   assert.match(patchedMain, /frogalert_survey_text/);
   assert.match(

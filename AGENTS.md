@@ -445,8 +445,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   result, holds it throughout the next scan, and keeps initialization, scan,
   error, and timeout state in debug output. Upstream's electrical KEY2 display
   button rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter` on
-  both profiles. KEY1 short system/power, KEY1 long brightness, and the
-  independent long-KEY2 ISP task remain inherited. Surveys
+  both profiles. KEY1 keeps download mode and long brightness, but its next
+  short press returns to normal instead of shutdown. The independent long-KEY2
+  ISP task remains inherited. Surveys
   continue in either visible view. A CRC/profile-bound configuration enables
   built-in groups and up to eight custom rules. The bounded C mirror implements
   every README OUI/name row. The counter is one centered fixed frame; built-in
@@ -538,6 +539,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `889306ca…40d238a`, and frogs bottom `90c28cc4…1ba3430` (both 200,508 bytes).
   These are build evidence only until physical retest; canonical CI must
   independently reproduce and attest the standard counter pair.
+  The no-shutdown `0.2.0-beta.7` local calculated receipts are counter top
+  `d60fc693…dcb9f9d`, counter bottom `c8af928a…950f65d` (both 200,468 bytes),
+  frogs top `55b5cb13…c81345a0`, and frogs bottom `4380b3a2…62419203` (both
+  200,552 bytes). These are build evidence only until physical retest;
+  canonical CI must independently reproduce and attest the standard pair.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;
@@ -556,8 +562,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.3` / `v0.2.0b3` and adds the passive
-  Flipper `0x3081`–`0x3083` service rule. Per the owner's 2026-08-03 policy
+- Current source declares `0.2.0-beta.7` / `v0.2.0b7`, adds the passive
+  Flipper `0x3081`–`0x3083` service rule, and removes the reachable shutdown
+  transition from FrogAlert builds. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
@@ -600,6 +607,15 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   cross-profile role adaptation: preserve upstream KEY1 short system, KEY1
   long brightness, KEY2 short display/count, and long-KEY2 ISP roles, while
   retaining only the exact profile's KEY1 polarity and shutdown wake.
+- On 2026-08-05 exact bottom `0.2.0-beta.6` showed that two KEY1 short presses
+  deliberately followed FOSSASIA's `NORMAL → DOWNLOAD → POWER_OFF` cycle, but
+  the profile-specific KEY1 shutdown edge did not wake the badge. Once shut
+  down, the application-level 200 ms KEY2 poll was no longer running, so KEY2
+  could not enter ISP; attaching USB caused a full reboot. Current FrogAlert
+  source keeps the first KEY1 download transition but makes the next short
+  press perform `DOWNLOAD → NORMAL`, disables persistent advertising, and
+  never exposes `POWER_OFF`. Do not weaken or replace the separate continuous
+  more-than-ten-sample KEY2-to-address-zero recovery path.
 - On 2026-08-05 the user reported that `0.2.0-beta.3` top firmware sometimes
   remains on the Bluetooth readiness animation after a bottom-button counter
   selection. The one-second `SURVEY_APP_CUE_END_EVENT` restores the selected

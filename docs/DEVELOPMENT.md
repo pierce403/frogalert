@@ -188,9 +188,10 @@ hardware. The survey lane keeps the same shell, uses WCH's combined
 central/peripheral role pattern, and adds only a disconnected three-second
 passive scan plus a button-selectable fixed aggregate-count frame. Upstream's
 KEY2 display button rotates
-`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`. KEY1 short system
-mode, KEY1 long brightness, and the separate long-KEY2 ISP poll remain
-inherited in both exact profiles. Scanning continues in either
+`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`. KEY1 keeps download
+mode and long brightness, but the next short press returns to normal instead
+of entering shutdown. The separate long-KEY2 ISP poll remains inherited in
+both exact profiles. Scanning continues in either
 visible view. The counter retains the last completed result while a new scan is
 running, then changes once when that scan completes. It consumes the final
 discovery list and feeds

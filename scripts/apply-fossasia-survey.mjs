@@ -316,6 +316,38 @@ export function applyMainHooks(source) {
   let result = normalizeLineEndings(source);
   result = replaceOnce(
     result,
+    `	if (modes[mode])
+		modes[mode]();
+}
+
+__HIGH_CODE
+static void bm_transition()`,
+    `	if (modes[mode])
+		modes[mode]();
+}
+#ifdef FROGALERT_SURVEY
+__HIGH_CODE
+static void frogalert_change_mode()
+{
+	/* The upstream third step enters shutdown and only KEY1 can wake it.
+	 * Keep download mode, but never strand a badge whose profile-specific
+	 * shutdown edge has not been physically proven. */
+	if (mode == DOWNLOAD) {
+		mode = NORMAL;
+		ble_disable_advertise();
+		mode_setup_normal();
+		return;
+	}
+	change_mode();
+}
+#endif
+
+__HIGH_CODE
+static void bm_transition()`,
+    "survey system button cannot enter unrecoverable shutdown",
+  );
+  result = replaceOnce(
+    result,
     '#include "power.h"\n',
     '#include "power.h"\n#ifdef FROGALERT_SURVEY\n#include "frogalert-boot-status.h"\n#endif\n',
     "compact boot status include",
@@ -918,6 +950,19 @@ static void disp_charging()
   );
   result = replaceOnce(
     result,
+    `	// If always-on BLE is enabled, then skip this mode, jump to next mode
+	if (badge_cfg.ble_always_on) {
+		change_mode();
+	}`,
+    `	// If always-on BLE is enabled, return directly to normal mode.
+	if (badge_cfg.ble_always_on) {
+		frogalert_change_mode();
+		return;
+	}`,
+    "always-on mode skips download without entering shutdown",
+  );
+  result = replaceOnce(
+    result,
     `	// Disable bitmap transition while in download mode
 	btn_onOnePress(KEY2, NULL);
 
@@ -1013,7 +1058,7 @@ static void disp_charging()
 	btn_onOnePress(KEY2, bm_transition);
 	btn_onLongPress(KEY1, change_brightness);`,
     `#ifdef FROGALERT_SURVEY
-	btn_onOnePress(KEY1, change_mode);
+	btn_onOnePress(KEY1, frogalert_change_mode);
 	btn_onOnePress(KEY2, frogalert_key2_transition);
 #else
 	btn_onOnePress(KEY1, change_mode);

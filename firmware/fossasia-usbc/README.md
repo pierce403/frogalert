@@ -78,9 +78,10 @@ classifier for the selected profile.
 
 This diagnostic lane starts in normal nametag view. Upstream's KEY2 display
 button extends its existing bitmap selection with a virtual counter:
-`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. KEY1
-retains upstream short-press system/power behavior and long-press brightness;
-the separate long-KEY2 ISP task also remains unchanged. These electrical roles
+`Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. KEY1 retains
+upstream download mode and long-press brightness, but its next short press
+returns to normal instead of entering shutdown; the separate long-KEY2 ISP
+task remains unchanged. These electrical roles
 are identical in both exact artifacts even though their physical button
 positions differ. Passive surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio

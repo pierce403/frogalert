@@ -72,8 +72,9 @@ arms the first scan.
 
 FOSSASIA's KEY2 display-selection button gains a virtual counter view:
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. KEY1 keeps
-its upstream short-press system-mode action and long-press brightness action.
-The separate roughly 2.2-second KEY2-to-ISP poll is unchanged. These logical
+upstream download mode and long-press brightness, but a second short press
+returns to normal instead of entering the unverified shutdown/wake path. The
+separate roughly 2.2-second KEY2-to-ISP poll is unchanged. These logical
 roles do not change by firmware profile; only the buttons' physical positions
 and KEY1 electrical polarity differ. The view choice is
 presentation state rather than radio state, so disconnected passive surveys
