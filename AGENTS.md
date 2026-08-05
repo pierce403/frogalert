@@ -590,6 +590,18 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   only that the timeout and restoration call exist, not the connected-timeout
   transition. Reproduce with the app/nearby phones disconnected before changing
   the display-versus-radio ownership contract.
+- The `0.2.0-beta.4` source fix makes cue expiry independent of peripheral
+  connection state: both the one-second cue event and ten-second window fallback
+  restore the selected view, while `frogalert_display_app_attention_end()` still
+  leaves active bitmap streaming alone. Focused tests isolate both event blocks
+  and reject a reintroduced connection gate in the one-shot cue timeout. This
+  is source/build evidence until the top badge reproduces the former fast-client
+  timing and confirms restoration during a live BadgeMagic connection.
+  Local calculated receipts are counter top `b65e3aeb…d3df21`, counter bottom
+  `ca1b08f7…11de21` (both 200,876 bytes), frogs top `9aa37412…9f8c1`, and
+  frogs bottom `da185980…1715fc` (both 200,960 bytes). Canonical CI must
+  independently reproduce and attest the standard counter pair before the
+  website publishes it.
 - The user observed survey-display flicker. Pinned FOSSASIA scanned 22
   Charlieplex source phases at roughly 45 Hz, which can be visible. The survey hook also
   called `stop_all_animation()` every 100 ms, clearing the live framebuffer and

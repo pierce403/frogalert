@@ -33,7 +33,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   published together as `0.1.0-beta.1` and available to the flasher
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.3`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.4`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
@@ -167,7 +167,8 @@ therefore does not depend on finding the profile-specific mode button after an
 accidental top-image/bottom-image mismatch. Unattended badges do not advertise
 continuously, avoiding a room full of identical `FEE0` candidates. Either press
 shows the same animated Bluetooth readiness cue for one second, then restores
-the selected name/counter while the radio window remains open. The ordinary system button
+the selected name/counter even if a BadgeMagic client connects while the radio
+window remains open. The ordinary system button
 retains FOSSASIA's persistent download-mode behavior. The window pauses passive
 surveys, and a successful app connection keeps them suspended for the entire
 upload.

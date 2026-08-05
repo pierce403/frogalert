@@ -760,13 +760,28 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     survey,
     /frogalert_survey_open_app_window\(void\)[\s\S]*app_cue_active = 1;[\s\S]*SURVEY_APP_CUE_END_EVENT[\s\S]*SURVEY_APP_CUE_TIME/,
   );
+  const appWindowEnd = survey.slice(
+    survey.indexOf("if (events & SURVEY_APP_WINDOW_END_EVENT)"),
+    survey.indexOf("if (events & SURVEY_APP_CUE_END_EVENT)"),
+  );
+  const appCueEnd = survey.slice(
+    survey.indexOf("if (events & SURVEY_APP_CUE_END_EVENT)"),
+    survey.indexOf("if (events & SURVEY_DISPLAY_PAGE_EVENT)"),
+  );
+  assert.match(appWindowEnd, /if \(!peripheral_is_connected\(\)\)/);
   assert.match(
-    survey,
-    /SURVEY_APP_CUE_END_EVENT[\s\S]*app_cue_active = 0;[\s\S]*frogalert_display_app_attention_end\(\)/,
+    appWindowEnd,
+    /\}\s*if \(app_cue_active\)\s*frogalert_display_app_attention_end\(\);\s*app_cue_active = 0;/,
+    "the display cue must end even when the radio remains connected",
+  );
+  assert.doesNotMatch(
+    appCueEnd,
+    /peripheral_is_connected/,
+    "connection state must not consume the one-shot display-cue timeout",
   );
   assert.match(
-    survey,
-    /SURVEY_APP_WINDOW_END_EVENT[\s\S]*!peripheral_is_connected\(\)[\s\S]*frogalert_display_app_attention_end\(\)/,
+    appCueEnd,
+    /if \(app_cue_active\)[\s\S]*app_cue_active = 0;[\s\S]*frogalert_display_app_attention_end\(\)/,
   );
   assert.doesNotMatch(survey, /SURVEY_PHASE_|show_survey\(/);
   const observeAdvertisement = survey.match(

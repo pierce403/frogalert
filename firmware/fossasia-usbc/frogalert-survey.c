@@ -552,15 +552,15 @@ static uint16_t survey_task(uint8_t task_id, uint16_t events)
 		if (!peripheral_is_connected()) {
 			if (!frogalert_badgemagic_persistent_advertising())
 				ble_disable_advertise();
-			if (app_cue_active)
-				frogalert_display_app_attention_end();
 		}
+		if (app_cue_active)
+			frogalert_display_app_attention_end();
 		app_cue_active = 0;
 		return events ^ SURVEY_APP_WINDOW_END_EVENT;
 	}
 
 	if (events & SURVEY_APP_CUE_END_EVENT) {
-		if (app_cue_active && !peripheral_is_connected()) {
+		if (app_cue_active) {
 			app_cue_active = 0;
 			frogalert_display_app_attention_end();
 		}
