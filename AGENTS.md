@@ -443,10 +443,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   instead of depending only on that callback, consumes both live reports and
   the discovery completion list. The counter displays only the last completed
   result, holds it throughout the next scan, and keeps initialization, scan,
-  error, and timeout state in debug output. The nearest-USB
-  view button rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`: KEY1 on
-  `260404`, KEY2 on `250901`. The other short press retains the system action;
-  KEY1 long brightness and the independent long-KEY2 ISP task remain inherited. Surveys
+  error, and timeout state in debug output. Upstream's electrical KEY2 display
+  button rotates `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter` on
+  both profiles. KEY1 short system/power, KEY1 long brightness, and the
+  independent long-KEY2 ISP task remain inherited. Surveys
   continue in either visible view. A CRC/profile-bound configuration enables
   built-in groups and up to eight custom rules. The bounded C mirror implements
   every README OUI/name row. The counter is one centered fixed frame; built-in
@@ -476,11 +476,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   20 seconds while disconnected; a continuously present match can retrigger
   once in each new window. It caps and zeroes 64 addresses, restores
   advertising, cancels a stuck scan after five seconds, and preserves audited
-  FOSSASIA USB/BLE/display/KEY2 symbols. Profile-specific view control keeps
-  the physical button nearest USB as the
-  counter selector: KEY1 on `260404`, KEY2 on `250901`. On `260404`, KEY2
-  short press retains the normal system action and KEY2 long press retains ISP
-  entry. The published beta `260404` image is 205,152 bytes at SHA-256
+  FOSSASIA USB/BLE/display/KEY2 symbols. Current source does not adapt logical
+  button roles for physical position or cross-profile flashing: KEY1 keeps the
+  upstream system/brightness role and KEY2 keeps display selection plus ISP in
+  both exact artifacts. The published beta `260404` image is 205,152 bytes at SHA-256
   `c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9`;
   the published beta `250901` image is 205,128 bytes at SHA-256
   `f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9`.
@@ -516,8 +515,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   test showed that open PA1 on `250901` could be classified as `260404`, which
   swapped the short-button roles and made bottom/near-USB KEY2 enter persistent
   BadgeMagic download mode instead of selecting the counter. Current source
-  always uses the artifact's compiled KEY1 polarity, short-button routing, and
-  shutdown wake edge; exact printed-marking/profile selection is mandatory and
+  always uses the artifact's compiled KEY1 polarity and shutdown wake edge;
+  logical button roles now remain upstream-identical across profiles. Exact
+  printed-marking/profile selection is mandatory and
   cross-profile flashing is not repaired at runtime. The preceding
   blank-fallback, Meta-pair, and stable-counter 206,216-byte candidates were `260404`
   `a3cb748194965c2f2aa54ec541df02e66c3f38f8e375179f620a2cae9bcc444e`
@@ -532,6 +532,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   frogs top `92bd6ea0…18c93989`, and frogs bottom `c6b0a008…e54f0e4d`
   (both 200,660 bytes). Canonical CI must independently reproduce and attest
   the standard counter pair before website publication.
+  The simplified upstream-role `0.2.0-beta.6` local calculated receipts are
+  counter top `4388b70f…548db2be`, counter bottom
+  `dafaba93…f78cd7ad` (both 200,420 bytes), frogs top
+  `889306ca…40d238a`, and frogs bottom `90c28cc4…1ba3430` (both 200,508 bytes).
+  These are build evidence only until physical retest; canonical CI must
+  independently reproduce and attest the standard counter pair.
 - Current source version is declared in `firmware/fossasia-usbc/version.json`.
   Survey/frog boot now renders an unconditional compact `FOSSASIA` credit,
   compact FrogAlert version, and compile-time top/up or bottom/down marker;
@@ -583,8 +589,17 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   advertising/mode race until exact radio logs prove otherwise. A briefly
   tested always-on response was rejected because the Android app connects to
   the first matching `FEE0` advertiser, which is unsafe in a room of badges.
-  Current source instead opens an app-attention window from either short button
-  while retaining connection-suspension rules.
+  Current source retains upstream persistent download mode on KEY1 and opens a
+  bounded app-attention window from the KEY2 display/count action while
+  retaining connection-suspension rules. Both paths show the Bluetooth cue.
+- On 2026-08-05 the user reported that exact `0.2.0-beta.5` on the bottom badge
+  produced download then power-off from the near-USB button, while repeated
+  short presses on the other button inconsistently changed brightness before
+  eventually selecting the counter. This behavior contradicts the intended
+  profile-position wrappers. The adopted fix removes those wrappers and any
+  cross-profile role adaptation: preserve upstream KEY1 short system, KEY1
+  long brightness, KEY2 short display/count, and long-KEY2 ISP roles, while
+  retaining only the exact profile's KEY1 polarity and shutdown wake.
 - On 2026-08-05 the user reported that `0.2.0-beta.3` top firmware sometimes
   remains on the Bluetooth readiness animation after a bottom-button counter
   selection. The one-second `SURVEY_APP_CUE_END_EVENT` restores the selected

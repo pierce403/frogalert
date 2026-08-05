@@ -111,12 +111,7 @@ export function applyButtonHeaderHooks(source) {
     result,
     originalPressed,
     `#ifdef FROGALERT_SURVEY
-#define FROGALERT_KEY1_PROFILE_UNKNOWN 0
-#define FROGALERT_KEY1_PROFILE_250901  1
-#define FROGALERT_KEY1_PROFILE_260404  2
-
 int btn_key1_pressed(void);
-uint8_t btn_key1_profile(void);
 void btn_configure_key1_wake(void);
 
 #define isPressed(key) \t\t((key) ? \\
@@ -154,24 +149,15 @@ int btn_key1_pressed(void)
 #endif
 }
 
-uint8_t btn_key1_profile(void)
-{
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\treturn FROGALERT_KEY1_PROFILE_250901;
-#else
-\treturn FROGALERT_KEY1_PROFILE_260404;
-#endif
-}
-
 void btn_configure_key1_wake(void)
 {
-\tif (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901) {
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
 \t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
 \t\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);
-\t} else {
+#else
 \t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);
 \t\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_FallEdge);
-\t}
+#endif
 }
 #endif
 
@@ -531,8 +517,8 @@ static void frogalert_open_app_window(void)
 {
 	/*
 	 * The Android app connects to the first matching FEE0 advertiser. Keep
-	 * unattended FrogAlert badges quiet, but let either short button make
-	 * this badge discoverable without depending on the compiled profile.
+	 * unattended FrogAlert badges quiet, but let the upstream display button
+	 * make this badge discoverable without entering persistent download mode.
 	 */
 	if (mode == NORMAL)
 		frogalert_survey_open_app_window();
@@ -543,25 +529,11 @@ uint8_t frogalert_badgemagic_persistent_advertising(void)
 	return badge_cfg.ble_always_on || mode == DOWNLOAD;
 }
 
-static void frogalert_key1_transition(void)
-{
-	if (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901)
-		change_mode();
-	else if (mode == NORMAL) {
-		frogalert_view_transition();
-		frogalert_open_app_window();
-	}
-}
-
 static void frogalert_key2_transition(void)
 {
-	if (btn_key1_profile() == FROGALERT_KEY1_PROFILE_250901) {
-		if (mode == NORMAL) {
-			frogalert_view_transition();
-			frogalert_open_app_window();
-		}
-	} else {
-		change_mode();
+	if (mode == NORMAL) {
+		frogalert_view_transition();
+		frogalert_open_app_window();
 	}
 }
 
@@ -953,9 +925,9 @@ static void disp_charging()
 	// the Bluetooth animation
 	ble_enable_advertise();
 	start_ble_animation();`,
-    `	// Route both buttons through the artifact-bound hardware profile.
-	btn_onOnePress(KEY1, frogalert_key1_transition);
-	btn_onOnePress(KEY2, frogalert_key2_transition);
+    `	// Preserve upstream download mode: KEY1 advances the system mode and
+	// KEY2 has no short-press display action until normal mode resumes.
+	btn_onOnePress(KEY2, NULL);
 
 	// Take control of the current bitmap to display
 	// the Bluetooth animation. Never advertise during Central discovery.
@@ -1000,7 +972,6 @@ static void disp_charging()
 #ifdef FROGALERT_SURVEY
 	frogalert_counter_view = FALSE;
 	frogalert_display_survey_relinquish();
-	btn_onOnePress(KEY1, frogalert_key1_transition);
 	btn_onOnePress(KEY2, frogalert_key2_transition);
 #else
 	btn_onOnePress(KEY2, bm_transition);
@@ -1042,7 +1013,7 @@ static void disp_charging()
 	btn_onOnePress(KEY2, bm_transition);
 	btn_onLongPress(KEY1, change_brightness);`,
     `#ifdef FROGALERT_SURVEY
-	btn_onOnePress(KEY1, frogalert_key1_transition);
+	btn_onOnePress(KEY1, change_mode);
 	btn_onOnePress(KEY2, frogalert_key2_transition);
 #else
 	btn_onOnePress(KEY1, change_mode);

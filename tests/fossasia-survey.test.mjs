@@ -58,6 +58,7 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
     /DelayUs|pulled_down|pulled_up|candidate|confidence/,
   );
   assert.doesNotMatch(patchedButton, /btn_key1_profile_detected/);
+  assert.doesNotMatch(patchedButton, /btn_key1_profile\(void\)/);
   assert.equal(
     patchedButton.match(/GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)/g)?.length,
     1,
@@ -335,10 +336,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain,
     /Android app connects to the first matching FEE0 advertiser[\s\S]*frogalert_survey_open_app_window\(\)/,
   );
-  assert.match(
-    patchedMain,
-    /frogalert_key1_transition\(void\)[\s\S]*frogalert_view_transition\(\);[\s\S]*frogalert_open_app_window\(\)/,
-  );
+  assert.doesNotMatch(patchedMain, /frogalert_key1_transition/);
   assert.match(
     patchedMain,
     /frogalert_key2_transition\(void\)[\s\S]*frogalert_view_transition\(\);[\s\S]*frogalert_open_app_window\(\)/,
@@ -413,11 +411,11 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedMain, /stop_all_animation\(\);/);
   assert.match(
     patchedMain,
-    /frogalert_key1_transition[\s\S]*FROGALERT_KEY1_PROFILE_250901[\s\S]*change_mode\(\);[\s\S]*frogalert_view_transition\(\);/,
+    /Preserve upstream download mode[\s\S]*btn_onOnePress\(KEY2, NULL\);/,
   );
   assert.match(
     patchedMain,
-    /Route both buttons through the artifact-bound hardware profile[\s\S]*btn_onOnePress\(KEY1, frogalert_key1_transition\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);/,
+    /btn_onOnePress\(KEY1, change_mode\);[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\);[\s\S]*btn_onLongPress\(KEY1, change_brightness\);/,
   );
   assert.match(patchedMain, /frogalert_survey_text/);
   assert.match(
