@@ -80,7 +80,8 @@ export function validateGithubActionsRun(run, {
     !run ||
     run.id !== provenance.workflow_run_id ||
     run.path !== provenance.workflow_path ||
-    run.run_attempt !== provenance.workflow_run_attempt ||
+    !Number.isSafeInteger(run.run_attempt) ||
+    run.run_attempt < provenance.workflow_run_attempt ||
     !["push", "workflow_dispatch"].includes(run.event) ||
     run.head_branch !== "main" ||
     run.head_sha !== sourceCommit ||
@@ -173,7 +174,7 @@ async function extractZipArchive({ archivePath, outputRoot, execute = run }) {
   await execute("unzip", ["-q", archivePath, "-d", outputRoot]);
 }
 
-export function githubActionsRunAttemptEndpoint(provenance) {
+export function githubActionsRunEndpoint(provenance) {
   if (
     !Number.isSafeInteger(provenance?.workflow_run_id) ||
     provenance.workflow_run_id < 1 ||
@@ -182,7 +183,7 @@ export function githubActionsRunAttemptEndpoint(provenance) {
   ) {
     throw new Error("candidate workflow run attempt is invalid");
   }
-  return `actions/runs/${provenance.workflow_run_id}/attempts/${provenance.workflow_run_attempt}`;
+  return `actions/runs/${provenance.workflow_run_id}`;
 }
 
 export async function downloadGithubCandidate({
@@ -199,11 +200,11 @@ export async function downloadGithubCandidate({
   try {
     runResult = await execute("gh", [
       "api",
-      `repos/${repository}/${githubActionsRunAttemptEndpoint(provenance)}`,
+      `repos/${repository}/${githubActionsRunEndpoint(provenance)}`,
     ]);
   } catch (error) {
     throw new CandidateArtifactUnavailableError(
-      "candidate workflow run attempt is unavailable",
+      "candidate workflow run is unavailable",
       { cause: error },
     );
   }

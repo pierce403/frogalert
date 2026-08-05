@@ -35,3 +35,14 @@ short-release paths, selects 25 only for KEY2, and reads PA1 without the
 active-low inversion. These are source/build facts, not physical verification.
 Retest both exact boards, especially short top presses, a completed 2.5-second
 bottom KEY1 brightness hold, view selection, screen off/wake, and KEY2 ISP.
+
+The first canonical beta.10 CI run built the candidate successfully, but
+GitHub's attestation transparency-log lookup returned a transient 404. Retrying
+failed jobs completed the same run as attempt 2 while correctly leaving the
+immutable candidate receipt bound to artifact-producing attempt 1. The release
+recorder had required those attempts to be equal and stopped publication.
+It now records the candidate's own attempt, requires it not to be newer than
+the successful triggering attempt, and materialization validates the latest
+successful state of the same run ID/SHA/workflow with an attempt number at
+least as high. This preserves both facts without pretending the firmware was
+rebuilt during an attestation-only retry.

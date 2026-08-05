@@ -8,7 +8,7 @@ import test from "node:test";
 import {
   CandidateArtifactUnavailableError,
   downloadGithubCandidate,
-  githubActionsRunAttemptEndpoint,
+  githubActionsRunEndpoint,
   githubAttestationArguments,
   materializeFirmwareArtifacts,
   validateGithubActionsRun,
@@ -232,7 +232,7 @@ test("approved release bytes can be materialized from one exact Actions candidat
   assert.deepEqual(await readFile(join(result.outputRoot, descriptor.file)), bin);
 });
 
-test("candidate download validates the recorded attempt and fetches the exact artifact id", async (t) => {
+test("candidate download accepts a successful later attempt and fetches the exact artifact id", async (t) => {
   const { root, provenance: fixtureProvenance } = await makeFixture(t);
   const archive = Buffer.from("exact artifact archive bytes");
   const provenance = {
@@ -247,12 +247,12 @@ test("candidate download validates the recorded attempt and fetches the exact ar
   const execute = async (command, args) => {
     textCalls.push([command, ...args]);
     const endpoint = args.at(-1);
-    if (endpoint.endsWith("/actions/runs/123/attempts/7")) {
+    if (endpoint.endsWith("/actions/runs/123")) {
       return {
         stdout: JSON.stringify({
           id: 123,
           path: ".github/workflows/ci.yml",
-          run_attempt: 7,
+          run_attempt: 8,
           event: "push",
           head_branch: "main",
           head_sha: SOURCE_COMMIT,
@@ -294,14 +294,14 @@ test("candidate download validates the recorded attempt and fetches the exact ar
     },
   });
   assert.equal(
-    githubActionsRunAttemptEndpoint(provenance),
-    "actions/runs/123/attempts/7",
+    githubActionsRunEndpoint(provenance),
+    "actions/runs/123",
   );
   assert.equal(extracted, true);
   assert.deepEqual(textCalls[0], [
     "gh",
     "api",
-    "repos/pierce403/frogalert/actions/runs/123/attempts/7",
+    "repos/pierce403/frogalert/actions/runs/123",
   ]);
   assert.deepEqual(binaryCalls[0], [
     "gh",
@@ -494,12 +494,20 @@ test("only a successful canonical main CI run may supply release bytes", () => {
     }),
     true,
   );
+  assert.equal(
+    validateGithubActionsRun(
+      { ...run, run_attempt: 2 },
+      { repository, provenance, sourceCommit: SOURCE_COMMIT },
+    ),
+    true,
+  );
   for (const override of [
     { event: "pull_request" },
     { head_branch: "feature" },
     { head_sha: "b".repeat(40) },
     { conclusion: "failure" },
-    { run_attempt: 2 },
+    { run_attempt: 0 },
+    { run_attempt: undefined },
   ]) {
     assert.throws(
       () =>

@@ -248,6 +248,28 @@ test("an exact rerun leaves manifest and existing notes byte-identical", async (
   assert.deepEqual(await readFile(notesPath), beforeNotes);
 });
 
+test("a successful later run attempt retains the artifact-producing attempt", async (t) => {
+  const { root, candidateRoot } = await makeFixture(t);
+  await recordFirmwareRelease(
+    recordOptions(root, candidateRoot, { workflowRunAttempt: 2 }),
+  );
+  const manifest = JSON.parse(
+    await readFile(join(root, "firmware/releases/manifest.json"), "utf8"),
+  );
+  for (const release of manifest.releases) {
+    assert.equal(release.build_provenance.workflow_run_attempt, 1);
+  }
+});
+
+test("a candidate cannot claim an attempt newer than the triggering run", async (t) => {
+  const { root } = await makeFixture(t);
+  const candidate = await writeCandidate(root, { runAttempt: 2 });
+  await assert.rejects(
+    recordFirmwareRelease(recordOptions(root, candidate.candidateRoot)),
+    /not bound to the triggering CI run/,
+  );
+});
+
 test("the same version cannot be rebound to different source or bytes", async (t) => {
   const { root, candidateRoot } = await makeFixture(t);
   await recordFirmwareRelease(recordOptions(root, candidateRoot));

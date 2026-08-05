@@ -138,6 +138,7 @@ async function loadAndVerifyCandidate({
 }) {
   const metadataBytes = await readFile(join(candidateRoot, "candidate.json"));
   const metadata = JSON.parse(metadataBytes);
+  const candidateRunAttempt = Number(metadata.provenance?.run_attempt);
   if (
     metadata.schema_version !== 3 ||
     metadata.kind !== "frogalert-candidate" ||
@@ -156,7 +157,9 @@ async function loadAndVerifyCandidate({
     metadata.provenance?.provider !== "github-actions" ||
     metadata.provenance?.repository !== repository ||
     metadata.provenance?.run_id !== String(workflowRunId) ||
-    metadata.provenance?.run_attempt !== String(workflowRunAttempt) ||
+    !/^[1-9][0-9]*$/.test(metadata.provenance?.run_attempt || "") ||
+    !Number.isSafeInteger(candidateRunAttempt) ||
+    candidateRunAttempt > workflowRunAttempt ||
     metadata.provenance?.job !== "firmware-candidate" ||
     metadata.provenance?.workflow !==
       `${repository}/${WORKFLOW_PATH}@refs/heads/main`
@@ -191,6 +194,7 @@ async function loadAndVerifyCandidate({
 
   return {
     version: metadata.version,
+    workflowRunAttempt: candidateRunAttempt,
     candidateMetadataSha256: sha256(metadataBytes),
     artifacts,
   };
@@ -351,7 +355,7 @@ export async function recordFirmwareRelease({
     kind: "github-actions-candidate",
     workflow_run_id: runId,
     workflow_path: WORKFLOW_PATH,
-    workflow_run_attempt: runAttempt,
+    workflow_run_attempt: receipt.workflowRunAttempt,
     artifact_id: candidateArtifactId,
     artifact_name: artifactName,
     artifact_digest: archiveDigest,

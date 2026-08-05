@@ -263,6 +263,13 @@ Multiple exact-board descriptors may share a version/tag only when their label,
 channel, source commit, notes, and URL are identical. Artifact ids and
 filenames must be unique across release and lab collections.
 
+`workflow_run_attempt` is the attempt that produced the immutable candidate
+artifact and its `candidate.json` receipt. If GitHub retries only a failed
+downstream attestation job, the run's latest attempt may be higher. Publication
+still requires that same run ID, source SHA, canonical workflow, and a
+successful latest attempt no older than the artifact-producing attempt; it
+does not falsely claim the candidate bytes were rebuilt by the retry.
+
 The site rejects unknown targets, invalid hashes, oversize images, unsupported
 hardware revisions, and an arbitrary false `hardware_verified` value. A false
 value is executable only for the narrowly defined standard-release combination:

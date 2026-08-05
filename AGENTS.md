@@ -364,6 +364,10 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   only a successful canonical `main` CI run, verifies attestations, and
   materializes those bytes under `tmp/`; never commit a freshly built
   FrogAlert BIN/ELF for a new version.
+  `workflow_run_attempt` records the attempt that produced the candidate
+  artifact. If GitHub retries only a failed downstream attestation job, accept
+  a successful latest attempt of the same run only when it is not older than
+  that artifact attempt; do not claim the artifact was rebuilt by the retry.
 - Each published firmware version is an atomic pair: one top/`260404` image
   and one bottom/`250901` image. Site assembly and the browser catalog must
   fail closed on a partial or duplicate pair so “latest” cannot silently mean
