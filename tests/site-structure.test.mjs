@@ -185,7 +185,11 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /setLatestDownload\(elements\.latestTopDownload, top, "top"\)/);
   assert.match(app, /setLatestDownload\(elements\.latestBottomDownload, bottom, "bottom"\)/);
   assert.match(app, /elements\.latestReleaseNotes\.href = latest\[0\]\.release_url/);
-  assert.match(html, /<caption>Built-in alert examples<\/caption>/);
+  assert.match(html, /<caption>Built-in detection rules<\/caption>/);
+  assert.match(
+    html,
+    /01AB[\s\S]*FD5F[\s\S]*Meta manufacturer ID \+ 16-bit service[\s\S]*Both fields required/,
+  );
   assert.match(app, /validatePairedUsbCReleaseCatalog\(/);
   assert.match(app, /!\[4, 5\]\.includes\(manifest\.schema_version\)/);
   assert.match(app, /both latest images are hash-verified in memory/i);
