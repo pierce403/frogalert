@@ -197,9 +197,9 @@ test("landing page exposes the project and guarded device flow", async () => {
     "<code>00:25:DF</code>",
     "<code>B4:1E:52</code>",
     "<code>01AB</code> + <code>FD5F</code>",
+    "<code>Ray-Ban</code> / <code>Ray Ban</code>",
     "<code>Axon Body</code>",
     "<code>TASER</code>",
-    "<code>Ray-Ban</code> / <code>Ray Ban</code>",
     "<code>3081</code>, <code>3082</code>, or <code>3083</code>",
     "<code>Flipper</code>",
   ];
@@ -211,7 +211,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   }
   assert.match(
     html,
-    /Detection priority:[\s\S]*frog dance → KARR → COP → Flipper[\s\S]*first matching rule wins/i,
+    /Detection priority:[\s\S]*frog dance → KARR → COP → Flipper[\s\S]*same result share that priority[\s\S]*custom rules run after built-ins/i,
   );
   assert.match(app, /validatePairedUsbCReleaseCatalog\(/);
   assert.match(app, /!\[4, 5\]\.includes\(manifest\.schema_version\)/);

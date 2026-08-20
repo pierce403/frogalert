@@ -12,6 +12,7 @@ import {
   applyMainHooks,
   applyPeripheralHooks,
   applyPowerHooks,
+  applyPowerHeaderHooks,
 } from "../scripts/apply-fossasia-survey.mjs";
 import { loadLock } from "../scripts/audit-fossasia-usbc.mjs";
 
@@ -63,9 +64,27 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
     "\t\t\t\tGPIOA_ReadPortPin(KEY1_PIN))",
     "\t\t\t\t!GPIOA_ReadPortPin(KEY1_PIN))",
   );
-  const legacyPower = [
+  const legacyWake = [
     "\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);",
     "\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);",
+  ].join("\n");
+  const legacyPower = [
+    "void poweroff()",
+    "{",
+    "\t// Stop wasting energy",
+    "\tGPIOA_ModeCfg(GPIO_Pin_All, GPIO_ModeIN_Floating);",
+    "\tGPIOB_ModeCfg(GPIO_Pin_All, GPIO_ModeIN_Floating);",
+    "",
+    "\t// Configure wake-up",
+    legacyWake,
+    "\tGPIOA_ModeCfg(CHARGE_STT_PIN, GPIO_ModeIN_PU);",
+    "\tGPIOA_ITModeCfg(CHARGE_STT_PIN, GPIO_ITMode_FallEdge);",
+    "\tPFIC_EnableIRQ(GPIO_A_IRQn);",
+    "\tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);",
+    "",
+    "\t/* Good bye */",
+    "\tLowPower_Shutdown(0);",
+    "}",
   ].join("\n");
   const currentPower = legacyPower
     .replace("GPIO_ModeIN_PD", "GPIO_ModeIN_PU")
@@ -97,7 +116,7 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
   assert.doesNotMatch(patchedButton, /LONGPRESS_THRES \* 5|125/);
   assert.equal(
     patchedButton.match(/GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)/g)?.length,
-    1,
+    2,
   );
   for (const header of [activeHighHeader, activeLowHeader]) {
     const patchedHeader = applyButtonHeaderHooks(header);
@@ -119,9 +138,34 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
   }
   for (const power of [legacyPower, currentPower]) {
     const patchedPower = applyPowerHooks(power);
-    assert.match(patchedPower, /btn_configure_key1_wake\(\)/);
-    assert.match(patchedPower, /#else[\s\S]*GPIOA_ITModeCfg/);
+    assert.match(patchedPower, /btn_configure_screen_off_wake\(\)/);
+    assert.match(
+      patchedPower,
+      /GPIOA_ClearITFlagBit\(KEY1_PIN \| CHARGE_STT_PIN\)[\s\S]*#else[\s\S]*GPIOA_ClearITFlagBit\(CHARGE_STT_PIN\)/,
+    );
+    assert.match(
+      patchedPower,
+      /GPIOB_ClearITFlagBit\(KEY2_PIN\)[\s\S]*PWR_PeriphWakeUpCfg[\s\S]*SYS_ResetKeepBuf\(FROGALERT_SCREEN_OFF_MAGIC\)[\s\S]*frogalert_shutdown_arming = TRUE[\s\S]*PFIC_EnableIRQ\(GPIO_A_IRQn\)[\s\S]*PFIC_EnableIRQ\(GPIO_B_IRQn\)[\s\S]*LowPower_Shutdown\(0\)/,
+    );
+    assert.match(
+      patchedPower,
+      /frogalert_consume_screen_off_wake\(void\)[\s\S]*SYS_GetLastResetSta\(\)[\s\S]*R8_GLOB_RESET_KEEP[\s\S]*SYS_ResetKeepBuf\(0\)[\s\S]*RST_STATUS_GPWSM[\s\S]*RST_STATUS_SW/,
+    );
+    assert.match(
+      patchedPower,
+      /GPIOA_IRQHandler\(void\)[\s\S]*frogalert_shutdown_arming[\s\S]*SYS_ResetExecute\(\)/,
+    );
+    assert.match(
+      patchedPower,
+      /GPIOB_IRQHandler\(void\)[\s\S]*frogalert_shutdown_arming[\s\S]*SYS_ResetExecute\(\)/,
+    );
+    assert.doesNotMatch(patchedPower, /LowPower_Sleep\(/);
   }
+  const patchedPowerHeader = applyPowerHeaderHooks("void poweroff();");
+  assert.match(
+    patchedPowerHeader,
+    /int frogalert_consume_screen_off_wake\(void\);/,
+  );
 });
 
 test("survey battery hooks calibrate, average, and clamp the real ADC reading", () => {
@@ -239,8 +283,19 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     '#include "ble/setup.h"',
     '#include "ble/profile.h"',
     "#define ANI_NEXT_STEP       (1 << 0)",
+    "#define BLE_NEXT_STEP       (1 << 4)",
+    "",
+    "static tmosTaskID common_taskid = INVALID_TASK_ID ;",
     "static void mode_setup_download();",
     "static void mode_setup_normal();",
+    "\tif(events & SYS_EVENT_MSG) {",
+    "\t\tuint8 *pMsg = tmos_msg_receive(common_taskid);",
+    "\t\tif(pMsg != NULL)",
+    "\t\t{",
+    "\t\t\ttmos_msg_deallocate(pMsg);",
+    "\t\t}",
+    "\t\treturn (events ^ SYS_EVENT_MSG);",
+    "\t}",
     "\tif(events & ANI_NEXT_STEP) {",
     "",
     "\t\tstatic int (*animations[])(bm_t *bm, uint16_t *fb) = {",
@@ -364,6 +419,10 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\t\tmode_setup_normal();",
     "\t}",
     "}",
+    "int main()",
+    "{",
+    "\tSetSysClock(CLK_SOURCE_PLL_60MHz);",
+    "\tdebug_init();",
     "\tbtn_onOnePress(KEY1, change_mode);",
     "\tbtn_onOnePress(KEY2, bm_transition);",
     "\tbtn_onLongPress(KEY1, change_brightness);",
@@ -515,15 +574,32 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.ok(screenOffSetup);
   assert.match(
     screenOffSetup,
-    /ble_disable_advertise\(\);[\s\S]*frogalert_survey_suspend\(FALSE\)[\s\S]*stop_all_animation\(\);[\s\S]*TMR0_ITCfg\(DISABLE[\s\S]*PFIC_DisableIRQ\(TMR0_IRQn\);[\s\S]*TMR0_Disable\(\);[\s\S]*leds_releaseall\(\);/,
+    /frogalert_shutdown_pending = TRUE;[\s\S]*ble_disable_advertise\(\);[\s\S]*stop_all_animation\(\);[\s\S]*TMR0_ITCfg\(DISABLE[\s\S]*PFIC_DisableIRQ\(TMR0_IRQn\);[\s\S]*TMR0_Disable\(\);[\s\S]*leds_releaseall\(\);[\s\S]*frogalert_survey_prepare_shutdown\(\)[\s\S]*frogalert_survey_radio_idle\(\)/,
   );
   assert.doesNotMatch(
     screenOffSetup,
-    /\n\s*(?:poweroff|LowPower_Shutdown)\(/,
+    /\n\s*(?:poweroff|LowPower_Shutdown|TMR3_Disable)\(/,
   );
   assert.match(
     patchedMain,
-    /static void mode_setup_normal\(\)[\s\S]*TMR0_ClearITFlag[\s\S]*TMR0_Enable\(\);[\s\S]*TMR0_ITCfg\(ENABLE[\s\S]*PFIC_EnableIRQ\(TMR0_IRQn\);/,
+    /frogalert_survey_radio_idle\(void\)[\s\S]*frogalert_shutdown_pending && mode == POWER_OFF[\s\S]*tmos_set_event\(common_taskid, FROGALERT_ENTER_SHUTDOWN\)/,
+  );
+  assert.match(
+    patchedMain,
+    /events & FROGALERT_ENTER_SHUTDOWN[\s\S]*frogalert_shutdown_pending && mode == POWER_OFF[\s\S]*TMR3_ITCfg\(DISABLE[\s\S]*PFIC_DisableIRQ\(TMR3_IRQn\)[\s\S]*TMR3_Disable\(\)[\s\S]*poweroff\(\)/,
+  );
+  assert.match(
+    patchedMain,
+    /static void mode_setup_normal\(\)[\s\S]*frogalert_shutdown_pending = FALSE[\s\S]*tmos_stop_task\(common_taskid, FROGALERT_ENTER_SHUTDOWN\)[\s\S]*frogalert_survey_cancel_shutdown\(\)[\s\S]*TMR0_ClearITFlag[\s\S]*TMR0_Enable\(\);[\s\S]*TMR0_ITCfg\(ENABLE[\s\S]*PFIC_EnableIRQ\(TMR0_IRQn\);/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_handle_screen_off_wake\(void\)[\s\S]*frogalert_consume_screen_off_wake\(\)[\s\S]*GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)[\s\S]*key2_was_pressed = isPressed\(KEY2\)[\s\S]*DelayMs\(SCAN_BOOTLD_BTN_SPEED_T \/ 1000U\)[\s\S]*hold > 10U[\s\S]*reset_jump\(\)[\s\S]*FROGALERT_PROFILE_B1144C_250901_USB_C[\s\S]*key2_was_pressed[\s\S]*poweroff\(\)[\s\S]*GPIOA_ModeCfg\(KEY1_PIN, GPIO_ModeIN_PD\)[\s\S]*btn_key1_pressed\(\)/,
+  );
+  assert.ok(
+    patchedMain.indexOf("frogalert_handle_screen_off_wake();") <
+      patchedMain.indexOf("debug_init();"),
+    "screen-off wake must be classified before debug, USB, display, buttons, and BLE",
   );
   assert.match(
     patchedMain,
@@ -846,6 +922,18 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     "active discovery suspension must request cancellation before deferring advertising",
   );
   assert.match(survey, /cancel_reason = SURVEY_CANCEL_SUSPEND/);
+  assert.match(
+    survey,
+    /frogalert_survey_prepare_shutdown\(void\)[\s\S]*shutdown_requested = 1;[\s\S]*frogalert_survey_suspend\(FALSE\)/,
+  );
+  assert.match(
+    survey,
+    /frogalert_survey_cancel_shutdown\(void\)[\s\S]*shutdown_requested = 0;[\s\S]*central_ready && !scan_active && frogalert_survey_allowed\(\)[\s\S]*schedule_survey\(SURVEY_RADIO_QUIET\)/,
+  );
+  assert.match(
+    survey,
+    /reason == SURVEY_CANCEL_SUSPEND && shutdown_requested[\s\S]*shutdown_requested = 0;[\s\S]*advertise_when_idle = 0;[\s\S]*SURVEY_ALERT_END_EVENT[\s\S]*frogalert_survey_radio_idle\(\);[\s\S]*return;/,
+  );
   assert.match(survey, /event->discCmpl\.hdr\.status != SUCCESS/);
   assert.match(survey, /finish_survey\(reason\)/);
   assert.match(survey, /restore_completed_view\(\)/);

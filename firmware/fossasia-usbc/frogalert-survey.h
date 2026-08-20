@@ -8,6 +8,8 @@
 void frogalert_survey_role_init(void);
 void frogalert_survey_init(void);
 uint8_t frogalert_survey_suspend(uint8_t advertise_after);
+uint8_t frogalert_survey_prepare_shutdown(void);
+void frogalert_survey_cancel_shutdown(void);
 uint8_t frogalert_survey_should_advertise(void);
 void frogalert_survey_on_disconnect(void);
 void frogalert_survey_view_changed(void);
@@ -17,6 +19,7 @@ uint8_t frogalert_survey_display_active(void);
 uint8_t frogalert_survey_allowed(void);
 uint8_t frogalert_survey_counter_mode(void);
 uint8_t frogalert_badgemagic_persistent_advertising(void);
+void frogalert_survey_radio_idle(void);
 uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated);
 uint8_t frogalert_display_survey_message(const char *message,
 					 uint8_t message_length);

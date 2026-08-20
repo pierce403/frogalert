@@ -178,8 +178,9 @@ Build the legacy board by naming it explicitly:
 
 `B1144C_260404_USB_C` and `B1144C_250901_USB_C` use the same 23 display nets
 and KEY2/PB22 behavior. Their KEY1/PA1 profiles differ: the default uses
-pull-up/active-low/falling-edge wake; the legacy build uses
-pull-down/active-high/rising-edge wake. The build output is
+pull-up/active-low; the legacy build uses pull-down/active-high. For survey
+screen off, `260404` arms top KEY2/PB22 only, while `250901` arms top KEY1/PA1
+rising plus KEY2/PB22 falling for held recovery. The build output is
 `tmp/fossasia-usbc/build/<PROFILE>/<LANE>/`. Do not collapse these artifacts
 into one hash or infer the profile from an untouched KEY1 input.
 
@@ -190,14 +191,17 @@ passive scan plus a button-selectable fixed aggregate-count frame. The physical
 bottom button rotates
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`; it is KEY1 on
 `260404` and KEY2 on `250901`. The physical top button is the other key and
-cycles normal → download → recoverable screen off → normal. Long physical-
+cycles normal → download → hardware shutdown; wake cold-boots normal. Long physical-
 bottom presses change brightness on both profiles. Top/`260404` retains the
 upstream 25-sample KEY1 action. Bottom/`250901` classifies a 25-through-99-
 sample KEY2 hold as brightness only on release; holding through that window
 leaves the separate roughly 2.2-second KEY2 ISP poll unchanged. The
 bottom/view transition does not advertise or start the Bluetooth
 animation; the top/system transition owns that behavior. Screen off disables
-TMR0 display refresh and releases the matrix but keeps button/TMOS/ISP tasks.
+TMR0 and releases the matrix, waits for asynchronous discovery cancellation,
+then stops TMR3 and enters `LowPower_Shutdown(0)`. A reset marker and early
+200 ms KEY2 qualifier preserve the held-key ISP path without retaining BLE,
+USB, TMOS, or application tasks while dark.
 Scanning continues in either
 visible view. The counter retains the last completed result while a new scan is
 running, then changes once when that scan completes. It consumes the final

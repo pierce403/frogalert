@@ -54,8 +54,8 @@ BadgeMagic, display, button, and recovery systems from FOSSASIA source
 the standard counter release lane and are not auto-promoted.
 `B1144C_260404_USB_C` and `B1144C_250901_USB_C` are separate release targets
 even though their LED
-matrix mapping is identical: KEY1 pull, pressed polarity, and shutdown wake
-edge differ. CI therefore publishes one exact descriptor per profile; evidence
+matrix mapping is identical: KEY1 pull, pressed polarity, and screen-off wake
+inputs differ. CI therefore publishes one exact descriptor per profile; evidence
 for one artifact/profile/PCB marking cannot mark the other hardware-verified,
 and an untouched KEY1 is not an automatic profile detector.
 

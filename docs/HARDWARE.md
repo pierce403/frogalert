@@ -20,10 +20,10 @@ matrices. The enclosure and the OEM BLE name `LSLED` are not sufficient proof.
 FrogAlert keeps two explicit USB-C profiles. The newer Nyx board is the build
 default, not an automatically detected target:
 
-| Profile | Printed PCB marking | Physical KEY2 | KEY1/PA1 input | Pressed level | Shutdown wake |
+| Profile | Printed PCB marking | Physical KEY2 | KEY1/PA1 input | Pressed level | Screen-off button wake |
 | --- | --- | --- | --- | --- | --- |
-| `B1144C_260404_USB_C` (default) | `B1144C_260404` | farther from USB | pull-up | low | falling edge |
-| `B1144C_250901_USB_C` (legacy) | `B1144C_250901` | nearest USB | pull-down | high | rising edge |
+| `B1144C_260404_USB_C` (default) | `B1144C_260404` | farther from USB / top | pull-up | low | KEY2/PB22 falling; KEY1 not armed |
+| `B1144C_250901_USB_C` (legacy) | `B1144C_250901` | nearest USB / bottom | pull-down | high | KEY1/PA1 rising; KEY2/PB22 falling for held ISP |
 
 The 23 display nets are identical between these two USB-C profiles:
 
@@ -45,9 +45,11 @@ experimental held-KEY1 weak-pull probe was also unsafe: a physical `250901`
 test showed open PA1 could be classified as `260404`, swapping the short-button
 roles. Current firmware always retains its compiled KEY1 polarity and fixed
 physical-position routing: KEY1 view/KEY2 system on `260404`, and KEY2
-view/KEY1 system on `250901`. Its system-button screen-off state does not enter
-CH58x shutdown, leaving the common KEY2 long-press ISP path active and making
-exact printed-marking/profile selection mandatory.
+view/KEY1 system on `250901`. Screen off now waits for BLE discovery to become
+idle and enters CH58x `LowPower_Shutdown(0)`. Wake cold-boots through the
+profile's physical-top input; `250901` additionally arms bottom KEY2 so a held
+recovery press can be qualified before peripheral startup. Exact
+printed-marking/profile selection remains mandatory.
 
 ## Current physical badge evidence
 
@@ -218,7 +220,9 @@ its startup, linker layout, clocks, USB HID+CDC stack, BLE/TMOS stack,
 BadgeMagic service, display refresh, and KEY2 recovery task. Before
 compilation, the profile patch either preserves the legacy `250901` KEY1
 behavior or applies the `260404` pull-up, active-low test, and falling-edge
-shutdown wake. It does not change the common LED matrix table or KEY2.
+runtime input. The survey hook separately arms only physical-top KEY2 on
+`260404`; on `250901` it arms top KEY1 plus KEY2 for held recovery. It does
+not change the common LED matrix table.
 
 The canary changes only self-identifying metadata. The survey lane adds a
 three-second passive discovery on a roughly 20-second start-to-start cadence,
@@ -259,8 +263,11 @@ exact hash/profile pair must pass:
    brightness behavior, top-button download/off/wake cycle, plus complete
    name/count/name rotation and restoration after every text/frog/custom
    overlay;
-7. long KEY2 with the dot cue and ISP `4348:55e0`/`1a86:55e0` enumeration;
-8. reflash of the known-good FOSSASIA image through that normal path.
+7. normal/download/screen-off current, charge wake, repeated dark/wake cycles,
+   and `250901` short bottom-KEY2 remaining dark;
+8. continuous KEY2 from screen off with ISP `4348:55e0`/`1a86:55e0`
+   enumeration on both profiles;
+9. reflash of the known-good FOSSASIA image through that normal path.
 
 Only after the C-only compatibility canary passes may a Rust ABI-only canary be
 tested. Passive scanning and count display are later stages. The Rust library

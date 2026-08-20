@@ -29,11 +29,11 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   `frogs → KARR → COP → Flipper → custom` priority, one second per alert frame
   on a roughly 20-second survey cadence, and a three-second BadgeMagic frog
   animation; an entirely blank nametag falls back to scrolling `503.PARTY`
-  without modifying data flash; the current beta bundle predates this candidate and remains
-  published together as `0.1.0-beta.1` and available to the flasher
+  without modifying data flash; the exact top/bottom counter pair publishes
+  atomically after canonical CI and is selected from one same-origin manifest
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.11`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.12`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
@@ -125,14 +125,18 @@ In these beta images, the physical button nearest USB rotates the visible
 content as `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`: that is KEY2 on
 `250901`, but KEY1 on the reversed `260404` layout. The other short press keeps
 the physical top/system role and cycles normal → Bluetooth download →
-recoverable screen off → normal. Screen off disables the display refresh,
-matrix drive, advertising, and surveys without stopping the button or ISP
-tasks. A physical-bottom hold changes brightness on both profiles. On the
+hardware screen off; a qualified wake cold-boots normal. Screen off first
+confirms that passive discovery is idle, then powers down display refresh,
+matrix drive, BLE, USB, TMOS, and both application timers through
+`LowPower_Shutdown(0)`. A physical-bottom hold changes brightness on both
+profiles. On the
 bottom/`250901` profile, that is KEY2: release after about
 0.5 through just under 2 seconds to change brightness, or continue holding for
 the inherited roughly 2.2-second KEY2 ISP path. The top/`260404` profile keeps
 upstream's roughly 0.5-second physical-bottom KEY1 brightness action and its
-independent physical-top KEY2 ISP path. Passive
+independent physical-top KEY2 ISP path. From screen off, a continuously held
+KEY2 is qualified before USB/display startup so recovery remains available;
+a short bottom KEY2 recovery press on `250901` returns to shutdown. Passive
 surveys continue in both nametag and counter views. `COP DETECTED`,
 `FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
 one second per generated frame, then the selected view resumes without
@@ -167,7 +171,9 @@ Current FrogAlert candidates preserve the separation between the two physical
 short-button actions on both exact boards. The bottom button changes only the
 selected name/count or name/frog view; it never enables advertising or starts
 the Bluetooth animation. The top button enters persistent BadgeMagic download
-mode, then recoverable screen off, and wakes to normal on the next short press.
+mode, then hardware shutdown; the next qualified top-button wake cold-boots
+normal. Screen-off GPIO wake is profile exact, while `250901` also arms its
+bottom KEY2 solely for continuously held ISP recovery.
 This is compile-time routing (`260404`: KEY1 view/KEY2 system; `250901`: KEY2
 view/KEY1 system), never runtime profile guessing. Unattended badges do not
 advertise continuously, avoiding a room full of identical `FEE0` candidates.
@@ -181,16 +187,17 @@ The photographed USB-C reference is PCB `B1144C_250901`, confirmed as a WCH
 KEY2/PB22 electrical behavior, but KEY2 is physically nearest USB on `250901`
 and farther from USB on `260404`. The other relevant difference is KEY1/PA1:
 `250901` uses an
-internal pull-down with active-high presses and rising-edge shutdown wake;
-`260404` connects the switch to ground and needs an internal pull-up,
-active-low presses, and falling-edge wake.
+internal pull-down with active-high presses; screen off arms its rising edge
+plus KEY2/PB22 falling for held recovery. `260404` connects the switch to
+ground and needs an internal pull-up and active-low presses; its screen off
+arms physical-top KEY2 rather than KEY1.
 
 There is no safe passive boot-time auto-detection for that distinction. With
 KEY1 untouched, the switch is open on both boards and the input simply follows
 whichever internal pull the firmware selected. An experimental held-KEY1 probe
 was removed after a `250901` test showed that an open PA1 could be falsely
 classified as `260404`, swapping the short-button roles. Each image now keeps
-its compiled profile for KEY1 polarity, button routing, and shutdown wake.
+its compiled profile for KEY1 polarity, button routing, and screen-off wake.
 Select the exact printed PCB marking for every flash; cross-profile flashing is
 not repaired at runtime.
 

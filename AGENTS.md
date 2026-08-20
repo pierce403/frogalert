@@ -160,8 +160,9 @@ The public site is a dependency-free static application. It separates:
   assembly and after hashing any browser-selected local file. If the browser
   cannot load that registry, artifact preparation must fail closed.
 - Every FrogAlert image must preserve FOSSASIA's application-level KEY2 task
-  before CI publication. The bootloader remains the CH582 mask-ROM ISP;
-  do not bundle or replace it. Keep the proven 200 ms TMOS poll, more-than-ten
+  during normal runtime and preserve an equivalent pre-peripheral qualifier
+  across hardware screen off. The bootloader remains the CH582 mask-ROM ISP;
+  do not bundle or replace it. Keep the proven 200 ms cadence, more-than-ten
   held samples (about 2.2 seconds), dot cue, and address-zero transfer intact.
   Record enumeration as `4348:55e0`/`1a86:55e0` and short-press safety when the
   exact physical artifact is tested; until then keep hardware status false.
@@ -404,14 +405,16 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   first matching `FEE0` advertiser without a chooser. Preserve the user's
   physical-position roles with compile-time profile routing: the bottom button
   changes only the name/count or name/frog view and must never advertise; the
-  top button cycles normal → persistent download → recoverable screen off →
-  normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
+  top button cycles normal → persistent download → hardware shutdown; wake
+  cold-boots normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
   system on `250901`. A physical-bottom hold changes brightness on both: KEY1
   uses the upstream 25-sample action on `260404`; KEY2 on `250901` queues
   brightness only when released after 25 through 99 samples, preserving a
   continuous roughly 2.2-second hold for ISP. Never infer or adapt the profile
-  at runtime. A connection suspends surveys until disconnect; KEY2 long-press
-  ISP remains independent and must keep running in screen-off state.
+  at runtime. A connection suspends surveys until disconnect. Screen off must
+  wait for confirmed radio idle, use exact-profile GPIO wake, and qualify a
+  continuously held KEY2 before peripheral startup; it must not retain BLE,
+  USB, TMOS, or button polling merely to keep recovery available.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 
@@ -609,25 +612,32 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.11` / `v0.2.0b11`, adds the passive
-  Flipper `0x3081`–`0x3083` service rule, removes the app-attention
-  compatibility window, restores fixed physical-position button roles, and
-  replaces CH58x shutdown with a recoverable screen-off state. Screen off
-  disables advertising, surveys, the 16 kHz display timer/IRQ, and matrix pin
-  drive while retaining TMR3 button polling, TMOS, USB, and the long-KEY2 ISP
-  task. Every asynchronous suspend overwrites its deferred advertising request
-  and rechecks the current mode before enabling it, so a quick download/off
-  sequence cannot advertise after dark. The button translation now includes
-  the shared profile constants and rejects an unknown compile-time profile;
-  top/`260404` uses active-low KEY1 as its physical-bottom brightness key;
-  bottom/`250901` uses active-high KEY1 as the physical-top system key and
-  active-low KEY2 as the physical-bottom view/brightness key. Bottom KEY2
-  brightness dispatches only when released after 25 through 99 samples; a
-  continued hold remains free for ISP. Per the owner's 2026-08-03 policy
+- Current source declares `0.2.0-beta.12` / `v0.2.0b12`. Screen off blanks
+  TMR0/matrix drive, requests a dedicated survey shutdown, and enters
+  `LowPower_Shutdown(0)` only from a common-task event after asynchronous
+  Central cancellation confirms radio idle. Normal-mode races cancel both
+  pending layers. The shutdown path stops TMR3 and powers down BLE, USB, TMOS,
+  and application polling. `260404` arms physical-top KEY2 only; `250901`
+  arms physical-top KEY1 plus KEY2 for held recovery. Reset-keep magic and
+  strong GPIO handlers classify GPWSM or pre-WFI software reset before
+  peripheral startup. KEY2 is sampled at 200 ms for more than ten samples;
+  sampled short KEY2 returns `250901` to shutdown. This is source/build
+  evidence until both exact images pass current, wake, charge, repeated-cycle,
+  ISP, USB/App, display, and survey-resume tests. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
   `flash_approved: true`; physical evidence remains a separate status upgrade.
+  The local calculated beta.12 receipts are counter top
+  `a75116b71c282ac459c7a9323638f973e7af22a9e473c3ba0555a2128eb65799`
+  (201,112 bytes), counter bottom
+  `fa8914111896b886b527bffa2da6665e485a455e664012d2bc9063e10babe5b4`
+  (201,200 bytes), frogs top
+  `6850041d1c1f9e35c3b20d37fee5bb43de110c8e23d0e38322bb3caa53947716`
+  (201,200 bytes), and frogs bottom
+  `b8c74a3513295fa6830e09a9a4ef4eca08f9a77b38cf5ed298224f8b23e37a5a`
+  (201,284 bytes). Canonical CI must independently reproduce and attest the
+  standard pair before publication.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
   blank for about ten seconds, then alternate between `11` and an apparent
   three-digit value before a Flipper overlay restored `11`. The counter caps at
@@ -675,8 +685,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   could not enter ISP; attaching USB caused a full reboot. Beta.7 avoided all
   off behavior; beta.9 instead implements a recoverable application-level
   screen-off state that stops the LED timer and drive but not button/TMOS/ISP
-  tasks. Do not route a button to `poweroff()` or weaken the separate continuous
-  more-than-ten-sample KEY2-to-address-zero recovery path.
+  tasks. Beta.12 supersedes that workaround: route shutdown only through the
+  radio-idle/common-task gate and preserve recovery through the marked early
+  more-than-ten-sample KEY2-to-address-zero qualifier.
 - On 2026-08-05 exact bottom `0.2.0-beta.7` showed the Bluetooth animation and
   enabled advertising on a KEY2 display/count press. The electrical mapping was
   correct; `frogalert_key2_transition()` still called the cross-image
@@ -691,9 +702,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   positions differ between the exact board profiles. Beta.9 restores only fixed
   compile-time position mapping (`260404`: KEY1 view, KEY2 system; `250901`:
   KEY2 view, KEY1 system), with no runtime probe or cross-image compatibility.
-  The top/system cycle is normal → download → recoverable screen off → normal.
-  Screen off must keep the 50 Hz button task and 200 ms KEY2 ISP task alive;
-  prove wake and ISP without USB on both exact images before hardware approval.
+  Beta.9's top/system cycle used application screen off; beta.12 replaces it
+  with hardware shutdown and early KEY2 qualification. Prove wake, current,
+  and ISP without USB on both exact images before hardware approval.
 - On 2026-08-05 the owner tested factory firmware on both exact boards and
   confirmed identical physical roles: bottom controls brightness, while top
   enters Bluetooth listening and then turns the screen off. This supersedes

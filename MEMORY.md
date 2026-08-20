@@ -9,6 +9,7 @@ index: plain markdown and ripgrep
 
 # FrogAlert memory
 
+- [2026-08-20 hardware shutdown screen off](agent-memory/logs/2026-08-20-hardware-shutdown-screen-off.md)
 - [2026-08-03 CH582 canonical configuration readback](agent-memory/logs/2026-08-03-ch58x-config-readback.md)
 - [2026-08-03 prearmed post-info phone flashing](agent-memory/logs/2026-08-03-prearmed-phone-flashing.md)
 - [2026-08-03 automatic phone firmware publication](agent-memory/logs/2026-08-03-automatic-phone-firmware-publication.md)
@@ -31,6 +32,9 @@ on chat context or filenames alone.
 
 ## Logs
 
+- [`2026-08-20-hardware-shutdown-screen-off.md`](agent-memory/logs/2026-08-20-hardware-shutdown-screen-off.md)
+  — replaces the high-draw application dark state with deferred CH582
+  shutdown, exact-profile GPIO wake, and early held-KEY2 ISP qualification.
 - [`2026-08-03-ch58x-config-readback.md`](agent-memory/logs/2026-08-03-ch58x-config-readback.md)
   — physical BadgeMagic evidence that CH582 bootloader 02.40 canonicalizes
   selected config bits after `0xA8`, plus the narrow two-value pre-erase gate.

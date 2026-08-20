@@ -73,10 +73,14 @@ arms the first scan.
 The physical bottom button gains a virtual counter view:
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. This is KEY1 on
 `260404` and KEY2 on `250901`. The physical top button is the other key and
-cycles normal → download → recoverable screen off → normal. Screen off stops
-the LED timer and pin drive but preserves TMR3 button scanning, TMOS, USB, and
-the separate roughly 2.2-second KEY2-to-ISP poll. No button calls CH58x
-shutdown. A physical-bottom hold changes brightness on either profile. The
+cycles normal → download → hardware shutdown; wake cold-boots normal. Screen
+off immediately stops display drive, then defers shutdown until Central
+discovery cancellation confirms radio idle. A guarded common-task event stops
+TMR3 and calls `LowPower_Shutdown(0)`, powering down BLE/TMOS/USB instead of
+retaining application polling. Reset-keep state classifies the wake before
+peripheral startup and samples held KEY2 every 200 ms for ISP. `260404` arms
+top KEY2 only; `250901` arms top KEY1 plus bottom KEY2 for recovery. A
+physical-bottom hold changes brightness on either profile. The
 `250901` classifier emits KEY2 brightness only when the button is released
 between about 0.5 and 2 seconds; a continued hold therefore reaches ISP without
 first dispatching brightness. The view choice is
