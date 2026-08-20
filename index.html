@@ -115,17 +115,20 @@
 
         <div class="rule-table-wrap">
           <table>
-            <caption>Built-in alert examples</caption>
+            <caption>Built-in detection rules</caption>
             <thead><tr><th>Signal</th><th>Source</th><th>Result</th><th>Guardrail</th></tr></thead>
             <tbody>
               <tr><td><code>00:25:DF</code></td><td>Axon public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
               <tr><td><code>B4:1E:52</code></td><td>Flock Safety public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
-              <tr><td><code>Axon Body</code> / <code>TASER</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
-              <tr><td><code>Flipper</code> or <code>3081</code>–<code>3083</code></td><td>Advertised name or 16-bit service</td><td><code>FLIPPER DETECTED</code></td><td>Passive firmware hint</td></tr>
-              <tr><td><code>QT </code> + serial</td><td>Advertised name prefix</td><td><code>KARR DETECTED</code></td><td>Case-insensitive; must start the name</td></tr>
-              <tr><td><code>Ray-Ban</code> / <code>Ray Ban</code></td><td>Advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
-              <tr><td><code>LED Badge Magic</code></td><td>Advertised name</td><td>Three-frog dance · 3 × 1 s</td><td>Exact, case-insensitive hint</td></tr>
-              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic service</td><td>Three-frog dance · 3 × 1 s</td><td>Passive fallback; may false-positive</td></tr>
+              <tr><td><code>Axon Body</code></td><td>Text within advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>TASER</code></td><td>Text within advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>Ray-Ban</code> / <code>Ray Ban</code></td><td>Text within advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>01AB</code> + <code>FD5F</code></td><td>Meta manufacturer ID + 16-bit service</td><td><code>COP DETECTED</code></td><td>Both fields required; passive Meta-glasses hint</td></tr>
+              <tr><td><code>Flipper</code></td><td>Text within advertised name</td><td><code>FLIPPER DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>3081</code>, <code>3082</code>, or <code>3083</code></td><td>Flipper hardware-color 16-bit service</td><td><code>FLIPPER DETECTED</code></td><td>Any one service is sufficient</td></tr>
+              <tr><td><code>QT </code> + serial</td><td>Advertised name prefix</td><td><code>KARR DETECTED</code></td><td>Case-insensitive; must start the name and include a value</td></tr>
+              <tr><td><code>LED Badge Magic</code></td><td>Exact advertised name</td><td>Three-frog dance · 3 × 1 s</td><td>Case-insensitive; trailing null padding allowed</td></tr>
+              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic 16-bit service</td><td>Three-frog dance · 3 × 1 s</td><td>Passive fallback; may false-positive</td></tr>
             </tbody>
           </table>
           <p class="caveat"><strong>Passive scan limit:</strong> discovery does not request scan responses. A device name present only there cannot match, so advertised <code>FEE0</code> provides a broad BadgeMagic-compatible fallback without claiming device identity.</p>
