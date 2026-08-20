@@ -186,9 +186,32 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /setLatestDownload\(elements\.latestBottomDownload, bottom, "bottom"\)/);
   assert.match(app, /elements\.latestReleaseNotes\.href = latest\[0\]\.release_url/);
   assert.match(html, /<caption>Built-in detection rules<\/caption>/);
+  const detectionTable = html.match(
+    /<caption>Built-in detection rules<\/caption>[\s\S]*?<\/table>/,
+  )?.[0];
+  assert.ok(detectionTable, "landing page should include the detector table");
+  const orderedSignals = [
+    "<code>FEE0</code>",
+    "<code>LED Badge Magic</code>",
+    "<code>QT </code> + serial",
+    "<code>00:25:DF</code>",
+    "<code>B4:1E:52</code>",
+    "<code>01AB</code> + <code>FD5F</code>",
+    "<code>Axon Body</code>",
+    "<code>TASER</code>",
+    "<code>Ray-Ban</code> / <code>Ray Ban</code>",
+    "<code>3081</code>, <code>3082</code>, or <code>3083</code>",
+    "<code>Flipper</code>",
+  ];
+  let previousSignalIndex = -1;
+  for (const signal of orderedSignals) {
+    const signalIndex = detectionTable.indexOf(signal);
+    assert.ok(signalIndex > previousSignalIndex, `${signal} should follow detector priority`);
+    previousSignalIndex = signalIndex;
+  }
   assert.match(
     html,
-    /01AB[\s\S]*FD5F[\s\S]*Meta manufacturer ID \+ 16-bit service[\s\S]*Both fields required/,
+    /Detection priority:[\s\S]*frog dance → KARR → COP → Flipper[\s\S]*first matching rule wins/i,
   );
   assert.match(app, /validatePairedUsbCReleaseCatalog\(/);
   assert.match(app, /!\[4, 5\]\.includes\(manifest\.schema_version\)/);
