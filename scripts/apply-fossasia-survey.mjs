@@ -123,7 +123,7 @@ export function applyButtonHeaderHooks(source) {
 
 int btn_key1_pressed(void);
 int btn_brightness_key(void);
-void btn_configure_screen_off_wake(void);
+void btn_configure_key1_wake(void);
 
 #define isPressed(key) \t\t((key) ? \\
 \t\t\t\t!GPIOB_ReadPortPin(KEY2_PIN) : \\
@@ -173,14 +173,15 @@ int btn_brightness_key(void)
 #define FROGALERT_BRIGHTNESS_RELEASE_MAX (BUTTON_SCAN_FREQ * 2)
 #endif
 
-void btn_configure_screen_off_wake(void)
+void btn_configure_key1_wake(void)
 {
 #if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
 \t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
 \t\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);
+#else
+\t\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);
+\t\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_FallEdge);
 #endif
-\tGPIOB_ModeCfg(KEY2_PIN, GPIO_ModeIN_PU);
-\tGPIOB_ITModeCfg(KEY2_PIN, GPIO_ITMode_FallEdge);
 }
 #endif
 
@@ -256,94 +257,11 @@ export function applyPowerHooks(source) {
     result,
     originalWake,
     `#ifdef FROGALERT_SURVEY
-\tbtn_configure_screen_off_wake();
+\tbtn_configure_key1_wake();
 #else
 ${originalWake}
 #endif`,
-    "profile-bound screen-off wake inputs",
-  );
-  result = replaceOnce(
-    result,
-    `\tPFIC_EnableIRQ(GPIO_A_IRQn);
-\tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);`,
-    `#ifdef FROGALERT_SURVEY
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tGPIOA_ClearITFlagBit(KEY1_PIN | CHARGE_STT_PIN);
-#else
-\tGPIOA_ClearITFlagBit(CHARGE_STT_PIN);
-#endif
-\tGPIOB_ClearITFlagBit(KEY2_PIN);
-\tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);
-\tSYS_ResetKeepBuf(FROGALERT_SCREEN_OFF_MAGIC);
-\tfrogalert_shutdown_arming = TRUE;
-\tPFIC_EnableIRQ(GPIO_A_IRQn);
-\tPFIC_EnableIRQ(GPIO_B_IRQn);
-#else
-\tPFIC_EnableIRQ(GPIO_A_IRQn);
-\tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);
-#endif`,
-    "screen-off GPIO wake ports",
-  );
-  result = replaceOnce(
-    result,
-    `void poweroff()
-{`,
-    `#ifdef FROGALERT_SURVEY
-#define FROGALERT_SCREEN_OFF_MAGIC 0xa7U
-static volatile uint8_t frogalert_shutdown_arming;
-
-__INTERRUPT
-__HIGH_CODE
-void GPIOA_IRQHandler(void)
-{
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tGPIOA_ClearITFlagBit(KEY1_PIN | CHARGE_STT_PIN);
-#else
-\tGPIOA_ClearITFlagBit(CHARGE_STT_PIN);
-#endif
-\tif (frogalert_shutdown_arming)
-\t\tSYS_ResetExecute();
-}
-
-__INTERRUPT
-__HIGH_CODE
-void GPIOB_IRQHandler(void)
-{
-\tGPIOB_ClearITFlagBit(KEY2_PIN);
-\tif (frogalert_shutdown_arming)
-\t\tSYS_ResetExecute();
-}
-
-int frogalert_consume_screen_off_wake(void)
-{
-\tuint8_t reset_status = SYS_GetLastResetSta();
-\tuint8_t reset_keep = R8_GLOB_RESET_KEEP;
-
-\t/* Clear every boot, before the caller can branch or jump to mask ROM. */
-\tSYS_ResetKeepBuf(0);
-\treturn reset_keep == FROGALERT_SCREEN_OFF_MAGIC &&
-\t       (reset_status == RST_STATUS_GPWSM ||
-\t        reset_status == RST_STATUS_SW);
-}
-#endif
-
-void poweroff()
-{`,
-    "screen-off wake classifier",
-  );
-  return result;
-}
-
-export function applyPowerHeaderHooks(source) {
-  let result = normalizeLineEndings(source);
-  result = replaceOnce(
-    result,
-    `void poweroff();`,
-    `void poweroff();
-#ifdef FROGALERT_SURVEY
-int frogalert_consume_screen_off_wake(void);
-#endif`,
-    "screen-off wake classifier declaration",
+    "profile-bound KEY1 shutdown wake",
   );
   return result;
 }
@@ -496,8 +414,9 @@ static void bm_transition()`,
 __HIGH_CODE
 static void frogalert_change_mode()
 {
-	/* Keep the upstream visible cycle. Screen off defers CH58x shutdown until
-	 * the radio is idle, then cold-boots through profile-correct wake inputs. */
+	/* Keep the upstream visible cycle without entering CH58x shutdown. The
+	 * application-level screen-off state leaves the button task and KEY2 ISP
+	 * poll alive, so the badge can always wake without USB power. */
 	if (mode == NORMAL) {
 		mode = DOWNLOAD;
 		mode_setup_download();
@@ -535,118 +454,15 @@ static void bm_transition()`,
   );
   result = replaceOnce(
     result,
-    `#define BLE_NEXT_STEP       (1 << 4)
-
-static tmosTaskID common_taskid = INVALID_TASK_ID ;`,
-    `#define BLE_NEXT_STEP       (1 << 4)
-#ifdef FROGALERT_SURVEY
-#define FROGALERT_ENTER_SHUTDOWN (1 << 5)
-static uint8_t frogalert_shutdown_pending;
-#endif
-
-static tmosTaskID common_taskid = INVALID_TASK_ID ;`,
-    "deferred shutdown task event",
-  );
-  result = replaceOnce(
-    result,
     '#include "ble/setup.h"\n#include "ble/profile.h"\n',
     '#include "ble/setup.h"\n#include "ble/profile.h"\n#ifdef FROGALERT_SURVEY\n#include "ble/frogalert-survey.h"\n#endif\n',
     "main survey include",
   );
   result = replaceOnce(
     result,
-    `int main()
-{
-\tSetSysClock(CLK_SOURCE_PLL_60MHz);`,
-    `#ifdef FROGALERT_SURVEY
-static void frogalert_handle_screen_off_wake(void)
-{
-\tuint8_t hold = 0;
-\tuint8_t key2_was_pressed;
-
-\tif (!frogalert_consume_screen_off_wake())
-\t\treturn;
-
-\t/* Reset-default GPIO modes are not a valid input assumption. KEY2 wins
-\t * if both inputs are held, preserving the mask-ROM recovery path. */
-\tGPIOB_ModeCfg(KEY2_PIN, GPIO_ModeIN_PU);
-\tkey2_was_pressed = isPressed(KEY2);
-\twhile (key2_was_pressed && isPressed(KEY2)) {
-\t\tDelayMs(SCAN_BOOTLD_BTN_SPEED_T / 1000U);
-\t\thold = isPressed(KEY2) ? hold + 1U : 0U;
-\t\tif (hold > 10U)
-\t\t\treset_jump();
-\t}
-
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tif (key2_was_pressed) {
-\t\t/* A released KEY2 is physical bottom/recovery: stay dark. */
-\t\tpoweroff();
-\t\treturn;
-\t}
-
-\t/* KEY1 is physical top on 250901. Consume its release before btn_init(),
-\t * or a wake press can be reinterpreted as NORMAL -> DOWNLOAD. */
-\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
-\tif (btn_key1_pressed()) {
-\t\twhile (btn_key1_pressed())
-\t\t\tDelayMs(20);
-\t}
-#endif
-}
-#endif
-
-int main()
-{
-\tSetSysClock(CLK_SOURCE_PLL_60MHz);
-#ifdef FROGALERT_SURVEY
-\tfrogalert_handle_screen_off_wake();
-#endif`,
-    "early screen-off wake and ISP classifier",
-  );
-  result = replaceOnce(
-    result,
     "\tperipheral_init();\n\n\tif (! badge_cfg.ble_always_on) {",
     "\tperipheral_init();\n#ifdef FROGALERT_SURVEY\n\tfrogalert_survey_init();\n#endif\n\n\tif (! badge_cfg.ble_always_on) {",
     "survey application initialization",
-  );
-  result = replaceOnce(
-    result,
-    `\tif(events & SYS_EVENT_MSG) {
-\t\tuint8 *pMsg = tmos_msg_receive(common_taskid);
-\t\tif(pMsg != NULL)
-\t\t{
-\t\t\ttmos_msg_deallocate(pMsg);
-\t\t}
-\t\treturn (events ^ SYS_EVENT_MSG);
-\t}`,
-    `\tif(events & SYS_EVENT_MSG) {
-\t\tuint8 *pMsg = tmos_msg_receive(common_taskid);
-\t\tif(pMsg != NULL)
-\t\t{
-\t\t\ttmos_msg_deallocate(pMsg);
-\t\t}
-\t\treturn (events ^ SYS_EVENT_MSG);
-\t}
-
-#ifdef FROGALERT_SURVEY
-\tif (events & FROGALERT_ENTER_SHUTDOWN) {
-\t\t/* Survey cancellation is asynchronous. Re-check the mode in the
-\t\t * common task before stopping button polling and crossing WFI. */
-\t\tif (frogalert_shutdown_pending && mode == POWER_OFF) {
-\t\t\tfrogalert_shutdown_pending = FALSE;
-\t\t\tTMR3_ITCfg(DISABLE, TMR0_3_IT_CYC_END);
-\t\t\tPFIC_DisableIRQ(TMR3_IRQn);
-\t\t\tTMR3_ClearITFlag(TMR0_3_IT_CYC_END);
-\t\t\tTMR3_Disable();
-\t\t\tpoweroff();
-\t\t} else {
-\t\t\tfrogalert_shutdown_pending = FALSE;
-\t\t}
-\t\treturn events ^ FROGALERT_ENTER_SHUTDOWN;
-\t}
-#endif`,
-    "deferred shutdown waits for survey radio idle",
   );
   result = replaceOnce(
     result,
@@ -1106,31 +922,25 @@ int streaming_enabled;`,
 	memset(fb, 0, sizeof(fb));
 }
 #ifdef FROGALERT_SURVEY
-void frogalert_survey_radio_idle(void)
-{
-	if (frogalert_shutdown_pending && mode == POWER_OFF)
-		tmos_set_event(common_taskid, FROGALERT_ENTER_SHUTDOWN);
-}
-
 static void mode_setup_screen_off(void)
 {
-	/* Blank immediately, but keep TMR3/TMOS alive until asynchronous Central
-	 * cancellation confirms that the BLE controller is idle. */
-	frogalert_shutdown_pending = TRUE;
+	/* Keep beta.11's physically working screen-off behavior. In particular,
+	 * do not enter CH58x shutdown from the BadgeMagic-capable runtime. */
 	ble_disable_advertise();
+	(void)frogalert_survey_suspend(FALSE);
 	frogalert_display_survey_relinquish();
 	stop_all_animation();
 	TMR0_ITCfg(DISABLE, TMR0_3_IT_CYC_END);
 	PFIC_DisableIRQ(TMR0_IRQn);
 	TMR0_Disable();
 	leds_releaseall();
-	if (frogalert_survey_prepare_shutdown())
-		frogalert_survey_radio_idle();
+	btn_onOnePress(KEY1, frogalert_key1_transition);
+	btn_onOnePress(KEY2, frogalert_key2_transition);
 }
 #endif
 
 int streaming_enabled;`,
-    "low-power screen-off waits for radio idle",
+    "recoverable display-off mode preserves buttons and ISP",
   );
   result = replaceOnce(
     result,
@@ -1326,9 +1136,6 @@ static void disp_charging()
     `static void mode_setup_normal()
 {
 #ifdef FROGALERT_SURVEY
-	frogalert_shutdown_pending = FALSE;
-	tmos_stop_task(common_taskid, FROGALERT_ENTER_SHUTDOWN);
-	frogalert_survey_cancel_shutdown();
 	TMR0_ClearITFlag(TMR0_3_IT_CYC_END);
 	TMR0_Enable();
 	TMR0_ITCfg(ENABLE, TMR0_3_IT_CYC_END);
@@ -1546,18 +1353,8 @@ export async function applySurveyHooks(sourceDirectory) {
   const buttonPath = path.join(sourceDirectory, "src/button.c");
   const buttonHeaderPath = path.join(sourceDirectory, "src/button.h");
   const powerPath = path.join(sourceDirectory, "src/power.c");
-  const powerHeaderPath = path.join(sourceDirectory, "src/power.h");
   const deviceInfoPath = path.join(sourceDirectory, "src/ble/profile/devinfo.c");
-  const [
-    peripheral,
-    main,
-    animation,
-    button,
-    buttonHeader,
-    power,
-    powerHeader,
-    deviceInfo,
-  ] =
+  const [peripheral, main, animation, button, buttonHeader, power, deviceInfo] =
     await Promise.all([
     readFile(peripheralPath, "utf8"),
     readFile(mainPath, "utf8"),
@@ -1565,7 +1362,6 @@ export async function applySurveyHooks(sourceDirectory) {
     readFile(buttonPath, "utf8"),
     readFile(buttonHeaderPath, "utf8"),
     readFile(powerPath, "utf8"),
-    readFile(powerHeaderPath, "utf8"),
     readFile(deviceInfoPath, "utf8"),
   ]);
   await Promise.all([
@@ -1579,7 +1375,6 @@ export async function applySurveyHooks(sourceDirectory) {
       applyBatteryPowerHooks(applyPowerHooks(power)),
       "utf8",
     ),
-    writeFile(powerHeaderPath, applyPowerHeaderHooks(powerHeader), "utf8"),
     writeFile(deviceInfoPath, applyDeviceInfoHooks(deviceInfo), "utf8"),
   ]);
 }

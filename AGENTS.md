@@ -160,8 +160,7 @@ The public site is a dependency-free static application. It separates:
   assembly and after hashing any browser-selected local file. If the browser
   cannot load that registry, artifact preparation must fail closed.
 - Every FrogAlert image must preserve FOSSASIA's application-level KEY2 task
-  during normal runtime and preserve an equivalent pre-peripheral qualifier
-  across hardware screen off. The bootloader remains the CH582 mask-ROM ISP;
+  during normal runtime and recoverable screen off. The bootloader remains the CH582 mask-ROM ISP;
   do not bundle or replace it. Keep the proven 200 ms cadence, more-than-ten
   held samples (about 2.2 seconds), dot cue, and address-zero transfer intact.
   Record enumeration as `4348:55e0`/`1a86:55e0` and short-press safety when the
@@ -405,16 +404,17 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   first matching `FEE0` advertiser without a chooser. Preserve the user's
   physical-position roles with compile-time profile routing: the bottom button
   changes only the name/count or name/frog view and must never advertise; the
-  top button cycles normal → persistent download → hardware shutdown; wake
-  cold-boots normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
+  top button cycles normal → persistent download → recoverable application
+  screen off → normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
   system on `250901`. A physical-bottom hold changes brightness on both: KEY1
   uses the upstream 25-sample action on `260404`; KEY2 on `250901` queues
   brightness only when released after 25 through 99 samples, preserving a
   continuous roughly 2.2-second hold for ISP. Never infer or adapt the profile
   at runtime. A connection suspends surveys until disconnect. Screen off must
-  wait for confirmed radio idle, use exact-profile GPIO wake, and qualify a
-  continuously held KEY2 before peripheral startup; it must not retain BLE,
-  USB, TMOS, or button polling merely to keep recovery available.
+  disable advertising and discovery, stop display refresh, release matrix
+  drive, and retain the button/TMOS/USB/KEY2 recovery tasks. Do not restore
+  beta.12's hardware-shutdown/early-wake integration: the owner A/B-tested an
+  Android BadgeMagic name-upload regression against working beta.11.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 
@@ -612,31 +612,29 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.12` / `v0.2.0b12`. Screen off blanks
-  TMR0/matrix drive, requests a dedicated survey shutdown, and enters
-  `LowPower_Shutdown(0)` only from a common-task event after asynchronous
-  Central cancellation confirms radio idle. Normal-mode races cancel both
-  pending layers. The shutdown path stops TMR3 and powers down BLE, USB, TMOS,
-  and application polling. `260404` arms physical-top KEY2 only; `250901`
-  arms physical-top KEY1 plus KEY2 for held recovery. Reset-keep magic and
-  strong GPIO handlers classify GPWSM or pre-WFI software reset before
-  peripheral startup. KEY2 is sampled at 200 ms for more than ten samples;
-  sampled short KEY2 returns `250901` to shutdown. This is source/build
-  evidence until both exact images pass current, wake, charge, repeated-cycle,
-  ISP, USB/App, display, and survey-resume tests. Per the owner's 2026-08-03 policy
+- Current source declares `0.2.0-beta.13` / `v0.2.0b13`. The owner reported
+  that Android BadgeMagic name upload works on beta.11 and fails on beta.12.
+  The GATT service, `FEE1` write handler, and legacy parser did not change in
+  that interval; beta.12's only firmware runtime delta was its unverified
+  hardware-shutdown/early-wake integration. Beta.13 removes that delta and
+  restores beta.11's recoverable application screen off: disable advertising
+  and discovery, stop TMR0/matrix drive, retain TMR3/TMOS/USB and the unchanged
+  200 ms KEY2 recovery task. Treat the causal boundary as established by the
+  physical A/B report, but keep the exact beta.13 fix hardware-unverified until
+  an Android upload succeeds on the reporting board. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
   `flash_approved: true`; physical evidence remains a separate status upgrade.
-  The local calculated beta.12 receipts are counter top
-  `a75116b71c282ac459c7a9323638f973e7af22a9e473c3ba0555a2128eb65799`
-  (201,112 bytes), counter bottom
-  `fa8914111896b886b527bffa2da6665e485a455e664012d2bc9063e10babe5b4`
-  (201,200 bytes), frogs top
-  `6850041d1c1f9e35c3b20d37fee5bb43de110c8e23d0e38322bb3caa53947716`
-  (201,200 bytes), and frogs bottom
-  `b8c74a3513295fa6830e09a9a4ef4eca08f9a77b38cf5ed298224f8b23e37a5a`
-  (201,284 bytes). Canonical CI must independently reproduce and attest the
+  Local beta.13 receipts are counter top
+  `c60bebfac24a3102567b69fe9212da4866065fa4d70804b18e0a4ef4a6137b9e`
+  (200,344 bytes), counter bottom
+  `71865ea7dd438e1d88cf2bcdfc00c84872cca590845c142f3a5369e56fceaa01`
+  (200,376 bytes), frogs top
+  `5af09831305d784970649e013d2b8bcd049a0fa3d6c934ecdb9b9f6f4428949e`
+  (200,416 bytes), and frogs bottom
+  `5f35682b18160ad79ad9fdab13ca8335c4ccea0b0a0b8a9e713eabb1622a5ed3`
+  (200,448 bytes). Canonical CI must independently reproduce and attest the
   standard pair before publication.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
   blank for about ten seconds, then alternate between `11` and an apparent
@@ -702,9 +700,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   positions differ between the exact board profiles. Beta.9 restores only fixed
   compile-time position mapping (`260404`: KEY1 view, KEY2 system; `250901`:
   KEY2 view, KEY1 system), with no runtime probe or cross-image compatibility.
-  Beta.9's top/system cycle used application screen off; beta.12 replaces it
-  with hardware shutdown and early KEY2 qualification. Prove wake, current,
-  and ISP without USB on both exact images before hardware approval.
+  Beta.9 and beta.11 used application screen off. Beta.12 replaced it with
+  hardware shutdown and early KEY2 qualification, then regressed Android
+  BadgeMagic name upload in the owner's beta.11/beta.12 A/B test. Beta.13
+  restores the beta.11 runtime boundary; do not reintroduce hardware shutdown
+  without a staged app-upload and recovery smoke on both profiles.
 - On 2026-08-05 the owner tested factory firmware on both exact boards and
   confirmed identical physical roles: bottom controls brightness, while top
   enters Bluetooth listening and then turns the screen off. This supersedes

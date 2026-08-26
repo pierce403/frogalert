@@ -70,7 +70,6 @@ static uint8_t scan_active;
 static uint8_t restore_advertising;
 static uint8_t cancel_reason;
 static uint8_t advertise_when_idle;
-static uint8_t shutdown_requested;
 static uint8_t latest_count;
 static uint8_t latest_saturated;
 static uint8_t completed_count;
@@ -295,25 +294,6 @@ static void finish_survey(uint8_t reason)
 	cancel_reason = SURVEY_CANCEL_NONE;
 	tmos_stop_task(survey_task_id, SURVEY_WATCHDOG_EVENT);
 	frogalert_survey_counter_reset(&survey_counter);
-
-	if (reason == SURVEY_CANCEL_SUSPEND && shutdown_requested) {
-		shutdown_requested = 0;
-		restore_advertising = 0;
-		advertise_when_idle = 0;
-		tmos_stop_task(survey_task_id, SURVEY_PREPARE_EVENT);
-		tmos_stop_task(survey_task_id, SURVEY_BEGIN_EVENT);
-		tmos_stop_task(survey_task_id, SURVEY_DISPLAY_PAGE_EVENT);
-		tmos_stop_task(survey_task_id, SURVEY_ALERT_END_EVENT);
-#ifdef FROGALERT_DANCING_FROG_MODE
-		tmos_stop_task(survey_task_id, SURVEY_FROG_VIEW_FRAME_EVENT);
-#endif
-		alert_visible = 0;
-		alert_frame_count = 0;
-		alert_frame_index = 0;
-		detected_alert = FROGALERT_ALERT_NONE;
-		frogalert_survey_radio_idle();
-		return;
-	}
 
 	if (reason == SURVEY_CANCEL_SUSPEND) {
 		restore_advertising = 0;
@@ -639,19 +619,6 @@ uint8_t frogalert_survey_suspend(uint8_t advertise_after)
 		PRINT("FrogAlert survey suspend deferred after error: %u\n",
 		      status);
 	return FALSE;
-}
-
-uint8_t frogalert_survey_prepare_shutdown(void)
-{
-	shutdown_requested = 1;
-	return frogalert_survey_suspend(FALSE);
-}
-
-void frogalert_survey_cancel_shutdown(void)
-{
-	shutdown_requested = 0;
-	if (central_ready && !scan_active && frogalert_survey_allowed())
-		schedule_survey(SURVEY_RADIO_QUIET);
 }
 
 uint8_t frogalert_survey_should_advertise(void)

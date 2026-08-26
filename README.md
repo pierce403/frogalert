@@ -33,7 +33,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   atomically after canonical CI and is selected from one same-origin manifest
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.12`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.13`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
@@ -125,18 +125,16 @@ In these beta images, the physical button nearest USB rotates the visible
 content as `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`: that is KEY2 on
 `250901`, but KEY1 on the reversed `260404` layout. The other short press keeps
 the physical top/system role and cycles normal → Bluetooth download →
-hardware screen off; a qualified wake cold-boots normal. Screen off first
-confirms that passive discovery is idle, then powers down display refresh,
-matrix drive, BLE, USB, TMOS, and both application timers through
-`LowPower_Shutdown(0)`. A physical-bottom hold changes brightness on both
+recoverable application screen off → normal. Screen off disables advertising
+and passive discovery, stops display refresh, and releases matrix drive while
+retaining the button, TMOS, USB, and KEY2 recovery tasks. A physical-bottom hold changes brightness on both
 profiles. On the
 bottom/`250901` profile, that is KEY2: release after about
 0.5 through just under 2 seconds to change brightness, or continue holding for
 the inherited roughly 2.2-second KEY2 ISP path. The top/`260404` profile keeps
 upstream's roughly 0.5-second physical-bottom KEY1 brightness action and its
-independent physical-top KEY2 ISP path. From screen off, a continuously held
-KEY2 is qualified before USB/display startup so recovery remains available;
-a short bottom KEY2 recovery press on `250901` returns to shutdown. Passive
+independent physical-top KEY2 ISP path. The continuously held KEY2 recovery
+path remains live while the display is off. Passive
 surveys continue in both nametag and counter views. `COP DETECTED`,
 `FLIPPER DETECTED`, and `KARR DETECTED` temporarily overlay either view for
 one second per generated frame, then the selected view resumes without
@@ -171,9 +169,10 @@ Current FrogAlert candidates preserve the separation between the two physical
 short-button actions on both exact boards. The bottom button changes only the
 selected name/count or name/frog view; it never enables advertising or starts
 the Bluetooth animation. The top button enters persistent BadgeMagic download
-mode, then hardware shutdown; the next qualified top-button wake cold-boots
-normal. Screen-off GPIO wake is profile exact, while `250901` also arms its
-bottom KEY2 solely for continuously held ISP recovery.
+mode, then recoverable application screen off, then normal. This keeps the
+physically working beta.11 BadgeMagic/KEY2 runtime boundary and withdraws
+beta.12's hardware-shutdown experiment after the reported Android upload
+regression.
 This is compile-time routing (`260404`: KEY1 view/KEY2 system; `250901`: KEY2
 view/KEY1 system), never runtime profile guessing. Unattended badges do not
 advertise continuously, avoiding a room full of identical `FEE0` candidates.

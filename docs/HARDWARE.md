@@ -45,10 +45,10 @@ experimental held-KEY1 weak-pull probe was also unsafe: a physical `250901`
 test showed open PA1 could be classified as `260404`, swapping the short-button
 roles. Current firmware always retains its compiled KEY1 polarity and fixed
 physical-position routing: KEY1 view/KEY2 system on `260404`, and KEY2
-view/KEY1 system on `250901`. Screen off now waits for BLE discovery to become
-idle and enters CH58x `LowPower_Shutdown(0)`. Wake cold-boots through the
-profile's physical-top input; `250901` additionally arms bottom KEY2 so a held
-recovery press can be qualified before peripheral startup. Exact
+view/KEY1 system on `250901`. Screen off disables advertising and discovery,
+stops display refresh, and releases matrix drive while retaining the ordinary
+button/TMOS/USB/KEY2 recovery tasks. Beta.12's hardware-shutdown path was
+withdrawn after an owner-reported Android BadgeMagic upload regression. Exact
 printed-marking/profile selection remains mandatory.
 
 ## Current physical badge evidence

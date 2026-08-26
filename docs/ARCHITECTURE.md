@@ -44,8 +44,8 @@ There is no safe runtime profile probe. An untouched KEY1 switch is open on
 both boards, and PA1 follows whichever internal pull the firmware chooses. A
 held-KEY1 weak-pull experiment was removed after a physical `250901` test
 falsely selected `260404` and swapped the short-button roles. The survey lane
-therefore keeps the compiled exact profile for KEY1 polarity, short-button
-routing, and shutdown wake without modifying the KEY2 long-press ISP path.
+therefore keeps the compiled exact profile for KEY1 polarity and short-button
+routing without modifying the KEY2 long-press ISP path.
 Separate artifacts and exact printed markings remain mandatory.
 
 ## Replacement-image progression
@@ -73,13 +73,11 @@ arms the first scan.
 The physical bottom button gains a virtual counter view:
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. This is KEY1 on
 `260404` and KEY2 on `250901`. The physical top button is the other key and
-cycles normal → download → hardware shutdown; wake cold-boots normal. Screen
-off immediately stops display drive, then defers shutdown until Central
-discovery cancellation confirms radio idle. A guarded common-task event stops
-TMR3 and calls `LowPower_Shutdown(0)`, powering down BLE/TMOS/USB instead of
-retaining application polling. Reset-keep state classifies the wake before
-peripheral startup and samples held KEY2 every 200 ms for ISP. `260404` arms
-top KEY2 only; `250901` arms top KEY1 plus bottom KEY2 for recovery. A
+cycles normal → download → recoverable application screen off → normal. Screen
+off disables advertising and passive discovery, stops TMR0, and releases the
+matrix while retaining TMR3, TMOS, USB, and the ordinary 200 ms held-KEY2 ISP
+task. Beta.13 restores this beta.11 boundary because beta.12's hardware-shutdown
+experiment regressed Android BadgeMagic name uploads. A
 physical-bottom hold changes brightness on either profile. The
 `250901` classifier emits KEY2 brightness only when the button is released
 between about 0.5 and 2 seconds; a continued hold therefore reaches ISP without

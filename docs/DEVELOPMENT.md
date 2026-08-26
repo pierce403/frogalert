@@ -191,17 +191,17 @@ passive scan plus a button-selectable fixed aggregate-count frame. The physical
 bottom button rotates
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter`; it is KEY1 on
 `260404` and KEY2 on `250901`. The physical top button is the other key and
-cycles normal → download → hardware shutdown; wake cold-boots normal. Long physical-
+cycles normal → download → recoverable application screen off → normal. Long physical-
 bottom presses change brightness on both profiles. Top/`260404` retains the
 upstream 25-sample KEY1 action. Bottom/`250901` classifies a 25-through-99-
 sample KEY2 hold as brightness only on release; holding through that window
 leaves the separate roughly 2.2-second KEY2 ISP poll unchanged. The
 bottom/view transition does not advertise or start the Bluetooth
 animation; the top/system transition owns that behavior. Screen off disables
-TMR0 and releases the matrix, waits for asynchronous discovery cancellation,
-then stops TMR3 and enters `LowPower_Shutdown(0)`. A reset marker and early
-200 ms KEY2 qualifier preserve the held-key ISP path without retaining BLE,
-USB, TMOS, or application tasks while dark.
+advertising and discovery, stops TMR0, and releases the matrix while retaining
+TMR3, TMOS, USB, and the existing 200 ms held-KEY2 ISP task. This intentionally
+restores the beta.11 runtime boundary after beta.12 regressed Android app name
+uploads.
 Scanning continues in either
 visible view. The counter retains the last completed result while a new scan is
 running, then changes once when that scan completes. It consumes the final
