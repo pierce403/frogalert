@@ -210,6 +210,10 @@ xmllint --html --noout index.html flash/index.html
 git diff --check
 ```
 
+Canonical CI currently uses Rust 1.98 even when an older local stable toolchain
+is selected. Keep constant-width advertisement parsing on slice
+`as_chunks::<N>()`; CI denies the Rust 1.98 `chunks_exact_to_as_chunks` lint.
+
 The pinned firmware lanes are heavier, explicit checks rather than ordinary
 host verification:
 
@@ -612,28 +616,28 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.13` / `v0.2.0b13`. The owner reported
+- Current source declares `0.2.0-beta.14` / `v0.2.0b14`. The owner reported
   that Android BadgeMagic name upload works on beta.11 and fails on beta.12.
   The GATT service, `FEE1` write handler, and legacy parser did not change in
   that interval; beta.12's only firmware runtime delta was its unverified
-  hardware-shutdown/early-wake integration. Beta.13 removes that delta and
+  hardware-shutdown/early-wake integration. Beta.14 removes that delta and
   restores beta.11's recoverable application screen off: disable advertising
   and discovery, stop TMR0/matrix drive, retain TMR3/TMOS/USB and the unchanged
   200 ms KEY2 recovery task. Treat the causal boundary as established by the
-  physical A/B report, but keep the exact beta.13 fix hardware-unverified until
+  physical A/B report, but keep the exact beta.14 fix hardware-unverified until
   an Android upload succeeds on the reporting board. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
   `flash_approved: true`; physical evidence remains a separate status upgrade.
-  Local beta.13 receipts are counter top
-  `c60bebfac24a3102567b69fe9212da4866065fa4d70804b18e0a4ef4a6137b9e`
+  Local beta.14 receipts are counter top
+  `c46504ff4cdebdeaadb067b3248bf4c354426666de24566b4a641062c718696f`
   (200,344 bytes), counter bottom
-  `71865ea7dd438e1d88cf2bcdfc00c84872cca590845c142f3a5369e56fceaa01`
+  `e4ff5103de8c3823e0e992f010cf14f387e5b66babd14076f6c0a1c48a4cfcda`
   (200,376 bytes), frogs top
-  `5af09831305d784970649e013d2b8bcd049a0fa3d6c934ecdb9b9f6f4428949e`
+  `7ec823232c94fa8f3e65ba7f5614a332df7c0e5f572312905d9dde52c9ce4f2c`
   (200,416 bytes), and frogs bottom
-  `5f35682b18160ad79ad9fdab13ca8335c4ccea0b0a0b8a9e713eabb1622a5ed3`
+  `869ca9990a7622deca75c2da83ad9a11cdc1821311de01ef76cd068dec5acb65`
   (200,448 bytes). Canonical CI must independently reproduce and attest the
   standard pair before publication.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
@@ -702,7 +706,7 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   KEY2 view, KEY1 system), with no runtime probe or cross-image compatibility.
   Beta.9 and beta.11 used application screen off. Beta.12 replaced it with
   hardware shutdown and early KEY2 qualification, then regressed Android
-  BadgeMagic name upload in the owner's beta.11/beta.12 A/B test. Beta.13
+  BadgeMagic name upload in the owner's beta.11/beta.12 A/B test. Beta.14
   restores the beta.11 runtime boundary; do not reintroduce hardware shutdown
   without a staged app-upload and recovery smoke on both profiles.
 - On 2026-08-05 the owner tested factory firmware on both exact boards and

@@ -63,8 +63,10 @@ pub fn has_service16(data: &[u8], service: u16) -> Result<bool, AdvertisementErr
                 return Err(AdvertisementError::TruncatedField);
             }
             if value
-                .chunks_exact(2)
-                .any(|uuid| u16::from_le_bytes([uuid[0], uuid[1]]) == service)
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .any(|uuid| u16::from_le_bytes(*uuid) == service)
             {
                 return Ok(true);
             }

@@ -76,7 +76,7 @@ The physical bottom button gains a virtual counter view:
 cycles normal → download → recoverable application screen off → normal. Screen
 off disables advertising and passive discovery, stops TMR0, and releases the
 matrix while retaining TMR3, TMOS, USB, and the ordinary 200 ms held-KEY2 ISP
-task. Beta.13 restores this beta.11 boundary because beta.12's hardware-shutdown
+task. Beta.14 restores this beta.11 boundary because beta.12's hardware-shutdown
 experiment regressed Android BadgeMagic name uploads. A
 physical-bottom hold changes brightness on either profile. The
 `250901` classifier emits KEY2 brightness only when the button is released
