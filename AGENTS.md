@@ -276,6 +276,16 @@ matched the locked `260404` SHA `c6d06c59…face0d9` and `250901` SHA
 errors or a file input. This proves release/catalog delivery, not a physical
 WebUSB program/verify run.
 
+The beta.14 BadgeMagic-upload repair shipped from source commit `def237a` on
+2026-08-25. CI run `32920470321` passed all four candidate builds and
+attestation; artifact `9589689389` has digest
+`sha256:a65c7631…01b4`. Publication/Pages run `32920695348` created metadata
+commit `83384c6`, published `v0.2.0-beta.14`, and deployed the atomic pair.
+Post-deploy same-origin downloads matched top SHA `c46504ff…696f` and bottom
+SHA `e4ff5103…fcda`, and `/flash/` returned HTTPS 200 with the CI-audited
+hardware disclaimer. This proves delivery of the repair bytes, not Android
+upload behavior or physical recovery on either board.
+
 Preview the site locally:
 
 ```bash

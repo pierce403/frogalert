@@ -49,3 +49,21 @@ Rust 1.98 introduced a denied `chunks_exact_to_as_chunks` Clippy lint in the
 unchanged advertisement parser. Replace the constant two-byte iterator with
 `as_chunks::<2>().0.iter()`; this is an incidental toolchain-compatibility fix,
 not part of the firmware regression boundary.
+
+## Publication evidence
+
+Source commit `def237af89ec1b0c94547bb233ab68584bdc77a7` passed canonical CI
+run `32920470321` on 2026-08-25, including all four candidate builds, exact
+release-byte validation, artifact upload, and provenance attestation. Candidate
+artifact `9589689389` has digest
+`sha256:a65c763198d8877db86c4a1ac0240080de4204cc7f4c752c6154fbee30bb01b4`.
+
+Publication run `32920695348` produced metadata commit
+`83384c681479ac74ea68ed70c632a77a34b348ce`, published prerelease
+`v0.2.0-beta.14`, and deployed Pages. The live same-origin top and bottom BINs
+were independently downloaded after deployment; their sizes and SHA-256 values
+exactly matched the manifest and local receipts. The live `/flash/` returned
+HTTP 200 and retained its CI-audited/physical-smoke disclaimers. This confirms
+publication and delivery only. Keep `hardware_verified: false` until Android
+name upload and the full profile-specific recovery smoke pass on physical
+badges.
