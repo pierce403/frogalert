@@ -676,8 +676,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   `0d7790d1ba2d3ea602c02eecf0320c42846ef09d1b3ebe54772790c381b795af`
   (201,188 bytes), and frogs bottom
   `2438568595af188abc615a18ca7a2f833b504c45f0fd79cc9e51fe44248c3149`
-  (201,428 bytes). Canonical CI must independently reproduce and attest the
-  standard pair before publication.
+  (201,428 bytes). Canonical CI run `33041125018` reproduced and attested the
+  standard pair in artifact `9633916832`, digest
+  `sha256:3acd0643…98469040a`; publication/Pages run `33041331952` created
+  metadata commit `8d7971d`, published `v0.2.0-beta.16`, and deployed the
+  atomic pair. Post-deploy same-origin downloads returned 200 and matched the
+  counter hashes above; `/flash/` returned 200 and the live manifest was
+  byte-identical to the committed manifest. This proves CI/release delivery,
+  not the delayed-wake fix or recovery on physical hardware.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
   blank for about ten seconds, then alternate between `11` and an apparent
   three-digit value before a Flipper overlay restored `11`. The counter caps at

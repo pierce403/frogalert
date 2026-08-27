@@ -29,3 +29,16 @@ startup/vector, symbol, button, RAM, and calculated-receipt audits:
   `0d7790d1ba2d3ea602c02eecf0320c42846ef09d1b3ebe54772790c381b795af`;
 - frogs bottom/`250901`: 201,428 bytes,
   `2438568595af188abc615a18ca7a2f833b504c45f0fd79cc9e51fe44248c3149`.
+
+Canonical CI run `33041125018` passed for source commit `8a54ed3`, including
+all four candidate builds, publication-asset verification, and provenance
+attestation. Candidate artifact `9633916832` has digest
+`sha256:3acd064360b0be6cfc52efa61e522905966bfdc9bd0f673f4d0f83469869040a`.
+Publication/Pages run `33041331952` created metadata commit `8d7971d`,
+published `v0.2.0-beta.16`, reconciled the GitHub Release, and deployed the
+site. The live manifest was byte-identical to the committed manifest;
+`/flash/` and both same-origin BIN URLs returned HTTP 200. Downloaded top and
+bottom hashes matched the counter receipts above. The descriptors remain
+truthful: `hardware_verified: false`, `verification_basis: ci-audited`, and
+`flash_approved: true`. This validates publication and byte delivery, not the
+fix on physical hardware.
