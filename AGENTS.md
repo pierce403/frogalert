@@ -439,7 +439,11 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   at runtime. A connection suspends surveys until disconnect. Screen off must
   wait for confirmed radio idle, enter CH582 hardware shutdown, use
   exact-profile GPIO wake, and qualify continuously held KEY2 before peripheral
-  startup. The owner later determined beta.12 worked and its earlier Android
+  startup. Do not arm `CHARGE_STT`/PA0 as a FrogAlert screen-off wake source:
+  the charger output can cycle or glitch long after shutdown. Only the
+  profile-bound top button and KEY2 recovery input may wake; early boot must
+  return immediately to shutdown when neither valid input remains asserted.
+  The owner later determined beta.12 worked and its earlier Android
   upload failure was likely environmental Bluetooth congestion; do not treat
   beta.14's rollback as proof that hardware shutdown caused a regression.
   Preserve the Android app's 16-byte write-with-response protocol. Reserve its
@@ -643,7 +647,14 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.15` / `v0.2.0b15`. The owner clarified
+- Current source declares `0.2.0-beta.16` / `v0.2.0b16`. Beta.16 removes the
+  inherited falling-edge `CHARGE_STT`/PA0 shutdown wake after a physical badge
+  was observed turning itself on as much as roughly 20 minutes later. The
+  upstream path treated charger assertion as a wake source, and FrogAlert's
+  reset classifier then booted normally without requiring a button. Current
+  source enables only the exact-profile top/system button plus KEY2 recovery
+  and fails closed back into shutdown if early boot sees neither asserted.
+  Normal-mode charge detection remains available. The owner clarified
   that beta.12 worked and its earlier Android upload failure was most likely a
   noisy Bluetooth environment, so current source restores beta.12's radio-idle
   CH582 shutdown and exact-profile early KEY2 recovery. It also hardens the
@@ -657,15 +668,15 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
   `flash_approved: true`; physical evidence remains a separate status upgrade.
-  Local beta.15 receipts are counter top
-  `53b094f73cc2fba2027c7f8247704e608a4f699ede30d1b1416132634d1048d4`
-  (201,224 bytes), counter bottom
-  `5c4cd3613569fa7fb667dd152da86e5d9cd3990accd7d228efa431af7a0f6254`
-  (201,308 bytes), frogs top
-  `d2e6a51bcafc1d2e7fae2abeebb6e1226c5e3fb1bd60dcab56689459a65afc74`
-  (201,312 bytes), and frogs bottom
-  `54af790b0eefb903d33e501d4189518ab1affea5351437781b9dc80f85a40293`
-  (201,396 bytes). Canonical CI must independently reproduce and attest the
+  Local beta.16 receipts are counter top
+  `c0e78296e75715fa2c29224a2d3d7629eb96ac8ddf7be194e84f80ae5af21ebc`
+  (201,100 bytes), counter bottom
+  `77915d3a679179b104c050e403f2445d028d31743d333ea9f88c3197f133b985`
+  (201,340 bytes), frogs top
+  `0d7790d1ba2d3ea602c02eecf0320c42846ef09d1b3ebe54772790c381b795af`
+  (201,188 bytes), and frogs bottom
+  `2438568595af188abc615a18ca7a2f833b504c45f0fd79cc9e51fe44248c3149`
+  (201,428 bytes). Canonical CI must independently reproduce and attest the
   standard pair before publication.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
   blank for about ten seconds, then alternate between `11` and an apparent
@@ -735,7 +746,9 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   hardware shutdown and early KEY2 qualification. Beta.14 temporarily rolled
   that back after a suspected upload regression; the owner later clarified
   beta.12 worked and the failure was likely environmental noise. Beta.15
-  restores low power and adds bounded legacy-transfer hardening. Require staged
+  restored low power and added bounded legacy-transfer hardening. Beta.16
+  removes charger-status wake and rejects unqualified early wakeups after a
+  delayed self-wake was physically observed. Require staged
   upload, interrupted-transfer, current, wake, and recovery smokes on both
   profiles before physical approval.
 - On 2026-08-05 the owner tested factory firmware on both exact boards and

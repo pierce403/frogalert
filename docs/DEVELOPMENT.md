@@ -202,7 +202,10 @@ advertising and discovery, waits for Central idle, then stops TMR0/TMR3 and
 enters CH582 shutdown. Exact-profile early wake retains the existing 200 ms
 held-KEY2 ISP task before BLE/USB/display startup. Beta.15 restores beta.12's
 low-power boundary after the owner clarified the suspected upload failure was
-likely environmental Bluetooth noise.
+likely environmental Bluetooth noise. Beta.16 disables `CHARGE_STT` as a
+shutdown wake source and requires a valid profile-bound button to remain
+asserted at early boot; charger cycling or a GPIO glitch therefore returns to
+shutdown rather than lighting the badge.
 Scanning continues in either
 visible view. The counter retains the last completed result while a new scan is
 running, then changes once when that scan completes. It consumes the final

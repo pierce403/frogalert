@@ -144,11 +144,11 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
     assert.match(patchedPower, /btn_configure_screen_off_wake\(\)/);
     assert.match(
       patchedPower,
-      /GPIOA_ClearITFlagBit\(KEY1_PIN \| CHARGE_STT_PIN\)[\s\S]*#else[\s\S]*GPIOA_ClearITFlagBit\(CHARGE_STT_PIN\)/,
+      /#ifndef FROGALERT_SURVEY[\s\S]*GPIOA_ITModeCfg\(CHARGE_STT_PIN, GPIO_ITMode_FallEdge\)[\s\S]*#endif/,
     );
     assert.match(
       patchedPower,
-      /GPIOB_ClearITFlagBit\(KEY2_PIN\)[\s\S]*PWR_PeriphWakeUpCfg[\s\S]*SYS_ResetKeepBuf\(FROGALERT_SCREEN_OFF_MAGIC\)[\s\S]*frogalert_shutdown_arming = TRUE[\s\S]*PFIC_EnableIRQ\(GPIO_A_IRQn\)[\s\S]*PFIC_EnableIRQ\(GPIO_B_IRQn\)[\s\S]*LowPower_Shutdown\(0\)/,
+      /R16_PA_INT_EN &= ~CHARGE_STT_PIN;[\s\S]*GPIOA_ClearITFlagBit\(CHARGE_STT_PIN\)[\s\S]*GPIOA_ClearITFlagBit\(KEY1_PIN\)[\s\S]*GPIOB_ClearITFlagBit\(KEY2_PIN\)[\s\S]*PWR_PeriphWakeUpCfg[\s\S]*SYS_ResetKeepBuf\(FROGALERT_SCREEN_OFF_MAGIC\)[\s\S]*frogalert_shutdown_arming = TRUE[\s\S]*PFIC_EnableIRQ\(GPIO_A_IRQn\)[\s\S]*PFIC_DisableIRQ\(GPIO_A_IRQn\)[\s\S]*PFIC_EnableIRQ\(GPIO_B_IRQn\)[\s\S]*LowPower_Shutdown\(0\)/,
     );
     assert.match(
       patchedPower,
@@ -667,7 +667,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /frogalert_handle_screen_off_wake\(void\)[\s\S]*frogalert_consume_screen_off_wake\(\)[\s\S]*GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)[\s\S]*hold > 10U[\s\S]*reset_jump\(\)/,
+    /frogalert_handle_screen_off_wake\(void\)[\s\S]*frogalert_consume_screen_off_wake\(\)[\s\S]*GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)[\s\S]*key1_was_pressed = btn_key1_pressed\(\)[\s\S]*if \(!key1_was_pressed && !key2_was_pressed\)[\s\S]*if \(!key2_was_pressed\)[\s\S]*poweroff\(\)[\s\S]*hold > 10U[\s\S]*reset_jump\(\)/,
   );
   assert.match(
     patchedMain,

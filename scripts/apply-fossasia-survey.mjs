@@ -458,19 +458,35 @@ ${originalWake}
   );
   result = replaceOnce(
     result,
+    `\tGPIOA_ModeCfg(CHARGE_STT_PIN, GPIO_ModeIN_PU);
+\tGPIOA_ITModeCfg(CHARGE_STT_PIN, GPIO_ITMode_FallEdge);`,
+    `#ifndef FROGALERT_SURVEY
+\t/* Upstream wakes on the charger status output. FrogAlert screen off is
+\t * user-controlled: charger cycling or PA0 noise must not reboot it. */
+\tGPIOA_ModeCfg(CHARGE_STT_PIN, GPIO_ModeIN_PU);
+\tGPIOA_ITModeCfg(CHARGE_STT_PIN, GPIO_ITMode_FallEdge);
+#endif`,
+    "disable charge-status wake in FrogAlert shutdown",
+  );
+  result = replaceOnce(
+    result,
     `\tPFIC_EnableIRQ(GPIO_A_IRQn);
 \tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);`,
     `#ifdef FROGALERT_SURVEY
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tGPIOA_ClearITFlagBit(KEY1_PIN | CHARGE_STT_PIN);
-#else
+\tR16_PA_INT_EN &= ~CHARGE_STT_PIN;
 \tGPIOA_ClearITFlagBit(CHARGE_STT_PIN);
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\tGPIOA_ClearITFlagBit(KEY1_PIN);
 #endif
 \tGPIOB_ClearITFlagBit(KEY2_PIN);
 \tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);
 \tSYS_ResetKeepBuf(FROGALERT_SCREEN_OFF_MAGIC);
 \tfrogalert_shutdown_arming = TRUE;
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
 \tPFIC_EnableIRQ(GPIO_A_IRQn);
+#else
+\tPFIC_DisableIRQ(GPIO_A_IRQn);
+#endif
 \tPFIC_EnableIRQ(GPIO_B_IRQn);
 #else
 \tPFIC_EnableIRQ(GPIO_A_IRQn);
@@ -491,7 +507,7 @@ __HIGH_CODE
 void GPIOA_IRQHandler(void)
 {
 #if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tGPIOA_ClearITFlagBit(KEY1_PIN | CHARGE_STT_PIN);
+\tGPIOA_ClearITFlagBit(KEY1_PIN);
 #else
 \tGPIOA_ClearITFlagBit(CHARGE_STT_PIN);
 #endif
@@ -757,6 +773,9 @@ static void frogalert_handle_screen_off_wake(void)
 {
 \tuint8_t hold = 0;
 \tuint8_t key2_was_pressed;
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\tuint8_t key1_was_pressed;
+#endif
 
 \tif (!frogalert_consume_screen_off_wake())
 \t\treturn;
@@ -764,7 +783,24 @@ static void frogalert_handle_screen_off_wake(void)
 \t/* Reset-default GPIO modes are not a valid input assumption. KEY2 wins
 \t * if both inputs are held, preserving the mask-ROM recovery path. */
 \tGPIOB_ModeCfg(KEY2_PIN, GPIO_ModeIN_PU);
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
+\tkey1_was_pressed = btn_key1_pressed();
+#endif
 \tkey2_was_pressed = isPressed(KEY2);
+
+\t/* A shutdown wake is not permission to light the badge unless a valid
+\t * physical button is still asserted. This fails closed on GPIO noise or
+\t * an unexpected reset that retained the screen-off marker. */
+#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
+\tif (!key1_was_pressed && !key2_was_pressed) {
+#else
+\tif (!key2_was_pressed) {
+#endif
+\t\tpoweroff();
+\t\treturn;
+\t}
+
 \twhile (key2_was_pressed && isPressed(KEY2)) {
 \t\tDelayMs(SCAN_BOOTLD_BTN_SPEED_T / 1000U);
 \t\thold = isPressed(KEY2) ? hold + 1U : 0U;
@@ -781,8 +817,7 @@ static void frogalert_handle_screen_off_wake(void)
 
 \t/* KEY1 is physical top on 250901. Consume its release before btn_init(),
 \t * or a wake press can be reinterpreted as NORMAL -> DOWNLOAD. */
-\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
-\tif (btn_key1_pressed()) {
+\tif (key1_was_pressed) {
 \t\twhile (btn_key1_pressed())
 \t\t\tDelayMs(20);
 \t}

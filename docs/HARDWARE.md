@@ -50,7 +50,11 @@ become idle and enters CH582 hardware shutdown. Exact-profile wake handling
 qualifies held KEY2 before normal peripheral startup. The owner later clarified
 beta.12 worked and its suspected Android upload regression was likely a noisy
 Bluetooth environment; beta.15 restores that low-power design. Exact printed-
-marking/profile selection remains mandatory.
+marking/profile selection remains mandatory. Beta.16 removes PA0 charger-status
+wake after a badge was observed turning itself on roughly 20 minutes after
+screen off. Charger state is still readable while running, but screen off now
+wakes only from the exact-profile button inputs and rejects an unqualified
+early wake.
 
 ## Current physical badge evidence
 
@@ -264,7 +268,8 @@ exact hash/profile pair must pass:
    brightness behavior, top-button download/off/wake cycle, plus complete
    name/count/name rotation and restoration after every text/frog/custom
    overlay;
-7. normal/download/screen-off current, charge wake, repeated dark/wake cycles,
+7. normal/download/screen-off current, prolonged darkness across charger-state
+   changes, repeated explicit-button dark/wake cycles,
    and `250901` short bottom-KEY2 remaining dark;
 8. continuous KEY2 from screen off with ISP `4348:55e0`/`1a86:55e0`
    enumeration on both profiles;

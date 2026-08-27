@@ -78,7 +78,10 @@ off disables advertising and passive discovery, waits for radio idle, stops
 TMR0/TMR3, and enters CH582 shutdown. Exact-profile early wake qualifies the
 ordinary 200 ms held-KEY2 ISP path before starting BLE, USB, or the display.
 Beta.15 restores beta.12's lower-power boundary after the owner clarified its
-suspected upload regression was environmental Bluetooth congestion. A
+suspected upload regression was environmental Bluetooth congestion. Beta.16
+removes upstream's `CHARGE_STT`/PA0 falling-edge wake after a badge physically
+turned itself on long after shutdown. Only qualified button inputs can now
+leave screen off; early boot returns to shutdown if neither is asserted. A
 physical-bottom hold changes brightness on either profile. The
 `250901` classifier emits KEY2 brightness only when the button is released
 between about 0.5 and 2 seconds; a continued hold therefore reaches ISP without

@@ -90,8 +90,11 @@ then stops display/button timers and enters CH582 shutdown. Exact-profile early
 wake preserves the unchanged 200 ms KEY2-to-ISP qualification before BLE, USB,
 or display startup. The owner later clarified beta.12 worked and its suspected
 upload regression was likely Bluetooth congestion, so beta.15 restores this
-lower-power boundary. Passive
-surveys run in either visible
+lower-power boundary. Beta.16 stops treating `CHARGE_STT`/PA0 as a shutdown
+wake source after a delayed spontaneous turn-on was physically observed. Only
+the profile-bound button inputs may now wake, and early boot returns to
+shutdown unless one remains asserted. Normal-mode charging status is
+unchanged. Passive surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio
 schedule runs.
 

@@ -33,7 +33,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   atomically after canonical CI and is selected from one same-origin manifest
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.15`
+  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.16`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
@@ -128,8 +128,10 @@ the physical top/system role and cycles normal → Bluetooth download → hardwa
 shutdown; wake cold-boots normal. Screen off waits for advertising and passive
 discovery to become idle, then stops the display/button timers and enters CH582
 shutdown. Exact-profile early wake preserves held-KEY2 recovery before BLE,
-USB, or display startup. A physical-bottom hold changes brightness on both
-profiles. On the
+USB, or display startup. Charger status remains available while running but is
+not a shutdown wake source; an unqualified wake returns immediately to
+shutdown instead of lighting the badge. A physical-bottom hold changes
+brightness on both profiles. On the
 bottom/`250901` profile, that is KEY2: release after about
 0.5 through just under 2 seconds to change brightness, or continue holding for
 the inherited roughly 2.2-second KEY2 ISP path. The top/`260404` profile keeps
