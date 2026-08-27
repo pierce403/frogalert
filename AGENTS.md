@@ -286,6 +286,18 @@ SHA `e4ff5103…fcda`, and `/flash/` returned HTTPS 200 with the CI-audited
 hardware disclaimer. This proves delivery of the repair bytes, not Android
 upload behavior or physical recovery on either board.
 
+The beta.15 low-power and BadgeMagic-transfer hardening shipped from source
+commit `85aaed7` on 2026-08-26. CI run `33038336593` passed the repository
+contract, all four profile/lane candidate builds, candidate packaging, and
+attestation. Artifact `9632897768` has digest
+`sha256:df122b82…f959651c`. Publication/Pages run `33038530324` created
+metadata commit `b150e2a`, published `v0.2.0-beta.15`, and deployed the atomic
+counter pair. Post-deploy `/flash/`, the manifest, and both same-origin BINs
+returned HTTPS 200; top SHA `53b094f7…048d4` and bottom SHA
+`5c4cd361…f6254` matched the local and cloud receipts. This proves audited
+delivery, not physical low-power current, wake/recovery, or Android transfer
+behavior on either board.
+
 Preview the site locally:
 
 ```bash

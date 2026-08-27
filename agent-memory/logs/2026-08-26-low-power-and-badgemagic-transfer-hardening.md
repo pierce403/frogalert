@@ -48,3 +48,18 @@ startup/vector, symbol, button, RAM, and calculated-receipt audits:
   `d2e6a51bcafc1d2e7fae2abeebb6e1226c5e3fb1bd60dcab56689459a65afc74`;
 - frogs bottom/`250901`: 201,396 bytes,
   `54af790b0eefb903d33e501d4189518ab1affea5351437781b9dc80f85a40293`.
+
+## Publication evidence
+
+Source commit `85aaed7` passed canonical CI run `33038336593`, including the
+ordinary contract, all four cloud candidate builds, candidate packaging, and
+provenance attestation. Candidate artifact `9632897768` has archive digest
+`sha256:df122b82127467293adc5a66c5bcea96217c246b857f803b8e324898f959651c`.
+
+Downstream run `33038530324` created metadata commit `b150e2a`, published
+GitHub Release `v0.2.0-beta.15`, reconciled the release assets, and deployed
+Pages. Post-deploy checks returned HTTPS 200 for `/flash/`, the manifest, and
+both same-origin BINs. Downloaded top and bottom hashes exactly matched the
+local/cloud counter receipts. The live manifest retains
+`hardware_verified: false`, `verification_basis: ci-audited`, and
+`flash_approved: true` for both exact profiles.
