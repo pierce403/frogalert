@@ -45,11 +45,12 @@ experimental held-KEY1 weak-pull probe was also unsafe: a physical `250901`
 test showed open PA1 could be classified as `260404`, swapping the short-button
 roles. Current firmware always retains its compiled KEY1 polarity and fixed
 physical-position routing: KEY1 view/KEY2 system on `260404`, and KEY2
-view/KEY1 system on `250901`. Screen off disables advertising and discovery,
-stops display refresh, and releases matrix drive while retaining the ordinary
-button/TMOS/USB/KEY2 recovery tasks. Beta.12's hardware-shutdown path was
-withdrawn after an owner-reported Android BadgeMagic upload regression. Exact
-printed-marking/profile selection remains mandatory.
+view/KEY1 system on `250901`. Screen off waits for advertising/discovery to
+become idle and enters CH582 hardware shutdown. Exact-profile wake handling
+qualifies held KEY2 before normal peripheral startup. The owner later clarified
+beta.12 worked and its suspected Android upload regression was likely a noisy
+Bluetooth environment; beta.15 restores that low-power design. Exact printed-
+marking/profile selection remains mandatory.
 
 ## Current physical badge evidence
 

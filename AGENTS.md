@@ -418,17 +418,22 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   first matching `FEE0` advertiser without a chooser. Preserve the user's
   physical-position roles with compile-time profile routing: the bottom button
   changes only the name/count or name/frog view and must never advertise; the
-  top button cycles normal → persistent download → recoverable application
-  screen off → normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
+  top button cycles normal → persistent download → hardware shutdown; wake
+  cold-boots normal. That means KEY1 view/KEY2 system on `260404`, and KEY2 view/KEY1
   system on `250901`. A physical-bottom hold changes brightness on both: KEY1
   uses the upstream 25-sample action on `260404`; KEY2 on `250901` queues
   brightness only when released after 25 through 99 samples, preserving a
   continuous roughly 2.2-second hold for ISP. Never infer or adapt the profile
   at runtime. A connection suspends surveys until disconnect. Screen off must
-  disable advertising and discovery, stop display refresh, release matrix
-  drive, and retain the button/TMOS/USB/KEY2 recovery tasks. Do not restore
-  beta.12's hardware-shutdown/early-wake integration: the owner A/B-tested an
-  Android BadgeMagic name-upload regression against working beta.11.
+  wait for confirmed radio idle, enter CH582 hardware shutdown, use
+  exact-profile GPIO wake, and qualify continuously held KEY2 before peripheral
+  startup. The owner later determined beta.12 worked and its earlier Android
+  upload failure was likely environmental Bluetooth congestion; do not treat
+  beta.14's rollback as proof that hardware shutdown caused a regression.
+  Preserve the Android app's 16-byte write-with-response protocol. Reserve its
+  complete padded final packet, bound declared data below persistent config,
+  clear partial receive state on disconnect, and keep the accepted connection's
+  intended parameter update plus a six-second supervision timeout.
 - A site deployment is not verified until the public HTTPS page loads and its
   device-capability messaging matches the deployed code.
 
@@ -626,29 +631,29 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   remain hardware-unverified until both
   boards confirm voltage, percentage, text, arrow orientation, app upload,
   and KEY2 recovery.
-- Current source declares `0.2.0-beta.14` / `v0.2.0b14`. The owner reported
-  that Android BadgeMagic name upload works on beta.11 and fails on beta.12.
-  The GATT service, `FEE1` write handler, and legacy parser did not change in
-  that interval; beta.12's only firmware runtime delta was its unverified
-  hardware-shutdown/early-wake integration. Beta.14 removes that delta and
-  restores beta.11's recoverable application screen off: disable advertising
-  and discovery, stop TMR0/matrix drive, retain TMR3/TMOS/USB and the unchanged
-  200 ms KEY2 recovery task. Treat the causal boundary as established by the
-  physical A/B report, but keep the exact beta.14 fix hardware-unverified until
-  an Android upload succeeds on the reporting board. Per the owner's 2026-08-03 policy
+- Current source declares `0.2.0-beta.15` / `v0.2.0b15`. The owner clarified
+  that beta.12 worked and its earlier Android upload failure was most likely a
+  noisy Bluetooth environment, so current source restores beta.12's radio-idle
+  CH582 shutdown and exact-profile early KEY2 recovery. It also hardens the
+  inherited legacy receiver without changing the wire protocol: the accepted
+  connection receives the intended parameter update with a six-second
+  supervision timeout; padded final chunks are fully allocated; declared data
+  is bounded below persistent config; partial state clears on disconnect; ATT
+  offsets and Data-Flash errors fail closed; and per-byte debug dumping is
+  removed. Per the owner's 2026-08-03 policy
   decision, a successful canonical CI build automatically publishes the
   standard top/bottom counter pair for phone flashing with
   `hardware_verified: false`, `verification_basis: ci-audited`, and
   `flash_approved: true`; physical evidence remains a separate status upgrade.
-  Local beta.14 receipts are counter top
-  `c46504ff4cdebdeaadb067b3248bf4c354426666de24566b4a641062c718696f`
-  (200,344 bytes), counter bottom
-  `e4ff5103de8c3823e0e992f010cf14f387e5b66babd14076f6c0a1c48a4cfcda`
-  (200,376 bytes), frogs top
-  `7ec823232c94fa8f3e65ba7f5614a332df7c0e5f572312905d9dde52c9ce4f2c`
-  (200,416 bytes), and frogs bottom
-  `869ca9990a7622deca75c2da83ad9a11cdc1821311de01ef76cd068dec5acb65`
-  (200,448 bytes). Canonical CI must independently reproduce and attest the
+  Local beta.15 receipts are counter top
+  `53b094f73cc2fba2027c7f8247704e608a4f699ede30d1b1416132634d1048d4`
+  (201,224 bytes), counter bottom
+  `5c4cd3613569fa7fb667dd152da86e5d9cd3990accd7d228efa431af7a0f6254`
+  (201,308 bytes), frogs top
+  `d2e6a51bcafc1d2e7fae2abeebb6e1226c5e3fb1bd60dcab56689459a65afc74`
+  (201,312 bytes), and frogs bottom
+  `54af790b0eefb903d33e501d4189518ab1affea5351437781b9dc80f85a40293`
+  (201,396 bytes). Canonical CI must independently reproduce and attest the
   standard pair before publication.
 - On 2026-08-01 the user physically observed a bottom-profile counter appear
   blank for about ten seconds, then alternate between `11` and an apparent
@@ -715,10 +720,12 @@ real public use requires HTTPS and a compatible Chromium-family browser.
   compile-time position mapping (`260404`: KEY1 view, KEY2 system; `250901`:
   KEY2 view, KEY1 system), with no runtime probe or cross-image compatibility.
   Beta.9 and beta.11 used application screen off. Beta.12 replaced it with
-  hardware shutdown and early KEY2 qualification, then regressed Android
-  BadgeMagic name upload in the owner's beta.11/beta.12 A/B test. Beta.14
-  restores the beta.11 runtime boundary; do not reintroduce hardware shutdown
-  without a staged app-upload and recovery smoke on both profiles.
+  hardware shutdown and early KEY2 qualification. Beta.14 temporarily rolled
+  that back after a suspected upload regression; the owner later clarified
+  beta.12 worked and the failure was likely environmental noise. Beta.15
+  restores low power and adds bounded legacy-transfer hardening. Require staged
+  upload, interrupted-transfer, current, wake, and recovery smokes on both
+  profiles before physical approval.
 - On 2026-08-05 the owner tested factory firmware on both exact boards and
   confirmed identical physical roles: bottom controls brightness, while top
   enters Bluetooth listening and then turns the screen off. This supersedes

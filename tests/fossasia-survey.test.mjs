@@ -9,9 +9,13 @@ import {
   applyButtonHeaderHooks,
   applyButtonHooks,
   applyDeviceInfoHooks,
+  applyLegacyProfileHooks,
+  applyLegacyTransferHeaderHooks,
+  applyLegacyTransferHooks,
   applyMainHooks,
   applyPeripheralHooks,
   applyPowerHooks,
+  applyPowerHeaderHooks,
 } from "../scripts/apply-fossasia-survey.mjs";
 import { loadLock } from "../scripts/audit-fossasia-usbc.mjs";
 
@@ -115,7 +119,7 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
   assert.doesNotMatch(patchedButton, /LONGPRESS_THRES \* 5|125/);
   assert.equal(
     patchedButton.match(/GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)/g)?.length,
-    1,
+    2,
   );
   for (const header of [activeHighHeader, activeLowHeader]) {
     const patchedHeader = applyButtonHeaderHooks(header);
@@ -137,12 +141,34 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
   }
   for (const power of [legacyPower, currentPower]) {
     const patchedPower = applyPowerHooks(power);
-    assert.match(patchedPower, /btn_configure_key1_wake\(\)/);
-    assert.doesNotMatch(
+    assert.match(patchedPower, /btn_configure_screen_off_wake\(\)/);
+    assert.match(
       patchedPower,
-      /FROGALERT_SCREEN_OFF_MAGIC|frogalert_shutdown_arming|GPIOB_IRQHandler/,
+      /GPIOA_ClearITFlagBit\(KEY1_PIN \| CHARGE_STT_PIN\)[\s\S]*#else[\s\S]*GPIOA_ClearITFlagBit\(CHARGE_STT_PIN\)/,
     );
+    assert.match(
+      patchedPower,
+      /GPIOB_ClearITFlagBit\(KEY2_PIN\)[\s\S]*PWR_PeriphWakeUpCfg[\s\S]*SYS_ResetKeepBuf\(FROGALERT_SCREEN_OFF_MAGIC\)[\s\S]*frogalert_shutdown_arming = TRUE[\s\S]*PFIC_EnableIRQ\(GPIO_A_IRQn\)[\s\S]*PFIC_EnableIRQ\(GPIO_B_IRQn\)[\s\S]*LowPower_Shutdown\(0\)/,
+    );
+    assert.match(
+      patchedPower,
+      /frogalert_consume_screen_off_wake\(void\)[\s\S]*SYS_GetLastResetSta\(\)[\s\S]*R8_GLOB_RESET_KEEP[\s\S]*SYS_ResetKeepBuf\(0\)[\s\S]*RST_STATUS_GPWSM[\s\S]*RST_STATUS_SW/,
+    );
+    assert.match(
+      patchedPower,
+      /GPIOA_IRQHandler\(void\)[\s\S]*frogalert_shutdown_arming[\s\S]*SYS_ResetExecute\(\)/,
+    );
+    assert.match(
+      patchedPower,
+      /GPIOB_IRQHandler\(void\)[\s\S]*frogalert_shutdown_arming[\s\S]*SYS_ResetExecute\(\)/,
+    );
+    assert.doesNotMatch(patchedPower, /LowPower_Sleep\(/);
   }
+  const patchedPowerHeader = applyPowerHeaderHooks("void poweroff();");
+  assert.match(
+    patchedPowerHeader,
+    /int frogalert_consume_screen_off_wake\(void\);/,
+  );
 });
 
 test("survey battery hooks calibrate, average, and clamp the real ADC reading", () => {
@@ -225,10 +251,63 @@ test("survey battery hooks calibrate, average, and clamp the real ADC reading", 
   assert.match(patchedDeviceInfo, /mfr_name_val\[\] = "FOSSASIA"/);
 });
 
+test("legacy BadgeMagic writes are bounded, padded, and reset on disconnect", () => {
+  const legacy = [
+    '#include "data.h"',
+    "int legacy_ble_rx(uint8_t *val, uint16_t len)",
+    "{",
+    "\tstatic uint16_t c, data_len, n;",
+    "\tstatic uint8_t *data;",
+    "\tmemcpy(data + c * len, val, len);",
+    "\tdata = realloc(data, data_len);",
+    "\tdata_flatSave(data, data_len);",
+    "\treturn 0;",
+    "}",
+    "",
+    "int legacy_usb_rx(uint8_t *buf, uint16_t len)",
+    "{",
+    "\treturn 0;",
+    "}",
+  ].join("\n");
+  const header = "int legacy_ble_rx(uint8_t *val, uint16_t len);";
+  const profile = [
+    "\tuint16_t uuid = BUILD_UINT16(pAttr->type.uuid[0], pAttr->type.uuid[1]);",
+    "\tif(uuid == RxCharUUID) {",
+    "\t\tif (legacy_ble_rx(pValue, len)) {",
+  ].join("\n");
+
+  const patchedLegacy = applyLegacyTransferHooks(legacy);
+  const patchedHeader = applyLegacyTransferHeaderHooks(header);
+  const patchedProfile = applyLegacyProfileHooks(profile);
+  assert.match(
+    patchedLegacy,
+    /FROGALERT_LEGACY_MAX_DATA[\s\S]*EEPROM_MAX_SIZE - sizeof\(badge_cfg_t\)/,
+  );
+  assert.match(
+    patchedLegacy,
+    /padded_len = \(frogalert_legacy_data_len \+[\s\S]*LEGACY_TRANSFER_WIDTH - 1U[\s\S]*realloc\(frogalert_legacy_data, padded_len\)/,
+  );
+  assert.match(
+    patchedLegacy,
+    /if \(!memcmp\(val, "wang", 5\)\)[\s\S]*legacy_ble_reset\(\)/,
+  );
+  assert.match(
+    patchedLegacy,
+    /status = data_flatSave[\s\S]*legacy_ble_reset\(\);[\s\S]*if \(status\)/,
+  );
+  assert.doesNotMatch(patchedLegacy, /PRINT\("%02X "/);
+  assert.match(patchedHeader, /void legacy_ble_reset\(void\);/);
+  assert.match(
+    patchedProfile,
+    /if \(offset != 0\)[\s\S]*ATT_ERR_INVALID_OFFSET/,
+  );
+});
+
 test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => {
   const peripheral = [
     '#include "setup.h"',
     '#include "../config.h"',
+    "#define CONN_TIMEOUT        100 // Supervision timeout (units of 10ms)",
     "static void gap_init()",
     "{",
     "\tGAPRole_PeripheralInit();",
@@ -236,6 +315,16 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\tuint16_t min_interval = 6;",
     "static void link_onEstablished(gapRoleEvent_t *pe)",
     "{",
+    "\tif(conn_list.connHandle != GAP_CONNHANDLE_INIT) {",
+    "\t\tGAPRole_TerminateLink(e->connectionHandle);",
+    "\t\tGAPRole_PeripheralConnParamUpdateReq(e->connectionHandle,",
+    "\t\t\t\t\tMIN_CONN_INTERVAL,",
+    "\t\t\t\t\tMAX_CONN_INTERVAL,",
+    "\t\t\t\t\tSLAVE_LATENCY,",
+    "\t\t\t\t\tCONN_TIMEOUT,",
+    "\t\t\t\t\ttaskid);",
+    "\t\treturn;",
+    "\t}",
     "\tconn_list.connTimeout = e->connTimeout;",
     "\tenable_advertising(FALSE);",
     "}",
@@ -420,11 +509,18 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.match(patchedPeripheral, /GAPRole_PeripheralInit\(\);[\s\S]*frogalert_survey_role_init\(\);/);
   assert.match(
     patchedPeripheral,
-    /enable_advertising\(FALSE\);[\s\S]*frogalert_survey_suspend\(FALSE\)/,
+    /enable_advertising\(FALSE\);[\s\S]*GAPRole_PeripheralConnParamUpdateReq[\s\S]*CONN_TIMEOUT[\s\S]*frogalert_survey_suspend\(FALSE\)/,
+  );
+  assert.match(patchedPeripheral, /#define CONN_TIMEOUT\s+600/);
+  assert.doesNotMatch(
+    patchedPeripheral.match(
+      /if\(conn_list\.connHandle != GAP_CONNHANDLE_INIT\)[\s\S]*?\n\t\}/,
+    )?.[0] ?? "",
+    /PeripheralConnParamUpdateReq/,
   );
   assert.match(
     patchedPeripheral,
-    /conn_list\.connHandle = GAP_CONNHANDLE_INIT;[\s\S]*frogalert_survey_on_disconnect\(\);[\s\S]*frogalert_survey_should_advertise\(\)[\s\S]*frogalert_survey_suspend\(advertise_after\)[\s\S]*enable_advertising\(TRUE\)/,
+    /conn_list\.connHandle = GAP_CONNHANDLE_INIT;[\s\S]*legacy_ble_reset\(\);[\s\S]*frogalert_survey_on_disconnect\(\);[\s\S]*frogalert_survey_should_advertise\(\)[\s\S]*frogalert_survey_suspend\(advertise_after\)[\s\S]*enable_advertising\(TRUE\)/,
   );
   assert.doesNotMatch(
     patchedPeripheral,
@@ -551,7 +647,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   assert.ok(screenOffSetup);
   assert.match(
     screenOffSetup,
-    /ble_disable_advertise\(\);[\s\S]*frogalert_survey_suspend\(FALSE\)[\s\S]*stop_all_animation\(\);[\s\S]*TMR0_ITCfg\(DISABLE[\s\S]*PFIC_DisableIRQ\(TMR0_IRQn\);[\s\S]*TMR0_Disable\(\);[\s\S]*leds_releaseall\(\);[\s\S]*btn_onOnePress\(KEY1, frogalert_key1_transition\)[\s\S]*btn_onOnePress\(KEY2, frogalert_key2_transition\)/,
+    /frogalert_shutdown_pending = TRUE;[\s\S]*ble_disable_advertise\(\);[\s\S]*stop_all_animation\(\);[\s\S]*TMR0_ITCfg\(DISABLE[\s\S]*PFIC_DisableIRQ\(TMR0_IRQn\);[\s\S]*TMR0_Disable\(\);[\s\S]*leds_releaseall\(\);[\s\S]*frogalert_survey_prepare_shutdown\(\)[\s\S]*frogalert_survey_radio_idle\(\)/,
   );
   assert.doesNotMatch(
     screenOffSetup,
@@ -559,11 +655,19 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /static void mode_setup_normal\(\)[\s\S]*TMR0_ClearITFlag[\s\S]*TMR0_Enable\(\);[\s\S]*TMR0_ITCfg\(ENABLE[\s\S]*PFIC_EnableIRQ\(TMR0_IRQn\);/,
+    /frogalert_survey_radio_idle\(void\)[\s\S]*frogalert_shutdown_pending && mode == POWER_OFF[\s\S]*tmos_set_event\(common_taskid, FROGALERT_ENTER_SHUTDOWN\)/,
   );
-  assert.doesNotMatch(
+  assert.match(
     patchedMain,
-    /frogalert_handle_screen_off_wake|frogalert_consume_screen_off_wake|FROGALERT_ENTER_SHUTDOWN|frogalert_shutdown_pending/,
+    /events & FROGALERT_ENTER_SHUTDOWN[\s\S]*frogalert_shutdown_pending && mode == POWER_OFF[\s\S]*TMR3_ITCfg\(DISABLE[\s\S]*PFIC_DisableIRQ\(TMR3_IRQn\)[\s\S]*TMR3_Disable\(\)[\s\S]*poweroff\(\)/,
+  );
+  assert.match(
+    patchedMain,
+    /static void mode_setup_normal\(\)[\s\S]*frogalert_shutdown_pending = FALSE[\s\S]*tmos_stop_task\(common_taskid, FROGALERT_ENTER_SHUTDOWN\)[\s\S]*frogalert_survey_cancel_shutdown\(\)[\s\S]*TMR0_ClearITFlag[\s\S]*TMR0_Enable\(\);[\s\S]*TMR0_ITCfg\(ENABLE[\s\S]*PFIC_EnableIRQ\(TMR0_IRQn\);/,
+  );
+  assert.match(
+    patchedMain,
+    /frogalert_handle_screen_off_wake\(void\)[\s\S]*frogalert_consume_screen_off_wake\(\)[\s\S]*GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)[\s\S]*hold > 10U[\s\S]*reset_jump\(\)/,
   );
   assert.match(
     patchedMain,
@@ -886,9 +990,17 @@ test("survey candidate is passive, bounded, ephemeral, and connection-safe", asy
     "active discovery suspension must request cancellation before deferring advertising",
   );
   assert.match(survey, /cancel_reason = SURVEY_CANCEL_SUSPEND/);
-  assert.doesNotMatch(
+  assert.match(
     survey,
-    /shutdown_requested|frogalert_survey_prepare_shutdown|frogalert_survey_cancel_shutdown|frogalert_survey_radio_idle/,
+    /frogalert_survey_prepare_shutdown\(void\)[\s\S]*shutdown_requested = 1;[\s\S]*frogalert_survey_suspend\(FALSE\)/,
+  );
+  assert.match(
+    survey,
+    /frogalert_survey_cancel_shutdown\(void\)[\s\S]*shutdown_requested = 0;[\s\S]*schedule_survey\(SURVEY_RADIO_QUIET\)/,
+  );
+  assert.match(
+    survey,
+    /reason == SURVEY_CANCEL_SUSPEND && shutdown_requested[\s\S]*advertise_when_idle = 0;[\s\S]*frogalert_survey_radio_idle\(\);[\s\S]*return;/,
   );
   assert.match(survey, /event->discCmpl\.hdr\.status != SUCCESS/);
   assert.match(survey, /finish_survey\(reason\)/);

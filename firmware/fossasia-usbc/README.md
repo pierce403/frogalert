@@ -78,20 +78,29 @@ This diagnostic lane starts in normal nametag view. The physical bottom button
 extends bitmap selection with a virtual counter:
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. It compiles as
 KEY1 on `260404` and KEY2 on `250901`. The physical top button compiles as the
-other key and cycles normal → download → recoverable application screen off →
+other key and cycles normal → download → hardware shutdown; wake cold-boots
 normal. A
 long physical-bottom press changes brightness on both profiles. `260404` keeps
 the upstream KEY1 action at 25 button samples, about 0.5 seconds. On `250901`,
 KEY2 brightness is deferred until release after 25 through 99 samples, about
 0.5 through just under 2 seconds, so a continued hold remains reserved for the
 unchanged roughly 2.2-second KEY2-to-ISP task.
-Screen off stops advertising, passive discovery, display refresh, and matrix
-drive while retaining TMR3, TMOS, USB, and the unchanged 200 ms KEY2 recovery
-task. This restores beta.11's physically working app-compatible boundary after
-beta.12 regressed Android BadgeMagic name uploads. Passive
+Screen off stops advertising and passive discovery, waits for controller idle,
+then stops display/button timers and enters CH582 shutdown. Exact-profile early
+wake preserves the unchanged 200 ms KEY2-to-ISP qualification before BLE, USB,
+or display startup. The owner later clarified beta.12 worked and its suspected
+upload regression was likely Bluetooth congestion, so beta.15 restores this
+lower-power boundary. Passive
 surveys run in either visible
 view; selecting the counter changes presentation, not whether the radio
 schedule runs.
+
+The legacy Android transfer remains 16-byte `FEE1` writes with responses.
+FrogAlert moves upstream's intended parameter request onto the accepted
+connection, uses a six-second supervision timeout, reserves the app's padded
+final packet, bounds declared data below persistent config, checks Data-Flash
+status, rejects nonzero ATT offsets, clears partial state on disconnect, and
+does not dump user payload bytes through the debug channel.
 
 The separate `frogs` lane retains that complete survey and compatibility
 shell, but renders the alternate view as three fixed frogs alternating between

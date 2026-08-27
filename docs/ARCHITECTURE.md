@@ -73,11 +73,12 @@ arms the first scan.
 The physical bottom button gains a virtual counter view:
 `Name 1 → Bluetooth counter → Name 2 → Bluetooth counter → …`. This is KEY1 on
 `260404` and KEY2 on `250901`. The physical top button is the other key and
-cycles normal → download → recoverable application screen off → normal. Screen
-off disables advertising and passive discovery, stops TMR0, and releases the
-matrix while retaining TMR3, TMOS, USB, and the ordinary 200 ms held-KEY2 ISP
-task. Beta.14 restores this beta.11 boundary because beta.12's hardware-shutdown
-experiment regressed Android BadgeMagic name uploads. A
+cycles normal → download → hardware shutdown; wake cold-boots normal. Screen
+off disables advertising and passive discovery, waits for radio idle, stops
+TMR0/TMR3, and enters CH582 shutdown. Exact-profile early wake qualifies the
+ordinary 200 ms held-KEY2 ISP path before starting BLE, USB, or the display.
+Beta.15 restores beta.12's lower-power boundary after the owner clarified its
+suspected upload regression was environmental Bluetooth congestion. A
 physical-bottom hold changes brightness on either profile. The
 `250901` classifier emits KEY2 brightness only when the button is released
 between about 0.5 and 2 seconds; a continued hold therefore reaches ISP without
