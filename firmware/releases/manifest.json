@@ -1,6 +1,6 @@
 {
   "schema_version": 5,
-  "updated": "2026-08-26",
+  "updated": "2026-08-27",
   "github_repository": "pierce403/frogalert",
   "legacy_repository_release_tags": [
     "v0.1.0-beta.1"
@@ -891,6 +891,86 @@
         "artifact_name": "frogalert-candidate-def237af89ec1b0c94547bb233ab68584bdc77a7",
         "artifact_digest": "sha256:a65c763198d8877db86c4a1ac0240080de4204cc7f4c752c6154fbee30bb01b4",
         "candidate_metadata_sha256": "ef7ffe5c04584726904f9eea7b25be2923c8d30718e3b783cb3f99fab3311141",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.15-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.15",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.15",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.15",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.15.md",
+      "published_at": "2026-08-27",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+      "file": "frogalert-0.2.0-beta.15-top-b1144c-260404-usb-c.bin",
+      "bytes": 201224,
+      "sha256": "53b094f73cc2fba2027c7f8247704e608a4f699ede30d1b1416132634d1048d4",
+      "debug_file": "frogalert-0.2.0-beta.15-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 281328,
+      "debug_sha256": "a14f15c460a361115ac2047bcb17917567ea0eef959f85bf9918b3bc530cd482",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33038336593,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9632897768,
+        "artifact_name": "frogalert-candidate-85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+        "artifact_digest": "sha256:df122b82127467293adc5a66c5bcea96217c246b857f803b8e324898f959651c",
+        "candidate_metadata_sha256": "706b7c2d475c62fc3d31754f62783c865a7ef069d5b2ac7aa9e4d1e797d5117d",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.15-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.15",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.15",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.15",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.15.md",
+      "published_at": "2026-08-27",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+      "file": "frogalert-0.2.0-beta.15-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 201308,
+      "sha256": "5c4cd3613569fa7fb667dd152da86e5d9cd3990accd7d228efa431af7a0f6254",
+      "debug_file": "frogalert-0.2.0-beta.15-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 281360,
+      "debug_sha256": "c59acde6a1e1f484a9d2c0906816082f6e6da417697dce579178cd2bfac20180",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33038336593,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9632897768,
+        "artifact_name": "frogalert-candidate-85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+        "artifact_digest": "sha256:df122b82127467293adc5a66c5bcea96217c246b857f803b8e324898f959651c",
+        "candidate_metadata_sha256": "706b7c2d475c62fc3d31754f62783c865a7ef069d5b2ac7aa9e4d1e797d5117d",
         "build_lane": "survey"
       }
     }
