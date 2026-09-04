@@ -9,6 +9,7 @@ index: plain markdown and ripgrep
 
 # FrogAlert memory
 
+- [2026-09-04 Rust application and SDK emulation](agent-memory/logs/2026-09-04-rust-application-emulation.md)
 - [2026-08-20 hardware shutdown screen off](agent-memory/logs/2026-08-20-hardware-shutdown-screen-off.md)
 - [2026-08-03 CH582 canonical configuration readback](agent-memory/logs/2026-08-03-ch58x-config-readback.md)
 - [2026-08-03 prearmed post-info phone flashing](agent-memory/logs/2026-08-03-prearmed-phone-flashing.md)

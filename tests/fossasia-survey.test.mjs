@@ -283,14 +283,8 @@ test("legacy BadgeMagic writes are bounded, padded, and reset on disconnect", ()
     patchedLegacy,
     /FROGALERT_LEGACY_MAX_DATA[\s\S]*EEPROM_MAX_SIZE - sizeof\(badge_cfg_t\)/,
   );
-  assert.match(
-    patchedLegacy,
-    /padded_len = \(frogalert_legacy_data_len \+[\s\S]*LEGACY_TRANSFER_WIDTH - 1U[\s\S]*realloc\(frogalert_legacy_data, padded_len\)/,
-  );
-  assert.match(
-    patchedLegacy,
-    /if \(!memcmp\(val, "wang", 5\)\)[\s\S]*legacy_ble_reset\(\)/,
-  );
+  assert.match(patchedLegacy, /frogalert_transfer_accept[\s\S]*realloc\(frogalert_legacy_data, write.capacity\)/);
+  assert.match(patchedLegacy, /frogalert_transfer_reset\(\)/);
   assert.match(
     patchedLegacy,
     /status = data_flatSave[\s\S]*legacy_ble_reset\(\);[\s\S]*if \(status\)/,
@@ -681,114 +675,22 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     patchedMain,
     /badge_cfg\.ble_always_on[\s\S]*frogalert_change_mode\(\);[\s\S]*return;/,
   );
-  assert.match(patchedMain, /frogalert_survey_text/);
+  assert.match(patchedMain, /frogalert_display_present/);
   assert.match(
     patchedMain,
     /volatile uint16_t frogalert_survey_overlay_fb\[2\]\[LED_COLS\]/,
   );
   assert.match(
     patchedMain,
-    /frogalert_survey_overlay_index \^ 1U[\s\S]*frogalert_survey_overlay_index = target_index;[\s\S]*frogalert_survey_display_owned = TRUE;/,
+    /frogalert_survey_overlay_index \^ 1U[\s\S]*frogalert_survey_overlay_index = next;[\s\S]*frogalert_survey_display_owned = TRUE;/,
   );
   assert.match(
     patchedMain,
     /if \(frogalert_survey_display_owned\)[\s\S]*frogalert_survey_overlay_fb[\s\S]*else[\s\S]*led_write2dcol\(i >> 2, fb\[column\]/,
   );
-  assert.match(patchedMain, /FROGALERT_SURVEY_PAGE_CHARS\s+8/);
-  assert.match(patchedMain, /FROGALERT_SURVEY_PAGE_MAX\s+2/);
-  assert.match(patchedMain, /FROGALERT_SURVEY_TEXT_MAX\s+16/);
-  assert.match(patchedMain, /frogalert_display_survey_message/);
-  assert.match(patchedMain, /FROGALERT_SURVEY_BT_LOGO_WIDTH\s+6/);
-  assert.match(
-    patchedMain,
-    /0x088, 0x050, 0x7ff, 0x222, 0x154, 0x088/,
-  );
-  assert.match(
-    patchedMain,
-    /bluetooth_logo\[column\]/,
-  );
-  assert.match(
-    patchedMain,
-    /result_length = saturated \? 3 : 2/,
-  );
-  assert.match(
-    patchedMain,
-    /result_length \* FROGALERT_SURVEY_GLYPH_STRIDE/,
-  );
-  assert.match(
-    patchedMain,
-    /frogalert_display_survey_count\(uint8_t count, uint8_t saturated\)/,
-  );
-  assert.doesNotMatch(patchedMain, /FROGALERT_SURVEY_PHASE_GAP|phase_start/);
-  assert.match(
-    patchedMain,
-    /frogalert_display_survey_text\(message, message_length, TRUE\)/,
-  );
-  assert.match(
-    patchedMain,
-    /stride = text_length == FROGALERT_SURVEY_PAGE_CHARS \? 5 : 6;/,
-  );
-  assert.match(patchedMain, /return frogalert_survey_page_count;/);
-  assert.match(
-    patchedMain,
-    /start = \(uint8_t\)\(\(LED_COLS - width\) \/ 2\);/,
-  );
-  assert.match(patchedMain, /\[column \+ 1\] << 2/);
-  assert.doesNotMatch(
-    patchedMain,
-    /frogalert_survey_text\[[\s\S]{0,100}\]\s*\[column\] << 2/,
-  );
-  assert.match(
-    patchedMain,
-    /!frogalert_survey_display_owned \|\|\s*frogalert_survey_page_count <= 1/,
-  );
-  assert.doesNotMatch(patchedMain, /frogalert_survey_offset/);
-  assert.doesNotMatch(patchedMain, /frogalert_survey_bitmap/);
-  assert.doesNotMatch(
-    patchedMain,
-    /char text\[FROGALERT_SURVEY_COUNT_LENGTH\]/,
-  );
-  assert.doesNotMatch(patchedMain, /font5x7\[phase - ' '\]/);
-  assert.match(
-    patchedMain,
-    /if \(!frogalert_survey_display_owned\)[\s\S]*stop_all_animation\(\)/,
-  );
-  assert.match(
-    patchedMain,
-    /if \(!frogalert_survey_display_active\(\)\)[\s\S]*frogalert_display_survey_release\(\)/,
-  );
-  assert.match(
-    patchedMain,
-    /frogalert_display_survey_release[\s\S]*start_normal_animation\(\)/,
-  );
-  assert.match(
-    patchedMain,
-    /stop_all_animation\(\);[\s\S]*frogalert_survey_suspend\(FALSE\);[\s\S]*frogalert_display_survey_relinquish\(\);[\s\S]*streaming_enabled = 1;/,
-  );
-  assert.doesNotMatch(
-    patchedMain,
-    /void frogalert_display_survey_page_step\(void\)[\s\S]*?\n\tstop_all_animation\(\);/,
-  );
-  assert.match(
-    patchedMain,
-    /frogalert_survey_page_count <= 1[\s\S]*frogalert_survey_page \+ 1/,
-  );
-  assert.match(
-    patchedMain,
-    /frogalert_survey_page \+ 1 >= frogalert_survey_page_count[\s\S]*frogalert_survey_page\+\+;/,
-  );
-  assert.doesNotMatch(
-    patchedMain,
-    /frogalert_survey_page =[\s\S]{0,120}%[\s\S]{0,120}frogalert_survey_page_count/,
-  );
-  assert.match(
-    patchedMain,
-    /void frogalert_display_survey_page_redraw\(void\)/,
-  );
-  assert.match(patchedMain, /frogalert_display_survey_render_page\(\);/);
-  assert.match(patchedMain, /void frogalert_display_frog_dance/);
-  assert.match(patchedMain, /static const uint16_t frogs\[2\]\[9\]/);
-  assert.match(patchedMain, /static const uint8_t starts\[3\]/);
+  assert.match(patchedMain, /if \(!frogalert_survey_display_owned\)[\s\S]*stop_all_animation\(\)/);
+  assert.match(patchedMain, /frogalert_display_survey_release[\s\S]*start_normal_animation\(\)/);
+  assert.match(patchedMain, /stop_all_animation\(\);[\s\S]*frogalert_survey_suspend\(FALSE\);[\s\S]*frogalert_display_survey_relinquish\(\);[\s\S]*streaming_enabled = 1;/);
   assert.match(
     patchedMain,
     /static const char fallback\[\] = "503\.PARTY"/,
@@ -860,261 +762,21 @@ test("survey animation hooks crop only qualified padded 48-column frames", () =>
   );
 });
 
-test("survey candidate is passive, bounded, ephemeral, and connection-safe", async () => {
-  const [survey, core, animationCompat, animationHeader, overlay, build] =
-    await Promise.all([
-      readFile(path.join(firmwareDirectory, "frogalert-survey.c"), "utf8"),
-      readFile(path.join(firmwareDirectory, "frogalert-survey-core.c"), "utf8"),
-      readFile(
-        path.join(firmwareDirectory, "frogalert-animation-compat.c"),
-        "utf8",
-      ),
-      readFile(
-        path.join(firmwareDirectory, "frogalert-animation-compat.h"),
-        "utf8",
-      ),
-      readFile(path.join(firmwareDirectory, "frogalert-survey.mk"), "utf8"),
-      readFile(path.join(repositoryRoot, "scripts/build-fossasia-usbc"), "utf8"),
-    ]);
-
-  assert.match(
-    survey,
-    /FROGALERT:SURVEY-CONFIG-V1:FOSSASIA-9ce885d:/,
-  );
-  assert.match(
-    survey,
-    /FROGALERT_HARDWARE_PROFILE_NAME ":UNVERIFIED"/,
-  );
-  assert.match(
-    survey,
-    /GAPRole_CentralStartDiscovery\(DEVDISC_MODE_ALL, FALSE,\s*FALSE\)/,
-  );
-  assert.match(survey, /peripheral_is_connected\(\)/);
-  assert.match(survey, /frogalert_survey_allowed\(\)/);
-  assert.match(survey, /SURVEY_CYCLE_TIME_MS\s+20000U/);
-  assert.match(survey, /SURVEY_SCAN_TIME_MS\s+3000U/);
-  assert.match(
-    survey,
-    /SURVEY_NEXT_DELAY\s+TMOS_TICKS_FROM_MS\(\s*\\\s*\n\s*SURVEY_CYCLE_TIME_MS - SURVEY_SCAN_TIME_MS - SURVEY_RADIO_QUIET_MS\)/,
-  );
-  assert.match(
-    survey,
-    /SURVEY_SCAN_TICKS\s+TMOS_TICKS_FROM_MS\(SURVEY_SCAN_TIME_MS\)/,
-  );
-  assert.match(survey, /SURVEY_FRAME_TIME\s+TMOS_TICKS_FROM_MS\(1000U\)/);
-  assert.doesNotMatch(survey, /SURVEY_SCROLL_TIME|SURVEY_DISPLAY_STEP_EVENT/);
-  assert.match(survey, /SURVEY_WATCHDOG_TIME\s+TMOS_TICKS_FROM_MS\(5000U\)/);
-  assert.doesNotMatch(survey, /SURVEY_ALERT_TIME|SURVEY_FROG_TIME/);
-  assert.match(survey, /save_survey_view\(0, FALSE\)/);
-  assert.doesNotMatch(
-    survey,
-    /tmos_start_reload_task\(survey_task_id,[\s\S]*SURVEY_DISPLAY_PAGE_EVENT/,
-  );
-  assert.match(
-    survey,
-    /alert_frame_count = render_alert\(alert\)[\s\S]*alert_frame_count > 1[\s\S]*SURVEY_DISPLAY_PAGE_EVENT[\s\S]*SURVEY_FRAME_TIME/,
-  );
-  assert.match(
-    survey,
-    /\(uint32_t\)SURVEY_FRAME_TIME \* alert_frame_count/,
-  );
-  assert.match(
-    survey,
-    /alert_frame_index \+ 1 < alert_frame_count[\s\S]*alert_frame_index\+\+;[\s\S]*frogalert_display_survey_page_step\(\)/,
-  );
-  assert.match(
-    survey,
-    /if \(alert_visible\)[\s\S]*frogalert_display_frog_dance\(alert_frame_index\)[\s\S]*frogalert_display_survey_page_redraw\(\)/,
-  );
-  assert.equal(
-    survey.match(/render_alert\(alert\)/g)?.length,
-    1,
-    "view redraws must preserve the current alert frame",
-  );
-  assert.match(survey, /frogalert_display_survey_page_step\(\)/);
-  assert.ok(
-    survey.indexOf("save_survey_view(0, FALSE)") <
-      survey.indexOf("status = GAPRole_CentralStartDevice"),
-    "the initial zero must render before central-role startup",
-  );
-  assert.match(
-    survey,
-    /status == SUCCESS \|\| status == bleAlreadyInRequestedMode\)[\s\S]*mark_central_ready\(\)/,
-  );
-  assert.match(survey, /event->discCmpl\.pDevList\[index\]\.addr/);
-  assert.match(survey, /frogalert_survey_classify/);
-  assert.match(survey, /address_type == ADDRTYPE_PUBLIC/);
-  assert.match(survey, /event->deviceInfo\.addrType/);
-  assert.match(survey, /event->deviceExtAdvInfo\.addrType/);
-  assert.match(survey, /event->deviceDirectInfo\.addrType/);
-  assert.match(survey, /event->discCmpl\.pDevList\[index\]\.addrType/);
-  assert.match(survey, /event->deviceInfo\.pEvtData/);
-  assert.match(survey, /event->deviceExtAdvInfo\.pEvtData/);
-  assert.match(survey, /"COP DETECTED"/);
-  assert.match(survey, /"FLIPPER DETECTED"/);
-  assert.match(survey, /"KARR DETECTED"/);
-  assert.match(survey, /FROGALERT_ALERT_FROG_DANCE/);
-  assert.match(survey, /frogalert_display_frog_dance/);
-  assert.match(
-    survey,
-    /case FROGALERT_ALERT_FROG_DANCE:[\s\S]*incoming_priority = 4;[\s\S]*case FROGALERT_ALERT_KARR:[\s\S]*incoming_priority = 3;[\s\S]*case FROGALERT_ALERT_COP:[\s\S]*incoming_priority = 2;[\s\S]*case FROGALERT_ALERT_FLIPPER:[\s\S]*incoming_priority = 1;/,
-  );
-  assert.match(
-    survey,
-    /incoming_priority <= current_priority/,
-  );
-  assert.match(
-    survey,
-    /case FROGALERT_ALERT_FROG_DANCE:[\s\S]*frogalert_display_frog_dance\(alert_frame_index\);[\s\S]*return 3;/,
-  );
-  assert.match(
-    core,
-    /FROGALERT_TARGET_BADGEMAGIC[\s\S]*FROGALERT_ALERT_FROG_DANCE[\s\S]*FROGALERT_TARGET_KARR[\s\S]*FROGALERT_ALERT_KARR[\s\S]*FROGALERT_TARGET_POLICE[\s\S]*FROGALERT_ALERT_COP[\s\S]*FROGALERT_TARGET_FLIPPER[\s\S]*FROGALERT_ALERT_FLIPPER/,
-  );
-  assert.match(survey, /SURVEY_ALERT_END_EVENT/);
-  assert.match(survey, /alert == detected_alert/);
-  assert.match(
-    survey,
-    /detected_alert = FROGALERT_ALERT_NONE;[\s\S]*alert_visible = 0;[\s\S]*SURVEY_ALERT_END_EVENT/,
-  );
-  assert.match(survey, /alert_visible = 0;[\s\S]*display_selected_view\(\)/);
-  assert.match(survey, /frogalert_survey_counter_mode\(\)/);
-  assert.match(survey, /frogalert_display_survey_release\(\)/);
-  assert.match(
-    survey,
-    /frogalert_survey_suspend\(uint8_t advertise_after\)/,
-  );
-  assert.ok(
-    survey.indexOf("GAPRole_CentralCancelDiscovery()") <
-      survey.indexOf("return FALSE;", survey.indexOf("frogalert_survey_suspend")),
-    "active discovery suspension must request cancellation before deferring advertising",
-  );
-  assert.match(survey, /cancel_reason = SURVEY_CANCEL_SUSPEND/);
-  assert.match(
-    survey,
-    /frogalert_survey_prepare_shutdown\(void\)[\s\S]*shutdown_requested = 1;[\s\S]*frogalert_survey_suspend\(FALSE\)/,
-  );
-  assert.match(
-    survey,
-    /frogalert_survey_cancel_shutdown\(void\)[\s\S]*shutdown_requested = 0;[\s\S]*schedule_survey\(SURVEY_RADIO_QUIET\)/,
-  );
-  assert.match(
-    survey,
-    /reason == SURVEY_CANCEL_SUSPEND && shutdown_requested[\s\S]*advertise_when_idle = 0;[\s\S]*frogalert_survey_radio_idle\(\);[\s\S]*return;/,
-  );
-  assert.match(survey, /event->discCmpl\.hdr\.status != SUCCESS/);
-  assert.match(survey, /finish_survey\(reason\)/);
-  assert.match(survey, /restore_completed_view\(\)/);
-  assert.match(
-    survey,
-    /advertise_when_idle && frogalert_survey_should_advertise\(\) &&[\s\S]*!peripheral_is_connected\(\)/,
-  );
-  assert.match(
-    survey,
-    /advertise_when_idle = advertise_after \? 1 : 0;/,
-  );
-  assert.doesNotMatch(
-    survey,
-    /SURVEY_APP_|app_window_active|app_cue_active|frogalert_survey_open_app_window|frogalert_display_app_attention/,
-  );
-  assert.match(
-    survey,
-    /frogalert_survey_should_advertise\(void\)\s*\{\s*return frogalert_badgemagic_persistent_advertising\(\);\s*\}/,
-  );
-  assert.doesNotMatch(survey, /SURVEY_PHASE_|show_survey\(/);
-  const observeAdvertisement = survey.match(
-    /static void observe_advertisement\([\s\S]*?\n\}/,
-  )?.[0];
-  assert.ok(observeAdvertisement);
-  assert.match(observeAdvertisement, /frogalert_survey_counter_observe/);
-  assert.doesNotMatch(
-    observeAdvertisement,
-    /save_survey_view|frogalert_display_survey_count/,
-  );
-  assert.match(
-    survey,
-    /PRINT\("FrogAlert passive survey count:[\s\S]*commit_survey_view\(count, saturated\)[\s\S]*SURVEY_NEXT_DELAY/,
-  );
+test("SDK adapter links the Rust application and retains passive discovery", async () => {
+  const survey = await readFile(path.join(firmwareDirectory, "frogalert-survey.c"), "utf8");
+  const make = await readFile(path.join(firmwareDirectory, "frogalert-survey.mk"), "utf8");
+  assert.match(survey, /GAPRole_CentralStartDiscovery\(DEVDISC_MODE_ALL, FALSE, FALSE\)/);
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);
-  assert.match(survey, /GAPROLE_ADVERT_ENABLED/);
-  assert.match(survey, /status != SUCCESS \|\| advertising_enabled/);
+  assert.match(survey, /frogalert_runtime_step\(TMOS_GetSystemClock\(\)/);
+  assert.match(survey, /GAP_EXT_ADV_DEVICE_INFO_EVENT/);
+  assert.match(survey, /GAP_DIRECT_DEVICE_INFO_EVENT/);
+  assert.match(survey, /event->discCmpl.pDevList/);
   assert.match(survey, /status == bleIncorrectMode/);
-  assert.match(survey, /status != SUCCESS/);
-  assert.match(survey, /frogalert_survey_counter_reset\(&survey_counter\)/);
-  assert.doesNotMatch(survey, /GAPRole_CentralEstablishLink/);
-  assert.doesNotMatch(survey, /PRINT\([^\n]*(addr|address)/i);
-  assert.match(core, /volatile uint8_t \*bytes/);
-  assert.match(core, /uint8_t frogalert_survey_counter_observe/);
-  assert.match(core, /void frogalert_survey_classify/);
-  assert.match(core, /address\[5\] == prefix\[0\]/);
-  assert.doesNotMatch(core, /address\[0\] == prefix\[0\]/);
-  assert.match(core, /"axon body"/);
-  assert.match(core, /"taser"/);
-  assert.match(core, /"flipper"/);
-  assert.match(core, /FLIPPER_SERVICE_BLACK\s+0x3081/);
-  assert.match(core, /FLIPPER_SERVICE_WHITE\s+0x3082/);
-  assert.match(core, /FLIPPER_SERVICE_TRANSPARENT\s+0x3083/);
-  assert.match(core, /"qt "/);
-  assert.match(core, /ascii_starts_with_value/);
-  assert.match(core, /"led badge magic"/);
-  assert.match(core, /ascii_equal_padded/);
-  assert.match(core, /advertisement_has_service\(advertisement, 0xfee0\)/);
-  assert.match(core, /GAP_ADTYPE_MANUFACTURER_SPECIFIC\s+0xff/);
-  assert.match(core, /static uint8_t advertisement_has_company/);
-  assert.match(
-    core,
-    /advertisement_has_company\(advertisement, 0x01ab\)\s*&&\s*advertisement_has_service\(advertisement, 0xfd5f\)/,
-  );
-  assert.match(core, /config->custom_rule_count/);
-  assert.match(core, /FROGALERT_MATCH_PUBLIC_OUI/);
-  assert.match(core, /FROGALERT_MATCH_SERVICE16/);
-  assert.match(core, /"ray-ban"/);
-  assert.match(core, /"ray ban"/);
-  assert.match(core, /GAP_ADTYPE_LOCAL_NAME_COMPLETE/);
-  assert.match(
-    animationCompat,
-    /width % FROGALERT_ANIMATION_WIRE_COLUMNS != 0/,
-  );
-  assert.match(
-    animationCompat,
-    /bitmap\[base\] != 0 \|\| bitmap\[base \+ 1\] != 0/,
-  );
-  assert.match(
-    animationCompat,
-    /bitmap\[base \+ 46\] != 0 \|\| bitmap\[base \+ 47\] != 0/,
-  );
-  assert.match(animationHeader, /FROGALERT_ANIMATION_WIRE_COLUMNS\s+48U/);
-  assert.match(overlay, /^CFLAGS \+= -DFROGALERT_SURVEY=1$/m);
-  assert.match(overlay, /src\/frogalert_animation_compat\.c/);
-  assert.match(build, /baseline\|canary\|survey\|frogs/);
-  assert.match(build, /frogalert-animation-compat\.c/);
-  assert.match(build, /frogalert-animation-compat\.h/);
-  assert.match(build, /apply-fossasia-survey\.mjs/);
-  assert.doesNotMatch(build, /\bwchisp\b/);
-  assert.match(build, /audit-fossasia-usbc\.mjs" ram/);
-  assert.match(build, /cleanup_failed_audit/);
-});
-
-test("dancing-frog lane replaces only the visible counter view", async () => {
-  const [survey, frogsOverlay, build] = await Promise.all([
-    readFile(path.join(firmwareDirectory, "frogalert-survey.c"), "utf8"),
-    readFile(path.join(firmwareDirectory, "frogalert-frogs.mk"), "utf8"),
-    readFile(path.join(repositoryRoot, "scripts/build-fossasia-usbc"), "utf8"),
-  ]);
-
-  assert.match(frogsOverlay, /FROGALERT_DANCING_FROG_MODE=1/);
-  assert.match(frogsOverlay, /frogalert_dancing_frog_identity/);
-  assert.match(survey, /SURVEY_FROG_VIEW_FRAME_TIME\s+TMOS_TICKS_FROM_MS\(500U\)/);
-  assert.match(
-    survey,
-    /frogalert_survey_counter_mode\(\)[\s\S]*FROGALERT_DANCING_FROG_MODE[\s\S]*frogalert_display_frog_dance\(frog_view_frame\)/,
-  );
-  assert.match(
-    survey,
-    /SURVEY_FROG_VIEW_FRAME_EVENT[\s\S]*frog_view_frame \^= 1U/,
-  );
-  assert.doesNotMatch(survey, /SURVEY_APP_|app_window|app_cue/);
-  assert.match(build, /image_variant="-frogs"/);
+  assert.match(survey, /frogalert_runtime_init\(TRUE\)/);
+  assert.match(survey, /frogalert_runtime_init\(FALSE\)/);
+  assert.doesNotMatch(survey, /GAPRole_CentralEstablishLink|malloc|calloc|realloc/);
+  assert.match(make, /FROGALERT_RUST_LIB/);
+  assert.doesNotMatch(make, /frogalert_survey_core\.c|frogalert_boot_status\.c/);
 });
 
 test("survey role pattern is pinned to WCH's combined-role example", async () => {

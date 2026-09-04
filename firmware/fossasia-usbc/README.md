@@ -4,13 +4,15 @@ This directory defines FrogAlert's replacement firmware base for exact
 `B1144C_260404_USB_C` and `B1144C_250901_USB_C` profiles. It pins the
 FOSSASIA source that has already booted on the physical `250901` badge and the
 same MRS V1.92 compiler used upstream. The newer Nyx `260404` profile is the
-build default; neither profile is hardware-verified for FrogAlert.
+build default. Legacy releases have physical evidence; every new release must
+retain its own exact-image hardware status.
 
 The architecture boundary is deliberate: FOSSASIA C continues to own reset,
 vectors, the linker layout, clock setup, display refresh, USB HID plus CDC,
 BadgeMagic-compatible BLE services, internal-LSI calibration, buttons, power,
-and the KEY2-to-ROM-ISP hook. Rust may later enter only as a small C-ABI
-library for portable FrogAlert policy. Rust must not own the hardware shell.
+and the KEY2-to-ROM-ISP hook. Rust now owns FrogAlert's application through a primitive C-ABI static library:
+scan/shutdown state, detection, configuration, counting, rendering, boot cards,
+and transfer validation. Rust must not own the hardware shell.
 
 ## Hardware profiles
 
@@ -31,13 +33,20 @@ matching the printed PCB marking to the correct artifact is mandatory.
 
 ## Build lanes
 
+Install Rust `1.98.1`, target `riscv32imc-unknown-none-elf`, and the
+`llvm-tools-preview` component for survey/frog builds. The pinned MRS GCC still
+performs the final link. See [architecture](../../docs/ARCHITECTURE.md) for the
+ABI, linker compatibility step, and [emulator](../../tools/emulator/README.md)
+for host fault injection. The baseline and metadata-only canary remain C.
+
+
 Omit the profile for the default `260404` board:
 
 ```bash
 ./scripts/build-fossasia-usbc baseline --check
 ./scripts/build-fossasia-usbc canary --check
-./scripts/build-fossasia-usbc survey --check
-./scripts/build-fossasia-usbc frogs --check
+./scripts/build-fossasia-usbc survey --candidate
+./scripts/build-fossasia-usbc frogs --candidate
 ```
 
 Name the legacy board explicitly:
@@ -45,8 +54,8 @@ Name the legacy board explicitly:
 ```bash
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C baseline --check
 ./scripts/build-fossasia-usbc B1144C_250901_USB_C canary --check
-./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --check
-./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --check
+./scripts/build-fossasia-usbc B1144C_250901_USB_C survey --candidate
+./scripts/build-fossasia-usbc B1144C_250901_USB_C frogs --candidate
 ```
 
 Successful builds retain the audited upstream filenames internally and also
@@ -175,10 +184,10 @@ restores the prior advertising state. Entering download mode suspends any
 active discovery before enabling advertising. The image never initiates a
 central connection.
 
-The hardware survey still uses the C shell for advertisement extraction and
-the bounded rule mirror. Moving classification behind the Rust ABI remains
-gated on the separate ABI-only canary even though the behavior now matches the
-documented table. The display hook stops FOSSASIA's animation tasks only when
+The hardware survey translates SDK events through C and calls the same Rust
+classifier and state machine used by the emulator. The C ABI and retained
+golden fixtures are compiled for both profiles. The display hook stops
+FOSSASIA's animation tasks only when
 an overlay or selected counter first takes panel ownership. It completes each
 FrogAlert frame in the inactive one of two private 44-column buffers before
 switching the selected buffer. The final timer interrupt reads that buffer

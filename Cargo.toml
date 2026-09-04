@@ -1,4 +1,10 @@
 [workspace]
-members = ["crates/frogalert-core", "tools/simulator"]
+members = ["crates/frogalert-core", "crates/frogalert-ffi", "tools/simulator", "tools/emulator"]
 exclude = ["firmware/frogalert-count"]
 resolver = "2"
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+codegen-units = 1

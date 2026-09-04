@@ -121,29 +121,19 @@ elif [[ "$build_mode" == "survey" || "$build_mode" == "frogs" ]]; then
     "$repo_root/firmware/fossasia-usbc/frogalert-survey.h" \
     "$source_directory/src/ble/frogalert-survey.h"
   cp \
-    "$repo_root/firmware/fossasia-usbc/frogalert-survey-core.c" \
-    "$source_directory/src/ble/frogalert_survey_core.c"
-  cp \
-    "$repo_root/firmware/fossasia-usbc/frogalert-survey-core.h" \
-    "$source_directory/src/ble/frogalert-survey-core.h"
-  cp \
-    "$repo_root/firmware/fossasia-usbc/frogalert-monitor-config.c" \
-    "$source_directory/src/ble/frogalert_monitor_config.c"
-  cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-monitor-config.h" \
     "$source_directory/src/ble/frogalert-monitor-config.h"
-  cp \
-    "$repo_root/firmware/fossasia-usbc/frogalert-animation-compat.c" \
-    "$source_directory/src/frogalert_animation_compat.c"
   cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-animation-compat.h" \
     "$source_directory/src/frogalert-animation-compat.h"
   cp \
-    "$repo_root/firmware/fossasia-usbc/frogalert-boot-status.c" \
-    "$source_directory/src/frogalert_boot_status.c"
-  cp \
     "$repo_root/firmware/fossasia-usbc/frogalert-boot-status.h" \
     "$source_directory/src/frogalert-boot-status.h"
+  cp "$repo_root/firmware/fossasia-usbc/frogalert-rust.h" "$source_directory/src/ble/frogalert-rust.h"
+  FROGALERT_PROFILE_ID="$profile_id" \
+    FROGALERT_VERSION="$frogalert_version" \
+    FROGALERT_DISPLAY_VERSION="$frogalert_display_version" \
+    bash "$repo_root/scripts/build-rust-application" "$build_directory"
   node "$repo_root/scripts/apply-fossasia-survey.mjs" "$source_directory"
   makefiles+=(
     -f "$repo_root/firmware/fossasia-usbc/frogalert-survey.mk"
@@ -171,6 +161,7 @@ fi
     -j"$jobs" \
     "${makefiles[@]}" \
     BUILD_DIR="$build_directory" \
+    FROGALERT_RUST_LIB="$build_directory/libfrogalert_ffi.a" \
     USBC_VERSION=1 \
     FROGALERT_HARDWARE_PROFILE_ID="$profile_id" \
     FROGALERT_HARDWARE_PROFILE_NAME="$profile" \

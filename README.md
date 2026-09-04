@@ -14,6 +14,17 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 
 ## Current state
 
+Version `0.3.0-beta.1` moves the FrogAlert application into allocation-free
+`no_std` Rust: scan/shutdown state, detection/configuration, counting, rendering,
+boot/battery cards, and upload validation. The retained FOSSASIA/WCH C shell
+owns startup, USB/BLE drivers, interrupts, buttons, allocation/flash, and ROM ISP.
+The same Rust core runs in a deterministic SDK emulator, with a 24-hour soak
+for both profiles and both views, fault injection, and real C/Rust ABI tests.
+Run it with `./scripts/run-rust-toolchain stable cargo test -p frogalert-emulator`.
+See [the emulator guide](tools/emulator/README.md) and
+[architecture](docs/ARCHITECTURE.md). New release bytes remain hardware-unverified.
+
+
 - Rust `no_std` detection core: tested
 - host observation/count simulator: tested
 - standalone Rust display/count images: quarantined; the PAC/runtime vector
@@ -33,7 +44,7 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
   atomically after canonical CI and is selected from one same-origin manifest
 - boot status: current source always credits FOSSASIA, then shows the compact
   FrogAlert version, a top/up or bottom/down build marker, and calibrated
-  battery voltage plus an approximate bounded percentage; this `0.2.0-beta.16`
+  battery voltage plus an approximate bounded percentage; this `0.3.0-beta.1`
   source is published automatically after its cloud build and remains clearly
   labeled hardware-unverified until its exact bytes are physically tested
 - dancing-frog firmware: a separate hardware-unverified lane retains the same
@@ -104,13 +115,13 @@ passive report; either marker alone is ignored. These are explainable hints
 rather than proof of device identity: names and fields can be spoofed, and
 company assignments can cover unrelated products.
 
-The current survey source mirrors every row in this table in a bounded C
-classifier. The downloadable 0.1.0-beta.1 images predate the Meta pair and
+The current survey firmware calls this same Rust classifier through the C ABI. The downloadable 0.1.0-beta.1 images predate the Meta pair and
 Flipper service rule. New standard counter builds enter the public catalog
 automatically after the pinned CI build, audit, provenance attestation, and
 publication checks pass; hardware-test status remains distinct and visible.
-The bounded mirror lets the behavior be built and inspected while the
-separately gated Rust ABI canary remains pending; it does not waive that gate.
+The Rust ABI is checked from compiled C on both profiles, and all four embedded
+builds pass the retained hardware-layout audits. Exact-byte physical testing
+remains separate evidence.
 Passive discovery does not guarantee
 that a scan-response-only local name will be delivered, so the advertised
 `0xFEE0` service is a deliberately broad BadgeMagic fallback and can animate

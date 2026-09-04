@@ -1,8 +1,13 @@
 #![cfg_attr(not(test), no_std)]
 
 pub mod advertisement;
+pub mod boot;
+pub mod config;
 pub mod display;
+pub mod render;
+pub mod runtime;
 pub mod scan;
+pub mod transfer;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AlertKind {
@@ -33,7 +38,7 @@ pub struct Match {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Observation<'a> {
-    /// Bluetooth address in controller byte order or normal display order.
+    /// Bluetooth address in canonical, most-significant-byte-first display order.
     pub address: [u8; 6],
     /// True only when the controller reports a public (non-randomized) address.
     pub public_address: bool,
@@ -77,182 +82,9 @@ impl<'a> Observation<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
-struct OuiRule {
-    prefix: [u8; 3],
-    kind: AlertKind,
-    label: &'static str,
-}
-
-#[derive(Clone, Copy)]
-struct NameRule {
-    needle: &'static [u8],
-    kind: AlertKind,
-    label: &'static str,
-    matcher: NameMatcher,
-}
-
-#[derive(Clone, Copy)]
-enum NameMatcher {
-    Contains,
-    ExactPadded,
-    PrefixWithSuffix,
-}
-
-// BLE-relevant seed prefixes from the published OUI-Spy database. The larger
-// Flock list is documented as Wi-Fi promiscuous-mode research and is therefore
-// intentionally not treated as BLE evidence here.
-const OUI_RULES: &[OuiRule] = &[
-    OuiRule {
-        prefix: [0x00, 0x25, 0xDF],
-        kind: AlertKind::Cop,
-        label: "Axon OUI",
-    },
-    OuiRule {
-        prefix: [0xB4, 0x1E, 0x52],
-        kind: AlertKind::Cop,
-        label: "Flock Safety OUI",
-    },
-];
-
-// These mirror Unagi's currently seeded name rules.
-const NAME_RULES: &[NameRule] = &[
-    NameRule {
-        needle: b"led badge magic",
-        kind: AlertKind::FrogDance,
-        label: "BadgeMagic name",
-        matcher: NameMatcher::ExactPadded,
-    },
-    NameRule {
-        needle: b"qt ",
-        kind: AlertKind::Karr,
-        label: "KARR QT serial name",
-        matcher: NameMatcher::PrefixWithSuffix,
-    },
-    NameRule {
-        needle: b"axon body",
-        kind: AlertKind::Cop,
-        label: "Axon name",
-        matcher: NameMatcher::Contains,
-    },
-    NameRule {
-        needle: b"taser",
-        kind: AlertKind::Cop,
-        label: "TASER name",
-        matcher: NameMatcher::Contains,
-    },
-    NameRule {
-        needle: b"flipper",
-        kind: AlertKind::Flipper,
-        label: "Flipper name",
-        matcher: NameMatcher::Contains,
-    },
-    NameRule {
-        needle: b"ray-ban",
-        kind: AlertKind::Cop,
-        label: "Ray-Ban name",
-        matcher: NameMatcher::Contains,
-    },
-    NameRule {
-        needle: b"ray ban",
-        kind: AlertKind::Cop,
-        label: "Ray Ban name",
-        matcher: NameMatcher::Contains,
-    },
-];
-
+/// Classifies a canonical, most-significant-byte-first address.
 pub fn classify(observation: &Observation<'_>) -> Option<Match> {
-    for kind in [
-        AlertKind::FrogDance,
-        AlertKind::Karr,
-        AlertKind::Cop,
-        AlertKind::Flipper,
-    ] {
-        if kind == AlertKind::FrogDance && observation.badge_magic_service {
-            return Some(Match {
-                kind,
-                label: "BadgeMagic FEE0 service",
-            });
-        }
-
-        if kind == AlertKind::Cop && observation.public_address {
-            // BLE private/random addresses frequently collide with vendor
-            // prefixes. Only use OUIs for controller-reported public addresses.
-            for rule in OUI_RULES {
-                if starts_with_either_order(&observation.address, &rule.prefix) {
-                    return Some(Match {
-                        kind: rule.kind,
-                        label: rule.label,
-                    });
-                }
-            }
-        }
-
-        if kind == AlertKind::Cop && observation.meta_company_01ab && observation.meta_service_fd5f
-        {
-            return Some(Match {
-                kind,
-                label: "Meta 01AB + FD5F",
-            });
-        }
-
-        if kind == AlertKind::Flipper && observation.flipper_service {
-            return Some(Match {
-                kind,
-                label: "Flipper 3081-3083 service",
-            });
-        }
-
-        if let Some(name) = observation.name {
-            for rule in NAME_RULES.iter().filter(|rule| rule.kind == kind) {
-                let matches = match rule.matcher {
-                    NameMatcher::Contains => ascii_contains_ignore_case(name, rule.needle),
-                    NameMatcher::ExactPadded => ascii_equal_ignore_case_padded(name, rule.needle),
-                    NameMatcher::PrefixWithSuffix => {
-                        ascii_starts_with_ignore_case_and_value(name, rule.needle)
-                    }
-                };
-                if matches {
-                    return Some(Match {
-                        kind: rule.kind,
-                        label: rule.label,
-                    });
-                }
-            }
-        }
-    }
-    None
-}
-
-fn starts_with_either_order(address: &[u8; 6], prefix: &[u8; 3]) -> bool {
-    address[..3] == prefix[..] || [address[5], address[4], address[3]] == *prefix
-}
-
-fn ascii_contains_ignore_case(haystack: &[u8], needle: &[u8]) -> bool {
-    if needle.is_empty() || haystack.len() < needle.len() {
-        return false;
-    }
-    haystack.windows(needle.len()).any(|window| {
-        window
-            .iter()
-            .zip(needle)
-            .all(|(a, b)| a.eq_ignore_ascii_case(b))
-    })
-}
-
-fn ascii_equal_ignore_case_padded(mut value: &[u8], expected: &[u8]) -> bool {
-    while value.last() == Some(&0) {
-        value = &value[..value.len() - 1];
-    }
-    value.eq_ignore_ascii_case(expected)
-}
-
-fn ascii_starts_with_ignore_case_and_value(value: &[u8], prefix: &[u8]) -> bool {
-    value.len() > prefix.len()
-        && value[..prefix.len()].eq_ignore_ascii_case(prefix)
-        && value[prefix.len()..]
-            .iter()
-            .any(|byte| *byte != 0 && !byte.is_ascii_whitespace())
+    config::builtins(observation, config::ALL_TARGETS)
 }
 
 #[cfg(test)]
@@ -279,9 +111,11 @@ mod tests {
     }
 
     #[test]
-    fn handles_controller_little_endian_address_order() {
-        let found = classify(&observation([3, 2, 1, 0xDF, 0x25, 0x00], true, None)).unwrap();
-        assert_eq!(found.kind, AlertKind::Cop);
+    fn does_not_guess_address_byte_order() {
+        assert_eq!(
+            classify(&observation([3, 2, 1, 0xDF, 0x25, 0x00], true, None)),
+            None
+        );
     }
 
     #[test]
@@ -424,7 +258,7 @@ mod tests {
 
     #[test]
     fn detector_priority_is_frog_then_karr_then_cop_then_flipper() {
-        let public_axon = [3, 2, 1, 0xDF, 0x25, 0x00];
+        let public_axon = [0x00, 0x25, 0xDF, 1, 2, 3];
 
         let mut karr = observation(public_axon, true, Some(b"QT FLIPPER-42"));
         karr.flipper_service = true;

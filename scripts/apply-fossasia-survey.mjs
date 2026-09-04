@@ -51,117 +51,48 @@ export function applyLegacyTransferHooks(source) {
   assert.match(original, /data = realloc\(data, data_len\);/);
   assert.match(original, /data_flatSave\(data, data_len\);/);
 
-  const hardened = `#define FROGALERT_LEGACY_MAX_DATA \\
-\t(EEPROM_MAX_SIZE - sizeof(badge_cfg_t) - 1U)
-
-static uint16_t frogalert_legacy_chunk;
-static uint32_t frogalert_legacy_data_len;
-static uint32_t frogalert_legacy_alloc_len;
+  const hardened = `#include "ble/frogalert-rust.h"
+#define FROGALERT_LEGACY_MAX_DATA (EEPROM_MAX_SIZE - sizeof(badge_cfg_t) - 1U)
 static uint8_t *frogalert_legacy_data;
+static uint32_t frogalert_legacy_capacity;
 
 void legacy_ble_reset(void)
 {
-\tfree(frogalert_legacy_data);
-\tfrogalert_legacy_data = NULL;
-\tfrogalert_legacy_chunk = 0;
-\tfrogalert_legacy_data_len = 0;
-\tfrogalert_legacy_alloc_len = 0;
+	free(frogalert_legacy_data);
+	frogalert_legacy_data = NULL;
+	frogalert_legacy_capacity = 0;
+	frogalert_transfer_reset();
 }
-
 int legacy_ble_rx(uint8_t *val, uint16_t len)
 {
-\tuint32_t offset;
-
-\t_TRACE();
-\tif (len != LEGACY_TRANSFER_WIDTH) {
-\t\tPRINT("Transfer width is not matched\\n");
-\t\treturn -1;
-\t}
-
-\tif (!memcmp(val, "wang", 5)) {
-\t\t/* A fresh header is also the protocol's retry/resynchronization
-\t\t * boundary after a partial or disconnected transfer. */
-\t\tlegacy_ble_reset();
-\t\tfrogalert_legacy_alloc_len = LEGACY_HEADER_SIZE;
-\t\tfrogalert_legacy_data = calloc(1, frogalert_legacy_alloc_len);
-\t\tif (!frogalert_legacy_data) {
-\t\t\tPRINT("insufficient memory\\n");
-\t\t\tlegacy_ble_reset();
-\t\t\treturn -3;
-\t\t}
-\t} else if (!frogalert_legacy_data) {
-\t\tPRINT("Not a header\\n");
-\t\treturn -2;
-\t}
-
-\toffset = (uint32_t)frogalert_legacy_chunk * LEGACY_TRANSFER_WIDTH;
-\tif (offset + len > frogalert_legacy_alloc_len) {
-\t\tPRINT("Transfer exceeds declared size\\n");
-\t\tlegacy_ble_reset();
-\t\treturn -2;
-\t}
-\tmemcpy(frogalert_legacy_data + offset, val, len);
-
-\tif (frogalert_legacy_chunk == 1) {
-\t\tdata_legacy_t *header =
-\t\t\t(data_legacy_t *)frogalert_legacy_data;
-\t\tuint32_t columns = bigendian16_sum(header->sizes, 8);
-\t\tuint32_t padded_len;
-\t\tuint8_t *grown;
-
-\t\tfrogalert_legacy_data_len =
-\t\t\tLEGACY_HEADER_SIZE + (uint32_t)LED_ROWS * columns;
-\t\tif (frogalert_legacy_data_len < LEGACY_HEADER_SIZE ||
-\t\t    frogalert_legacy_data_len > FROGALERT_LEGACY_MAX_DATA) {
-\t\t\tPRINT("Transfer size is invalid\\n");
-\t\t\tlegacy_ble_reset();
-\t\t\treturn -2;
-\t\t}
-\t\t/* The Android app pads every packet to 16 bytes. Reserve the whole
-\t\t * final packet while committing only the declared payload to flash. */
-\t\tpadded_len = (frogalert_legacy_data_len +
-\t\t\t      LEGACY_TRANSFER_WIDTH - 1U) &
-\t\t\t     ~(LEGACY_TRANSFER_WIDTH - 1U);
-\t\tgrown = realloc(frogalert_legacy_data, padded_len);
-\t\tif (!grown) {
-\t\t\tPRINT("insufficient memory\\n");
-\t\t\tlegacy_ble_reset();
-\t\t\treturn -3;
-\t\t}
-\t\tfrogalert_legacy_data = grown;
-\t\tmemset(frogalert_legacy_data + frogalert_legacy_alloc_len, 0,
-\t\t       padded_len - frogalert_legacy_alloc_len);
-\t\tfrogalert_legacy_alloc_len = padded_len;
-\t\tPRINT("Data len: %lu\\n",
-\t\t      (unsigned long)frogalert_legacy_data_len);
-\t}
-
-\tif (frogalert_legacy_data_len &&
-\t    offset + len >= frogalert_legacy_data_len) {
-\t\tdata_legacy_t *header =
-\t\t\t(data_legacy_t *)frogalert_legacy_data;
-\t\tuint32_t status;
-
-\t\tRTC_InitTime(
-\t\t\t2000 + ((header->timestamp[0] - 208 + 256) % 256),
-\t\t\theader->timestamp[1], header->timestamp[2],
-\t\t\theader->timestamp[3], header->timestamp[4],
-\t\t\theader->timestamp[5]);
-\t\tstatus = data_flatSave(frogalert_legacy_data,
-\t\t\t\t       frogalert_legacy_data_len);
-\t\tlegacy_ble_reset();
-\t\tif (status) {
-\t\t\tPRINT("Data flash write failed: %lu\\n",
-\t\t\t      (unsigned long)status);
-\t\t\treturn -4;
-\t\t}
-\t\thandle_after_rx();
-\t\tPRINT("All bitmap data saved\\n");
-\t\treturn 0;
-\t}
-
-\tfrogalert_legacy_chunk++;
-\treturn 0;
+	frogalert_write_t write;
+	if (!frogalert_transfer_accept(val, len, FROGALERT_LEGACY_MAX_DATA, &write)) {
+		legacy_ble_reset();
+		return -2;
+	}
+	if (write.restart) {
+		free(frogalert_legacy_data);
+		frogalert_legacy_data = NULL;
+		frogalert_legacy_capacity = 0;
+	}
+	if (write.capacity > frogalert_legacy_capacity) {
+		uint8_t *grown = realloc(frogalert_legacy_data, write.capacity);
+		if (!grown) { legacy_ble_reset(); return -3; }
+		frogalert_legacy_data = grown;
+		frogalert_legacy_capacity = write.capacity;
+	}
+	memcpy(frogalert_legacy_data + write.offset, val, len);
+	if (write.total) {
+		data_legacy_t *header = (data_legacy_t *)frogalert_legacy_data;
+		uint16_t clock[6];
+		uint32_t status = data_flatSave(frogalert_legacy_data, write.total);
+		if (!status && frogalert_transfer_clock(header->timestamp, clock))
+			RTC_InitTime(clock[0], clock[1], clock[2], clock[3], clock[4], clock[5]);
+		legacy_ble_reset();
+		if (status) return -4;
+		handle_after_rx();
+	}
+	return 0;
 }`;
   result = `${result.slice(0, start)}${hardened}${result.slice(end)}`;
   return result;
@@ -283,6 +214,15 @@ export function applyPeripheralHooks(source) {
 }`,
     "peripheral disconnection waits for central discovery to become idle",
   );
+  result += `
+#ifdef FROGALERT_SURVEY
+void frogalert_badgemagic_disconnect(void)
+{
+	if (conn_list.connHandle != GAP_CONNHANDLE_INIT)
+		GAPRole_TerminateLink(conn_list.connHandle);
+}
+#endif
+`;
   return result;
 }
 
@@ -1082,19 +1022,6 @@ void play_splash`,
 {
 `,
     `#ifdef FROGALERT_SURVEY
-#define FROGALERT_SURVEY_TEXT_MAX     16
-#define FROGALERT_SURVEY_PAGE_CHARS   8
-#define FROGALERT_SURVEY_PAGE_MAX     2
-#define FROGALERT_SURVEY_BT_LOGO_WIDTH 6
-#define FROGALERT_SURVEY_GLYPH_WIDTH   5
-#define FROGALERT_SURVEY_GLYPH_STRIDE  6
-#define FROGALERT_SURVEY_ICON_GAP      2
-
-static char frogalert_survey_text[FROGALERT_SURVEY_TEXT_MAX];
-static uint8_t frogalert_survey_page_start[FROGALERT_SURVEY_PAGE_MAX];
-static uint8_t frogalert_survey_page_length[FROGALERT_SURVEY_PAGE_MAX];
-static uint8_t frogalert_survey_page_count;
-static uint8_t frogalert_survey_page;
 static volatile uint16_t frogalert_survey_overlay_fb[2][LED_COLS];
 static volatile uint8_t frogalert_survey_overlay_index;
 static volatile uint8_t frogalert_survey_display_owned;
@@ -1103,209 +1030,27 @@ uint8_t frogalert_survey_allowed(void)
 {
 	return mode == NORMAL && !streaming_enabled;
 }
-
 void frogalert_display_survey_relinquish(void)
 {
 	frogalert_survey_display_owned = FALSE;
 }
-
 void frogalert_display_survey_release(void)
 {
-	if (!frogalert_survey_display_owned)
-		return;
+	if (!frogalert_survey_display_owned) return;
 	frogalert_survey_display_owned = FALSE;
-	if (mode == NORMAL && !streaming_enabled)
-		start_normal_animation();
+	if (mode == NORMAL && !streaming_enabled) start_normal_animation();
 }
-
-static void frogalert_display_survey_render_page(void)
+void frogalert_display_present(const uint16_t frame[44])
 {
-	uint8_t text_length;
-	uint8_t text_start;
-	uint8_t stride;
-	uint8_t width;
-	uint8_t start;
-	uint8_t target_index;
-
-	if (!frogalert_survey_display_active()) {
-		frogalert_display_survey_release();
-		return;
-	}
-	if (!frogalert_survey_page_count)
-		return;
-	if (!frogalert_survey_display_owned) {
-		stop_all_animation();
-	}
-
-	text_start = frogalert_survey_page_start[frogalert_survey_page];
-	text_length = frogalert_survey_page_length[frogalert_survey_page];
-	stride = text_length == FROGALERT_SURVEY_PAGE_CHARS ? 5 : 6;
-	width = (uint8_t)(text_length * stride - (stride == 6 ? 1 : 0));
-	start = (uint8_t)((LED_COLS - width) / 2);
-	target_index = frogalert_survey_overlay_index ^ 1U;
-	for (uint8_t column = 0; column < LED_COLS; column++)
-		frogalert_survey_overlay_fb[target_index][column] = 0;
-	for (uint8_t character = 0; character < text_length; character++) {
-		for (uint8_t column = 0; column < 5; column++)
-			frogalert_survey_overlay_fb[target_index]
-				[start + character * stride + column] =
-				(uint16_t)(font5x7[
-					frogalert_survey_text[
-						text_start + character] - ' ']
-					[column + 1] << 2);
-	}
-	frogalert_survey_overlay_index = target_index;
+	if (!frogalert_survey_display_active()) return;
+	if (!frogalert_survey_display_owned) stop_all_animation();
+	uint8_t next = frogalert_survey_overlay_index ^ 1U;
+	/* Rust renders a complete frame. Only the inactive C buffer is written;
+	 * the ISR sees it after this final one-byte commit. */
+	for (uint8_t x = 0; x < LED_COLS; x++)
+		frogalert_survey_overlay_fb[next][x] = frame[x];
+	frogalert_survey_overlay_index = next;
 	frogalert_survey_display_owned = TRUE;
-}
-
-static uint8_t frogalert_display_survey_text(const char *text,
-					     uint8_t text_length,
-					     uint8_t paginate)
-{
-	uint8_t second_start;
-	uint8_t split;
-
-	if (!text || text_length == 0 || text_length > FROGALERT_SURVEY_TEXT_MAX)
-		return FALSE;
-	for (uint8_t character = 0; character < text_length; character++) {
-		if (text[character] < ' ' || text[character] > '~')
-			return FALSE;
-		frogalert_survey_text[character] = text[character];
-	}
-
-	frogalert_survey_page = 0;
-	frogalert_survey_page_count = 1;
-	frogalert_survey_page_start[0] = 0;
-	frogalert_survey_page_length[0] = text_length;
-	frogalert_survey_page_start[1] = 0;
-	frogalert_survey_page_length[1] = 0;
-	if (paginate && text_length > FROGALERT_SURVEY_PAGE_CHARS) {
-		split = FROGALERT_SURVEY_PAGE_CHARS;
-		for (uint8_t index = 1;
-		     index < FROGALERT_SURVEY_PAGE_CHARS; index++) {
-			if (text[index] == ' ' &&
-			    text_length - index - 1 <=
-				    FROGALERT_SURVEY_PAGE_CHARS)
-				split = index;
-		}
-		second_start = split;
-		while (second_start < text_length &&
-		       text[second_start] == ' ')
-			second_start++;
-		frogalert_survey_page_count = 2;
-		frogalert_survey_page_length[0] = split;
-		frogalert_survey_page_start[1] = second_start;
-		frogalert_survey_page_length[1] =
-			(uint8_t)(text_length - second_start);
-	}
-	frogalert_display_survey_render_page();
-	return frogalert_survey_page_count;
-}
-
-uint8_t frogalert_display_survey_count(uint8_t count, uint8_t saturated)
-{
-	/* First-frame rune from FOSSASIA's pinned 24x66 bluetooth.xbm. */
-	static const uint16_t bluetooth_logo[FROGALERT_SURVEY_BT_LOGO_WIDTH] = {
-		0x088, 0x050, 0x7ff, 0x222, 0x154, 0x088,
-	};
-	char result[3] = {
-		(char)('0' + ((count / 10) % 10)),
-		(char)('0' + (count % 10)),
-		'+',
-	};
-	uint8_t result_length = saturated ? 3 : 2;
-	uint8_t width = FROGALERT_SURVEY_BT_LOGO_WIDTH +
-			FROGALERT_SURVEY_ICON_GAP +
-			result_length * FROGALERT_SURVEY_GLYPH_STRIDE - 1;
-	uint8_t start;
-	uint8_t glyph_start;
-	uint8_t target_index;
-
-	if (!frogalert_survey_display_active()) {
-		frogalert_display_survey_release();
-		return FALSE;
-	}
-	if (!frogalert_survey_display_owned)
-		stop_all_animation();
-
-	start = (uint8_t)((LED_COLS - width) / 2);
-	glyph_start = start + FROGALERT_SURVEY_BT_LOGO_WIDTH +
-		      FROGALERT_SURVEY_ICON_GAP;
-	target_index = frogalert_survey_overlay_index ^ 1U;
-	for (uint8_t column = 0; column < LED_COLS; column++)
-		frogalert_survey_overlay_fb[target_index][column] = 0;
-	for (uint8_t column = 0;
-	     column < FROGALERT_SURVEY_BT_LOGO_WIDTH; column++)
-		frogalert_survey_overlay_fb[target_index][start + column] =
-			bluetooth_logo[column];
-	for (uint8_t character = 0; character < result_length; character++) {
-		for (uint8_t column = 0;
-		     column < FROGALERT_SURVEY_GLYPH_WIDTH; column++)
-			frogalert_survey_overlay_fb[target_index]
-				[glyph_start +
-				 character * FROGALERT_SURVEY_GLYPH_STRIDE +
-				 column] =
-				(uint16_t)(font5x7[result[character] - ' ']
-					[column + 1] << 2);
-	}
-	frogalert_survey_page_count = 0;
-	frogalert_survey_overlay_index = target_index;
-	frogalert_survey_display_owned = TRUE;
-	return TRUE;
-}
-
-uint8_t frogalert_display_survey_message(const char *message,
-					 uint8_t message_length)
-{
-	return frogalert_display_survey_text(message, message_length, TRUE);
-}
-
-void frogalert_display_frog_dance(uint8_t frame)
-{
-	static const uint16_t frogs[2][9] = {
-		{0x11c, 0x0b6, 0x07e, 0x3f4, 0x1f4,
-		 0x3f4, 0x07e, 0x0b6, 0x11c},
-		{0x09c, 0x136, 0x27e, 0x1f4, 0x1f4,
-		 0x1f4, 0x27e, 0x136, 0x09c},
-	};
-	static const uint8_t starts[3] = {1, 17, 33};
-	uint8_t target_index;
-
-	if (!frogalert_survey_display_active())
-		return;
-	if (!frogalert_survey_display_owned) {
-		stop_all_animation();
-	}
-	target_index = frogalert_survey_overlay_index ^ 1U;
-	for (uint8_t column = 0; column < LED_COLS; column++)
-		frogalert_survey_overlay_fb[target_index][column] = 0;
-	frame &= 1;
-	for (uint8_t frog = 0; frog < 3; frog++) {
-		for (uint8_t column = 0; column < 9; column++)
-			frogalert_survey_overlay_fb[target_index]
-				[starts[frog] + column] = frogs[frame][column];
-	}
-	frogalert_survey_overlay_index = target_index;
-	frogalert_survey_display_owned = TRUE;
-}
-
-void frogalert_display_survey_page_step(void)
-{
-	if (!frogalert_survey_display_active()) {
-		frogalert_display_survey_release();
-		return;
-	}
-	if (!frogalert_survey_display_owned ||
-	    frogalert_survey_page_count <= 1 ||
-	    frogalert_survey_page + 1 >= frogalert_survey_page_count)
-		return;
-	frogalert_survey_page++;
-	frogalert_display_survey_render_page();
-}
-
-void frogalert_display_survey_page_redraw(void)
-{
-	frogalert_display_survey_render_page();
 }
 #endif
 

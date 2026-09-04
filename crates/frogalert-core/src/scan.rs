@@ -13,6 +13,7 @@ pub enum ObservationResult {
 /// zeroes the table so a completed window does not become a device history.
 pub struct ScanCounter<const CAPACITY: usize> {
     addresses: [[u8; 6]; CAPACITY],
+    address_types: [u8; CAPACITY],
     len: usize,
     saturated: bool,
 }
@@ -21,13 +22,23 @@ impl<const CAPACITY: usize> ScanCounter<CAPACITY> {
     pub const fn new() -> Self {
         Self {
             addresses: [[0; 6]; CAPACITY],
+            address_types: [0; CAPACITY],
             len: 0,
             saturated: false,
         }
     }
 
     pub fn observe(&mut self, address: [u8; 6]) -> ObservationResult {
-        if self.addresses[..self.len].contains(&address) {
+        self.observe_typed(address, 0)
+    }
+
+    /// Public and random addresses occupy different Bluetooth address spaces.
+    pub fn observe_typed(&mut self, address: [u8; 6], address_type: u8) -> ObservationResult {
+        if self.addresses[..self.len]
+            .iter()
+            .zip(&self.address_types)
+            .any(|(old, kind)| *old == address && *kind == address_type)
+        {
             return ObservationResult::Duplicate;
         }
         if self.len == CAPACITY {
@@ -35,6 +46,7 @@ impl<const CAPACITY: usize> ScanCounter<CAPACITY> {
             return ObservationResult::Saturated;
         }
         self.addresses[self.len] = address;
+        self.address_types[self.len] = address_type;
         self.len += 1;
         ObservationResult::Added
     }
@@ -54,6 +66,7 @@ impl<const CAPACITY: usize> ScanCounter<CAPACITY> {
         for address in &mut self.addresses {
             unsafe { core::ptr::write_volatile(address, [0; 6]) };
         }
+        self.address_types.fill(0);
         self.len = 0;
         self.saturated = false;
     }

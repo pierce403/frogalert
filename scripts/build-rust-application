@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+output="${1:?usage: build-rust-application OUTPUT_DIRECTORY}"
+cd "$repo_root"
+mkdir -p "$output"
+export CARGO_TARGET_DIR="$repo_root/target/application"
+export RUSTFLAGS="-C target-feature=-a -C relocation-model=static"
+./scripts/run-rust-toolchain 1.98.1 cargo build --locked --release \
+  --target riscv32imc-unknown-none-elf -p frogalert-ffi
+cp "$CARGO_TARGET_DIR/riscv32imc-unknown-none-elf/release/libfrogalert_ffi.a" "$output/libfrogalert_ffi.a"
+# Binutils in MRS 1.92 cannot parse LLVM's newer zmmul/zca attribute names.
+# Remove only this non-loadable metadata section, never instructions. The final
+# linked disassembly still has to pass the existing AMO/LR/SC prohibition.
+sysroot="$(./scripts/run-rust-toolchain 1.98.1 rustc --print sysroot)"
+host="$(./scripts/run-rust-toolchain 1.98.1 rustc -vV | sed -n 's/^host: //p')"
+"$sysroot/lib/rustlib/$host/bin/llvm-objcopy" \
+  --remove-section=.riscv.attributes "$output/libfrogalert_ffi.a"
+./scripts/run-rust-toolchain 1.98.1 rustc -Vv >"$output/rust-toolchain.txt"
+sha256sum "$output/libfrogalert_ffi.a" >"$output/rust-library.sha256"

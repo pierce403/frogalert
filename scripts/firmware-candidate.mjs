@@ -188,6 +188,12 @@ export async function buildFirmwareCandidateBundle({
     const binFromElf = await readFile(
       join(buildRoot, "badgemagic-ch582.from-elf.bin"),
     );
+    const rustCompiler = await readFile(join(buildRoot, "rust-toolchain.txt"), "utf8");
+    const rustCommit = /^commit-hash: ([a-f0-9]{40})$/m.exec(rustCompiler)?.[1];
+    if (!/^release: 1\.98\.1$/m.test(rustCompiler) || !rustCommit) {
+      throw new Error(`${profile} candidate must record the pinned Rust 1.98.1 compiler`);
+    }
+    const rustLibrary = await readFile(join(buildRoot, "libfrogalert_ffi.a"));
     assertCh58xUserOptionMagic(bin);
     assertElf(elf);
     if (!bin.equals(binFromElf)) {
@@ -208,6 +214,12 @@ export async function buildFirmwareCandidateBundle({
     artifacts[profile] = {
       hardware_profile: profile,
       pcb_marking: lock.profiles[profile].pcb_marking,
+      rust_application: {
+        compiler: rustCompiler.split("\n")[0],
+        compiler_commit: rustCommit,
+        target: "riscv32imc-unknown-none-elf",
+        library_sha256: sha256(rustLibrary),
+      },
       firmware: {
         file: binName,
         bytes: bin.byteLength,

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+mkdir -p tmp/c-tests
+node tests/prepare-legacy-adapter.mjs
+mapfile -t versions < <(node scripts/frogalert-version.mjs)
+for profile in 1 2; do
+  FROGALERT_PROFILE_ID="$profile" FROGALERT_VERSION="${versions[0]}" \
+    FROGALERT_DISPLAY_VERSION="${versions[1]}" \
+    ./scripts/run-rust-toolchain stable cargo build --locked --release -p frogalert-ffi
+  for suite in monitor-config animation-compat boot-status rust-abi; do
+    cc -std=c11 -Wall -Wextra -Werror \
+      -DFROGALERT_HARDWARE_PROFILE_ID="$profile" \
+      "-DFROGALERT_VERSION=\"${versions[0]}\"" \
+      "-DFROGALERT_DISPLAY_VERSION=\"${versions[1]}\"" \
+      -Ifirmware/fossasia-usbc "tests/fossasia-$suite.c" \
+      target/release/libfrogalert_ffi.a -ldl -lpthread -lm \
+      -o "tmp/c-tests/$suite-$profile"
+    "tmp/c-tests/$suite-$profile"
+  done
+  cc -std=c11 -Wall -Wextra -Werror -Ifirmware/fossasia-usbc \
+    tmp/c-tests/legacy-adapter.c target/release/libfrogalert_ffi.a \
+    -ldl -lpthread -lm -o "tmp/c-tests/legacy-adapter-$profile"
+  "tmp/c-tests/legacy-adapter-$profile"
+done

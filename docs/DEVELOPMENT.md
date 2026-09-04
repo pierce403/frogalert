@@ -157,7 +157,19 @@ Prepare the exact source and toolchain, or let the build script prepare them:
 ./scripts/prepare-fossasia-usbc --with-toolchain
 ```
 
-Local reproduction remains available but is optional. The default profile is
+The Rust application requires the pinned compiler and target:
+
+```sh
+rustup toolchain install 1.98.1 --profile minimal \
+  --component llvm-tools-preview --target riscv32imc-unknown-none-elf
+./scripts/run-rust-toolchain stable cargo test -p frogalert-emulator
+./scripts/run-rust-toolchain stable cargo run --release -p frogalert-emulator -- --soak-hours 24
+bash scripts/verify-rust-abi
+```
+
+The emulator uses the shipping application with a fake clock and injected SDK
+failures. It does not emulate physical RF, USB, or electrical behavior. Local
+reproduction remains available but is optional. The default profile is
 the newer Nyx `B1144C_260404_USB_C` board:
 
 ```sh
@@ -210,8 +222,8 @@ Scanning continues in either
 visible view. The counter retains the last completed result while a new scan is
 running, then changes once when that scan completes. It consumes the final
 discovery list and feeds
-live public-address/name/service data into a bounded C mirror of every README
-detection row. The selected result has fixed priority: BadgeMagic frogs, then
+live public-address/name/service data into the shared Rust classifier for every
+README detection row. The selected result has fixed priority: BadgeMagic frogs, then
 KARR, COP, Flipper, and finally custom rules. A later report replaces the
 visible overlay only when its result has strictly higher priority. Cop,
 Flipper, KARR, and custom alerts use no more than two fixed pages, show each
@@ -246,8 +258,7 @@ alerts.
 
 The display hook stops the original animation only on ownership transition.
 It redraws the counter once per completed survey and holds that frame during
-the next scan. Internal scan phases stay in debug output rather than sharing
-the count display. Alert text redraws only at the one-second page boundary.
+the next scan. Internal phases are explicit Rust state and never share the count display. Alert text redraws only at the one-second page boundary.
 Each FrogAlert frame is completed in an inactive
 private buffer before an atomic index switch. The timer interrupt uses that
 committed buffer as the final LED source while FrogAlert owns the panel, so a
@@ -260,8 +271,11 @@ yields to app streaming and non-normal modes, never initiates a connection,
 zeroes its fixed address table, restores prior advertising state, and cancels a
 stuck scan after five seconds.
 
-The complete C policy mirror remains temporary until the separate Rust ABI
-canary passes. All lanes use `USBC_VERSION=1`, validate pinned archive/tool
+The allocation-free Rust application owns deadlines, detection, rendering,
+configuration, and upload validation behind the tested primitive C ABI. The
+pinned MRS linker consumes its static library after LLVM objcopy removes only
+unsupported non-loadable RISC-V attribute metadata. Candidate receipts record
+the Rust compiler commit and library hash. All lanes use `USBC_VERSION=1`, validate pinned archive/tool
 hashes and critical sources, audit required runtime symbols and linked
 instructions, keep at least 8 KiB of stack/runtime RAM headroom, and keep
 everything under ignored `tmp/fossasia-usbc/`. Profile-specific size/SHA-256

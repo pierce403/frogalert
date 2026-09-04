@@ -8,45 +8,7 @@ cd "$repo_root"
 ./scripts/run-rust-toolchain stable cargo clippy --workspace --all-targets -- -D warnings
 ./scripts/run-rust-toolchain stable cargo test --workspace
 python3 -B -m unittest tests.ble_probe_test
-mkdir -p tmp/c-tests
-cc -std=c11 -Wall -Wextra -Werror \
-  -Ifirmware/fossasia-usbc \
-  firmware/fossasia-usbc/frogalert-survey-core.c \
-  tests/fossasia-survey-core.c \
-  -o tmp/c-tests/fossasia-survey-core
-tmp/c-tests/fossasia-survey-core
-for profile_id in 1 2; do
-  cc -std=c11 -Wall -Wextra -Werror \
-    -DFROGALERT_HARDWARE_PROFILE_ID="$profile_id" \
-    -Ifirmware/fossasia-usbc \
-    firmware/fossasia-usbc/frogalert-monitor-config.c \
-    tests/fossasia-monitor-config.c \
-    -o "tmp/c-tests/fossasia-monitor-config-$profile_id"
-  "tmp/c-tests/fossasia-monitor-config-$profile_id"
-done
-cc -std=c11 -Wall -Wextra -Werror \
-  -Ifirmware/fossasia-usbc \
-  firmware/fossasia-usbc/frogalert-animation-compat.c \
-  tests/fossasia-animation-compat.c \
-  -o tmp/c-tests/fossasia-animation-compat
-tmp/c-tests/fossasia-animation-compat
-version_output="$(node scripts/frogalert-version.mjs)"
-mapfile -t frogalert_versions <<<"$version_output"
-if [[ "${#frogalert_versions[@]}" -ne 2 ]]; then
-  echo "firmware version helper returned an invalid result" >&2
-  exit 1
-fi
-for profile_id in 1 2; do
-  cc -std=c11 -Wall -Wextra -Werror \
-    -DFROGALERT_HARDWARE_PROFILE_ID="$profile_id" \
-    "-DFROGALERT_VERSION=\"${frogalert_versions[0]}\"" \
-    "-DFROGALERT_DISPLAY_VERSION=\"${frogalert_versions[1]}\"" \
-    -Ifirmware/fossasia-usbc \
-    firmware/fossasia-usbc/frogalert-boot-status.c \
-    tests/fossasia-boot-status.c \
-    -o "tmp/c-tests/fossasia-boot-status-$profile_id"
-  "tmp/c-tests/fossasia-boot-status-$profile_id"
-done
+bash scripts/verify-rust-abi
 firmware_host="$(./scripts/run-rust-toolchain nightly-2026-07-17 rustc -vV | sed -n 's/^host: //p')"
 (
   cd firmware

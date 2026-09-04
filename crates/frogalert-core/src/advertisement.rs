@@ -1,4 +1,4 @@
-//! Small, allocation-free helpers for BLE advertising data.
+//! Validate the entire AD payload before trusting any field, including a match.
 
 const SHORTENED_LOCAL_NAME: u8 = 0x08;
 const COMPLETE_LOCAL_NAME: u8 = 0x09;
@@ -11,93 +11,70 @@ pub enum AdvertisementError {
     TruncatedField,
 }
 
-/// Finds the best local-name field in a legacy BLE advertising payload.
-///
-/// A Complete Local Name wins over a Shortened Local Name regardless of field
-/// order. A zero-length field terminates the payload, as required by the AD
-/// structure format.
-pub fn local_name(data: &[u8]) -> Result<Option<&[u8]>, AdvertisementError> {
-    let mut offset = 0;
-    let mut shortened = None;
-
-    while offset < data.len() {
-        let field_len = data[offset] as usize;
-        offset += 1;
-        if field_len == 0 {
+fn fields(data: &[u8], mut visit: impl FnMut(u8, &[u8])) -> Result<(), AdvertisementError> {
+    let mut rest = data;
+    while let Some((&length, tail)) = rest.split_first() {
+        if length == 0 {
             break;
         }
-        if field_len > data.len() - offset {
+        let n = usize::from(length);
+        if n > tail.len() {
             return Err(AdvertisementError::TruncatedField);
         }
-
-        let field_type = data[offset];
-        let value = &data[offset + 1..offset + field_len];
-        match field_type {
-            COMPLETE_LOCAL_NAME => return Ok(Some(value)),
-            SHORTENED_LOCAL_NAME => shortened = Some(value),
-            _ => {}
+        let (field, next) = tail.split_at(n);
+        let kind = field[0];
+        let value = &field[1..];
+        if matches!(kind, UUID16_MORE | UUID16_COMPLETE) && !value.len().is_multiple_of(2) {
+            return Err(AdvertisementError::TruncatedField);
         }
-        offset += field_len;
+        visit(kind, value);
+        rest = next;
     }
-
-    Ok(shortened)
+    Ok(())
 }
 
-/// Returns whether a little-endian 16-bit UUID list contains `service`.
-pub fn has_service16(data: &[u8], service: u16) -> Result<bool, AdvertisementError> {
-    let mut offset = 0;
-
-    while offset < data.len() {
-        let field_len = data[offset] as usize;
-        offset += 1;
-        if field_len == 0 {
+pub fn local_name(data: &[u8]) -> Result<Option<&[u8]>, AdvertisementError> {
+    // The iterator validates every byte; then borrow the winning field directly.
+    fields(data, |_, _| {})?;
+    let mut rest = data;
+    let (mut shortened, mut complete) = (None, None);
+    while let Some((&length, tail)) = rest.split_first() {
+        if length == 0 {
             break;
         }
-        if field_len > data.len() - offset {
-            return Err(AdvertisementError::TruncatedField);
+        let (field, next) = tail.split_at(usize::from(length));
+        match field[0] {
+            COMPLETE_LOCAL_NAME => complete = Some(&field[1..]),
+            SHORTENED_LOCAL_NAME => shortened = Some(&field[1..]),
+            _ => {}
         }
-        let field_type = data[offset];
-        if matches!(field_type, UUID16_MORE | UUID16_COMPLETE) {
-            let value = &data[offset + 1..offset + field_len];
-            if !value.len().is_multiple_of(2) {
-                return Err(AdvertisementError::TruncatedField);
-            }
-            if value
+        rest = next;
+    }
+    Ok(complete.or(shortened))
+}
+
+pub fn has_service16(data: &[u8], service: u16) -> Result<bool, AdvertisementError> {
+    let mut found = false;
+    fields(data, |kind, value| {
+        if matches!(kind, UUID16_MORE | UUID16_COMPLETE) {
+            found |= value
                 .as_chunks::<2>()
                 .0
                 .iter()
-                .any(|uuid| u16::from_le_bytes(*uuid) == service)
-            {
-                return Ok(true);
-            }
+                .any(|uuid| u16::from_le_bytes(*uuid) == service);
         }
-        offset += field_len;
-    }
-    Ok(false)
+    })?;
+    Ok(found)
 }
 
-/// Returns whether manufacturer-specific data begins with `company`.
 pub fn has_company_id(data: &[u8], company: u16) -> Result<bool, AdvertisementError> {
-    let mut offset = 0;
-
-    while offset < data.len() {
-        let field_len = data[offset] as usize;
-        offset += 1;
-        if field_len == 0 {
-            break;
+    let mut found = false;
+    fields(data, |kind, value| {
+        if kind == MANUFACTURER_SPECIFIC && value.len() >= 2 {
+            found |= u16::from_le_bytes([value[0], value[1]]) == company;
         }
-        if field_len > data.len() - offset {
-            return Err(AdvertisementError::TruncatedField);
-        }
-        if data[offset] == MANUFACTURER_SPECIFIC && field_len >= 3 {
-            let current = u16::from_le_bytes([data[offset + 1], data[offset + 2]]);
-            if current == company {
-                return Ok(true);
-            }
-        }
-        offset += field_len;
-    }
-    Ok(false)
+    })?;
+    Ok(found)
 }
 
 #[cfg(test)]

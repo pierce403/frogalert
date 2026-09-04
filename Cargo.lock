@@ -7,6 +7,20 @@ name = "frogalert-core"
 version = "0.1.0"
 
 [[package]]
+name = "frogalert-emulator"
+version = "0.3.0-beta.1"
+dependencies = [
+ "frogalert-core",
+]
+
+[[package]]
+name = "frogalert-ffi"
+version = "0.3.0-beta.1"
+dependencies = [
+ "frogalert-core",
+]
+
+[[package]]
 name = "frogalert-simulator"
 version = "0.1.0"
 dependencies = [

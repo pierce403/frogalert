@@ -15,6 +15,20 @@ SPEC.loader.exec_module(ble_probe)
 
 
 class BleProbeTests(unittest.TestCase):
+    def setUp(self):
+        # The raw socket is mocked below; Python builds without Bluetooth headers
+        # still need Linux's ABI constants to exercise the same binding code.
+        constants = mock.patch.multiple(
+            ble_probe.socket,
+            AF_BLUETOOTH=31,
+            BTPROTO_HCI=1,
+            SOL_HCI=0,
+            HCI_FILTER=2,
+            create=True,
+        )
+        constants.start()
+        self.addCleanup(constants.stop)
+
     def test_parses_name_meta_service_and_company_without_payload_logging(self):
         data = bytes(
             [

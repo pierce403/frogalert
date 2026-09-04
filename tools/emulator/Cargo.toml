@@ -1,0 +1,9 @@
+[package]
+name = "frogalert-emulator"
+version = "0.3.0-beta.1"
+edition = "2021"
+license = "Apache-2.0"
+description = "Deterministic virtual SDK and fault injection for the shipping Rust application"
+
+[dependencies]
+frogalert-core = { path = "../../crates/frogalert-core" }

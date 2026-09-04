@@ -88,11 +88,13 @@ jobs:
               case "$path" in
                 Cargo.toml|Cargo.lock|\
                 crates/frogalert-core/*|\
+                crates/frogalert-ffi/*|\
                 firmware/fossasia-usbc/*|\
                 scripts/apply-fossasia-survey.mjs|\
                 scripts/apply-fossasia-hardware-profile.mjs|\
                 scripts/audit-fossasia-usbc.mjs|\
                 scripts/build-fossasia-usbc|\
+                scripts/build-rust-application|\
                 scripts/firmware-candidate.mjs|\
                 scripts/firmware-image.mjs|\
                 scripts/frogalert-version.mjs|\
@@ -181,6 +183,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install pinned Rust application compiler
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+          targets: riscv32imc-unknown-none-elf
+          components: llvm-tools-preview
       - name: Cache pinned FOSSASIA inputs and MRS toolchain
         uses: actions/cache@v4
         with:

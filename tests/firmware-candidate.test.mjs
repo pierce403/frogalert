@@ -79,6 +79,9 @@ async function makeFixture(t) {
       await writeFile(join(buildRoot, "badgemagic-ch582.bin"), bin);
       await writeFile(join(buildRoot, "badgemagic-ch582.elf"), elf);
       await writeFile(join(buildRoot, "badgemagic-ch582.from-elf.bin"), bin);
+      await writeFile(join(buildRoot, "rust-toolchain.txt"),
+        `rustc 1.98.1 (test fixture)\ncommit-hash: ${"a".repeat(40)}\nrelease: 1.98.1\n`);
+      await writeFile(join(buildRoot, "libfrogalert_ffi.a"), "test Rust library");
       fixtures[profile].buildRoots[lane] = buildRoot;
     }
   }
@@ -215,6 +218,12 @@ test("candidate bundle records exact audited bytes and cannot imply release appr
   for (const profile of PROFILES) {
     const position =
       profile === "B1144C_250901_USB_C" ? "bottom" : "top";
+    assert.deepEqual(metadata.artifacts[profile].rust_application, {
+      compiler: "rustc 1.98.1 (test fixture)",
+      compiler_commit: "a".repeat(40),
+      target: "riscv32imc-unknown-none-elf",
+      library_sha256: sha256("test Rust library"),
+    });
     assert.equal(
       metadata.artifacts[profile].firmware.bytes,
       fixtures[profile].bin.byteLength,
@@ -350,6 +359,23 @@ test("candidate packaging rejects a BIN that is not bound to the audited ELF", a
       githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
     }),
     /not the audited ELF's exact loadable bytes/,
+  );
+});
+
+test("candidate packaging rejects Rust compiler drift", async (t) => {
+  const { root, fixtures } = await makeFixture(t);
+  await writeFile(
+    join(fixtures[PROFILES[0]].buildRoots.survey, "rust-toolchain.txt"),
+    `rustc 1.99.0\ncommit-hash: ${"a".repeat(40)}\nrelease: 1.99.0\n`,
+  );
+  await assert.rejects(
+    buildFirmwareCandidateBundle({
+      repositoryRoot: root,
+      outputRoot: join(root, "tmp", "candidate-output"),
+      sourceCommit: SOURCE_COMMIT,
+      githubActionsProvenance: GITHUB_ACTIONS_PROVENANCE,
+    }),
+    /pinned Rust 1\.98\.1 compiler/,
   );
 });
 

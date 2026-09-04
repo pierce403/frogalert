@@ -2,10 +2,6 @@
 # module and keeps the upstream startup, linker, USB, display, button, and
 # peripheral service objects as the final hardware shell.
 C_SOURCES += src/ble/frogalert_survey.c
-C_SOURCES += src/ble/frogalert_survey_core.c
-C_SOURCES += src/ble/frogalert_monitor_config.c
-C_SOURCES += src/frogalert_animation_compat.c
-C_SOURCES += src/frogalert_boot_status.c
 CFLAGS += -DFROGALERT_SURVEY=1
 CFLAGS += -DFROGALERT_HARDWARE_PROFILE_ID=$(FROGALERT_HARDWARE_PROFILE_ID)
 CFLAGS += -DFROGALERT_HARDWARE_PROFILE_NAME='"$(FROGALERT_HARDWARE_PROFILE_NAME)"'
@@ -13,9 +9,7 @@ CFLAGS += -DFROGALERT_VERSION='"$(FROGALERT_VERSION)"'
 CFLAGS += -DFROGALERT_DISPLAY_VERSION='"$(FROGALERT_DISPLAY_VERSION)"'
 LDFLAGS += -Wl,--undefined=frogalert_survey_identity
 
-$(BUILD_DIR)/$(TARGET).elf: \
-	$(BUILD_DIR)/src/ble/frogalert_survey.o \
-	$(BUILD_DIR)/src/ble/frogalert_survey_core.o \
-	$(BUILD_DIR)/src/ble/frogalert_monitor_config.o \
-	$(BUILD_DIR)/src/frogalert_animation_compat.o \
-	$(BUILD_DIR)/src/frogalert_boot_status.o
+# Resolve Rust compiler-builtins and libc dependencies with the same final GCC
+# linker. No Rust runtime, vectors, atomics, or alternative linker script.
+LDFLAGS += -Wl,--start-group $(FROGALERT_RUST_LIB) $(LIBS) -Wl,--end-group
+$(BUILD_DIR)/$(TARGET).elf: $(BUILD_DIR)/src/ble/frogalert_survey.o $(FROGALERT_RUST_LIB)
