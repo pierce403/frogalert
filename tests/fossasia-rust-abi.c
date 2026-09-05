@@ -6,6 +6,52 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Replay changing 20/30-device crowds through the shipping ABI. Reports in
+ * the SDK completion list can supplement live reports, but never double count.
+ * A real RF/controller failure is outside this fixture's scope. */
+static void test_survey_crowds(uint32_t now)
+{
+    static const uint8_t font[95][6] = {
+        ['0'-' '] = {0, 0x3e, 0x51, 0x49, 0x45, 0x3e},
+        ['2'-' '] = {0, 0x42, 0x61, 0x51, 0x49, 0x46},
+        ['3'-' '] = {0, 0x21, 0x41, 0x45, 0x4b, 0x31},
+    };
+    const uint8_t malformed[] = {5, 0xff};
+    frogalert_input_t in = {1,0,0,0,1};
+    frogalert_output_t out;
+    frogalert_runtime_init(0);
+    frogalert_runtime_step(now,FA_READY,1,&in,NULL,NULL,0,font,&out);
+    for (unsigned window=0; window<10; window++) {
+        now += out.wake_after;
+        frogalert_runtime_step(now,FA_TICK,0,&in,NULL,NULL,0,font,&out);
+        assert(out.wake_after == 400);
+        now += out.wake_after;
+        frogalert_runtime_step(now,FA_TICK,0,&in,NULL,NULL,0,font,&out);
+        assert(out.actions & FA_SCAN);
+        frogalert_runtime_step(now,FA_START_RESULT,1,&in,NULL,NULL,0,font,&out);
+        const uint8_t crowd = window % 2 ? 20 : 30;
+        for (uint8_t pass=0; pass<3; pass++) {
+            for (uint8_t i=0; i<crowd; i++) {
+                uint8_t address[6] = {i,2,3,4,5,6};
+                // Last ten devices arrive only in the completion list. Some
+                // live packets have malformed AD: that must not hide an address.
+                if (pass == 0 && i >= 20) continue;
+                frogalert_runtime_step(now + 1 + pass*32 + i,FA_REPORT,i%2,&in,
+                    address,pass == 0 ? malformed : NULL,
+                    pass == 0 ? sizeof(malformed) : 0,font,&out);
+            }
+        }
+        now += 4800;
+        frogalert_runtime_step(now,FA_COMPLETE,1,&in,NULL,NULL,0,font,&out);
+        assert(out.frame_changed && out.owned && out.radio_idle);
+        for (unsigned x=0; x<5; x++) {
+            assert(out.frame[20+x] == (uint16_t)(font['0'+crowd/10-' '][1+x] << 2));
+            assert(out.frame[26+x] == (uint16_t)(font['0'-' '][1+x] << 2));
+        }
+        assert(out.wake_after == 26800); // Next start remains 20 seconds apart.
+    }
+}
+
 int main(void)
 {
     static const uint8_t font[95][6] = {{0}};
@@ -55,5 +101,7 @@ int main(void)
     for (int i=0; i<109; i++)
         assert(frogalert_wake_sample(&wake, 1, 1) == FA_WAKE_WAIT);
     assert(frogalert_wake_sample(&wake, 1, 1) == FA_WAKE_ISP);
-    puts("FrogAlert Rust/C ABI conformance passed");
+    test_survey_crowds(0);
+    test_survey_crowds(UINT32_MAX - 100000U);
+    puts("FrogAlert Rust/C ABI conformance passed, including repeated 20/30-device surveys");
 }
