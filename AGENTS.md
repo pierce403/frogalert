@@ -27,6 +27,13 @@ been tested on a physically verified CH582M 11×44 badge.
 
 ### Current Rust application (2026-09-04)
 
+Linux WebUSB access denial was resolved by exact `4348:55e0` / `1a86:55e0`
+udev rules with `TAG+="uaccess"` in `70-frogalert.rules`, followed by rule
+reload and bootloader reconnection. Browser permission is separate from OS
+device access. Only offer these commands for desktop Linux and an access-denied
+failure at `USBDevice.open()`; Android has its own additional USB prompt.
+`site/usb-permission-help.js` contains the scoped command and copy-button UI.
+
 The `0.3.0-beta.1` rewrite now links the shipping `no_std` application through
 `crates/frogalert-ffi/`. Rust owns scan/shutdown deadlines, configuration,
 detection/counting, rendering, boot/battery cards, and upload validation. C

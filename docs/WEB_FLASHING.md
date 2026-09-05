@@ -79,6 +79,12 @@ and [Android's USB host documentation](https://developer.android.com/develop/con
 Browser API support alone is not sufficient:
 
 - Linux may require a udev rule permitting `4348:55e0` and `1a86:55e0`.
+  If opening the bootloader fails with access denied, the flasher detects desktop
+  Linux and presents the scoped `70-frogalert.rules` command with a copy button.
+  It grants the active desktop session access using `TAG+="uaccess"`, reloads
+  the rules, and asks for a bootloader reconnect. Browser permission alone does
+  not grant OS access. Android, ChromeOS, macOS, Windows, and unknown platforms
+  do not receive Linux commands; Android guidance explains its extra USB prompt.
 - Windows may require the ISP interface to use WinUSB; the WCH vendor driver can
   prevent the browser from claiming it.
 - macOS should not need a vendor driver, but still needs a physical test.

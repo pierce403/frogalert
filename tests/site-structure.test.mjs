@@ -174,7 +174,7 @@ test("landing page exposes the project and guarded device flow", async () => {
   assert.match(app, /flash-session\.js\?v=3/);
   assert.match(app, /isp-entry-guide\.js\?v=5/);
   assert.match(app, /firmware-config\.js\?v=2/);
-  assert.match(html, /site\/app\.js\?v=23/);
+  assert.match(html, /site\/app\.js\?v=24/);
   assert.match(html, /id="flash-lab"[^>]+hidden/);
   assert.match(app, /latest\[0\]\.published_at/);
   assert.match(app, /flash-support\.js\?v=3/);
@@ -276,7 +276,7 @@ test("dedicated flash route exposes one safe wizard step at a time", async () =>
     assert.ok(html.includes(required), `flash/index.html should include ${required}`);
   }
   assert.match(html, /Android.*USB OTG/is);
-  assert.match(html, /\.\.\/site\/app\.js\?v=23/);
+  assert.match(html, /\.\.\/site\/app\.js\?v=24/);
   assert.match(html, /class="wizard-shell"/);
   assert.match(html, /data-wizard-step="connect"[^>]*>/);
   const visibleWizard = html.slice(0, html.indexOf('class="legacy-flasher"'));

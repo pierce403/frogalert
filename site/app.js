@@ -1,3 +1,4 @@
+import { usbOpenPermissionHelp, showLinuxUsbHelp } from "./usb-permission-help.js?v=1";
 import {
   COMMAND,
   FROGALERT_GITHUB_REPOSITORY,
@@ -1067,6 +1068,8 @@ async function connectUsb(options = {}) {
     return;
   }
   state.usbRequestPending = true;
+  $("#usb-permission-help")?.remove();
+  let openingDevice = false;
   renderIspEntryGuide();
   const guided = options?.guided === true;
   const authorizedDevice = options?.device || null;
@@ -1118,7 +1121,9 @@ async function connectUsb(options = {}) {
     state.applicationProfileHint = null;
     state.applicationTransitionPending = false;
     clearApplicationUsbDevice();
+    openingDevice = true;
     await device.open();
+    openingDevice = false;
     state.usbDevice = device;
     if (!device.configuration) await device.selectConfiguration(1);
     if (device.configuration?.configurationValue !== 1) {
@@ -1166,6 +1171,7 @@ async function connectUsb(options = {}) {
   } catch (error) {
     await closeUsb();
     const cancelled = error?.name === "NotFoundError";
+    const permissionHelp = openingDevice ? usbOpenPermissionHelp(error, navigator) : null;
     if (guideTracking) {
       const retryPhase = finishIspDeviceRequest({ identified: false });
       setIspEntryPhase(retryPhase);
@@ -1181,11 +1187,12 @@ async function connectUsb(options = {}) {
         ? applicationAttempt
           ? "Chooser closed without selecting the bootloader. Nothing changed; start watching again, or try the other button if no dot appeared."
           : "No bootloader selected. Nothing changed. If the dot went out and compatible firmware is installed, repeat the KEY2 guide."
-        : `Bootloader probe failed: ${error.message}. If compatible firmware is installed, repeat the KEY2 guide with a known data cable or direct port; otherwise stop.`,
+        : permissionHelp?.message || `Bootloader probe failed: ${error.message}. If compatible firmware is installed, repeat the KEY2 guide with a known data cable or direct port; otherwise stop.`,
       cancelled ? "neutral" : "bad",
     );
     log(cancelled ? "Device selection cancelled; nothing changed." : `Probe stopped safely: ${error.message}`, cancelled ? "info" : "error");
-    if (!cancelled && elements.wizardIspHelp) elements.wizardIspHelp.open = true;
+    if (permissionHelp?.command) showLinuxUsbHelp(elements.usbStatus, permissionHelp.command);
+    if (elements.wizardIspHelp) elements.wizardIspHelp.open = !cancelled && !permissionHelp;
     if (automatic) setWizardStep(WIZARD_STEP.CONNECT, { focus: false });
   } finally {
     state.usbRequestPending = false;
