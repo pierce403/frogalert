@@ -27,14 +27,21 @@ been tested on a physically verified CH582M 11×44 badge.
 
 ### Survey-count investigation (2026-09-05)
 
-A user reports 1–2 devices instead of 20–30. No RF root cause is established.
+A user now reports two new-firmware badges showing 3 devices after minutes
+beside an older C-firmware badge showing 12. No RF root cause is established.
 The three-second scan, 10 ms interval/window, duplicate filter, and capacity 64
 predate Rust. `tests/fossasia-rust-abi.c` now replays repeated 20/30-device
 windows, duplicates, malformed AD, completion-list-style addresses, and clock
 wrap on both profiles, checking actual count glyphs. Failed/cancelled scans
 preserve the last successful count, so low display alone is not proof of a
-fresh sparse survey. See the dated survey-count investigation log. Establish
-onset version and same-location evidence before changing radio settings.
+fresh sparse survey. Follow-up found a concrete adapter bug: the pinned
+`tmos_start_task` returns TRUE (1) on success, not `SUCCESS` (0). The current
+comparison therefore queues immediate wakes after successful timer starts.
+Verified in the SDK header and `LIBCH58xBLE.a(tmos.o)` disassembly; the RF
+impact is not yet measured and the firmware is not yet corrected. The header
+also prohibits clearing an event inside its own handler. Host ABI/core tests
+do not execute this production scheduler adapter. Add that boundary to testing
+before changing radio parameters; see the dated investigation log.
 
 ### Power audit and stable release (2026-09-05)
 
