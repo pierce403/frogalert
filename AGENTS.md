@@ -36,12 +36,16 @@ wrap on both profiles, checking actual count glyphs. Failed/cancelled scans
 preserve the last successful count, so low display alone is not proof of a
 fresh sparse survey. Follow-up found a concrete adapter bug: the pinned
 `tmos_start_task` returns TRUE (1) on success, not `SUCCESS` (0). The current
-comparison therefore queues immediate wakes after successful timer starts.
-Verified in the SDK header and `LIBCH58xBLE.a(tmos.o)` disassembly; the RF
-impact is not yet measured and the firmware is not yet corrected. The header
-also prohibits clearing an event inside its own handler. Host ABI/core tests
-do not execute this production scheduler adapter. Add that boundary to testing
-before changing radio parameters; see the dated investigation log.
+comparison queued immediate wakes after successful timer starts. Version
+`0.3.1` corrects this, updates timers without stopping/reallocating them, and
+retries allocation failure only from the existing 200 ms recovery task. Never
+call `tmos_clear_event` inside its own handler. The production adapter fixture
+now compiles against headers from the hash-checked pinned SDK archive and
+links the real Rust library; retain its crowd, timer, state and fault coverage.
+INIT/ERROR are not active connections: preserve active scan reports while
+blocking new scans/power handoff until readable idle state. Unknown/read-failed
+states still cancel. RF improvement remains pending hardware comparison; see
+the dated investigation and repair logs.
 
 ### Power audit and stable release (2026-09-05)
 

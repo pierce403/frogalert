@@ -83,6 +83,8 @@ pub struct Runtime {
     detected: Option<Detection>,
     alert: Option<(Detection, Pages, u32)>,
     last_frame: Option<Frame>,
+    next_wake: Option<u32>,
+    counter_view: bool,
     restore_advertising: bool,
     advertise_after: bool,
     shutdown: bool,
@@ -106,6 +108,8 @@ impl Runtime {
             detected: None,
             alert: None,
             last_frame: None,
+            next_wake: None,
+            counter_view: false,
             restore_advertising: false,
             advertise_after: false,
             shutdown: false,
@@ -205,6 +209,7 @@ impl Runtime {
                 address_type,
                 data,
             } if matches!(self.phase, Phase::Scanning(_)) && input.allowed && !input.connected => {
+                let mut new_alert = false;
                 self.counter.observe_typed(address, address_type);
                 if let Some(found) = self
                     .config
@@ -219,8 +224,23 @@ impl Runtime {
                         if let Some(pages) = Pages::new(&found.message[..usize::from(found.length)])
                         {
                             self.alert = Some((found, pages, now));
+                            new_alert = true;
                         }
                     }
+                }
+                // Ordinary reports change only the ephemeral count. Keep the
+                // already-rendered frame and deadline; page expiry, view changes
+                // and higher-priority alerts still take the full reducer path.
+                if !new_alert
+                    && !self.shutdown
+                    && input.counter_view == self.counter_view
+                    && self.next_wake.is_some_and(|at| !due(now, at))
+                {
+                    return Output {
+                        owned: self.last_frame.is_some(),
+                        wake_after: self.next_wake.map(|at| at.wrapping_sub(now)),
+                        ..Output::default()
+                    };
                 }
             }
             Event::Suspend { advertise_after } => {
@@ -375,6 +395,8 @@ impl Runtime {
             out.frame = frame;
         }
         self.last_frame = frame;
+        self.next_wake = next;
+        self.counter_view = input.counter_view;
         out.radio_idle = !self.scanning() && !matches!(self.phase, Phase::PowerWait(_));
         out.wake_after = next.map(|at| {
             if due(now, at) {

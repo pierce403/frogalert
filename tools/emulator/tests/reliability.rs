@@ -194,6 +194,26 @@ fn display_never_flickers_on_unchanged_counter_reports() {
 }
 
 #[test]
+fn report_fast_path_respects_due_pages_and_changed_view() {
+    each(|p, f| {
+        let mut b = scanning(p, f);
+        b.name("Flipper Zero");
+        let pages = Pages::new(b"FLIPPER DETECTED").unwrap();
+        // The SDK may deliver a report before the queued display timer is
+        // serviced. Cached rendering must not defer expiry or a view change.
+        b.now += u64::from(SECOND);
+        b.report([9; 6], 1, &[]);
+        assert_eq!(b.panel, Some(pages.frame(1, &FONT)));
+        b.now += u64::from(SECOND);
+        b.report([9; 6], 1, &[]);
+        assert_ne!(b.panel, Some(pages.frame(1, &FONT)));
+        b.input.counter_view = false;
+        b.report([9; 6], 1, &[]);
+        assert_eq!(b.panel, None);
+    });
+}
+
+#[test]
 fn queued_wake_cannot_restart_scan_after_mode_change() {
     each(|p, f| {
         for offset in [0, 1, 15 * SECOND, 15 * SECOND + 1, 15 * SECOND + SECOND / 4] {

@@ -26,6 +26,13 @@ spurious interrupts, retained reset markers, and bounded stuck-button handling.
 radio emulator tests the 30-second reset-to-off fallback across clock wrap and
 its cancellation when the user resumes normal mode.
 
+The survey adapter fixture compiles the production C bridge against WCH's
+actual pinned headers and links the real Rust archive. It reproduces the old
+Boolean/status timer bug and checks timer reuse, allocation failures, state
+guards, verified settings, synchronous callbacks and repeated crowd scans.
+Headers are extracted from the hash-checked upstream archive; a cold run
+downloads that archive through the existing preparation script.
+
 This emulates application behavior at the SDK boundary. It cannot certify
 physical RF timing, WCH controller behavior, electrical button polarity, USB,
 power consumption, flash endurance, or ROM-ISP recovery.

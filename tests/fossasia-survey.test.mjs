@@ -671,7 +671,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /events & SCAN_BOOTLD_BTN[\s\S]*hold = isPressed\(KEY2\) \? hold \+ 1 : 0;[\s\S]*hold > 10[\s\S]*reset_jump\(\);/,
+    /events & SCAN_BOOTLD_BTN[\s\S]*frogalert_survey_poll\(\);[\s\S]*hold = isPressed\(KEY2\) \? hold \+ 1 : 0;[\s\S]*hold > 10[\s\S]*reset_jump\(\);/,
   );
   assert.match(
     patchedMain,
@@ -769,7 +769,7 @@ test("SDK adapter links the Rust application and retains passive discovery", asy
   const make = await readFile(path.join(firmwareDirectory, "frogalert-survey.mk"), "utf8");
   assert.match(survey, /GAPRole_CentralStartDiscovery\(DEVDISC_MODE_ALL, FALSE, FALSE\)/);
   assert.match(survey, /GAPRole_CentralCancelDiscovery\(\)/);
-  assert.match(survey, /frogalert_runtime_step\(TMOS_GetSystemClock\(\)/);
+  assert.match(survey, /uint32_t now = TMOS_GetSystemClock\(\);\s*frogalert_runtime_step\(now,/);
   assert.match(survey, /GAP_EXT_ADV_DEVICE_INFO_EVENT/);
   assert.match(survey, /GAP_DIRECT_DEVICE_INFO_EVENT/);
   assert.match(survey, /event->discCmpl.pDevList/);

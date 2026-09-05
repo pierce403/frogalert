@@ -675,6 +675,11 @@ export function applyDeviceInfoHooks(source) {
 
 export function applyMainHooks(source) {
   let result = normalizeLineEndings(source);
+  result = replaceOnce(result, `\tif (events & SCAN_BOOTLD_BTN) {`,
+    `\tif (events & SCAN_BOOTLD_BTN) {
+#ifdef FROGALERT_SURVEY
+\t\tfrogalert_survey_poll();
+#endif`, "bounded survey timer-allocation retry on recovery cadence");
   result = replaceOnce(
     result,
     `static void mode_setup_download();

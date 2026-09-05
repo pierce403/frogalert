@@ -5,6 +5,7 @@ cd "$repo_root"
 mkdir -p tmp/c-tests
 node tests/prepare-legacy-adapter.mjs
 node tests/prepare-power-adapter.mjs
+node tests/prepare-survey-adapter.mjs
 mapfile -t versions < <(node scripts/frogalert-version.mjs)
 for profile in 1 2; do
   FROGALERT_PROFILE_ID="$profile" FROGALERT_VERSION="${versions[0]}" \
@@ -28,4 +29,10 @@ for profile in 1 2; do
     -DFROGALERT_HARDWARE_PROFILE_ID="$profile" tmp/c-tests/power-adapter.c \
     -o "tmp/c-tests/power-adapter-$profile"
   "tmp/c-tests/power-adapter-$profile"
+  cc -std=c11 -Wall -Wextra -Werror \
+    -DFROGALERT_HARDWARE_PROFILE_ID="$profile" \
+    -Ifirmware/fossasia-usbc -Itmp/c-tests/survey tests/fossasia-survey-adapter.c \
+    target/release/libfrogalert_ffi.a -ldl -lpthread -lm \
+    -o "tmp/c-tests/survey-adapter-$profile"
+  "tmp/c-tests/survey-adapter-$profile"
 done

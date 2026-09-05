@@ -7,6 +7,7 @@
 
 void frogalert_survey_role_init(void);
 void frogalert_survey_init(void);
+void frogalert_survey_poll(void);
 uint8_t frogalert_survey_suspend(uint8_t advertise_after);
 uint8_t frogalert_survey_prepare_shutdown(void);
 void frogalert_survey_cancel_shutdown(void);

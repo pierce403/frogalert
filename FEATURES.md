@@ -6,6 +6,18 @@ This is the source of truth for requirements, implementation status, acceptance
 evidence, and release gates. Update it in the same change that alters a feature.
 Do not promote a row based only on plausible code or a successful API call.
 
+## Stable 0.3.1 survey repair
+
+The owner reports two new-firmware badges counting 3 beside an older C badge
+counting 12. The production adapter incorrectly treated TMOS Boolean timer
+success as failure, repeatedly posting immediate wakes. `0.3.1` corrects that
+contract, reuses timers, retries allocation failures on the existing recovery
+cadence, reduces per-report work, and separates unavailable peripheral state
+from a real connection. It checks the original scan settings before each scan.
+Production-adapter tests reproduce the old scheduler failures and cover crowds,
+SDK faults, transient states, completion lists and shutdown. Physical RF count
+recovery remains pending; these tests do not emulate the radio.
+
 ## Stable 0.3.0 power audit
 
 The owner reports the Rust application works on hardware and requests removal

@@ -2,7 +2,7 @@
 
 ## Rust application and hardware boundary
 
-Version `0.3.0` runs FrogAlert's application in allocation-free,
+Version `0.3.1` runs FrogAlert's application in allocation-free,
 `no_std` Rust. The emulator and firmware use the same core.
 
 | Code | Responsibility |
@@ -22,6 +22,11 @@ SDK callbacks cannot alias Rust state. It replaces display ownership and the
 one pending wake before those commands. The display ISR never enters Rust: C
 copies a complete frame into an inactive buffer and commits a one-byte index.
 Queued upstream animations cannot replace the committed overlay.
+
+The adapter honors TMOS's Boolean timer result and updates the existing timer
+only when its deadline changes. Allocation failure retries on the existing
+200 ms recovery-button task. Ordinary reports read peripheral state once and
+reuse Rust's rendered frame until a deadline, view change, or new alert.
 
 Rust `1.98.1` builds an `riscv32imc-unknown-none-elf` static library, with
 atomics disabled, abort semantics, and a reset-on-panic handler. The pinned MRS
@@ -64,6 +69,10 @@ that normal mode allows scanning, no app connection exists, and advertising
 state is readable. Advertising stops, followed by a 250 ms quiet period and a
 second check. Discovery is passive for three seconds. Successful completion
 schedules the next attempt 16.75 seconds later: about 20 seconds start to start.
+The original scan settings and result capacity are reapplied and checked before
+each discovery. INIT/ERROR peripheral states do not discard active discovery
+reports, but cannot authorize a new scan or a shutdown handoff. Unreadable or
+unknown states and actual connections still cancel discovery.
 
 One reducer owns all deadlines on the wrapping 625 µs TMOS clock. Stale wake
 bits cannot advance a future deadline. A five-second watchdog requests cancel;
@@ -121,6 +130,10 @@ priority, malformed advertisements/configuration, and upload boundaries. A
 24-hour-per-configuration soak exercises 17,280 scan cycles. C executables
 also link the real Rust library for ABI, original config/render golden vectors,
 and the actual generated upload adapter with allocator/flash fault injection.
+The production survey C adapter also executes against the pinned WCH headers
+and a timer/event fixture, linked to the real Rust archive. Tests cover Boolean
+timer success, timer reuse/failure, state guards, settings readback, synchronous
+callbacks, all three report formats and completion lists across clock wrap.
 
 This is application/SDK emulation, not CH582 instruction or radio emulation.
 Physical RF behavior, battery/current, USB enumeration, button timing, and
