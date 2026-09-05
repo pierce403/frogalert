@@ -1,6 +1,6 @@
 # FrogAlert
 
-FrogAlert is an experimental Rust-powered firmware project for the
+FrogAlert is a Rust-powered firmware project for the
 FOSSASIA-supported BadgeMagic CH582M 11×44 LED badge. The goal is to keep the badge useful as a
 normal app-programmable nametag while briefly scanning nearby BLE advertisements
 and temporarily showing an explainable local alert such as `COP DETECTED`,
@@ -14,13 +14,15 @@ Source and issues: **<https://github.com/pierce403/frogalert>**
 
 ## Current state
 
-Version `0.3.0-beta.1` moves the FrogAlert application into allocation-free
+Version `0.3.0` runs the FrogAlert application in allocation-free
 `no_std` Rust: scan/shutdown state, detection/configuration, counting, rendering,
 boot/battery cards, and upload validation. The retained FOSSASIA/WCH C shell
 owns startup, USB/BLE drivers, interrupts, buttons, allocation/flash, and ROM ISP.
 The same Rust core runs in a deterministic SDK emulator, with a 24-hour soak
 for both profiles and both views, fault injection, and real C/Rust ABI tests.
 Run it with `./scripts/run-rust-toolchain stable cargo test -p frogalert-emulator`.
+Stable `0.3.0` hardens button wake/shutdown and replaces the default animated
+welcome with a short static credit. See the [power audit](docs/POWER_AUDIT.md).
 See [the emulator guide](tools/emulator/README.md) and
 [architecture](docs/ARCHITECTURE.md). New release bytes remain hardware-unverified.
 

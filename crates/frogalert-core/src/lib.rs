@@ -4,6 +4,7 @@ pub mod advertisement;
 pub mod boot;
 pub mod config;
 pub mod display;
+pub mod power;
 pub mod render;
 pub mod runtime;
 pub mod scan;

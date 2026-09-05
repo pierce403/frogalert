@@ -314,6 +314,7 @@ void btn_configure_screen_off_wake(void)
 \t\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);
 #endif
 \tGPIOB_ModeCfg(KEY2_PIN, GPIO_ModeIN_PU);
+\tGPIOPinRemap(ENABLE, RB_PIN_INTX); // PB22, not floating LED net PB8.
 \tGPIOB_ITModeCfg(KEY2_PIN, GPIO_ITMode_FallEdge);
 }
 #endif
@@ -377,6 +378,29 @@ void btn_init()
 
 export function applyPowerHooks(source) {
   let result = normalizeLineEndings(source);
+  result = replaceOnce(
+    result,
+    `\t// Stop wasting energy`,
+    `#ifdef FROGALERT_SURVEY
+\t/* Radio idle was confirmed by TMOS. Quiesce every peripheral before
+\t * changing pins; an unrelated pending IRQ must not skip shutdown WFI. */
+\tfor (uint8_t bank = 0; bank < 2; bank++) {
+\t\tPFIC->IRER[bank] = 0xffffffffU;
+\t\tPFIC->IPRR[bank] = 0xffffffffU;
+\t}
+\tR8_USB_INT_EN = 0;
+\tR8_USB_CTRL = 0; // Detach and stop DMA before removing peripheral power.
+\tR8_UDEV_CTRL = 0;
+\tR16_PIN_ANALOG_IE &= ~(RB_PIN_USB_IE | RB_PIN_USB_DP_PU);
+\tR8_ADC_CFG &= ~(RB_ADC_POWER_ON | RB_ADC_BUF_EN);
+\tR16_PA_INT_EN = 0;
+\tR16_PB_INT_EN = 0;
+\tPWR_PeriphWakeUpCfg(DISABLE, RB_SLP_USB_WAKE | RB_SLP_USB2_WAKE |
+\t    RB_SLP_RTC_WAKE | RB_SLP_BAT_WAKE | RB_SLP_GPIO_WAKE, Long_Delay);
+#endif
+\t// Stop wasting energy`,
+    "exclusive shutdown interrupt ownership",
+  );
   const legacyWake = [
     "\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);",
     "\tGPIOA_ITModeCfg(KEY1_PIN, GPIO_ITMode_RiseEdge);",
@@ -413,12 +437,21 @@ ${originalWake}
     `\tPFIC_EnableIRQ(GPIO_A_IRQn);
 \tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);`,
     `#ifdef FROGALERT_SURVEY
-\tR16_PA_INT_EN &= ~CHARGE_STT_PIN;
-\tGPIOA_ClearITFlagBit(CHARGE_STT_PIN);
+\t/* Let pulls settle and consume the off-button release. Bound this wait:
+\t * a stuck button must still reach low power; its release is not a wake edge. */
+\tuint8_t released = 0;
+\tfor (uint8_t tick = 0; tick < 15 && released < 3; tick++) {
+\t\tDelayMs(20);
 #if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tGPIOA_ClearITFlagBit(KEY1_PIN);
+\t\treleased = (btn_key1_pressed() || isPressed(KEY2)) ? 0 : released + 1;
+#else
+\t\treleased = isPressed(KEY2) ? 0 : released + 1;
 #endif
-\tGPIOB_ClearITFlagBit(KEY2_PIN);
+\t}
+\tGPIOA_ClearITFlagBit(0xffffU);
+\tGPIOB_ClearITFlagBit(0xffffU);
+\tPFIC_ClearPendingIRQ(GPIO_A_IRQn);
+\tPFIC_ClearPendingIRQ(GPIO_B_IRQn);
 \tPWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);
 \tSYS_ResetKeepBuf(FROGALERT_SCREEN_OFF_MAGIC);
 \tfrogalert_shutdown_arming = TRUE;
@@ -442,25 +475,33 @@ ${originalWake}
 #define FROGALERT_SCREEN_OFF_MAGIC 0xa7U
 static volatile uint8_t frogalert_shutdown_arming;
 
+void frogalert_reset_off(void)
+{
+\tSYS_ResetKeepBuf(FROGALERT_SCREEN_OFF_MAGIC);
+\tSYS_ResetExecute();
+}
+
 __INTERRUPT
 __HIGH_CODE
 void GPIOA_IRQHandler(void)
 {
+\tuint16_t pending = GPIOA_ReadITFlagPort() & R16_PA_INT_EN;
+\tGPIOA_ClearITFlagBit(0xffffU);
 #if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tGPIOA_ClearITFlagBit(KEY1_PIN);
-#else
-\tGPIOA_ClearITFlagBit(CHARGE_STT_PIN);
-#endif
-\tif (frogalert_shutdown_arming)
+\tif (frogalert_shutdown_arming && (pending & KEY1_PIN))
 \t\tSYS_ResetExecute();
+#else
+\t(void)pending;
+#endif
 }
 
 __INTERRUPT
 __HIGH_CODE
 void GPIOB_IRQHandler(void)
 {
-\tGPIOB_ClearITFlagBit(KEY2_PIN);
-\tif (frogalert_shutdown_arming)
+\tuint8_t pending = GPIOB_ReadITFlagBit(KEY2_PIN) != 0;
+\tGPIOB_ClearITFlagBit(0xffffU);
+\tif (frogalert_shutdown_arming && pending)
 \t\tSYS_ResetExecute();
 }
 
@@ -469,11 +510,12 @@ int frogalert_consume_screen_off_wake(void)
 \tuint8_t reset_status = SYS_GetLastResetSta();
 \tuint8_t reset_keep = R8_GLOB_RESET_KEEP;
 
-\t/* Clear every boot, before the caller can branch or jump to mask ROM. */
+\t/* Preserve off intent through watchdog/external resets too. A genuine
+\t * power-on starts normally; a qualified button clears the marker later. */
+\tif (reset_keep == FROGALERT_SCREEN_OFF_MAGIC && reset_status != RST_STATUS_RPOR)
+\t\treturn TRUE;
 \tSYS_ResetKeepBuf(0);
-\treturn reset_keep == FROGALERT_SCREEN_OFF_MAGIC &&
-\t       (reset_status == RST_STATUS_GPWSM ||
-\t        reset_status == RST_STATUS_SW);
+\treturn FALSE;
 }
 #endif
 
@@ -481,6 +523,13 @@ void poweroff()
 {`,
     "screen-off wake classifier",
   );
+  result = replaceOnce(result, `\tLowPower_Shutdown(0);`,
+    `\tLowPower_Shutdown(0);
+#ifdef FROGALERT_SURVEY
+\t/* The SDK resets after WFI. Never resume an application with dead clocks. */
+\tSYS_ResetExecute();
+\twhile (1) {}
+#endif`, "shutdown cannot fall through");
   return result;
 }
 
@@ -543,6 +592,8 @@ void power_init()
     `int batt_raw()
 {
 	uint32_t total = 0;
+	R8_ADC_CFG |= RB_ADC_POWER_ON | RB_ADC_BUF_EN;
+	DelayUs(20);
 
 	PRINT("ADC reading: \\n");
 	/* WCH recommends discarding the first conversion after selecting the
@@ -560,6 +611,7 @@ void power_init()
 		PRINT("%d \\n", (int)adc);
 	}
 
+	R8_ADC_CFG &= ~(RB_ADC_POWER_ON | RB_ADC_BUF_EN);
 	return (int)(total / 20U);
 }`,
     "calibrated averaged battery ADC samples",
@@ -599,6 +651,9 @@ int batt_raw2percent(int r)
 }`,
     "fixed-point bounded battery percentage",
   );
+  result = replaceOnce(result, `\tADC_ChannelCfg(1);`,
+    `\tADC_ChannelCfg(1);
+\tR8_ADC_CFG &= ~(RB_ADC_POWER_ON | RB_ADC_BUF_EN);`, "ADC off between readings");
   return result;
 }
 
@@ -700,7 +755,7 @@ static tmosTaskID common_taskid = INVALID_TASK_ID ;`,
   result = replaceOnce(
     result,
     '#include "ble/setup.h"\n#include "ble/profile.h"\n',
-    '#include "ble/setup.h"\n#include "ble/profile.h"\n#ifdef FROGALERT_SURVEY\n#include "ble/frogalert-survey.h"\n#endif\n',
+    '#include "ble/setup.h"\n#include "ble/profile.h"\n#ifdef FROGALERT_SURVEY\n#include "ble/frogalert-survey.h"\n#include "ble/frogalert-rust.h"\n#endif\n',
     "main survey include",
   );
   result = replaceOnce(
@@ -711,57 +766,29 @@ static tmosTaskID common_taskid = INVALID_TASK_ID ;`,
     `#ifdef FROGALERT_SURVEY
 static void frogalert_handle_screen_off_wake(void)
 {
-\tuint8_t hold = 0;
-\tuint8_t key2_was_pressed;
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tuint8_t key1_was_pressed;
-#endif
-
+\tfrogalert_wake_t wake;
+\tuint8_t action;
 \tif (!frogalert_consume_screen_off_wake())
 \t\treturn;
-
-\t/* Reset-default GPIO modes are not a valid input assumption. KEY2 wins
-\t * if both inputs are held, preserving the mask-ROM recovery path. */
 \tGPIOB_ModeCfg(KEY2_PIN, GPIO_ModeIN_PU);
 #if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
 \tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PD);
-\tkey1_was_pressed = btn_key1_pressed();
-#endif
-\tkey2_was_pressed = isPressed(KEY2);
-
-\t/* A shutdown wake is not permission to light the badge unless a valid
-\t * physical button is still asserted. This fails closed on GPIO noise or
-\t * an unexpected reset that retained the screen-off marker. */
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tif (!key1_was_pressed && !key2_was_pressed) {
 #else
-\tif (!key2_was_pressed) {
+\tGPIOA_ModeCfg(KEY1_PIN, GPIO_ModeIN_PU);
 #endif
+\tDelayMs(1); // Reset-default inputs need their profile-specific pulls first.
+\tfrogalert_wake_init(&wake, btn_key1_pressed(), isPressed(KEY2));
+\tdo {
+\t\tDelayMs(20);
+\t\taction = frogalert_wake_sample(&wake, btn_key1_pressed(), isPressed(KEY2));
+\t} while (action == FA_WAKE_WAIT);
+\tif (action == FA_WAKE_SLEEP) {
 \t\tpoweroff();
 \t\treturn;
 \t}
-
-\twhile (key2_was_pressed && isPressed(KEY2)) {
-\t\tDelayMs(SCAN_BOOTLD_BTN_SPEED_T / 1000U);
-\t\thold = isPressed(KEY2) ? hold + 1U : 0U;
-\t\tif (hold > 10U)
-\t\t\treset_jump();
-\t}
-
-#if FROGALERT_HARDWARE_PROFILE_ID == FROGALERT_PROFILE_B1144C_250901_USB_C
-\tif (key2_was_pressed) {
-\t\t/* A released KEY2 is physical bottom/recovery: stay dark. */
-\t\tpoweroff();
-\t\treturn;
-\t}
-
-\t/* KEY1 is physical top on 250901. Consume its release before btn_init(),
-\t * or a wake press can be reinterpreted as NORMAL -> DOWNLOAD. */
-\tif (key1_was_pressed) {
-\t\twhile (btn_key1_pressed())
-\t\t\tDelayMs(20);
-\t}
-#endif
+\tSYS_ResetKeepBuf(0); // Only a qualified wake or deliberate ISP clears off intent.
+\tif (action == FA_WAKE_ISP)
+\t\treset_jump();
 }
 #endif
 
@@ -1170,9 +1197,9 @@ static void frogalert_display_boot_status(void)
 	DelayMs(10);
 	reading = frogalert_battery_from_raw((uint16_t)batt_raw());
 	frogalert_boot_render_credit(fb);
-	DelayMs(750);
+	DelayMs(500);
 	frogalert_boot_render_battery(fb, reading);
-	DelayMs(750);
+	DelayMs(500);
 }
 #endif
 
@@ -1417,6 +1444,17 @@ static void disp_charging()
 `,
     "display PWM blanks once per column pair",
   );
+  result = replaceOnce(result,
+    `\tplay_splash(&spl, 0, 0, badge_cfg.splash_speedT);`,
+    `#ifdef FROGALERT_SURVEY
+\t/* The fixed credit already ran. Keep custom splashes, skip the upstream
+\t * FOSSASIA animation even when it was saved by an earlier firmware. */
+\tif (spl.w != splash.w || spl.h != splash.h || spl.fh != splash.fh ||
+\t    memcmp(spl.bits, splash.bits, ((splash.w + 7U) / 8U) * splash.h) != 0)
+\t\tplay_splash(&spl, 0, 0, badge_cfg.splash_speedT);
+#else
+\tplay_splash(&spl, 0, 0, badge_cfg.splash_speedT);
+#endif`, "skip duplicate default animated credit");
   return result;
 }
 

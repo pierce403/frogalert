@@ -36,7 +36,11 @@ static uint8_t connected(void)
 static uint8_t dispatch(uint8_t event, uint8_t value, const uint8_t *address,
                         const uint8_t *data, uint16_t length)
 {
-    if (task_id == INVALID_TASK_ID) return TRUE;
+    if (task_id == INVALID_TASK_ID) {
+        /* Missing scheduler/ABI setup cannot establish that the radio is idle. */
+        if (event == FA_SHUTDOWN) frogalert_reset_off();
+        return FALSE;
+    }
     frogalert_output_t out = {0};
     frogalert_input_t in = {frogalert_survey_allowed(), connected(), 2,
         frogalert_badgemagic_persistent_advertising(), frogalert_survey_counter_mode()};
@@ -50,6 +54,10 @@ static uint8_t dispatch(uint8_t event, uint8_t value, const uint8_t *address,
     frogalert_runtime_step(TMOS_GetSystemClock(), event, value, &in,
         address, data, length, (const uint8_t (*)[6])font5x7, &out);
 
+    if (out.actions & FA_RESET_OFF) {
+        frogalert_reset_off();
+        return FALSE;
+    }
     /* Replace state/wake BEFORE SDK calls: synchronous callbacks may dispatch
      * again and their newer results must survive this function's return. */
     display_active = out.owned;
@@ -136,7 +144,7 @@ void frogalert_survey_role_init(void) { init_status = GAPRole_CentralInit(); }
 void frogalert_survey_init(void)
 {
     uint8_t max_results = 64;
-    if (frogalert_rust_abi() != 0x00030001UL) return;
+    if (frogalert_rust_abi() != 0x00030002UL) return;
     task_id = TMOS_ProcessEventRegister(survey_task);
     if (task_id == INVALID_TASK_ID) { PRINT("FrogAlert task allocation failed\n"); return; }
 #ifdef FROGALERT_DANCING_FROG_MODE

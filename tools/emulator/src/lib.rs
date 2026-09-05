@@ -23,6 +23,7 @@ pub struct Badge {
     pub scans: u32,
     pub writes: u32,
     pub shutdowns: u32,
+    pub off_resets: u32,
     pub role_starts: u32,
     pub start_ok: bool,
     pub lost_completion: bool,
@@ -48,6 +49,7 @@ impl Badge {
             scans: 0,
             writes: 0,
             shutdowns: 0,
+            off_resets: 0,
             role_starts: 0,
             start_ok: true,
             lost_completion: false,
@@ -103,6 +105,14 @@ impl Badge {
         if output.advertise {
             assert!(!self.radio_busy && !self.input.connected && self.input.wants_advertising);
             self.input.advertising = Some(true);
+        }
+        if output.reset_off {
+            // Model the reset boundary separately from a confirmed-idle handoff.
+            self.off_resets += 1;
+            self.radio_busy = false;
+            self.complete = None;
+            self.input.connected = false;
+            self.input.advertising = Some(false);
         }
         if output.shutdown_idle {
             assert!(!self.radio_busy);

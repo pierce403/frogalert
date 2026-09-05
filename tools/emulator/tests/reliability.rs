@@ -69,7 +69,7 @@ fn lost_completion_stays_bounded_and_recovers_after_confirmed_idle() {
         b.cancel = Cancel::Lost;
         b.advance(u64::from(16 * SECOND));
         b.report([7; 6], 1, &[]);
-        b.off();
+        b.download();
         b.advance(u64::from(3600 * SECOND));
         assert_eq!(b.scans, 1);
         assert_eq!(b.shutdowns, 0);
@@ -77,6 +77,8 @@ fn lost_completion_stays_bounded_and_recovers_after_confirmed_idle() {
         assert_eq!(b.runtime.retained_addresses(), 0);
         b.cancel = Cancel::AlreadyIdle;
         b.advance(u64::from(10 * SECOND));
+        assert!(!b.runtime.scanning());
+        b.off();
         assert_eq!(b.shutdowns, 1);
         b.lost_completion = false;
         b.normal();
@@ -404,4 +406,55 @@ fn upload_padding_resynchronization_disconnect_and_bounds() {
     assert!(transfer::clock([0; 6]).is_none());
     assert!(transfer::clock([208, 2, 29, 23, 59, 59]).is_some());
     assert!(transfer::clock([209, 2, 29, 23, 59, 59]).is_none());
+}
+
+#[test]
+fn shutdown_fault_resets_off_at_deadline_even_across_clock_wrap() {
+    each(|p, f| {
+        let mut b = Badge::new(p, f, u64::from(u32::MAX) - u64::from(20 * SECOND));
+        b.lost_completion = true;
+        b.cancel = Cancel::Lost;
+        b.advance(u64::from(16 * SECOND));
+        b.report([7; 6], 1, &[]);
+        b.off();
+        b.advance(u64::from(30 * SECOND - 1));
+        assert_eq!(b.off_resets, 0);
+        assert_eq!(b.shutdowns, 0);
+        b.advance(1);
+        assert_eq!(b.off_resets, 1);
+        assert_eq!(b.shutdowns, 0); // No false claim that cancellation succeeded.
+        assert_eq!(b.runtime.retained_addresses(), 0);
+        assert!(!b.radio_busy && b.panel.is_none());
+        b.advance(u64::from(3600 * SECOND));
+        assert_eq!(b.off_resets, 1);
+    });
+}
+
+#[test]
+fn resume_cancels_shutdown_reset_deadline() {
+    each(|p, f| {
+        let mut b = Badge::new(p, f, 0);
+        b.lost_completion = true;
+        b.cancel = Cancel::Lost;
+        b.advance(u64::from(16 * SECOND));
+        b.off();
+        b.advance(u64::from(20 * SECOND));
+        b.normal();
+        b.advance(u64::from(60 * SECOND));
+        assert_eq!(b.off_resets, 0);
+    });
+}
+
+#[test]
+fn stuck_connection_and_repeated_off_do_not_extend_reset_deadline() {
+    each(|p, f| {
+        let mut b = Badge::new(p, f, 0);
+        b.input.connected = true;
+        b.off();
+        b.advance(u64::from(29 * SECOND));
+        b.event(Event::Shutdown);
+        b.advance(u64::from(SECOND));
+        assert_eq!(b.off_resets, 1);
+        assert_eq!(b.shutdowns, 0);
+    });
 }

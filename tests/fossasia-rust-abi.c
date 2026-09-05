@@ -13,7 +13,7 @@ int main(void)
     frogalert_input_t in = {1,0,0,0,1};
     frogalert_output_t out;
     assert(offsetof(frogalert_output_t, frame) == 12);
-    assert(frogalert_rust_abi() == 0x00030001UL);
+    assert(frogalert_rust_abi() == 0x00030002UL);
     frogalert_runtime_init(0);
     frogalert_runtime_step(0,FA_READY,1,&in,NULL,NULL,0,font,&out);
     assert(out.wake_after == 24000 && out.radio_idle && out.owned);
@@ -43,5 +43,17 @@ int main(void)
     assert(!frogalert_transfer_accept(packet,16,32767,&write));
     uint16_t clock[6];
     assert(!frogalert_transfer_clock(packet,clock));
+    frogalert_wake_t wake;
+    const uint8_t top1 = FROGALERT_HARDWARE_PROFILE_ID == 1;
+    frogalert_wake_init(&wake, top1, !top1);
+    for (int i=0; i<5; i++)
+        assert(frogalert_wake_sample(&wake, top1, !top1) == FA_WAKE_WAIT);
+    for (int i=0; i<2; i++)
+        assert(frogalert_wake_sample(&wake, 0, 0) == FA_WAKE_WAIT);
+    assert(frogalert_wake_sample(&wake, 0, 0) == FA_WAKE_BOOT);
+    frogalert_wake_init(&wake, 1, 1);
+    for (int i=0; i<109; i++)
+        assert(frogalert_wake_sample(&wake, 1, 1) == FA_WAKE_WAIT);
+    assert(frogalert_wake_sample(&wake, 1, 1) == FA_WAKE_ISP);
     puts("FrogAlert Rust/C ABI conformance passed");
 }

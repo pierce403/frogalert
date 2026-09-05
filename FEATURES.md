@@ -1,10 +1,23 @@
 # FrogAlert feature and readiness tracker
 
-Last reviewed: 2026-09-04
+Last reviewed: 2026-09-05
 
 This is the source of truth for requirements, implementation status, acceptance
 evidence, and release gates. Update it in the same change that alters a feature.
 Do not promote a row based only on plausible code or a successful API call.
+
+## Stable 0.3.0 power audit
+
+The owner reports the Rust application works on hardware and requests removal
+of beta labeling, while reporting intermittent spontaneous wake. `0.3.0`
+corrects the PB22/PB8 interrupt mux, makes wake sources exclusive, qualifies
+press/release in Rust, preserves off intent across non-power-on resets, and
+bounds a failed radio shutdown with a marked-off controller reset. The ADC
+powers down between readings; default startup uses two static 500 ms cards.
+These changes are covered by host policy and production-adapter fault tests.
+Exact new-image wake/current/recovery measurements are still pending; stable
+channel selection does not fabricate `hardware_verified` evidence. See
+[POWER_AUDIT.md](docs/POWER_AUDIT.md).
 
 ## Status legend
 

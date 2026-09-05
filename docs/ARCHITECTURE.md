@@ -2,7 +2,7 @@
 
 ## Rust application and hardware boundary
 
-Version `0.3.0-beta.1` runs FrogAlert's application in allocation-free,
+Version `0.3.0` runs FrogAlert's application in allocation-free,
 `no_std` Rust. The emulator and firmware use the same core.
 
 | Code | Responsibility |
@@ -10,6 +10,7 @@ Version `0.3.0-beta.1` runs FrogAlert's application in allocation-free,
 | `crates/frogalert-core/src/runtime.rs` | Scan lifecycle, cancellation, shutdown handoff, alert priority, wrapping deadlines |
 | `config.rs`, `advertisement.rs`, `scan.rs` | CRC/profile validation, conservative detection, ephemeral typed-address counting |
 | `render.rs`, `boot.rs` | Complete 44×11 frames, text pages, frogs, animation cropping, boot and battery cards |
+| `power.rs` | Early wake press/release qualification and KEY2 recovery timing |
 | `transfer.rs` | BadgeMagic upload bounds, padding, restart/reset, calendar validation |
 | `crates/frogalert-ffi/` | Primitive C ABI; one TMOS-thread-owned session |
 | `firmware/fossasia-usbc/frogalert-survey.c` | WCH event translation and execution of returned commands |
@@ -48,7 +49,13 @@ the printed PCB marking.
 Shutdown waits for discovery cancellation, advertising to stop, and an app
 connection to end. Only qualified profile-specific buttons can wake; charger
 status is not a wake source. Early held-KEY2 qualification precedes BLE, USB,
-and display startup. These hardware paths remain in the established C shell.
+and display startup. C selects PB22's interrupt mux, clears all other wake/interrupt sources, and
+retains off intent through non-power-on resets. Rust qualifies a 100 ms press
+and 60 ms release at 20 ms intervals; KEY2 wins simultaneous presses and a
+continuous 2.2-second hold enters ISP. The off-button release wait is bounded
+at 300 ms so a stuck switch still reaches shutdown. A radio that cannot confirm
+idle within 30 seconds is reset into the marked-off early-boot path, never
+passed to shutdown as if it were idle. See [the power audit](POWER_AUDIT.md).
 
 ## Scan and display behavior
 

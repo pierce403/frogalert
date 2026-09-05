@@ -7,8 +7,8 @@ fn main() {
         println!("cargo:rerun-if-env-changed={key}");
         let default = match key {
             "FROGALERT_PROFILE_ID" => "2",
-            "FROGALERT_VERSION" => "0.3.0-beta.1",
-            _ => "v0.3.0b1",
+            "FROGALERT_VERSION" => "0.3.0",
+            _ => "v0.3.0",
         };
         let value = std::env::var(key).unwrap_or_else(|_| default.into());
         assert!(value.is_ascii() && !value.contains('\0'));

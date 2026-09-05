@@ -56,6 +56,12 @@ screen off. Charger state is still readable while running, but screen off now
 wakes only from the exact-profile button inputs and rejects an unqualified
 early wake.
 
+Stable `0.3.0` additionally corrects PB22's shared interrupt mux (the default
+selects floating LED net PB8), clears other wake sources and pending IRQs,
+and qualifies press/release in Rust. The owner reports general Rust hardware
+success but also remaining spontaneous wake before this fix. New-image wake,
+current, and recovery checks remain pending; see [the power audit](POWER_AUDIT.md).
+
 ## Current physical badge evidence
 
 The opened 11×44 USB-C badge photographed on 2026-07-22 is marked

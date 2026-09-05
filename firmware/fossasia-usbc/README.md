@@ -95,17 +95,17 @@ KEY2 brightness is deferred until release after 25 through 99 samples, about
 0.5 through just under 2 seconds, so a continued hold remains reserved for the
 unchanged roughly 2.2-second KEY2-to-ISP task.
 Screen off stops advertising and passive discovery, waits for controller idle,
-then stops display/button timers and enters CH582 shutdown. Exact-profile early
-wake preserves the unchanged 200 ms KEY2-to-ISP qualification before BLE, USB,
-or display startup. The owner later clarified beta.12 worked and its suspected
-upload regression was likely Bluetooth congestion, so beta.15 restores this
-lower-power boundary. Beta.16 stops treating `CHARGE_STT`/PA0 as a shutdown
-wake source after a delayed spontaneous turn-on was physically observed. Only
-the profile-bound button inputs may now wake, and early boot returns to
-shutdown unless one remains asserted. Normal-mode charging status is
-unchanged. Passive surveys run in either visible
-view; selecting the counter changes presentation, not whether the radio
-schedule runs.
+then stops display/button timers and enters CH582 shutdown. Stable `0.3.0`
+explicitly remaps KEY2/PB22 away from the shared PB8 LED interrupt, arms only
+the profile's buttons, and clears stale sources. Rust samples wake inputs every
+20 ms, requiring a 100 ms press and 60 ms release; a continuous 2.2-second KEY2
+hold retains ISP before BLE, USB, or display startup. Off intent survives
+non-power-on resets. An unresponsive controller is reset into marked-off boot
+after 30 seconds, without claiming radio idle. ADC power is off between readings.
+The default animated splash is replaced by 500 ms static credit/battery cards.
+See [the power audit](../../docs/POWER_AUDIT.md) for evidence and physical limits.
+Passive surveys run in either visible view; selecting the counter changes
+presentation, not whether the radio schedule runs.
 
 The legacy Android transfer remains 16-byte `FEE1` writes with responses.
 FrogAlert moves upstream's intended parameter request onto the accepted

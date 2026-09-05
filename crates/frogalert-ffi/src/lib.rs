@@ -1,5 +1,5 @@
 //! C owns startup/interrupts and calls this ABI only on the cooperative TMOS
-//! thread. Every pointer must be valid for its declared length; outputs must
+//! thread (or pure caller-owned wake state during early boot). Every pointer must be valid for its declared length; outputs must
 //! not alias inputs. No pointer is retained, and Rust never calls back into C.
 //! The emulator tests the safe core; the C conformance executable tests this ABI.
 #![cfg_attr(target_os = "none", no_std)]
@@ -62,7 +62,7 @@ const _: () = assert!(core::mem::size_of::<Output>() == 100);
 
 #[no_mangle]
 pub extern "C" fn frogalert_rust_abi() -> u32 {
-    0x0003_0001
+    0x0003_0002
 }
 
 #[no_mangle]
@@ -146,7 +146,8 @@ pub unsafe extern "C" fn frogalert_runtime_step(
         | (u32::from(result.cancel_scan) << 3)
         | (u32::from(result.advertise) << 4)
         | (u32::from(result.shutdown_idle) << 5)
-        | (u32::from(result.disconnect) << 6);
+        | (u32::from(result.disconnect) << 6)
+        | (u32::from(result.reset_off) << 7);
     unsafe {
         output.write(Output {
             actions,
@@ -308,4 +309,24 @@ fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
     loop {
         core::hint::spin_loop()
     }
+}
+
+// Early boot uses only caller-owned wake state, before the TMOS session exists.
+#[no_mangle]
+pub unsafe extern "C" fn frogalert_wake_init(
+    state: *mut frogalert_core::power::Wake,
+    key1: u8,
+    key2: u8,
+) {
+    unsafe {
+        state.write(frogalert_core::power::Wake::new(key1 != 0, key2 != 0));
+    }
+}
+#[no_mangle]
+pub unsafe extern "C" fn frogalert_wake_sample(
+    state: *mut frogalert_core::power::Wake,
+    key1: u8,
+    key2: u8,
+) -> u8 {
+    unsafe { (&mut *state).sample(PROFILE, key1 != 0, key2 != 0) as u8 }
 }

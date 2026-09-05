@@ -4,6 +4,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 mkdir -p tmp/c-tests
 node tests/prepare-legacy-adapter.mjs
+node tests/prepare-power-adapter.mjs
 mapfile -t versions < <(node scripts/frogalert-version.mjs)
 for profile in 1 2; do
   FROGALERT_PROFILE_ID="$profile" FROGALERT_VERSION="${versions[0]}" \
@@ -23,4 +24,8 @@ for profile in 1 2; do
     tmp/c-tests/legacy-adapter.c target/release/libfrogalert_ffi.a \
     -ldl -lpthread -lm -o "tmp/c-tests/legacy-adapter-$profile"
   "tmp/c-tests/legacy-adapter-$profile"
+  cc -std=c11 -Wall -Wextra -Werror -Wno-unused-function \
+    -DFROGALERT_HARDWARE_PROFILE_ID="$profile" tmp/c-tests/power-adapter.c \
+    -o "tmp/c-tests/power-adapter-$profile"
+  "tmp/c-tests/power-adapter-$profile"
 done

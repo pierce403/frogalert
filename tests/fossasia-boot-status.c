@@ -60,19 +60,19 @@ static void test_credit_and_profile_marker(void)
 	assert_frame_bounds(framebuffer);
 
 	/* The two-column gap and three-column marker follow the centered compact
-	 * version, including versions with two-digit prerelease iterations. */
+	 * version, including short stable versions whose columns overlap the credit above. */
 	assert(marker_column >= 2U);
 	assert(marker_column + 2U < FROGALERT_BOOT_COLUMNS);
 	assert((framebuffer[marker_column - 2U] & 0x7c0U) == 0);
 	assert((framebuffer[marker_column - 1U] & 0x7c0U) == 0);
 #if FROGALERT_HARDWARE_PROFILE_ID == 2
-	assert(framebuffer[marker_column] == 0x080);
-	assert(framebuffer[marker_column + 1U] == 0x7c0);
-	assert(framebuffer[marker_column + 2U] == 0x080);
+	assert((framebuffer[marker_column] & 0x7c0U) == 0x080);
+	assert((framebuffer[marker_column + 1U] & 0x7c0U) == 0x7c0);
+	assert((framebuffer[marker_column + 2U] & 0x7c0U) == 0x080);
 #elif FROGALERT_HARDWARE_PROFILE_ID == 1
-	assert(framebuffer[marker_column] == 0x200);
-	assert(framebuffer[marker_column + 1U] == 0x7c0);
-	assert(framebuffer[marker_column + 2U] == 0x200);
+	assert((framebuffer[marker_column] & 0x7c0U) == 0x200);
+	assert((framebuffer[marker_column + 1U] & 0x7c0U) == 0x7c0);
+	assert((framebuffer[marker_column + 2U] & 0x7c0U) == 0x200);
 #else
 #error "test requires a supported FrogAlert hardware profile"
 #endif

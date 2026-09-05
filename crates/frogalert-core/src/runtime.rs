@@ -67,6 +67,7 @@ pub struct Output {
     pub cancel_scan: bool,
     pub advertise: bool,
     pub shutdown_idle: bool,
+    pub reset_off: bool,
     pub disconnect: bool,
     pub radio_idle: bool,
     pub owned: bool,
@@ -85,6 +86,7 @@ pub struct Runtime {
     restore_advertising: bool,
     advertise_after: bool,
     shutdown: bool,
+    shutdown_deadline: Option<u32>,
     ready: bool,
     frogs: bool,
     frog_epoch: u32,
@@ -107,6 +109,7 @@ impl Runtime {
             restore_advertising: false,
             advertise_after: false,
             shutdown: false,
+            shutdown_deadline: None,
             ready: false,
             frogs,
             frog_epoch: 0,
@@ -132,6 +135,7 @@ impl Runtime {
             if input.advertising == Some(false) && !input.connected {
                 self.phase = Phase::Stopped;
                 out.shutdown_idle = true;
+                self.shutdown_deadline = None;
             } else {
                 self.phase = Phase::PowerWait(now.wrapping_add(QUIET));
                 out.stop_advertising = true;
@@ -223,11 +227,15 @@ impl Runtime {
                 self.suspend(now, advertise_after, input, &mut out)
             }
             Event::Shutdown => {
+                if !self.shutdown {
+                    self.shutdown_deadline = Some(now.wrapping_add(30 * SECOND));
+                }
                 self.shutdown = true;
                 self.suspend(now, false, input, &mut out);
             }
             Event::Resume => {
                 self.shutdown = false;
+                self.shutdown_deadline = None;
                 self.advertise_after = false;
                 if self.ready && !self.scanning() {
                     self.phase = Phase::Waiting(now.wrapping_add(QUIET));
@@ -238,6 +246,20 @@ impl Runtime {
                 self.last_frame = None;
             }
             _ => {}
+        }
+
+        // A lost SDK acknowledgement is not proof of idle. Reset the controller
+        // into a marked-off cold boot instead of draining the battery forever.
+        if self.shutdown_deadline.is_some_and(|at| due(now, at)) {
+            self.counter.clear();
+            self.alert = None;
+            self.last_frame = None;
+            self.shutdown_deadline = None;
+            self.phase = Phase::Stopped;
+            return Output {
+                reset_off: true,
+                ..Output::default()
+            };
         }
 
         // Event bits may already be queued when a task is stopped. Only actual
@@ -307,6 +329,9 @@ impl Runtime {
             | Phase::PowerWait(at) => Some(at),
             Phase::Stopped => None,
         };
+        if let Some(at) = self.shutdown_deadline {
+            earlier(now, &mut next, at);
+        }
         let mut frame = None;
         if input.allowed && !self.shutdown {
             if let Some((found, pages, start)) = self.alert {

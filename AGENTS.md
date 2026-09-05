@@ -25,6 +25,28 @@ been tested on a physically verified CH582M 11×44 badge.
 
 ## Project overview
 
+### Power audit and stable release (2026-09-05)
+
+- WCH `GPIOB_ITModeCfg(PB22, ...)` translates the flag to bit 8 but does NOT
+  select the mux. Always call `GPIOPinRemap(ENABLE, RB_PIN_INTX)` first, or the
+  floating PB8 display net becomes the wake input. The production shutdown
+  register fixture catches this regression on both profiles.
+- Shutdown exclusively owns wake/IRQ sources, detaches USB/DMA, clears GPIO
+  and PFIC flags after a bounded release wait, and calls `LowPower_Shutdown(0)`.
+  Do not rely on OR-enabling GPIO wake to disable earlier RTC/USB sources.
+- Rust caller-owned early-boot state requires 100 ms press/60 ms release;
+  KEY2 has priority and a continuous 2.2-second ISP hold. No Rust ISR calls.
+  Keep the off marker through all non-power-on resets until a qualified wake.
+- A 30-second Rust shutdown deadline resets a stuck controller into marked-off
+  early boot; it must never falsely report cancellation/advertising idle.
+  Missing TMOS registration also resets off instead of claiming idle.
+- ADC power/buffer are enabled only for calibration/readings. Default animated
+  splash recognition compares dimensions and row-padded bytes, preserving
+  custom uploads. Stable `0.3.0` has 500 ms credit and 500 ms battery cards.
+- Owner reports general hardware success and authorizes stable labeling, but
+  spontaneous wake was still present before this change. Keep new image
+  `hardware_verified: false`; no exact new-image/current evidence was supplied.
+
 ### Current Rust application (2026-09-04)
 
 Linux WebUSB access denial was resolved by exact `4348:55e0` / `1a86:55e0`

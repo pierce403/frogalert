@@ -102,6 +102,7 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
     patchedButton,
     /DelayUs|pulled_down|pulled_up|candidate|confidence/,
   );
+  assert.match(patchedButton, /GPIOPinRemap\(ENABLE, RB_PIN_INTX\);[\s\S]*GPIOB_ITModeCfg\(KEY2_PIN/);
   assert.doesNotMatch(patchedButton, /btn_key1_profile_detected/);
   assert.doesNotMatch(patchedButton, /btn_key1_profile\(void\)/);
   assert.match(
@@ -148,11 +149,11 @@ test("survey hooks keep KEY1 polarity bound to the compiled profile", () => {
     );
     assert.match(
       patchedPower,
-      /R16_PA_INT_EN &= ~CHARGE_STT_PIN;[\s\S]*GPIOA_ClearITFlagBit\(CHARGE_STT_PIN\)[\s\S]*GPIOA_ClearITFlagBit\(KEY1_PIN\)[\s\S]*GPIOB_ClearITFlagBit\(KEY2_PIN\)[\s\S]*PWR_PeriphWakeUpCfg[\s\S]*SYS_ResetKeepBuf\(FROGALERT_SCREEN_OFF_MAGIC\)[\s\S]*frogalert_shutdown_arming = TRUE[\s\S]*PFIC_EnableIRQ\(GPIO_A_IRQn\)[\s\S]*PFIC_DisableIRQ\(GPIO_A_IRQn\)[\s\S]*PFIC_EnableIRQ\(GPIO_B_IRQn\)[\s\S]*LowPower_Shutdown\(0\)/,
+      /R16_PA_INT_EN = 0;[\s\S]*R16_PB_INT_EN = 0;[\s\S]*PWR_PeriphWakeUpCfg\(DISABLE[\s\S]*btn_configure_screen_off_wake\(\)[\s\S]*GPIOA_ClearITFlagBit\(0xffffU\)[\s\S]*GPIOB_ClearITFlagBit\(0xffffU\)[\s\S]*SYS_ResetKeepBuf\(FROGALERT_SCREEN_OFF_MAGIC\)[\s\S]*PFIC_EnableIRQ\(GPIO_B_IRQn\)[\s\S]*LowPower_Shutdown\(0\)/,
     );
     assert.match(
       patchedPower,
-      /frogalert_consume_screen_off_wake\(void\)[\s\S]*SYS_GetLastResetSta\(\)[\s\S]*R8_GLOB_RESET_KEEP[\s\S]*SYS_ResetKeepBuf\(0\)[\s\S]*RST_STATUS_GPWSM[\s\S]*RST_STATUS_SW/,
+      /frogalert_consume_screen_off_wake\(void\)[\s\S]*SYS_GetLastResetSta\(\)[\s\S]*R8_GLOB_RESET_KEEP[\s\S]*reset_status != RST_STATUS_RPOR[\s\S]*SYS_ResetKeepBuf\(0\)/,
     );
     assert.match(
       patchedPower,
@@ -489,6 +490,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
     "\tpower_init();",
     "\tdisp_charging();",
     "\tcfg_init();",
+    "\tplay_splash(&spl, 0, 0, badge_cfg.splash_speedT);",
     "\tTMR0_TimerInit((FREQ_SYS / 2000) / 2);",
     "\tload_bmlist();",
     "",
@@ -661,7 +663,7 @@ test("survey hooks preserve the FOSSASIA shell and fail closed on drift", () => 
   );
   assert.match(
     patchedMain,
-    /frogalert_handle_screen_off_wake\(void\)[\s\S]*frogalert_consume_screen_off_wake\(\)[\s\S]*GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)[\s\S]*key1_was_pressed = btn_key1_pressed\(\)[\s\S]*if \(!key1_was_pressed && !key2_was_pressed\)[\s\S]*if \(!key2_was_pressed\)[\s\S]*poweroff\(\)[\s\S]*hold > 10U[\s\S]*reset_jump\(\)/,
+    /frogalert_handle_screen_off_wake\(void\)[\s\S]*frogalert_consume_screen_off_wake\(\)[\s\S]*GPIOB_ModeCfg\(KEY2_PIN, GPIO_ModeIN_PU\)[\s\S]*frogalert_wake_init[\s\S]*DelayMs\(20\)[\s\S]*frogalert_wake_sample[\s\S]*FA_WAKE_SLEEP[\s\S]*poweroff\(\)[\s\S]*FA_WAKE_ISP[\s\S]*reset_jump\(\)/,
   );
   assert.match(
     patchedMain,
