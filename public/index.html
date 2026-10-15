@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Custom firmware for CH582M BadgeMagic badges: keep the nametag, count nearby Bluetooth devices, and show local BLE alerts.">
+    <meta name="theme-color" content="#10271d">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="FrogAlert">
+    <meta property="og:title" content="FrogAlert — Bluetooth alerts on a BadgeMagic nametag">
+    <meta property="og:description" content="Custom CH582M BadgeMagic firmware with nametag and Bluetooth-counter modes. Scanning and matching stay on the badge.">
+    <meta property="og:url" content="https://frogalert.org/">
+    <meta property="og:image" content="https://frogalert.org/site/og-card-v3.jpg">
+    <meta property="og:image:secure_url" content="https://frogalert.org/site/og-card-v3.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="FrogAlert wordmark above a long edge-to-edge LED nametag showing COP DETECTED">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="FrogAlert — Bluetooth alerts on a BadgeMagic nametag">
+    <meta name="twitter:description" content="Custom CH582M BadgeMagic firmware with local BLE scans and alerts.">
+    <meta name="twitter:image" content="https://frogalert.org/site/og-card-v3.jpg">
+    <meta name="twitter:image:alt" content="FrogAlert wordmark above a long edge-to-edge LED nametag showing COP DETECTED">
+    <title>FrogAlert — Bluetooth alerts on a BadgeMagic nametag</title>
+    <link rel="canonical" href="https://frogalert.org/">
+    <link rel="stylesheet" href="./site/styles.css">
+    <script type="module" src="./site/app.js?v=24"></script>
+  </head>
+  <body data-flash-mode="inspect">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="FrogAlert home">
+        <span class="wordmark-dot" aria-hidden="true"></span>
+        FROG<span>ALERT</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#concept">Concept</a>
+        <a href="#latest">Firmware</a>
+        <a href="./flash/">Flash tool</a>
+        <a href="https://github.com/pierce403/frogalert">Source</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow">Open firmware for CH582M BadgeMagic badges</p>
+          <h1>Bluetooth alerts on your <em>nametag.</em></h1>
+          <p class="lede">
+            FrogAlert keeps your BadgeMagic nametag and adds an approximate nearby-device count plus short BLE alerts. Everything is processed on the badge.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="./flash/">Flash latest published firmware</a>
+            <a class="button button-secondary" href="#latest">View firmware</a>
+          </div>
+        </div>
+
+        <div class="badge-stage" aria-label="FrogAlert badge concept preview">
+          <div class="badge-lanyard" aria-hidden="true"></div>
+          <div class="badge-shell">
+            <div id="led-matrix" class="led-matrix" role="img" aria-label="LED badge preview"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="manifesto" id="concept">
+        <p class="section-kicker">Features</p>
+        <h2>Names, nearby devices, and alerts.</h2>
+        <div class="manifesto-grid">
+          <article>
+            <h3>Nametag and counter</h3>
+            <p>Keep using the BadgeMagic app to upload names. Press the button closest to USB to switch between your messages and the last completed <code>00</code>–<code>64+</code> nearby-device count.</p>
+          </article>
+          <article>
+            <h3>Nearby Bluetooth count</h3>
+            <p>About every 20 seconds, FrogAlert listens for BLE advertisements for three seconds. It keeps the last completed count on screen while the next scan runs.</p>
+          </article>
+          <article>
+            <h3>Device alerts</h3>
+            <p>A matching public OUI, advertised name, or documented service signal shows <code>COP DETECTED</code>, <code>FLIPPER DETECTED</code>, or <code>KARR DETECTED</code> as fixed pages, one second each. A BadgeMagic name or <code>FEE0</code> service shows three one-second dancing-frog frames using two alternating poses. The nametag or counter returns after the last frame.</p>
+          </article>
+        </div>
+        <aside class="caveat">
+          <strong>These matches are hints, not identification.</strong> BLE addresses rotate, names can be copied, vendors share components, and service UUIDs can be reused. Passive scans also miss names sent only in scan responses. The <code>FEE0</code> fallback can match other compatible badges.
+        </aside>
+      </section>
+
+      <section class="evidence-section" id="latest" aria-labelledby="latest-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">Firmware</p>
+            <h2 id="latest-title">Latest firmware</h2>
+          </div>
+          <a class="text-link" href="https://github.com/pierce403/frogalert/releases">All releases →</a>
+        </div>
+        <article class="latest-release-card" aria-live="polite">
+          <div class="latest-release-copy">
+            <p id="latest-release-channel" class="release-channel">Loading release catalog…</p>
+            <h3 id="latest-release-version">FrogAlert firmware</h3>
+            <p id="latest-release-summary">Loading the latest release.</p>
+            <p><strong>Supported boards:</strong> <span id="latest-release-markings">Loading…</span></p>
+            <p>FrogAlert is based on <a href="https://github.com/fossasia/badgemagic-firmware">FOSSASIA's open-source BadgeMagic firmware</a> and remains compatible with BadgeMagic app uploads.</p>
+          </div>
+          <div class="latest-release-actions">
+            <a class="button button-primary" href="./flash/">Flash latest published firmware</a>
+            <a id="latest-top-download" class="button button-secondary" hidden download>Download top-button image</a>
+            <a id="latest-bottom-download" class="button button-secondary" hidden download>Download bottom-button image</a>
+            <a id="latest-release-notes" class="text-link" hidden target="_blank" rel="noopener noreferrer">Release notes →</a>
+          </div>
+        </article>
+        <p class="release-warning">The original read-protected firmware cannot be backed up or restored after the first flash.</p>
+
+        <div class="rule-table-wrap">
+          <table>
+            <caption>Built-in detection rules</caption>
+            <thead><tr><th>Signal</th><th>Source</th><th>Result</th><th>Guardrail</th></tr></thead>
+            <tbody>
+              <tr><td><code>FEE0</code></td><td>Advertised BadgeMagic 16-bit service</td><td>Three-frog dance · 3 × 1 s</td><td>Passive fallback; may false-positive</td></tr>
+              <tr><td><code>LED Badge Magic</code></td><td>Exact advertised name</td><td>Three-frog dance · 3 × 1 s</td><td>Exact, case-insensitive hint; trailing null padding allowed</td></tr>
+              <tr><td><code>QT </code> + serial</td><td>Advertised name prefix</td><td><code>KARR DETECTED</code></td><td>Case-insensitive; must start the name and include a value</td></tr>
+              <tr><td><code>00:25:DF</code></td><td>Axon public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
+              <tr><td><code>B4:1E:52</code></td><td>Flock Safety public OUI</td><td><code>COP DETECTED</code></td><td>Public addresses only</td></tr>
+              <tr><td><code>01AB</code> + <code>FD5F</code></td><td>Meta manufacturer ID + 16-bit service</td><td><code>COP DETECTED</code></td><td>Both fields required; passive Meta-glasses hint</td></tr>
+              <tr><td><code>Ray-Ban</code> / <code>Ray Ban</code></td><td>Text within advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive Meta-glasses hint</td></tr>
+              <tr><td><code>Axon Body</code></td><td>Text within advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>TASER</code></td><td>Text within advertised name</td><td><code>COP DETECTED</code></td><td>Case-insensitive hint</td></tr>
+              <tr><td><code>3081</code>, <code>3082</code>, or <code>3083</code></td><td>Flipper hardware-color 16-bit service</td><td><code>FLIPPER DETECTED</code></td><td>Any one service is sufficient</td></tr>
+              <tr><td><code>Flipper</code></td><td>Text within advertised name</td><td><code>FLIPPER DETECTED</code></td><td>Case-insensitive hint</td></tr>
+            </tbody>
+          </table>
+          <p class="caveat"><strong>Detection priority:</strong> frog dance → KARR → COP → Flipper. Rules with the same result share that priority; custom rules run after built-ins.</p>
+          <p class="caveat"><strong>Passive scan limit:</strong> discovery does not request scan responses. A device name present only there cannot match, so advertised <code>FEE0</code> provides a broad BadgeMagic-compatible fallback without claiming device identity.</p>
+        </div>
+      </section>
+
+      <section class="flash-section" id="flash-lab" aria-labelledby="flash-title" hidden>
+        <div class="flash-intro">
+          <p class="section-kicker">Browser tools</p>
+          <h2 id="flash-title">Flash your badge</h2>
+          <p>The guided WebUSB flasher installs and verifies the matching release. Successful CI-audited counter builds publish automatically for phone flashing; the release card reports whether the exact build has hardware-test evidence. The tools below can inspect a running badge, bootloader, or BIN without changing it.</p>
+          <p class="honesty-note"><strong>USB-C profiles:</strong> opened PCBs marked <code>B1144C_250901</code> and <code>B1144C_260404</code> have been photographed with WCH <code>CH582M</code> chips. The profiles share the LED matrix and KEY2 electrical mapping but not KEY2's physical position: it is nearest USB on <code>250901</code> and farther from USB on <code>260404</code>. The open KEY1 switch cannot be distinguished passively at boot, so select the printed PCB marking instead of relying on auto-detection. Ordinary long-press entry works only after compatible FOSSASIA or FrogAlert firmware supplies that hook; the release card states whether that exact build has a physical recovery smoke test. Original or unknown firmware reaches a revision-specific, hazardous expert-recovery boundary outside the browser tool.</p>
+          <p><a class="button button-primary" href="./flash/">Open flasher and recovery steps</a></p>
+          <div id="capability-status" class="capability-pill" role="status">Checking browser capabilities…</div>
+          <noscript><p class="device-status" data-tone="bad">JavaScript is required for browser hardware access. The project documentation remains available without it.</p></noscript>
+        </div>
+
+        <div class="connection-grid">
+          <article class="connection-card">
+            <div class="connection-heading">
+              <span class="step-tag">READ ONLY</span>
+              <h3>Running badge</h3>
+            </div>
+            <p>Ask for a BadgeMagic device advertising service <code>FEE0</code>, then verify characteristic <code>FEE1</code>. This probe changes nothing.</p>
+            <button id="bluetooth-connect" class="button button-secondary" type="button" disabled>Check with Web Bluetooth</button>
+            <p id="bluetooth-status" class="device-status" role="status" aria-live="polite">Ready for a compatibility probe.</p>
+          </article>
+
+          <article class="connection-card connection-card-danger">
+            <div class="connection-heading">
+              <span class="step-tag">NO WRITE ON CONNECT</span>
+              <h3>WCH bootloader</h3>
+            </div>
+            <p>After compatible firmware is installed, hold KEY2 for about 2.2 seconds and release when one dot lights near the middle. Choose <code>4348:55e0</code> or <code>1a86:55e0</code> during the observed 9–13 second window. Original or unknown firmware does not get this routine path. Connecting does not erase or program anything.</p>
+            <button id="usb-connect" class="button button-primary" type="button" disabled>Connect + identify CH582</button>
+            <p id="usb-status" class="device-status" role="status" aria-live="polite">Waiting for a WCH ISP bootloader.</p>
+            <dl class="device-facts">
+              <div><dt>Target</dt><dd id="chip-name">not connected</dd></div>
+              <div><dt>Bootloader</dt><dd id="bootloader-version">—</dd></div>
+              <div><dt>UID check</dt><dd id="uid-status">—</dd></div>
+            </dl>
+          </article>
+        </div>
+
+        <div class="flash-console">
+          <div class="console-header">
+            <div>
+              <p class="terminal-label">Firmware inspector</p>
+              <h3>Check a firmware file</h3>
+            </div>
+            <span class="experimental-label">READ ONLY</span>
+          </div>
+
+          <div class="field-group revision-gate">
+            <label for="pcb-marking">Opened-board record</label>
+            <input id="pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Copy visible PCB markings, or record that none are printed">
+            <p class="field-help">Kept only in this page. Copy the physical silkscreen/revision exactly; if none is visible, say so and retain front/back photos. This record does not itself prove compatibility.</p>
+          </div>
+
+          <div class="field-group revision-gate">
+            <label for="pcb-revision">Firmware hardware profile</label>
+            <input id="pcb-revision" type="text" maxlength="64" autocomplete="off" spellcheck="false" placeholder="Enter only after opening and identifying the board">
+            <p class="field-help"><code>HARDWARE_REV1</code> is an upstream build-profile token, not a value printed on the PCB. USB identification only proves the MCU family; it cannot identify the display wiring. Unknown boards, <code>HARDWARE_REV2</code>, and <code>HARDWARE_REV3</code> stay disabled.</p>
+          </div>
+
+          <section class="open-recovery" aria-labelledby="open-recovery-title">
+            <div class="open-recovery-heading">
+              <div>
+                <p class="terminal-label">Open BadgeMagic firmware</p>
+                <h4 id="open-recovery-title">Install open BadgeMagic firmware</h4>
+              </div>
+              <span class="experimental-label">NOT HARDWARE-VERIFIED BY FROGALERT</span>
+            </div>
+            <p>The original OEM image is unavailable and unrecoverable. This does not restore the badge's original firmware; it prepares FOSSASIA's open BadgeMagic-compatible replacement for the exact Micro-USB <code>HARDWARE_REV1</code> board only.</p>
+            <p class="recovery-warning"><strong>Preparation does not touch USB:</strong> this button loads the file and verifies its size and SHA-256 in your browser. Use the <a href="./flash/">flasher</a> for any write.</p>
+            <p class="recovery-warning"><strong>This bundled image cannot be programmed from the site yet:</strong> FrogAlert has not completed the required physical <code>HARDWARE_REV1</code> test. The local BIN chooser below is read-only on this page; qualified bench testing is available in the flasher.</p>
+            <label class="recovery-identity"><input id="recovery-board-confirmation" type="checkbox"> I opened the badge, read <strong>CH582M</strong>, counted exactly <strong>44 columns</strong>, confirmed the <strong>Micro-USB</strong> layout, and compared both sides with FOSSASIA's <a href="https://github.com/fossasia/badgemagic-firmware/blob/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8/CH582.md#hardware-details" target="_blank" rel="noopener noreferrer">reference photos</a>.</label>
+            <button id="recovery-prepare" class="button button-secondary" type="button" disabled>Prepare open BadgeMagic firmware</button>
+            <p id="recovery-status" class="device-status" role="status" aria-live="polite">Loading the reviewed upstream recovery descriptor…</p>
+            <dl class="recovery-facts">
+              <div><dt>Upstream</dt><dd id="recovery-version">—</dd></div>
+              <div><dt>Exact target</dt><dd id="recovery-target">—</dd></div>
+              <div><dt>Source commit</dt><dd id="recovery-source">—</dd></div>
+              <div><dt>Artifact size</dt><dd id="recovery-size">—</dd></div>
+              <div><dt>SHA-256</dt><dd id="recovery-hash">—</dd></div>
+              <div><dt>FrogAlert evidence</dt><dd id="recovery-verification">hardware-unverified</dd></div>
+            </dl>
+          </section>
+
+          <div class="artifact-grid">
+            <div class="field-group">
+              <label for="release-select">Firmware release</label>
+              <select id="release-select" disabled>
+                <option value="">No release selected</option>
+              </select>
+              <p id="release-status" class="field-help" role="status">Loading firmware releases…</p>
+              <div class="release-links">
+                <a id="release-download" class="text-link" hidden download>Download selected firmware</a>
+                <a id="release-link" class="text-link" hidden target="_blank" rel="noopener noreferrer">Release notes on GitHub</a>
+              </div>
+              <label for="lab-image-select">Additional test firmware</label>
+              <select id="lab-image-select" disabled>
+                <option value="">No hosted lab image selected</option>
+              </select>
+              <p id="lab-image-status" class="field-help" role="status">Loading additional firmware…</p>
+              <a id="lab-image-download" class="text-link" hidden download>Download selected test firmware</a>
+            </div>
+            <div class="divider-label" aria-hidden="true">OR</div>
+            <div class="field-group">
+              <label for="firmware-file">Inspect a BIN</label>
+              <input id="firmware-file" type="file" accept=".bin,application/octet-stream">
+              <p class="field-help">Processed locally. Never uploaded.</p>
+            </div>
+          </div>
+
+          <dl class="artifact-facts">
+            <div><dt>File</dt><dd id="firmware-name">not loaded</dd></div>
+            <div><dt>Size</dt><dd id="firmware-size">—</dd></div>
+            <div><dt>Firmware profile(s)</dt><dd id="firmware-revision">—</dd></div>
+            <div><dt>SHA-256</dt><dd id="firmware-hash">—</dd></div>
+          </dl>
+
+          <ol id="flash-log" class="flash-log" aria-live="polite" aria-label="Flash operation log">
+            <li>Session ready. No device access has been requested.</li>
+          </ol>
+
+          <aside class="recovery-note">
+            <strong>Need recovery after an interrupted write?</strong> Use the <a href="./flash/">guided KEY2 flow</a> only if compatible firmware had already been installed. Original or unknown firmware on the confirmed USB-C board required expert-only C3 recovery outside the browser tool. Keep the selected BIN, and never report success until every chunk passes bootloader verification. The <a href="https://github.com/ch32-rs/wchisp">wchisp CLI</a> remains the bench fallback.
+          </aside>
+        </div>
+      </section>
+
+      <section class="open-section">
+        <p class="section-kicker">Open source</p>
+        <h2>Built on FOSSASIA BadgeMagic</h2>
+        <p>FrogAlert starts with FOSSASIA's open-source BadgeMagic firmware and keeps its app, USB, display, and recovery behavior. The FrogAlert source, tests, build instructions, and hardware notes are public.</p>
+        <div class="open-links">
+          <a href="https://github.com/pierce403/frogalert">GitHub repository <span>↗</span></a>
+          <a href="https://github.com/fossasia/badgemagic-firmware">FOSSASIA firmware <span>↗</span></a>
+          <a href="https://github.com/pierce403/frogalert/blob/main/FEATURES.md">Features and status <span>→</span></a>
+          <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">Supported hardware <span>→</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p><strong>FROGALERT.ORG</strong> · based on <a href="https://github.com/fossasia/badgemagic-firmware">FOSSASIA BadgeMagic</a>.</p>
+      <p>BLE matches are hints, not proof that a particular person or agency is nearby.</p>
+    </footer>
+  </body>
+</html>

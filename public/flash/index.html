@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Identify, flash, verify, and recover a supported CH582M BadgeMagic badge with WebUSB.">
+    <meta name="theme-color" content="#07130d">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="FrogAlert">
+    <meta property="og:title" content="Flash a BadgeMagic badge — FrogAlert">
+    <meta property="og:description" content="WebUSB flashing and recovery for supported CH582M 11×44 BadgeMagic badges.">
+    <meta property="og:url" content="https://frogalert.org/flash/">
+    <meta property="og:image" content="https://frogalert.org/site/og-card-v3.jpg">
+    <meta property="og:image:secure_url" content="https://frogalert.org/site/og-card-v3.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="FrogAlert wordmark above a long edge-to-edge LED nametag showing COP DETECTED">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Flash a BadgeMagic badge — FrogAlert">
+    <meta name="twitter:description" content="WebUSB flashing and recovery for supported CH582M 11×44 BadgeMagic badges.">
+    <meta name="twitter:image" content="https://frogalert.org/site/og-card-v3.jpg">
+    <meta name="twitter:image:alt" content="FrogAlert wordmark above a long edge-to-edge LED nametag showing COP DETECTED">
+    <title>Flash a badge — FrogAlert</title>
+    <link rel="canonical" href="https://frogalert.org/flash/">
+    <link rel="stylesheet" href="../site/styles.css">
+    <link rel="stylesheet" href="../site/flash.css">
+  </head>
+  <body class="flash-page" data-flash-mode="program">
+    <a class="skip-link" href="#flash-main">Skip to flasher</a>
+
+    <header class="site-header flash-header">
+      <a class="wordmark" href="../" aria-label="FrogAlert home">
+        <span class="wordmark-dot" aria-hidden="true"></span>
+        FROG<span>ALERT</span>
+      </a>
+      <a class="flash-exit" href="../">Exit flasher</a>
+    </header>
+
+    <main id="flash-main" class="wizard-shell">
+      <nav class="wizard-progress" aria-label="Flashing progress">
+        <span data-wizard-progress="connect" aria-current="step"><b>1</b> Enter ISP</span>
+        <span data-wizard-progress="firmware"><b>2</b> Choose button</span>
+        <span data-wizard-progress="flash"><b>3</b> Flash</span>
+      </nav>
+
+      <section class="wizard-step" data-wizard-step="connect" aria-labelledby="wizard-connect-title">
+        <p class="section-kicker">Step 1 of 3</p>
+        <h1 id="wizard-connect-title" tabindex="-1">Hold Top or Bottom</h1>
+        <p>Keep the badge display upright and remember which button you use. Tap <strong>Start watching</strong>, leave Chrome's chooser open, then hold either the <strong>Top</strong> or <strong>Bottom</strong> button for about 2.2 seconds. Release when the dot appears and select <strong>WCH ISP</strong>. If no dot appears, repeat with the other button.</p>
+        <p>FrogAlert immediately runs the read-only equivalent of <code>wchisp info</code> to keep the ISP session active. It then asks which button you held; that single click immediately erases, flashes, and verifies the matching image.</p>
+        <p id="capability-status" class="wizard-capability" role="status" aria-live="polite">Checking WebUSB…</p>
+        <dl class="wizard-artifact-summary" aria-label="Prepared top and bottom firmware pair">
+          <div><dt>Release pair</dt><dd id="wizard-pair-version">Loading the latest published pair…</dd></div>
+          <div class="wizard-hash"><dt>Top-button image</dt><dd id="wizard-pair-top">Not verified yet</dd></div>
+          <div class="wizard-hash"><dt>Bottom-button image</dt><dd id="wizard-pair-bottom">Not verified yet</dd></div>
+          <div><dt>Build provenance</dt><dd id="wizard-pair-provenance">Not verified yet</dd></div>
+          <div><dt>Hardware status</dt><dd id="wizard-pair-hardware-status">Not verified yet</dd></div>
+        </dl>
+        <p id="armed-status" class="wizard-inline-status" role="status" aria-live="polite">Preparing and hash-checking both button-matched images…</p>
+        <div class="wizard-device-state" aria-live="polite">
+          <span class="wizard-state-dot" aria-hidden="true"></span>
+          <p id="usb-status">Preparing firmware before opening the WCH ISP chooser…</p>
+        </div>
+        <button id="usb-connect" class="button button-primary wizard-primary-action" type="button" disabled>Start watching for flashing mode</button>
+        <button id="usb-disconnect" class="text-button wizard-disconnect" type="button" disabled>Disconnect badge</button>
+
+        <section id="wizard-application-guide" class="wizard-mode-guide" aria-labelledby="wizard-application-title" hidden>
+          <p class="section-kicker">Badge detected in normal mode</p>
+          <h2 id="wizard-application-title" tabindex="-1">Hold Top or Bottom</h2>
+          <p id="wizard-application-instruction">With the badge display upright, tap Start watching first. Keep the chooser open, then hold either the top or bottom button for about 2.2 seconds. Release at the dot, select WCH ISP, and remember which button you held.</p>
+          <div class="wizard-entry-actions">
+            <button id="wizard-application-success" class="button button-primary" type="button">Start watching for flashing mode</button>
+          </div>
+        </section>
+
+        <details id="wizard-isp-help" class="wizard-help">
+          <summary>Badge not detected?</summary>
+          <p>If compatible firmware is running, tap <strong>Start watching</strong>, keep Chrome's chooser open, then hold either button for about 2.2 seconds. Release when one dot lights near the middle and select WCH ISP promptly.</p>
+          <p><code>260404</code>: KEY2 is farther from USB. <code>250901</code>: KEY2 is nearest USB.</p>
+          <p>Original or unknown firmware may require qualified C3 bench recovery. Do not disturb the soldered battery.</p>
+        </details>
+      </section>
+
+      <section class="wizard-step" data-wizard-step="firmware" aria-labelledby="wizard-firmware-title" hidden>
+        <p class="section-kicker">Step 2 of 3</p>
+        <h1 id="wizard-firmware-title" tabindex="-1">Which button entered flashing mode?</h1>
+        <p id="wizard-device-summary" class="wizard-success-line" role="status">CH582 ISP badge connected.</p>
+        <p>The read-only info exchange is complete and the bootloader interface remains claimed. Both published images were already downloaded and verified. With the badge display upright and readable, choose the button you actually held; that click erases, flashes, and byte-verifies the matching image immediately.</p>
+        <div id="wizard-button-choice" class="wizard-entry-actions">
+          <button id="wizard-button-top" class="button button-danger" type="button" data-isp-button="top">Top button — erase and flash top image now</button>
+          <button id="wizard-button-bottom" class="button button-danger" type="button" data-isp-button="bottom">Bottom button — erase and flash bottom image now</button>
+          <button id="wizard-button-stop" class="text-button" type="button">Not sure — stop without writing</button>
+        </div>
+        <p id="wizard-profile-hint" class="wizard-inline-status" hidden></p>
+
+        <div hidden aria-hidden="true">
+          <select id="pcb-revision" tabindex="-1">
+            <option value=""></option>
+            <option value="B1144C_260404_USB_C">Top-button image</option>
+            <option value="B1144C_250901_USB_C">Bottom-button image</option>
+            <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1</option>
+          </select>
+          <input id="pcb-marking" type="text" tabindex="-1">
+        </div>
+
+        <dl class="wizard-artifact-summary">
+          <div><dt>Update</dt><dd id="firmware-name">Checking the release catalog…</dd></div>
+          <div><dt>Size</dt><dd id="firmware-size">—</dd></div>
+          <div><dt>Profile</dt><dd id="firmware-revision">—</dd></div>
+          <div class="wizard-hash"><dt>SHA-256</dt><dd id="firmware-hash">—</dd></div>
+          <div><dt>Build provenance</dt><dd id="firmware-provenance">—</dd></div>
+          <div><dt>Hardware status</dt><dd id="firmware-verification">—</dd></div>
+        </dl>
+        <p id="wizard-firmware-status" class="wizard-inline-status" role="status" aria-live="polite">Both button-matched images are verified and ready.</p>
+        <div class="wizard-actions">
+          <button id="wizard-firmware-back" class="button button-secondary" type="button">Disconnect without writing</button>
+        </div>
+      </section>
+
+      <section class="wizard-step" data-wizard-step="flash" aria-labelledby="wizard-flash-title" hidden>
+        <p class="section-kicker">Step 3 of 3</p>
+        <h1 id="wizard-flash-title" tabindex="-1">Flash and verify</h1>
+        <dl id="wizard-final-summary" class="wizard-final-summary"></dl>
+        <button id="flash-button" class="button button-danger wizard-primary-action" type="button" disabled hidden>Erase, flash, and verify</button>
+        <p id="wizard-flash-status" class="wizard-inline-status" role="status" aria-live="assertive">No write has started.</p>
+        <div class="progress-wrap flash-progress-wrap">
+          <label id="progress-label" for="flash-progress">Ready to begin</label>
+          <progress id="flash-progress" max="100" value="0">0%</progress>
+          <ol class="progress-stages" aria-label="Programming stages">
+            <li id="stage-identify">Identify</li>
+            <li id="stage-config">Config</li>
+            <li id="stage-erase">Erase</li>
+            <li id="stage-program">Program</li>
+            <li id="stage-verify">Verify</li>
+            <li id="stage-reset">Reset</li>
+          </ol>
+        </div>
+        <div class="wizard-actions">
+          <button id="wizard-flash-back" class="button button-secondary" type="button">Back</button>
+        </div>
+        <details class="wizard-help">
+          <summary>Session log</summary>
+          <div class="log-heading">
+            <h2>Session log</h2>
+            <button id="copy-log" class="text-button" type="button" disabled>Copy</button>
+          </div>
+          <ol id="flash-log" class="flash-log" role="log" aria-live="polite" aria-relevant="additions text">
+            <li>No device access requested. No write command sent.</li>
+          </ol>
+        </details>
+      </section>
+
+      <section class="wizard-step" data-wizard-step="success" aria-labelledby="wizard-success-title" hidden>
+        <p class="section-kicker">Complete</p>
+        <h1 id="wizard-success-title" tabindex="-1">Badge updated</h1>
+        <p id="wizard-result" class="wizard-success-line" role="status" aria-live="polite">Firmware was programmed and verified.</p>
+        <button id="wizard-restart" class="button button-primary wizard-primary-action" type="button">Flash another badge</button>
+        <a class="text-link wizard-home-link" href="../">Return to FrogAlert</a>
+      </section>
+    </main>
+
+    <div class="legacy-flasher" hidden aria-hidden="true">
+    <main id="legacy-flash-main" class="flash-main">
+      <section class="flash-hero flash-hero-compact" aria-labelledby="flash-title">
+        <div class="flash-hero-copy">
+          <p class="eyebrow">Phone-first WebUSB updater</p>
+          <h1 id="flash-title">Update your badge.</h1>
+          <p class="lede">
+            On Android Chrome, connect the badge through a data-capable USB OTG adapter. Choose the board, load a BIN, enter ISP, then program and verify it here. Connecting alone never writes.
+          </p>
+          <div class="mobile-readiness" aria-label="Phone flashing requirements">
+            <span>Android Chrome</span>
+            <span>USB OTG + data cable</span>
+            <span>CH582M · 11×44</span>
+          </div>
+        </div>
+
+        <details class="hero-safety">
+          <summary id="irreversible-title">First flash is irreversible</summary>
+          <p>The read-protected OEM firmware cannot be backed up. Once replaced, it cannot be restored unless you already have a recoverable exact-board image.</p>
+          <p>FOSSASIA's open firmware is a compatible substitute for one exact Micro-USB profile, not the original firmware.</p>
+        </details>
+      </section>
+
+      <nav class="workflow-nav" aria-label="Flashing workflow">
+        <a href="#preflight"><span>1</span> Check browser</a>
+        <a href="#connect"><span>2</span> Identify badge</a>
+        <a href="#artifact"><span>3</span> Verify image</a>
+        <a href="#confirm"><span>4</span> Confirm hardware</a>
+        <a href="#program"><span>5</span> Program + verify</a>
+      </nav>
+
+      <section id="preflight" class="flash-panel" aria-labelledby="preflight-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">Step 1 / browser support</p>
+            <h2 id="preflight-title">Check WebUSB before opening the badge</h2>
+          </div>
+          <p id="legacy-capability-status" class="status-summary" role="status" aria-live="polite">Preflight has not run.</p>
+        </div>
+
+        <details class="compact-disclosure">
+          <summary>Show all browser and USB checks</summary>
+        <div class="preflight-grid" aria-label="Browser support checks">
+          <article class="preflight-item">
+            <p class="preflight-label">Secure context</p>
+            <p id="secure-context-status" class="preflight-value" data-tone="unknown">Not checked</p>
+            <p>Public hardware access requires HTTPS. Local development may use localhost.</p>
+          </article>
+          <article class="preflight-item">
+            <p class="preflight-label">WebUSB</p>
+            <p id="webusb-support-status" class="preflight-value" data-tone="unknown">Not checked</p>
+            <p>Required to identify, erase, program, and verify through WCH ISP.</p>
+          </article>
+          <article class="preflight-item">
+            <p class="preflight-label">Web Bluetooth</p>
+            <p id="webbluetooth-support-status" class="preflight-value" data-tone="unknown">Not checked</p>
+            <p>Optional, read-only probe for a running badge's legacy service.</p>
+          </article>
+          <article class="preflight-item">
+            <p class="preflight-label">USB permission</p>
+            <p id="usb-permission-status" class="preflight-value" data-tone="unknown">Not requested</p>
+            <p>The device chooser must follow an explicit tap or click.</p>
+          </article>
+          <article class="preflight-item">
+            <p class="preflight-label">Browser platform</p>
+            <p id="platform-status" class="preflight-value" data-tone="unknown">Not checked</p>
+            <p>Mobile support depends on both the browser and a data-capable USB host connection.</p>
+          </article>
+          <article class="preflight-item">
+            <p class="preflight-label">Screen wake lock</p>
+            <p id="wake-lock-status" class="preflight-value" data-tone="unknown">Not requested</p>
+            <p>A supported browser may keep the screen awake only during an active write.</p>
+          </article>
+        </div>
+        </details>
+
+        <aside id="phone-guidance" class="phone-note" role="status" aria-live="polite">
+          <strong>Using a phone?</strong> Android Chrome with USB OTG may expose WebUSB, but this path remains experimental until it passes a physical flash and recovery test. iPhone and iPad browsers do not expose WebUSB. If the preflight reports no USB support, use current desktop Chrome or Edge and the documented <a href="https://github.com/ch32-rs/wchisp">wchisp CLI</a> fallback.
+        </aside>
+
+        <noscript>
+          <p class="noscript-warning">JavaScript is disabled. Device inspection and flashing controls must remain locked; the recovery instructions below are still available.</p>
+        </noscript>
+      </section>
+
+      <section id="connect" class="flash-panel" aria-labelledby="connect-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">Step 2 / Bluetooth or USB</p>
+            <h2 id="connect-title">Choose how the badge is connected</h2>
+          </div>
+          <p>Web Bluetooth cannot install firmware. WebUSB cannot inspect the running BadgeMagic app protocol.</p>
+        </div>
+
+        <div class="mode-grid mode-grid-phone-first">
+          <article class="mode-card mode-card-safe">
+            <div class="mode-card-heading">
+              <span class="source-badge source-detected">Browser detected</span>
+              <span class="step-tag">NON-DESTRUCTIVE</span>
+            </div>
+            <h3>Running badge via Bluetooth</h3>
+            <p>Choose a nearby badge advertising service <code>FEE0</code>. The probe checks for the legacy <code>FEE1</code> characteristic, disconnects, and changes no content.</p>
+            <button id="bluetooth-connect" class="button button-secondary" type="button" disabled>Probe running badge</button>
+            <p id="bluetooth-status" class="device-status" role="status" aria-live="polite">Waiting for browser support.</p>
+          </article>
+
+          <article class="mode-card mode-card-usb">
+            <div class="mode-card-heading">
+              <span class="source-badge source-detected">Browser detected</span>
+              <span class="step-tag">READ-ONLY FIRST</span>
+            </div>
+            <h3>WCH ISP bootloader via USB</h3>
+            <p>Choose the USB bootloader, not the running Bluetooth badge. The first connection identifies chip <code>0x82</code>, family <code>0x16</code>, and configuration without erasing or programming.</p>
+            <div class="isp-entry-summary">
+              <p><strong>Confirmed reference board:</strong> the photographed USB-C PCB marked <code>B1144C_250901</code> has a WCH <code>CH582M</code> and an 11×44 display.</p>
+              <p><strong>Locate KEY2 from the printed revision:</strong> on <code>B1144C_260404</code>, KEY2 is the side button <strong>farther from USB</strong>; on <code>B1144C_250901</code>, it is the button <strong>nearest USB</strong>. Do not infer the button from enclosure color.</p>
+              <p><strong>After compatible FOSSASIA or FrogAlert firmware is installed:</strong> keep USB connected and hold the correct <strong>KEY2 for about 2.2 seconds</strong>. Release when one dot lights near the middle, then choose <code>4348:55e0</code> or <code>1a86:55e0</code> within the observed 9–13 second ISP window. Automatically published releases are structurally audited but may not have a physical recovery smoke test.</p>
+              <p><strong>Original or unknown firmware:</strong> the ordinary long-press hook is not available. Revision-specific first entry may require expert-only C3 bench recovery; this page does not guide that hazardous operation. RESET plus the correctly identified KEY2 was tested without success only on the photographed <code>250901</code> board.</p>
+            </div>
+            <div class="button-row">
+              <button id="isp-guide-start" class="button button-primary" type="button" aria-controls="isp-entry-guide" aria-expanded="false">Guide: compatible-firmware KEY2 entry</button>
+              <button id="legacy-usb-connect" class="button button-secondary" type="button" disabled>Dot is lit — choose CH582 now</button>
+              <button id="legacy-usb-disconnect" class="button button-secondary" type="button" disabled>End USB session</button>
+            </div>
+
+            <section id="isp-entry-guide" class="isp-entry-guide" hidden tabindex="-1" role="region" aria-labelledby="isp-guide-title" data-state="closed">
+              <p class="terminal-label">ROUTINE KEY2 BOOTLOADER GUIDE · COMPATIBLE FIRMWARE ONLY · NO ERASE OR WRITE</p>
+              <h4 id="isp-guide-title">Step 1 of 5: Confirm compatible firmware</h4>
+              <ol class="isp-guide-overview" aria-label="Compatible-firmware bootloader entry sequence">
+                <li data-guide-phase="confirm-compatible" aria-current="step"><span>1</span><p><strong>Confirm compatible firmware is already installed.</strong> Original or unknown firmware must stop here.</p></li>
+                <li data-guide-phase="usb-connected"><span>2</span><p><strong>Connect stable data USB</strong> and leave it connected.</p></li>
+                <li data-guide-phase="hold-key2"><span>3</span><p><strong>Hold KEY2 for about 2.2 seconds.</strong> It is farther from USB on <code>260404</code> and nearest USB on <code>250901</code>.</p></li>
+                <li data-guide-phase="wait-for-dot"><span>4</span><p><strong>Release when one dot lights near the middle.</strong></p></li>
+                <li data-guide-phase="connect-window"><span>5</span><p><strong>Open the chooser promptly.</strong> Look for <code>4348:55e0</code> or <code>1a86:55e0</code> during the observed 9–13 second window.</p></li>
+              </ol>
+              <p id="isp-guide-instruction">Use this routine guide only after compatible FOSSASIA or FrogAlert firmware is installed. A CI-audited release may not have a physical recovery smoke test.</p>
+              <p id="isp-guide-step" class="device-status" role="status" aria-live="polite" aria-atomic="true">No device chooser has opened. Nothing has changed.</p>
+              <output id="isp-guide-countdown" class="isp-guide-countdown" role="timer" aria-live="off" hidden></output>
+              <div class="button-row isp-guide-actions">
+                <button id="isp-guide-back" class="button button-secondary" type="button" disabled>Back</button>
+                <button id="isp-guide-next" class="button button-primary" type="button">Compatible firmware is installed</button>
+                <button id="isp-guide-connect" class="button button-primary" type="button" hidden disabled>Choose WCH bootloader now</button>
+                <button id="isp-guide-retry" class="button button-secondary" type="button" hidden>Start KEY2 steps again</button>
+                <button id="isp-guide-cancel" class="button button-secondary" type="button">Close guide</button>
+              </div>
+            </section>
+
+            <p id="legacy-usb-status" class="device-status" role="status" aria-live="polite">After compatible firmware shows the single dot, choose the WCH bootloader promptly. Original or unknown firmware on the confirmed USB-C board requires expert bench recovery outside this tool. Identification is read-only.</p>
+          </article>
+        </div>
+
+        <details class="compact-disclosure device-facts">
+          <summary>Show detected device facts</summary>
+        <div class="capabilities-wrap" tabindex="0" role="region" aria-labelledby="capabilities-title">
+          <table class="capabilities-table">
+            <caption id="capabilities-title">What this session actually knows</caption>
+            <thead>
+              <tr>
+                <th scope="col">Capability or fact</th>
+                <th scope="col">Current value</th>
+                <th scope="col">How it is known</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">USB target</th>
+                <td id="chip-name">Not connected</td>
+                <td><span class="source-badge source-detected">Detected</span> WCH Identify response</td>
+              </tr>
+              <tr>
+                <th scope="row">Chip / family bytes</th>
+                <td id="chip-identity">—</td>
+                <td><span class="source-badge source-detected">Detected</span> must be <code>0x82 / 0x16</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Bootloader version</th>
+                <td id="bootloader-version">—</td>
+                <td><span class="source-badge source-detected">Detected</span> read-only config response</td>
+              </tr>
+              <tr>
+                <th scope="row">UID integrity</th>
+                <td id="uid-status">—</td>
+                <td><span class="source-badge source-detected">Detected</span> validated locally; raw UID is not displayed</td>
+              </tr>
+              <tr>
+                <th scope="row">BadgeMagic <code>FEE0/FEE1</code></th>
+                <td id="badge-gatt-status">Not probed</td>
+                <td><span class="source-badge source-detected">Detected</span> only while application firmware is running</td>
+              </tr>
+              <tr>
+                <th scope="row">Running Bluetooth name</th>
+                <td id="runtime-device-name">Not probed</td>
+                <td><span class="source-badge source-detected">Detected</span> untrusted display name, not an identity proof</td>
+              </tr>
+              <tr>
+                <th scope="row">Running GATT profile</th>
+                <td id="runtime-profile">Not probed</td>
+                <td><span class="source-badge source-detected">Detected</span> legacy FEE0/FEE1 only; other profiles are not queried</td>
+              </tr>
+              <tr>
+                <th scope="row">Self-reported firmware revision</th>
+                <td id="runtime-firmware">Not probed</td>
+                <td><span class="source-badge source-detected">Detected if exposed</span> optional Device Information value; not independently verified</td>
+              </tr>
+              <tr>
+                <th scope="row">Self-reported manufacturer</th>
+                <td id="runtime-manufacturer">Not probed</td>
+                <td><span class="source-badge source-detected">Detected if exposed</span> optional Device Information text</td>
+              </tr>
+              <tr>
+                <th scope="row">Self-reported model</th>
+                <td id="runtime-model">Not probed</td>
+                <td><span class="source-badge source-detected">Detected if exposed</span> optional Device Information text</td>
+              </tr>
+              <tr>
+                <th scope="row">Exact installed firmware or version</th>
+                <td id="current-firmware-status">Current firmware is unknown unless it self-reports a version</td>
+                <td><span class="source-badge source-unavailable">Unavailable</span> the bootloader cannot report it; optional GATT text is not proof of flash contents</td>
+              </tr>
+              <tr>
+                <th scope="row">Authorized USB device</th>
+                <td id="authorized-usb-status">None</td>
+                <td><span class="source-badge source-detected">Detected</span> browser permission for the captured device only</td>
+              </tr>
+              <tr>
+                <th scope="row">USB vendor / product ID</th>
+                <td id="usb-id">—</td>
+                <td><span class="source-badge source-detected">Detected</span> descriptor, not sufficient target proof</td>
+              </tr>
+              <tr>
+                <th scope="row">USB product</th>
+                <td id="usb-product">—</td>
+                <td><span class="source-badge source-detected">Detected if exposed</span> untrusted descriptor text</td>
+              </tr>
+              <tr>
+                <th scope="row">USB manufacturer</th>
+                <td id="usb-manufacturer">—</td>
+                <td><span class="source-badge source-detected">Detected if exposed</span> untrusted descriptor text</td>
+              </tr>
+              <tr>
+                <th scope="row">USB device version</th>
+                <td id="usb-version">—</td>
+                <td><span class="source-badge source-detected">Detected if exposed</span> USB descriptor, not installed firmware</td>
+              </tr>
+              <tr>
+                <th scope="row">Configuration state</th>
+                <td id="usb-config-state">Not read</td>
+                <td><span class="source-badge source-detected">Detected</span> summarized without guessing what differing bits mean</td>
+              </tr>
+              <tr>
+                <th scope="row">Physical PCB marking</th>
+                <td id="pcb-marking-status">Not recorded</td>
+                <td><span class="source-badge source-confirmed">User confirmed</span> read from the opened board</td>
+              </tr>
+              <tr>
+                <th scope="row">Board revision and display wiring</th>
+                <td id="board-detection-status">PCB revision cannot be detected remotely</td>
+                <td><span class="source-badge source-unavailable">Unavailable</span> requires an opened-board record and physical comparison</td>
+              </tr>
+              <tr>
+                <th scope="row">Display geometry</th>
+                <td id="matrix-status">Not confirmed</td>
+                <td><span class="source-badge source-confirmed">User confirmed</span> exactly 11 rows × 44 columns</td>
+              </tr>
+              <tr>
+                <th scope="row">Firmware hardware profile</th>
+                <td id="selected-profile-status">Not selected</td>
+                <td><span class="source-badge source-confirmed">User selected</span> bound to the chosen image</td>
+              </tr>
+              <tr>
+                <th scope="row">OEM backup</th>
+                <td id="oem-backup-status">Impossible through this device</td>
+                <td><span class="source-badge source-unavailable">Unavailable</span> read protection prevents a dump</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        </details>
+        <p class="honesty-note"><strong>What the page cannot tell you:</strong> a Bluetooth name such as <code>LSLED</code> does not identify the firmware or PCB. Unless firmware reports authenticated version metadata, the exact installed image remains unknown.</p>
+      </section>
+
+      <details id="recovery" class="flash-panel recovery-panel section-disclosure">
+        <summary>
+          <span><span class="section-kicker">Recovery</span><strong id="recovery-title">Badge will not enter ISP?</strong></span>
+          <span>Open recovery steps</span>
+        </summary>
+        <div class="section-disclosure-body">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">Recovery / know which firmware is running</p>
+            <h2>KEY2 entry is provided by compatible firmware.</h2>
+          </div>
+          <span class="source-badge source-confirmed">Physical steps</span>
+        </div>
+
+        <div class="recovery-layout">
+          <div>
+            <h3>Routine sequence after compatible firmware is installed</h3>
+            <ol class="recovery-steps">
+              <li><span>1</span><p><strong>Keep USB connected</strong> to a stable data-capable port or phone OTG adapter.</p></li>
+              <li><span>2</span><p><strong>Press and keep holding the revision's KEY2:</strong> farther from USB on <code>260404</code>, nearest USB on <code>250901</code>.</p></li>
+              <li><span>3</span><p><strong>Hold for about 2.2 seconds</strong> only when running compatible FOSSASIA or FrogAlert firmware. CI-audited releases may not have a physical KEY2 recovery test.</p></li>
+              <li><span>4</span><p><strong>Release when one dot lights near the middle,</strong> then immediately use <em>Dot is lit — choose CH582 now</em>.</p></li>
+              <li><span>5</span><p><strong>Accept only <code>4348:55e0</code> or <code>1a86:55e0</code>.</strong> The observed ISP window is about 9–13 seconds. If the chooser shows nothing, retry only when compatible firmware is known to be installed.</p></li>
+            </ol>
+          </div>
+
+          <aside class="recovery-checklist">
+            <h3>Which button should I use?</h3>
+            <dl>
+              <div>
+                <dt>Badge still advertises over Bluetooth</dt>
+                <dd>Use <strong>Probe running badge</strong> first. It cannot repair firmware.</dd>
+              </div>
+              <div>
+                <dt>Badge is blank, frozen, or a flash was interrupted</dt>
+                <dd>If compatible firmware was installed, retry its KEY2 sequence. If the firmware is original or unknown, stop and move to qualified bench recovery.</dd>
+              </div>
+              <div>
+                <dt>CH582 is identified</dt>
+                <dd>Select and hash-check an exact-board image before confirming any write.</dd>
+              </div>
+              <div>
+                <dt>No USB bootloader appears</dt>
+                <dd>Retry with a known data cable and direct port. Do not erase based on Bluetooth identity.</dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+
+        <details class="advanced-recovery">
+          <summary>Why does original or unknown firmware need expert recovery?</summary>
+          <p>On the confirmed USB-C <code>B1144C_250901</code> board, holding its KEY2—the button nearest USB—while pressing the populated RESET switch did not enter ISP. Its documented first entry required a qualified operator to hold KEY2 while momentarily bridging both ends of PCB capacitor <code>C3</code>. Nyx documents the same C3 operation for <code>B1144C_260404</code>, but with KEY2 explicitly identified as the button farther from USB; FrogAlert has not yet captured a successful ISP enumeration for that revision. This hazardous rail-collapse maneuver is not routine, is not a battery operation, and is deliberately not implemented as a website checklist. Leave the soldered cell and its leads alone. Review the <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">hardware evidence and safety boundary</a> and <a href="https://badge.nyx.ms/flash.html">Nyx's revision-specific notes</a> before qualified bench work.</p>
+        </details>
+        </div>
+      </details>
+
+      <form id="flash-workflow" novalidate>
+        <section id="artifact" class="flash-panel" aria-labelledby="artifact-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Step 3 / choose and verify bytes locally</p>
+              <h2 id="artifact-title">Match the BIN to the opened board</h2>
+            </div>
+            <span class="experimental-label">CI BUILDS AUTO-PUBLISH · HARDWARE STATUS SHOWN</span>
+          </div>
+
+          <div class="board-record-grid">
+            <div class="field-group">
+              <label for="legacy-pcb-marking">Physical PCB marking</label>
+              <input id="legacy-pcb-marking" type="text" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Copy the opened-board marking, or write: none printed">
+              <p class="field-help">This is a physical record. Keep front/back photos if no marking is printed.</p>
+            </div>
+            <div class="field-group">
+              <label for="legacy-pcb-revision">Firmware hardware profile</label>
+              <select id="legacy-pcb-revision">
+                <option value="">Select after opening the badge</option>
+                <option value="B1144C_260404_USB_C">Nyx 260404 · active-low KEY1 wiring (build default)</option>
+                <option value="B1144C_250901_USB_C">Legacy 250901 · active-high KEY1 wiring</option>
+                <option value="HARDWARE_REV1">FOSSASIA Micro-USB Rev1 recovery only</option>
+              </select>
+              <p class="field-help">Match the printed <code>B1144C_260404</code> or <code>B1144C_250901</code> marking. Color and the generic <code>BM1144-C</code> name are not enough.</p>
+            </div>
+          </div>
+
+          <div class="artifact-options artifact-options-compact">
+            <article class="artifact-option">
+              <p class="terminal-label">RELEASE CHANNEL</p>
+              <h3>FrogAlert release</h3>
+              <label for="release-select">Published image</label>
+              <select id="release-select" disabled>
+                <option value="">Firmware selected automatically by button path</option>
+              </select>
+              <p id="release-status" class="field-help" role="status">Successful CI-audited counter builds publish automatically for both exact USB-C profiles. Hardware-test status is shown before flashing.</p>
+              <div class="release-links">
+                <a id="release-download" class="text-link" hidden download>Download selected published BIN</a>
+                <a id="release-link" class="text-link" hidden target="_blank" rel="noopener noreferrer">Release notes on GitHub</a>
+              </div>
+            </article>
+
+            <article class="artifact-option">
+              <p class="terminal-label">HOSTED LAB CHANNEL</p>
+              <h3>Hardware-verified lab build</h3>
+              <label for="lab-image-select">Exact-profile lab image</label>
+              <select id="lab-image-select" disabled>
+                <option value="">No hosted lab image selected</option>
+              </select>
+              <p id="lab-image-status" class="field-help" role="status">Only hash-bound images with physical boot and recovery evidence may appear here.</p>
+              <a id="lab-image-download" class="text-link" hidden download>Download selected hardware-verified lab BIN</a>
+            </article>
+
+            <article class="artifact-option artifact-option-recovery">
+              <p class="terminal-label">OPEN-FIRMWARE SUBSTITUTE</p>
+              <h3>Open BadgeMagic v0.1</h3>
+              <p>Exact FOSSASIA Micro-USB <code>HARDWARE_REV1</code> substitute. Not OEM firmware and not yet hardware-verified by FrogAlert.</p>
+              <label class="compact-confirmation"><input id="recovery-board-confirmation" type="checkbox"> I opened and matched both board sides to the pinned Rev1 reference.</label>
+              <button id="recovery-prepare" class="button button-secondary" type="button" disabled>Prepare open substitute</button>
+              <p id="recovery-status" class="field-help" role="status" aria-live="polite">Descriptor not loaded. Preparation must not access USB.</p>
+              <dl class="recovery-facts flash-recovery-facts">
+                <div><dt>Version</dt><dd id="recovery-version">—</dd></div>
+                <div><dt>Exact target</dt><dd id="recovery-target">—</dd></div>
+                <div><dt>Source</dt><dd id="recovery-source">—</dd></div>
+                <div><dt>Size</dt><dd id="recovery-size">—</dd></div>
+                <div><dt>SHA-256</dt><dd id="recovery-hash">—</dd></div>
+                <div><dt>Evidence</dt><dd id="recovery-verification">Hardware-unverified</dd></div>
+              </dl>
+            </article>
+
+            <article class="artifact-option artifact-option-local">
+              <p class="terminal-label">QUALIFIED DEVELOPMENT</p>
+              <h3>Developer tools</h3>
+              <p class="field-help">Local artifact inspection remains available on the project landing page. The public flasher accepts same-origin published images only after prevalidation, then binds the exact image through the explicit post-info Top/Bottom answer.</p>
+            </article>
+
+            <article class="artifact-option monitor-config-card">
+              <p class="terminal-label">LOCAL MONITORING OPTIONS</p>
+              <h3>Choose nearby-device alerts</h3>
+              <p class="field-help">Available after loading a compatible FrogAlert survey BIN. Names, OUIs, and services are spoofable hints—not device identity proof. Passive scanning does not request scan responses, so a target advertised only there will be missed.</p>
+              <fieldset id="monitor-targets" class="monitor-targets" disabled>
+                <legend>Built-in targets</legend>
+                <label><input type="checkbox" data-monitor-target="POLICE"><span>Axon/TASER/Flock indicators</span></label>
+                <label><input type="checkbox" data-monitor-target="FLIPPER"><span>Flipper names</span></label>
+                <label><input type="checkbox" data-monitor-target="KARR"><span>KARR <code>QT </code> names</span></label>
+                <label><input type="checkbox" data-monitor-target="RAY_BAN"><span>Ray-Ban names</span></label>
+                <label><input type="checkbox" data-monitor-target="BADGEMAGIC"><span>BadgeMagic / FrogAlert badges</span></label>
+              </fieldset>
+              <div class="custom-target-heading">
+                <h4>Custom targets</h4>
+                <button id="monitor-add-rule" class="button button-secondary" type="button" disabled>Add custom target</button>
+              </div>
+              <div id="monitor-custom-rules" class="monitor-custom-rules"></div>
+              <div class="button-row">
+                <button id="monitor-apply" class="button button-primary" type="button" disabled>Apply monitoring options</button>
+                <button id="monitor-reset" class="button button-secondary" type="button" disabled>Restore base options</button>
+              </div>
+              <p id="monitor-config-status" class="field-help" role="status" aria-live="polite">Load a compatible local survey BIN to configure monitoring.</p>
+              <dl class="monitor-config-facts">
+                <div><dt>Base BIN SHA-256</dt><dd id="monitor-base-hash">—</dd></div>
+                <div><dt>Configured SHA-256</dt><dd id="monitor-final-hash">—</dd></div>
+              </dl>
+              <a id="monitor-download" class="text-link" hidden download>Download configured local BIN</a>
+            </article>
+          </div>
+
+          <dl class="artifact-facts flash-artifact-facts">
+            <div><dt>File</dt><dd id="legacy-firmware-name">Not loaded</dd></div>
+            <div><dt>Size</dt><dd id="legacy-firmware-size">—</dd></div>
+            <div><dt>Bound profile</dt><dd id="legacy-firmware-revision">—</dd></div>
+            <div><dt>SHA-256</dt><dd id="legacy-firmware-hash">—</dd></div>
+            <div><dt>Provenance</dt><dd id="legacy-firmware-provenance">—</dd></div>
+            <div><dt>Verification status</dt><dd id="legacy-firmware-verification">—</dd></div>
+          </dl>
+        </section>
+
+        <section id="confirm" class="flash-panel" aria-labelledby="confirm-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Step 4 / final confirmation</p>
+              <h2 id="confirm-title">These checks cannot be automated.</h2>
+            </div>
+            <span class="source-badge source-confirmed">User confirmed</span>
+          </div>
+
+          <fieldset class="safety-gate flash-safety-gate">
+            <legend>Every confirmation is required</legend>
+            <div class="safety-grid">
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I opened this exact badge and read <strong>CH582M</strong> on the MCU.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I counted an <strong>11×44</strong> matrix and ruled out similar 11×55 badges.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I separately recorded the physical PCB marking and selected the correct firmware profile.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I verified this image's byte length, SHA-256, target, build provenance, and hardware-test status.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I understand the first destructive command resets CH58x protection/configuration and requires exact readback before erase.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I understand the OEM image cannot be backed up or restored and this write may permanently replace it.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I am using stable USB power and will not disconnect, lock the phone, or switch devices during programming.</label>
+              <label><input class="legacy-flash-confirmation" type="checkbox"> I will treat success as valid only after every programmed chunk passes bootloader verification.</label>
+            </div>
+          </fieldset>
+
+          <div class="typed-confirmation">
+            <label for="legacy-flash-phrase">Final phrase</label>
+            <p>Type <code>ERASE THIS BADGE</code> only after the connected target and selected artifact are both shown above.</p>
+            <input id="legacy-flash-phrase" type="text" autocomplete="off" spellcheck="false" placeholder="ERASE THIS BADGE">
+          </div>
+        </section>
+
+        <section id="program" class="flash-panel program-panel" aria-labelledby="program-title">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Step 5 / final action</p>
+              <h2 id="program-title">Reset config, erase, program, verify.</h2>
+            </div>
+            <p id="legacy-armed-status" class="status-summary" role="status" aria-live="polite">Not armed</p>
+          </div>
+
+          <div class="program-action">
+            <button id="legacy-flash-button" class="button button-danger" type="button" disabled>Reset config → erase → program → verify</button>
+          </div>
+
+          <div class="progress-wrap flash-progress-wrap">
+            <label id="legacy-progress-label" for="legacy-flash-progress">No destructive operation has started</label>
+            <progress id="legacy-flash-progress" max="100" value="0">0%</progress>
+            <ol class="progress-stages" aria-label="Programming stages">
+              <li id="legacy-stage-identify">Identify</li>
+              <li id="legacy-stage-config">Config reset + readback</li>
+              <li id="legacy-stage-erase">Erase</li>
+              <li id="legacy-stage-program">Program</li>
+              <li id="legacy-stage-verify">Verify</li>
+              <li id="legacy-stage-reset">Reset</li>
+            </ol>
+          </div>
+
+          <details class="compact-disclosure session-log-disclosure">
+            <summary>Show session log</summary>
+            <div class="log-heading">
+              <h3>Session log</h3>
+              <button id="legacy-copy-log" class="text-button" type="button" disabled>Copy redacted log</button>
+            </div>
+            <ol id="legacy-flash-log" class="flash-log" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Flash operation log">
+              <li>No device access requested. No configuration, erase, or write command sent.</li>
+            </ol>
+          </details>
+
+          <aside class="interruption-note">
+            <h3>If programming is interrupted</h3>
+            <p>Do not claim success. Keep the exact selected BIN and its hash, disconnect power, repeat the KEY2 recovery sequence, establish a fresh read-only identity, then retry the complete write and verification flow. A replacement USB device must never inherit an active flash session.</p>
+          </aside>
+        </section>
+      </form>
+
+      <section class="flash-help" aria-labelledby="help-title">
+        <div>
+          <p class="section-kicker">Command-line fallback</p>
+          <h2 id="help-title">Use wchisp when WebUSB is unavailable</h2>
+          <p>Browser and operating-system USB support varies. A missing permission prompt or driver conflict is not proof that badge firmware is broken.</p>
+        </div>
+        <div class="help-links">
+          <a href="https://github.com/pierce403/frogalert/blob/main/docs/WEB_FLASHING.md">Read the flashing contract <span>→</span></a>
+          <a href="https://github.com/pierce403/frogalert/blob/main/docs/HARDWARE.md">Review hardware safety <span>→</span></a>
+          <a href="https://github.com/ch32-rs/wchisp">Open the wchisp CLI <span>↗</span></a>
+          <a href="https://github.com/pierce403/frogalert/issues">Report a reproducible issue <span>↗</span></a>
+        </div>
+      </section>
+    </main>
+    </div>
+
+    <footer>
+      <p><strong>FROGALERT FLASHER</strong> · identify, program, verify.</p>
+      <p><a href="../">Project home</a> · <a href="https://github.com/pierce403/frogalert">Source</a></p>
+    </footer>
+    <script type="module" src="../site/app.js?v=24"></script>
+  </body>
+</html>

@@ -1,5 +1,280 @@
 {
   "repository": "pierce403/frogalert",
+  "sourceRevision": "0d521b39c0c66ad679e1cec360b9c293fa915394",
   "branch": "codex/cloudflare-static",
-  "bootstrapOnly": true
+  "workflow": "pierce403/frogalert/.github/workflows/pages.yml@refs/heads/main",
+  "runId": "38665431183",
+  "runAttempt": "1",
+  "files": [
+    {
+      "path": ".nojekyll",
+      "bytes": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "CNAME",
+      "bytes": 14,
+      "sha256": "b4e4ecee697f8381261544f03ecd9b7ce61282e608fcd7d064a7a6b7ebcc9b4a"
+    },
+    {
+      "path": "firmware/quarantine.json",
+      "bytes": 526,
+      "sha256": "fe8a328128f03afa407656a201e02513dff56c4cb4718beeefdf78a310cfb094"
+    },
+    {
+      "path": "firmware/releases/badgemagic-open-v0.1-hardware-rev1.bin",
+      "bytes": 155672,
+      "sha256": "7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.1.0-beta.1-b1144c-250901-usb-c.bin",
+      "bytes": 205128,
+      "sha256": "f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.1.0-beta.1-b1144c-260404-usb-c.bin",
+      "bytes": 205152,
+      "sha256": "c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.11-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200376,
+      "sha256": "97923b1f120dfd41b92ed483df6dbfe528b520593e41d076a78f603c992d9e33"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.11-top-b1144c-260404-usb-c.bin",
+      "bytes": 200344,
+      "sha256": "34f80b9b28fd81cd43298a1ee03bb23e4a410e4b19cc88e20fdca248db7bd68a"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.12-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 201200,
+      "sha256": "fa8914111896b886b527bffa2da6665e485a455e664012d2bc9063e10babe5b4"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.12-top-b1144c-260404-usb-c.bin",
+      "bytes": 201112,
+      "sha256": "a75116b71c282ac459c7a9323638f973e7af22a9e473c3ba0555a2128eb65799"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.14-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200376,
+      "sha256": "e4ff5103de8c3823e0e992f010cf14f387e5b66babd14076f6c0a1c48a4cfcda"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.14-top-b1144c-260404-usb-c.bin",
+      "bytes": 200344,
+      "sha256": "c46504ff4cdebdeaadb067b3248bf4c354426666de24566b4a641062c718696f"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.15-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 201308,
+      "sha256": "5c4cd3613569fa7fb667dd152da86e5d9cd3990accd7d228efa431af7a0f6254"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.15-top-b1144c-260404-usb-c.bin",
+      "bytes": 201224,
+      "sha256": "53b094f73cc2fba2027c7f8247704e608a4f699ede30d1b1416132634d1048d4"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.16-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 201340,
+      "sha256": "77915d3a679179b104c050e403f2445d028d31743d333ea9f88c3197f133b985"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.16-top-b1144c-260404-usb-c.bin",
+      "bytes": 201100,
+      "sha256": "c0e78296e75715fa2c29224a2d3d7629eb96ac8ddf7be194e84f80ae5af21ebc"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.3-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200880,
+      "sha256": "7eb6bfa0d9f2b423892759704437d824308d9f093aa04f932fc28cbc030fc4cd"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.3-top-b1144c-260404-usb-c.bin",
+      "bytes": 200880,
+      "sha256": "cd2369e9ee509b1d694bb54c4473f9351802043d1ab283316a5081e7e099476a"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.4-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200876,
+      "sha256": "ca1b08f7aed961fa88cf36769f54fb16532367e42fa4691ef2f3f19bce11de21"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.4-top-b1144c-260404-usb-c.bin",
+      "bytes": 200876,
+      "sha256": "b65e3aeb54fb23dcd4275cedda5bbdb7d4cf85cb9ae7a017bad66f3612d3df21"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.5-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200576,
+      "sha256": "5c465e598b62151b54ab16c73744a5907704314427a8bc545926d132518f4cce"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.5-top-b1144c-260404-usb-c.bin",
+      "bytes": 200576,
+      "sha256": "005525cdb9cb7259cb53f7a25881c033b06717736cb6a452bfef17eda6f62a45"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.6-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200420,
+      "sha256": "dafaba93d1e9cd4ce94ab93a9dc71b60db3b2b365b60f86447c70e2ef78cd7ad"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.6-top-b1144c-260404-usb-c.bin",
+      "bytes": 200420,
+      "sha256": "4388b70f1d8752aa5821c28264c7a7c8e4f988ceee3a68b739481914548db2be"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.7-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200468,
+      "sha256": "c8af928aeaad52bd467ddb07c9c3dc802d2023d639c61b5992ab2619d950f65d"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.7-top-b1144c-260404-usb-c.bin",
+      "bytes": 200468,
+      "sha256": "d60fc693ba598082c8703699c2f9e25dcfcae56d968d177ecc3385525dcb9f9d"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.8-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200148,
+      "sha256": "7974b2455ee7f1ffa4730f76fa56e44926a83cd1dd2d15e5f2a40bc2f6d28ae1"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.8-top-b1144c-260404-usb-c.bin",
+      "bytes": 200148,
+      "sha256": "f679dafd3be79e3bec448589b4e8a60149b2945bc5061435b96df4eef35df88c"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.9-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200340,
+      "sha256": "f0e4035586c9bf524b4456425af59e5bde84d1b5b3a65f8061aae433c343f059"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.2.0-beta.9-top-b1144c-260404-usb-c.bin",
+      "bytes": 200340,
+      "sha256": "bb6d3f158320d1bcd6a8e05aa2f908edd32469c2d34d2faee6b362ae85a29259"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.3.0-beta.1-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 212692,
+      "sha256": "7bd57d1426dacec9976533ff73b93ef26b129326c8d0b18b6bfc85c7cf21393a"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.3.0-beta.1-top-b1144c-260404-usb-c.bin",
+      "bytes": 212448,
+      "sha256": "eafdd740f3c9db95324fc2227c55bc74415bb55c2e70a7f6468eb637d3c90830"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.3.0-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 213556,
+      "sha256": "fcdf72d3dccb03f6a8621ad12a7c1707bea7f4cd854f442dc49241eae2ac130f"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.3.0-top-b1144c-260404-usb-c.bin",
+      "bytes": 213348,
+      "sha256": "fe000bdca5d22ca22b0501c98dad2c45be64642883cffed41744b41829afc1e4"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.3.1-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 214032,
+      "sha256": "a9a06ce1c2dfcdee349bf46ada6f24502dd1891339149f1318864befbfb1a7ff"
+    },
+    {
+      "path": "firmware/releases/frogalert-0.3.1-top-b1144c-260404-usb-c.bin",
+      "bytes": 213824,
+      "sha256": "2ab02a01399a6870b40965c38a4f01d5dab22fbe4a9bb0989745663dd07636d4"
+    },
+    {
+      "path": "firmware/releases/manifest.json",
+      "bytes": 57217,
+      "sha256": "06fad4d90354227b99172da8dc6c16727240c213fa69fce5670cb926386f04d8"
+    },
+    {
+      "path": "flash/index.html",
+      "bytes": 48865,
+      "sha256": "47796cb6e1328543e378b8132916f09728ab8eab0544888eb58d40b334d11f31"
+    },
+    {
+      "path": "index.html",
+      "bytes": 21279,
+      "sha256": "704aa312850be4f284009c239a8b972f6f6a54a81f1aa6cab833c0d60d4fa712"
+    },
+    {
+      "path": "site/app.js",
+      "bytes": 117633,
+      "sha256": "8497fa8441ff9c69e193fa995ac8d2aafb87354d4a8c1363bdbbe68fa0e944bf"
+    },
+    {
+      "path": "site/firmware-config.js",
+      "bytes": 13926,
+      "sha256": "dcc7712b74a663b02c608609d146c0b1be7b200734b7b2655cc3a16603d648cd"
+    },
+    {
+      "path": "site/firmware-quarantine.js",
+      "bytes": 1230,
+      "sha256": "02b5e6765d7d7af307e319762400e0ace6760f4e19e5cef4c085b6a9ed0915d4"
+    },
+    {
+      "path": "site/flash-session.js",
+      "bytes": 4259,
+      "sha256": "8bc6fa014eed6e96f937d40713cc8b5929b4b498d78ca9c93b002798e3acca1b"
+    },
+    {
+      "path": "site/flash-support.js",
+      "bytes": 6519,
+      "sha256": "51f2d3cc1605e750dd34d5e612fb5d555d9c039935a21989f104f54cf4d9b0fd"
+    },
+    {
+      "path": "site/flash.css",
+      "bytes": 29410,
+      "sha256": "21bbbb08df2d65fcf76082d598bfbdc23eb5357e1a56e2a76a6694effe81c892"
+    },
+    {
+      "path": "site/flasher-state.js",
+      "bytes": 3752,
+      "sha256": "738db5374f08ac59cfb9a12715f503df44b7621aa74bba7a9bba4fe7f99fe655"
+    },
+    {
+      "path": "site/isp-entry-guide.js",
+      "bytes": 2534,
+      "sha256": "29e41ee8968c072634a7b4db73e25cae8aea3f9d73bb75a72310255dac1d7c7c"
+    },
+    {
+      "path": "site/og-card-v2.jpg",
+      "bytes": 108451,
+      "sha256": "0560e6081b8bb9338523691fb6d81917473153149b0169666768422c23d2d3b1"
+    },
+    {
+      "path": "site/og-card-v3.jpg",
+      "bytes": 105999,
+      "sha256": "65dfacdbfc53ca9dd47c8dfdc5b6834eaf240af786c0286b09ee21954c4a534e"
+    },
+    {
+      "path": "site/og-card.jpg",
+      "bytes": 72134,
+      "sha256": "1fec86fa1410edfe8a68c1632a218e2d0687a6c849cab2865dc45dd732f28988"
+    },
+    {
+      "path": "site/og-card.svg",
+      "bytes": 4860,
+      "sha256": "5ec682fefbe28874c1dd32ac4eb53bd0d46f4702262d8a82768dd0b2c1a1c531"
+    },
+    {
+      "path": "site/styles.css",
+      "bytes": 19112,
+      "sha256": "39b87226bfc8766ab19a3f959d740b26045455d51bc4b7e2901363492ae8b8ee"
+    },
+    {
+      "path": "site/usb-permission-help.js",
+      "bytes": 3655,
+      "sha256": "e19cd7d8e794fabb9f531d139b0243da3d6ee1ed5ab260dae8472d46a33ea06a"
+    },
+    {
+      "path": "site/wchisp-protocol.js",
+      "bytes": 24175,
+      "sha256": "2d2cc3a18d65522ba383d6400fbb3d769080e4dc88b637eb2bb3f5a245f51312"
+    }
+  ]
 }

@@ -1,0 +1,1323 @@
+{
+  "schema_version": 5,
+  "updated": "2026-09-05",
+  "github_repository": "pierce403/frogalert",
+  "legacy_repository_release_tags": [
+    "v0.1.0-beta.1"
+  ],
+  "releases": [
+    {
+      "id": "frogalert-0.1.0-beta.1-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.1.0-beta.1",
+      "channel": "beta",
+      "release_tag": "v0.1.0-beta.1",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-beta.1",
+      "release_notes": "firmware/releases/notes/v0.1.0-beta.1.md",
+      "published_at": "2026-07-29",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "e8787b850cc64381b7d70889adab659997422959",
+      "file": "frogalert-0.1.0-beta.1-b1144c-260404-usb-c.bin",
+      "bytes": 205152,
+      "sha256": "c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9",
+      "debug_file": "frogalert-0.1.0-beta.1-b1144c-260404-usb-c.elf",
+      "debug_bytes": 285400,
+      "debug_sha256": "c10ba03e7bc1ebef7ec7d60cd986ff35004d061e7b30de4025178773ec3b2583",
+      "hardware_verified": true,
+      "hardware_evidence": {
+        "artifact_sha256": "c6d06c59396aa6ffd6d1d9314cc4baf051c0205391c19a88bd749a31bface0d9",
+        "source_commit": "e8787b850cc64381b7d70889adab659997422959",
+        "record": "firmware/evidence/2026-07-28-frogalert-beta1-260404.json",
+        "transcript": "agent-memory/logs/2026-07-28-frogalert-beta1-user-confirmation.md",
+        "tested_at": "2026-07-28",
+        "hardware_profile": "B1144C_260404_USB_C",
+        "pcb_marking": "B1144C_260404",
+        "verification_basis": "user-confirmed-beta",
+        "user_confirmed_working": true,
+        "boot_observed": true,
+        "display_passed": true,
+        "badgemagic_upload_passed": true,
+        "button_behavior_passed": true,
+        "key2_dot_observed": true,
+        "key2_recovery_passed": true,
+        "transport_transcript_captured": false
+      }
+    },
+    {
+      "id": "frogalert-0.1.0-beta.1-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.1.0-beta.1",
+      "channel": "beta",
+      "release_tag": "v0.1.0-beta.1",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.1.0-beta.1",
+      "release_notes": "firmware/releases/notes/v0.1.0-beta.1.md",
+      "published_at": "2026-07-29",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "e8787b850cc64381b7d70889adab659997422959",
+      "file": "frogalert-0.1.0-beta.1-b1144c-250901-usb-c.bin",
+      "bytes": 205128,
+      "sha256": "f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9",
+      "debug_file": "frogalert-0.1.0-beta.1-b1144c-250901-usb-c.elf",
+      "debug_bytes": 285400,
+      "debug_sha256": "85ba5a63b21a7db7f36b205fd41c600fa9aec84de68809fdd990af71b2eda44a",
+      "hardware_verified": true,
+      "hardware_evidence": {
+        "artifact_sha256": "f9367fe16952f9f23758fd401f25ae6b0c22ec6cdab6f3893b1650d79173d5c9",
+        "source_commit": "e8787b850cc64381b7d70889adab659997422959",
+        "record": "firmware/evidence/2026-07-28-frogalert-beta1-250901.json",
+        "transcript": "agent-memory/logs/2026-07-28-frogalert-beta1-user-confirmation.md",
+        "tested_at": "2026-07-28",
+        "hardware_profile": "B1144C_250901_USB_C",
+        "pcb_marking": "B1144C_250901",
+        "verification_basis": "user-confirmed-beta",
+        "user_confirmed_working": true,
+        "boot_observed": true,
+        "display_passed": true,
+        "badgemagic_upload_passed": true,
+        "button_behavior_passed": true,
+        "key2_dot_observed": true,
+        "key2_recovery_passed": true,
+        "transport_transcript_captured": false
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.3-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.3",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.3",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.3",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.3.md",
+      "published_at": "2026-08-04",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "281f4dec8275af9b1d2e2b0255cb1d1eca969c20",
+      "file": "frogalert-0.2.0-beta.3-top-b1144c-260404-usb-c.bin",
+      "bytes": 200880,
+      "sha256": "cd2369e9ee509b1d694bb54c4473f9351802043d1ab283316a5081e7e099476a",
+      "debug_file": "frogalert-0.2.0-beta.3-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 281464,
+      "debug_sha256": "4b791fdcab540b4eebe3ec86f6593eebf4122bae71a3d858fd9c0a5b62be37b7",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 30866510489,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8876315886,
+        "artifact_name": "frogalert-candidate-281f4dec8275af9b1d2e2b0255cb1d1eca969c20",
+        "artifact_digest": "sha256:a42c4165af3f39e1866e07d6a6e5463a33547c2a313e6d7c64a84cdb838ce313",
+        "candidate_metadata_sha256": "fd5d3c0a71692bd9fa8336dd8d2e95bcd7542674c32c300ab10814cb90438679",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.3-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.3",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.3",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.3",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.3.md",
+      "published_at": "2026-08-04",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "281f4dec8275af9b1d2e2b0255cb1d1eca969c20",
+      "file": "frogalert-0.2.0-beta.3-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200880,
+      "sha256": "7eb6bfa0d9f2b423892759704437d824308d9f093aa04f932fc28cbc030fc4cd",
+      "debug_file": "frogalert-0.2.0-beta.3-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 281464,
+      "debug_sha256": "22277fa85b9fa91e6d6b7ec8fd100427bcb3eb27eab7a9201c48d174039326f5",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 30866510489,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8876315886,
+        "artifact_name": "frogalert-candidate-281f4dec8275af9b1d2e2b0255cb1d1eca969c20",
+        "artifact_digest": "sha256:a42c4165af3f39e1866e07d6a6e5463a33547c2a313e6d7c64a84cdb838ce313",
+        "candidate_metadata_sha256": "fd5d3c0a71692bd9fa8336dd8d2e95bcd7542674c32c300ab10814cb90438679",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.4-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.4",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.4",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.4",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.4.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "a148e255b63a0aa564d2b4714fdf1105593cae75",
+      "file": "frogalert-0.2.0-beta.4-top-b1144c-260404-usb-c.bin",
+      "bytes": 200876,
+      "sha256": "b65e3aeb54fb23dcd4275cedda5bbdb7d4cf85cb9ae7a017bad66f3612d3df21",
+      "debug_file": "frogalert-0.2.0-beta.4-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 281464,
+      "debug_sha256": "7abb3d3f400351cbf2f5797d26b3157ae2b8657d4bf095abe5ff7fef062f62dd",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31036598648,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8942877837,
+        "artifact_name": "frogalert-candidate-a148e255b63a0aa564d2b4714fdf1105593cae75",
+        "artifact_digest": "sha256:7becc2ef2816d50727a39780751160e674c055990bb5f6bfa995cc2414e55bda",
+        "candidate_metadata_sha256": "33acfb041b750cf1872e07cd57dba568b5426a77f3eaf05899a1b3aeb97c4382",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.4-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.4",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.4",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.4",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.4.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "a148e255b63a0aa564d2b4714fdf1105593cae75",
+      "file": "frogalert-0.2.0-beta.4-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200876,
+      "sha256": "ca1b08f7aed961fa88cf36769f54fb16532367e42fa4691ef2f3f19bce11de21",
+      "debug_file": "frogalert-0.2.0-beta.4-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 281464,
+      "debug_sha256": "bd89116280cf9a43acafdb64b1bbb709686999b44fe8caa01eea430e6f198218",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31036598648,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8942877837,
+        "artifact_name": "frogalert-candidate-a148e255b63a0aa564d2b4714fdf1105593cae75",
+        "artifact_digest": "sha256:7becc2ef2816d50727a39780751160e674c055990bb5f6bfa995cc2414e55bda",
+        "candidate_metadata_sha256": "33acfb041b750cf1872e07cd57dba568b5426a77f3eaf05899a1b3aeb97c4382",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.5-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.5",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.5",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.5",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.5.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "6bd60a0dfcecf2064a71abcac3e58d99898b5378",
+      "file": "frogalert-0.2.0-beta.5-top-b1144c-260404-usb-c.bin",
+      "bytes": 200576,
+      "sha256": "005525cdb9cb7259cb53f7a25881c033b06717736cb6a452bfef17eda6f62a45",
+      "debug_file": "frogalert-0.2.0-beta.5-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 280920,
+      "debug_sha256": "e6b764eed5698677fdf13808d08ae93904683cc0c1feacc30b4a7ed7acd7efa3",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31038171788,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8943501627,
+        "artifact_name": "frogalert-candidate-6bd60a0dfcecf2064a71abcac3e58d99898b5378",
+        "artifact_digest": "sha256:e046797af3f1bbcfcca9d967ddd3f773029ae74a5a33a880431f1e2b27369d81",
+        "candidate_metadata_sha256": "491c1c981c42e1e01489598d3474f98f5751621ae7b989da747c48ab3f400f62",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.5-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.5",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.5",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.5",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.5.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "6bd60a0dfcecf2064a71abcac3e58d99898b5378",
+      "file": "frogalert-0.2.0-beta.5-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200576,
+      "sha256": "5c465e598b62151b54ab16c73744a5907704314427a8bc545926d132518f4cce",
+      "debug_file": "frogalert-0.2.0-beta.5-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 280920,
+      "debug_sha256": "8c0425578b01e9fda11fdf914d7e9947efc6e9e52d0a0ff1ed675d1bc13dbde6",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31038171788,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8943501627,
+        "artifact_name": "frogalert-candidate-6bd60a0dfcecf2064a71abcac3e58d99898b5378",
+        "artifact_digest": "sha256:e046797af3f1bbcfcca9d967ddd3f773029ae74a5a33a880431f1e2b27369d81",
+        "candidate_metadata_sha256": "491c1c981c42e1e01489598d3474f98f5751621ae7b989da747c48ab3f400f62",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.6-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.6",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.6",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.6",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.6.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "a88b71bbf689983ea20d5b04e1da8daefae9be6a",
+      "file": "frogalert-0.2.0-beta.6-top-b1144c-260404-usb-c.bin",
+      "bytes": 200420,
+      "sha256": "4388b70f1d8752aa5821c28264c7a7c8e4f988ceee3a68b739481914548db2be",
+      "debug_file": "frogalert-0.2.0-beta.6-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 276704,
+      "debug_sha256": "48560f27915e4e0bd5509c4dc306ec9519ab0f45207523dcefa69c402e2f3e5c",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31043676850,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8945610443,
+        "artifact_name": "frogalert-candidate-a88b71bbf689983ea20d5b04e1da8daefae9be6a",
+        "artifact_digest": "sha256:50f9359a82da4c52cd08b6f2b47cd7442133a4df2229aae53809318ce316f852",
+        "candidate_metadata_sha256": "23ada601e17ea55bcab08696c9bcde1395bd923f70726226a53d5b59ccd9085d",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.6-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.6",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.6",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.6",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.6.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "a88b71bbf689983ea20d5b04e1da8daefae9be6a",
+      "file": "frogalert-0.2.0-beta.6-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200420,
+      "sha256": "dafaba93d1e9cd4ce94ab93a9dc71b60db3b2b365b60f86447c70e2ef78cd7ad",
+      "debug_file": "frogalert-0.2.0-beta.6-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 276704,
+      "debug_sha256": "c38747347e7e92e6b56f16b917e937092badd9776f87c23cc9ca03f76a95bd0a",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31043676850,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8945610443,
+        "artifact_name": "frogalert-candidate-a88b71bbf689983ea20d5b04e1da8daefae9be6a",
+        "artifact_digest": "sha256:50f9359a82da4c52cd08b6f2b47cd7442133a4df2229aae53809318ce316f852",
+        "candidate_metadata_sha256": "23ada601e17ea55bcab08696c9bcde1395bd923f70726226a53d5b59ccd9085d",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.7-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.7",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.7",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.7",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.7.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "480198ea9b1d8c650c05bf17e6631f028d30fdf5",
+      "file": "frogalert-0.2.0-beta.7-top-b1144c-260404-usb-c.bin",
+      "bytes": 200468,
+      "sha256": "d60fc693ba598082c8703699c2f9e25dcfcae56d968d177ecc3385525dcb9f9d",
+      "debug_file": "frogalert-0.2.0-beta.7-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 276780,
+      "debug_sha256": "12acd33c1f01070ae2360b2200c5f477259648ec08672e3e5540fa5b8295c1a1",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31046059029,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8946508977,
+        "artifact_name": "frogalert-candidate-480198ea9b1d8c650c05bf17e6631f028d30fdf5",
+        "artifact_digest": "sha256:7c443cb70cf2e7a49a38cc70317ad90694918901b88b65077444898a03145d27",
+        "candidate_metadata_sha256": "f1e40eb8a76a50dcdf87dbe2a24a6830c3ef11ae10bb76608d2dd7d80ea9022a",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.7-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.7",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.7",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.7",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.7.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "480198ea9b1d8c650c05bf17e6631f028d30fdf5",
+      "file": "frogalert-0.2.0-beta.7-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200468,
+      "sha256": "c8af928aeaad52bd467ddb07c9c3dc802d2023d639c61b5992ab2619d950f65d",
+      "debug_file": "frogalert-0.2.0-beta.7-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 276780,
+      "debug_sha256": "9f656fac82863829f621cdf64ff691b3dda46fdcca61355bfec8d07b89562ef4",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31046059029,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8946508977,
+        "artifact_name": "frogalert-candidate-480198ea9b1d8c650c05bf17e6631f028d30fdf5",
+        "artifact_digest": "sha256:7c443cb70cf2e7a49a38cc70317ad90694918901b88b65077444898a03145d27",
+        "candidate_metadata_sha256": "f1e40eb8a76a50dcdf87dbe2a24a6830c3ef11ae10bb76608d2dd7d80ea9022a",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.8-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.8",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.8",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.8",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.8.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "e18c0672b60a98345dfb867037401341d61db307",
+      "file": "frogalert-0.2.0-beta.8-top-b1144c-260404-usb-c.bin",
+      "bytes": 200148,
+      "sha256": "f679dafd3be79e3bec448589b4e8a60149b2945bc5061435b96df4eef35df88c",
+      "debug_file": "frogalert-0.2.0-beta.8-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 276560,
+      "debug_sha256": "fe9a29be0ffccfc3a8f3f2666f4f2ed482667561002f30bc471d5e75896082a3",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31047573728,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8947092487,
+        "artifact_name": "frogalert-candidate-e18c0672b60a98345dfb867037401341d61db307",
+        "artifact_digest": "sha256:90d9270c43f3b581325c5ce5864b27ce34e7d35f9a66e986a1ba5bbc4999dc29",
+        "candidate_metadata_sha256": "509d60eb139a26c95f3f0d7dfb6400d7c747b43da73c9100bdf8e95c6141abc6",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.8-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.8",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.8",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.8",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.8.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "e18c0672b60a98345dfb867037401341d61db307",
+      "file": "frogalert-0.2.0-beta.8-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200148,
+      "sha256": "7974b2455ee7f1ffa4730f76fa56e44926a83cd1dd2d15e5f2a40bc2f6d28ae1",
+      "debug_file": "frogalert-0.2.0-beta.8-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 276560,
+      "debug_sha256": "be559757832c53edf7fd1a733d859950961e7b53d9e3ac7f7bb6a8ccd34b7e80",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31047573728,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8947092487,
+        "artifact_name": "frogalert-candidate-e18c0672b60a98345dfb867037401341d61db307",
+        "artifact_digest": "sha256:90d9270c43f3b581325c5ce5864b27ce34e7d35f9a66e986a1ba5bbc4999dc29",
+        "candidate_metadata_sha256": "509d60eb139a26c95f3f0d7dfb6400d7c747b43da73c9100bdf8e95c6141abc6",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.9-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.9",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.9",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.9",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.9.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "40691e62696021eabd2dc19c73290b091893b581",
+      "file": "frogalert-0.2.0-beta.9-top-b1144c-260404-usb-c.bin",
+      "bytes": 200340,
+      "sha256": "bb6d3f158320d1bcd6a8e05aa2f908edd32469c2d34d2faee6b362ae85a29259",
+      "debug_file": "frogalert-0.2.0-beta.9-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 276684,
+      "debug_sha256": "f8f5092400998174d765c1361577b8a77dcb476f38f9620c096b231922b0358d",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31051841670,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8948713816,
+        "artifact_name": "frogalert-candidate-40691e62696021eabd2dc19c73290b091893b581",
+        "artifact_digest": "sha256:47b6dd8285d9c196ee318dc0e9ea4e17407c9e5513954dca057a3a75efdfd906",
+        "candidate_metadata_sha256": "6c791522f2d2f5227009578f124ec0429974103a261ff152f5e22e5ad8fc504a",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.9-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.9",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.9",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.9",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.9.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "40691e62696021eabd2dc19c73290b091893b581",
+      "file": "frogalert-0.2.0-beta.9-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200340,
+      "sha256": "f0e4035586c9bf524b4456425af59e5bde84d1b5b3a65f8061aae433c343f059",
+      "debug_file": "frogalert-0.2.0-beta.9-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 276684,
+      "debug_sha256": "aa7ef046d8a2ac5e44f990cb6d4fc1589917b7f49cd339eb3f7d3b710707824e",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31051841670,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8948713816,
+        "artifact_name": "frogalert-candidate-40691e62696021eabd2dc19c73290b091893b581",
+        "artifact_digest": "sha256:47b6dd8285d9c196ee318dc0e9ea4e17407c9e5513954dca057a3a75efdfd906",
+        "candidate_metadata_sha256": "6c791522f2d2f5227009578f124ec0429974103a261ff152f5e22e5ad8fc504a",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.11-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.11",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.11",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.11",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.11.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "c87d6d1d37e7029e47efe92b9e0213c697837cb6",
+      "file": "frogalert-0.2.0-beta.11-top-b1144c-260404-usb-c.bin",
+      "bytes": 200344,
+      "sha256": "34f80b9b28fd81cd43298a1ee03bb23e4a410e4b19cc88e20fdca248db7bd68a",
+      "debug_file": "frogalert-0.2.0-beta.11-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 276716,
+      "debug_sha256": "833ef577bf7d6cc1b9aaddd46f921f098274c82d10520f437bb7fb7b9695d333",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31054863458,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8949884946,
+        "artifact_name": "frogalert-candidate-c87d6d1d37e7029e47efe92b9e0213c697837cb6",
+        "artifact_digest": "sha256:c2fac7e5c62edf53b92a6543abd60579b8283de187fa10a5fc9318b900365515",
+        "candidate_metadata_sha256": "8756191c01ca4ed5e3e10a350a113a8209ee70f49a6e44e9c5aed3436e0f7858",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.11-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.11",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.11",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.11",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.11.md",
+      "published_at": "2026-08-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "c87d6d1d37e7029e47efe92b9e0213c697837cb6",
+      "file": "frogalert-0.2.0-beta.11-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200376,
+      "sha256": "97923b1f120dfd41b92ed483df6dbfe528b520593e41d076a78f603c992d9e33",
+      "debug_file": "frogalert-0.2.0-beta.11-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 276748,
+      "debug_sha256": "18e4b4f0023342fa5f0add833c6dc2a2b496f879bf52bada3866d67e4db8762e",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 31054863458,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 8949884946,
+        "artifact_name": "frogalert-candidate-c87d6d1d37e7029e47efe92b9e0213c697837cb6",
+        "artifact_digest": "sha256:c2fac7e5c62edf53b92a6543abd60579b8283de187fa10a5fc9318b900365515",
+        "candidate_metadata_sha256": "8756191c01ca4ed5e3e10a350a113a8209ee70f49a6e44e9c5aed3436e0f7858",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.12-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.12",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.12",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.12",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.12.md",
+      "published_at": "2026-08-20",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "2b3299dcaf76d1bed6463a9c6df569ccc8296cc3",
+      "file": "frogalert-0.2.0-beta.12-top-b1144c-260404-usb-c.bin",
+      "bytes": 201112,
+      "sha256": "a75116b71c282ac459c7a9323638f973e7af22a9e473c3ba0555a2128eb65799",
+      "debug_file": "frogalert-0.2.0-beta.12-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 281212,
+      "debug_sha256": "a14c0729fb464a9782832170f503dc476fd2b9d9b95d41362930424271814103",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 32388893315,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9414073638,
+        "artifact_name": "frogalert-candidate-2b3299dcaf76d1bed6463a9c6df569ccc8296cc3",
+        "artifact_digest": "sha256:da0918cb870734eabcb90f94f6f76d83cc00312a6dcee8b5d653b37cb06ec0b2",
+        "candidate_metadata_sha256": "6504f408b63016ec1ac416745cfa466e7264d574ac97d04e16baa407c8fb810f",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.12-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.12",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.12",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.12",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.12.md",
+      "published_at": "2026-08-20",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "2b3299dcaf76d1bed6463a9c6df569ccc8296cc3",
+      "file": "frogalert-0.2.0-beta.12-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 201200,
+      "sha256": "fa8914111896b886b527bffa2da6665e485a455e664012d2bc9063e10babe5b4",
+      "debug_file": "frogalert-0.2.0-beta.12-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 281244,
+      "debug_sha256": "9f3c5919f7e7065766c4ae77209e0563889921ac3ed7b5701fceadd790b8577e",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 32388893315,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9414073638,
+        "artifact_name": "frogalert-candidate-2b3299dcaf76d1bed6463a9c6df569ccc8296cc3",
+        "artifact_digest": "sha256:da0918cb870734eabcb90f94f6f76d83cc00312a6dcee8b5d653b37cb06ec0b2",
+        "candidate_metadata_sha256": "6504f408b63016ec1ac416745cfa466e7264d574ac97d04e16baa407c8fb810f",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.14-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.14",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.14",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.14",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.14.md",
+      "published_at": "2026-08-26",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "def237af89ec1b0c94547bb233ab68584bdc77a7",
+      "file": "frogalert-0.2.0-beta.14-top-b1144c-260404-usb-c.bin",
+      "bytes": 200344,
+      "sha256": "c46504ff4cdebdeaadb067b3248bf4c354426666de24566b4a641062c718696f",
+      "debug_file": "frogalert-0.2.0-beta.14-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 276716,
+      "debug_sha256": "2d369c52fbeb2e8ded931980621343c7f138f6ec43ba77ee620cc45b68342b7f",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 32920470321,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9589689389,
+        "artifact_name": "frogalert-candidate-def237af89ec1b0c94547bb233ab68584bdc77a7",
+        "artifact_digest": "sha256:a65c763198d8877db86c4a1ac0240080de4204cc7f4c752c6154fbee30bb01b4",
+        "candidate_metadata_sha256": "ef7ffe5c04584726904f9eea7b25be2923c8d30718e3b783cb3f99fab3311141",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.14-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.14",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.14",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.14",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.14.md",
+      "published_at": "2026-08-26",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "def237af89ec1b0c94547bb233ab68584bdc77a7",
+      "file": "frogalert-0.2.0-beta.14-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 200376,
+      "sha256": "e4ff5103de8c3823e0e992f010cf14f387e5b66babd14076f6c0a1c48a4cfcda",
+      "debug_file": "frogalert-0.2.0-beta.14-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 276748,
+      "debug_sha256": "f0db9ef91e880997af78c03a4f12ca14c7dc814d66435dc4e7027e4c7cd0b09c",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 32920470321,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9589689389,
+        "artifact_name": "frogalert-candidate-def237af89ec1b0c94547bb233ab68584bdc77a7",
+        "artifact_digest": "sha256:a65c763198d8877db86c4a1ac0240080de4204cc7f4c752c6154fbee30bb01b4",
+        "candidate_metadata_sha256": "ef7ffe5c04584726904f9eea7b25be2923c8d30718e3b783cb3f99fab3311141",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.15-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.15",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.15",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.15",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.15.md",
+      "published_at": "2026-08-27",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+      "file": "frogalert-0.2.0-beta.15-top-b1144c-260404-usb-c.bin",
+      "bytes": 201224,
+      "sha256": "53b094f73cc2fba2027c7f8247704e608a4f699ede30d1b1416132634d1048d4",
+      "debug_file": "frogalert-0.2.0-beta.15-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 281328,
+      "debug_sha256": "a14f15c460a361115ac2047bcb17917567ea0eef959f85bf9918b3bc530cd482",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33038336593,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9632897768,
+        "artifact_name": "frogalert-candidate-85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+        "artifact_digest": "sha256:df122b82127467293adc5a66c5bcea96217c246b857f803b8e324898f959651c",
+        "candidate_metadata_sha256": "706b7c2d475c62fc3d31754f62783c865a7ef069d5b2ac7aa9e4d1e797d5117d",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.15-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.15",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.15",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.15",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.15.md",
+      "published_at": "2026-08-27",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+      "file": "frogalert-0.2.0-beta.15-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 201308,
+      "sha256": "5c4cd3613569fa7fb667dd152da86e5d9cd3990accd7d228efa431af7a0f6254",
+      "debug_file": "frogalert-0.2.0-beta.15-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 281360,
+      "debug_sha256": "c59acde6a1e1f484a9d2c0906816082f6e6da417697dce579178cd2bfac20180",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33038336593,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9632897768,
+        "artifact_name": "frogalert-candidate-85aaed74dc27f324eb8e6ccaffb5741c9276dea2",
+        "artifact_digest": "sha256:df122b82127467293adc5a66c5bcea96217c246b857f803b8e324898f959651c",
+        "candidate_metadata_sha256": "706b7c2d475c62fc3d31754f62783c865a7ef069d5b2ac7aa9e4d1e797d5117d",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.16-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.16",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.16",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.16",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.16.md",
+      "published_at": "2026-08-27",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "8a54ed3d95f91c44850cb983f98e38aa4a070a4c",
+      "file": "frogalert-0.2.0-beta.16-top-b1144c-260404-usb-c.bin",
+      "bytes": 201100,
+      "sha256": "c0e78296e75715fa2c29224a2d3d7629eb96ac8ddf7be194e84f80ae5af21ebc",
+      "debug_file": "frogalert-0.2.0-beta.16-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 281296,
+      "debug_sha256": "ebc1c895c971598c723c539ed778426344101700163dc1fb4bc35e830256cac2",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33041125018,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9633916832,
+        "artifact_name": "frogalert-candidate-8a54ed3d95f91c44850cb983f98e38aa4a070a4c",
+        "artifact_digest": "sha256:3acd064360b0be6cfc52efa61e522905966bfdc9bd0f673f4d0f83469869040a",
+        "candidate_metadata_sha256": "023bc54244a3f264c1a94ca9c249df2d42d757178bf772d13e55763d1df32f51",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.2.0-beta.16-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.2.0-beta.16",
+      "channel": "beta",
+      "release_tag": "v0.2.0-beta.16",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.2.0-beta.16",
+      "release_notes": "firmware/releases/notes/v0.2.0-beta.16.md",
+      "published_at": "2026-08-27",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "8a54ed3d95f91c44850cb983f98e38aa4a070a4c",
+      "file": "frogalert-0.2.0-beta.16-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 201340,
+      "sha256": "77915d3a679179b104c050e403f2445d028d31743d333ea9f88c3197f133b985",
+      "debug_file": "frogalert-0.2.0-beta.16-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 281360,
+      "debug_sha256": "0dbb83d533ac430afedcd601df6e133c23255a336401a49018ef109abd2d4bfd",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33041125018,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9633916832,
+        "artifact_name": "frogalert-candidate-8a54ed3d95f91c44850cb983f98e38aa4a070a4c",
+        "artifact_digest": "sha256:3acd064360b0be6cfc52efa61e522905966bfdc9bd0f673f4d0f83469869040a",
+        "candidate_metadata_sha256": "023bc54244a3f264c1a94ca9c249df2d42d757178bf772d13e55763d1df32f51",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.3.0-beta.1-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.3.0-beta.1",
+      "channel": "beta",
+      "release_tag": "v0.3.0-beta.1",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.3.0-beta.1",
+      "release_notes": "firmware/releases/notes/v0.3.0-beta.1.md",
+      "published_at": "2026-09-04",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "74fb0c0037e1a0ff89adcd3ac53221f0fff8382a",
+      "file": "frogalert-0.3.0-beta.1-top-b1144c-260404-usb-c.bin",
+      "bytes": 212448,
+      "sha256": "eafdd740f3c9db95324fc2227c55bc74415bb55c2e70a7f6468eb637d3c90830",
+      "debug_file": "frogalert-0.3.0-beta.1-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 871136,
+      "debug_sha256": "86dc9d360252f82ef46c9a00223fdcea3b031276646e395872122d22a524eacf",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33929595721,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9958101632,
+        "artifact_name": "frogalert-candidate-74fb0c0037e1a0ff89adcd3ac53221f0fff8382a",
+        "artifact_digest": "sha256:c2c335678a5d2fcda7c66312712b4ebd12584bc3df0e427071b8e04abe3db58d",
+        "candidate_metadata_sha256": "1270a3d774d8cbeb25a282cc6d3d2325dcf12240087b9ab15a87826f5df97f4b",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.3.0-beta.1-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.3.0-beta.1",
+      "channel": "beta",
+      "release_tag": "v0.3.0-beta.1",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.3.0-beta.1",
+      "release_notes": "firmware/releases/notes/v0.3.0-beta.1.md",
+      "published_at": "2026-09-04",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "74fb0c0037e1a0ff89adcd3ac53221f0fff8382a",
+      "file": "frogalert-0.3.0-beta.1-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 212692,
+      "sha256": "7bd57d1426dacec9976533ff73b93ef26b129326c8d0b18b6bfc85c7cf21393a",
+      "debug_file": "frogalert-0.3.0-beta.1-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 871200,
+      "debug_sha256": "06c84281a77fa106d1f52bfd5c41d73dc5831710492a0897bb6bc9a4fd74edda",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33929595721,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9958101632,
+        "artifact_name": "frogalert-candidate-74fb0c0037e1a0ff89adcd3ac53221f0fff8382a",
+        "artifact_digest": "sha256:c2c335678a5d2fcda7c66312712b4ebd12584bc3df0e427071b8e04abe3db58d",
+        "candidate_metadata_sha256": "1270a3d774d8cbeb25a282cc6d3d2325dcf12240087b9ab15a87826f5df97f4b",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.3.0-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.3.0",
+      "channel": "stable",
+      "release_tag": "v0.3.0",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.3.0",
+      "release_notes": "firmware/releases/notes/v0.3.0.md",
+      "published_at": "2026-09-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "166fc4ac5ed172663899a9bc3fa64a4a4ce38329",
+      "file": "frogalert-0.3.0-top-b1144c-260404-usb-c.bin",
+      "bytes": 213348,
+      "sha256": "fe000bdca5d22ca22b0501c98dad2c45be64642883cffed41744b41829afc1e4",
+      "debug_file": "frogalert-0.3.0-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 871508,
+      "debug_sha256": "ef581ee14bbf8580f38e0cb7f8332436c8184da22ec2aa3ce1000fd15f480a1b",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33934029522,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9959566199,
+        "artifact_name": "frogalert-candidate-166fc4ac5ed172663899a9bc3fa64a4a4ce38329",
+        "artifact_digest": "sha256:ac229aea932009aae53287529a26c793bfd7e648942f82ded96e3f3ed903f857",
+        "candidate_metadata_sha256": "76e263565b74ebc41aa489ee6593cc4d198600842ba7b1df262645c1946b0362",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.3.0-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.3.0",
+      "channel": "stable",
+      "release_tag": "v0.3.0",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.3.0",
+      "release_notes": "firmware/releases/notes/v0.3.0.md",
+      "published_at": "2026-09-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "166fc4ac5ed172663899a9bc3fa64a4a4ce38329",
+      "file": "frogalert-0.3.0-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 213556,
+      "sha256": "fcdf72d3dccb03f6a8621ad12a7c1707bea7f4cd854f442dc49241eae2ac130f",
+      "debug_file": "frogalert-0.3.0-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 871596,
+      "debug_sha256": "5dc4e1678c82eef7eb4a600a68c38802d62e391f5e4219924ac8982a35be4a4e",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33934029522,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9959566199,
+        "artifact_name": "frogalert-candidate-166fc4ac5ed172663899a9bc3fa64a4a4ce38329",
+        "artifact_digest": "sha256:ac229aea932009aae53287529a26c793bfd7e648942f82ded96e3f3ed903f857",
+        "candidate_metadata_sha256": "76e263565b74ebc41aa489ee6593cc4d198600842ba7b1df262645c1946b0362",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.3.1-b1144c-260404-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.3.1",
+      "channel": "stable",
+      "release_tag": "v0.3.1",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.3.1",
+      "release_notes": "firmware/releases/notes/v0.3.1.md",
+      "published_at": "2026-09-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_260404_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_260404"
+      ],
+      "source_commit": "c838c9ef3a8539cb5d6c27f71b8cf0002e4ea1a8",
+      "file": "frogalert-0.3.1-top-b1144c-260404-usb-c.bin",
+      "bytes": 213824,
+      "sha256": "2ab02a01399a6870b40965c38a4f01d5dab22fbe4a9bb0989745663dd07636d4",
+      "debug_file": "frogalert-0.3.1-top-b1144c-260404-usb-c.elf",
+      "debug_bytes": 871652,
+      "debug_sha256": "082523a34bb9a474818deb4f70393acb013ecab572ba1917acdd54be622144df",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33944985016,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9963055995,
+        "artifact_name": "frogalert-candidate-c838c9ef3a8539cb5d6c27f71b8cf0002e4ea1a8",
+        "artifact_digest": "sha256:0130df700b309873a14df5ad67315e5a3721c4f576d0f36f4a008a7539b3606a",
+        "candidate_metadata_sha256": "714070e22869c79b31b205ef143062dd8ceb9eaf2deaa87ba86b5f123bac48f4",
+        "build_lane": "survey"
+      }
+    },
+    {
+      "id": "frogalert-0.3.1-b1144c-250901-usbc",
+      "kind": "frogalert-release",
+      "label": "FrogAlert",
+      "version": "0.3.1",
+      "channel": "stable",
+      "release_tag": "v0.3.1",
+      "release_url": "https://github.com/pierce403/frogalert/releases/tag/v0.3.1",
+      "release_notes": "firmware/releases/notes/v0.3.1.md",
+      "published_at": "2026-09-05",
+      "firmware_variant": "counter",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "B1144C_250901_USB_C"
+      ],
+      "pcb_markings": [
+        "B1144C_250901"
+      ],
+      "source_commit": "c838c9ef3a8539cb5d6c27f71b8cf0002e4ea1a8",
+      "file": "frogalert-0.3.1-bottom-b1144c-250901-usb-c.bin",
+      "bytes": 214032,
+      "sha256": "a9a06ce1c2dfcdee349bf46ada6f24502dd1891339149f1318864befbfb1a7ff",
+      "debug_file": "frogalert-0.3.1-bottom-b1144c-250901-usb-c.elf",
+      "debug_bytes": 871740,
+      "debug_sha256": "db134666b35c0d9c6bb034993b2a8a4ebb443f07b1c54ca38183181cc8ea7f11",
+      "hardware_verified": false,
+      "verification_basis": "ci-audited",
+      "flash_approved": true,
+      "build_provenance": {
+        "kind": "github-actions-candidate",
+        "workflow_run_id": 33944985016,
+        "workflow_path": ".github/workflows/ci.yml",
+        "workflow_run_attempt": 1,
+        "artifact_id": 9963055995,
+        "artifact_name": "frogalert-candidate-c838c9ef3a8539cb5d6c27f71b8cf0002e4ea1a8",
+        "artifact_digest": "sha256:0130df700b309873a14df5ad67315e5a3721c4f576d0f36f4a008a7539b3606a",
+        "candidate_metadata_sha256": "714070e22869c79b31b205ef143062dd8ceb9eaf2deaa87ba86b5f123bac48f4",
+        "build_lane": "survey"
+      }
+    }
+  ],
+  "lab_images": [],
+  "recovery_images": [
+    {
+      "id": "fossasia-badgemagic-v0.1-hardware-rev1",
+      "kind": "open-badgemagic-recovery",
+      "label": "FOSSASIA open BadgeMagic firmware",
+      "version": "v0.1",
+      "target": "ch582m-badgemagic-11x44",
+      "hardware_revisions": [
+        "HARDWARE_REV1"
+      ],
+      "hardware_verified_by_frogalert": false,
+      "file": "badgemagic-open-v0.1-hardware-rev1.bin",
+      "bytes": 155672,
+      "sha256": "7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9",
+      "upstream": {
+        "repository": "https://github.com/fossasia/badgemagic-firmware",
+        "release_url": "https://github.com/fossasia/badgemagic-firmware/releases/tag/v0.1",
+        "artifact_url": "https://github.com/fossasia/badgemagic-firmware/releases/download/v0.1/badgemagic-ch582.bin",
+        "source_commit": "68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8",
+        "source_url": "https://github.com/fossasia/badgemagic-firmware/commit/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8",
+        "license": "Apache-2.0"
+      }
+    }
+  ]
+}

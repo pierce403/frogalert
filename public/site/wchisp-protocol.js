@@ -1,0 +1,640 @@
+// SPDX-License-Identifier: Apache-2.0
+// WCH ISP packet behavior is independently implemented from public protocol
+// documentation and the GPL-2.0 ch32-rs/wchisp reference. See docs/THIRD_PARTY.md.
+
+export const WCH_USB_FILTERS = Object.freeze([
+  { vendorId: 0x4348, productId: 0x55e0 },
+  { vendorId: 0x1a86, productId: 0x55e0 },
+]);
+
+export const EXPECTED_CHIP_ID = 0x82;
+export const EXPECTED_DEVICE_TYPE = 0x16;
+export const CH582_FLASH_BYTES = 448 * 1024;
+export const SECTOR_BYTES = 1024;
+export const PROGRAM_CHUNK_BYTES = 56;
+export const MIN_FIRMWARE_BYTES = 256;
+export const CH58X_CONFIG_MASK = 0x07;
+export const OPEN_BADGEMAGIC_RECOVERY = Object.freeze({
+  id: "fossasia-badgemagic-v0.1-hardware-rev1",
+  kind: "open-badgemagic-recovery",
+  label: "FOSSASIA open BadgeMagic firmware",
+  version: "v0.1",
+  target: "ch582m-badgemagic-11x44",
+  hardwareRevision: "HARDWARE_REV1",
+  file: "badgemagic-open-v0.1-hardware-rev1.bin",
+  bytes: 155_672,
+  sha256: "7beebae130d36aa3b975d03019bb2027abf2f030295bd0f9daa625f04fb1e6b9",
+  repository: "https://github.com/fossasia/badgemagic-firmware",
+  releaseUrl: "https://github.com/fossasia/badgemagic-firmware/releases/tag/v0.1",
+  artifactUrl:
+    "https://github.com/fossasia/badgemagic-firmware/releases/download/v0.1/badgemagic-ch582.bin",
+  sourceCommit: "68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8",
+  sourceUrl:
+    "https://github.com/fossasia/badgemagic-firmware/commit/68e4ce488d0a011c2e03c631b5cc0c24dff7e1f8",
+  license: "Apache-2.0",
+});
+export const FROGALERT_GITHUB_REPOSITORY = "pierce403/frogalert";
+export const CI_AUDITED_RELEASE_BASIS = "ci-audited";
+export const CH58X_RESET_CONFIG = Uint8Array.of(
+  0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff,
+  0x4f, 0xff, 0x0f, 0xd5,
+);
+// CH582 bootloader 02.40 canonicalizes reserved/signature bits after A8.
+// Physical BadgeMagic transcripts record this value before a successful flash.
+export const CH58X_CANONICAL_RESET_READBACK = Uint8Array.of(
+  0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff,
+  0x4f, 0x3f, 0x0f, 0x45,
+);
+
+export const COMMAND = Object.freeze({
+  IDENTIFY: 0xa1,
+  ISP_END: 0xa2,
+  ISP_KEY: 0xa3,
+  ERASE: 0xa4,
+  PROGRAM: 0xa5,
+  VERIFY: 0xa6,
+  READ_CONFIG: 0xa7,
+  WRITE_CONFIG: 0xa8,
+});
+
+const IDENTIFY_MAGIC = new TextEncoder().encode("MCU ISP & WCH.CN");
+
+function writeU16LE(target, offset, value) {
+  target[offset] = value & 0xff;
+  target[offset + 1] = (value >>> 8) & 0xff;
+}
+
+function writeU32LE(target, offset, value) {
+  target[offset] = value & 0xff;
+  target[offset + 1] = (value >>> 8) & 0xff;
+  target[offset + 2] = (value >>> 16) & 0xff;
+  target[offset + 3] = (value >>> 24) & 0xff;
+}
+
+function readU16LE(source, offset) {
+  return source[offset] | (source[offset + 1] << 8);
+}
+
+export function identifyPacket(chipId = 0, deviceType = 0) {
+  const packet = new Uint8Array(21);
+  packet.set([COMMAND.IDENTIFY, 0x12, 0x00, chipId, deviceType]);
+  packet.set(IDENTIFY_MAGIC, 5);
+  return packet;
+}
+
+export function readConfigPacket(mask = 0x1f) {
+  return Uint8Array.of(COMMAND.READ_CONFIG, 0x02, 0x00, mask, 0x00);
+}
+
+export function writeConfigPacket(mask, data) {
+  if (!Number.isInteger(mask) || mask < 0 || mask > 0xff) {
+    throw new RangeError("configuration mask is invalid");
+  }
+  if (!(data instanceof Uint8Array) || data.byteLength !== 12) {
+    throw new RangeError("CH58x configuration writes require 12 bytes");
+  }
+  const packet = new Uint8Array(5 + data.byteLength);
+  packet[0] = COMMAND.WRITE_CONFIG;
+  writeU16LE(packet, 1, 2 + data.byteLength);
+  packet[3] = mask;
+  packet.set(data, 5);
+  return packet;
+}
+
+export function resetConfigPacket() {
+  return writeConfigPacket(CH58X_CONFIG_MASK, CH58X_RESET_CONFIG);
+}
+
+export function ispKeyPacket() {
+  const packet = new Uint8Array(33);
+  packet.set([COMMAND.ISP_KEY, 0x1e, 0x00]);
+  return packet;
+}
+
+export function erasePacket(sectors) {
+  if (!Number.isInteger(sectors) || sectors < 1 || sectors > 0xffffffff) {
+    throw new RangeError("erase sector count is invalid");
+  }
+  const packet = new Uint8Array(7);
+  packet.set([COMMAND.ERASE, 0x04, 0x00]);
+  writeU32LE(packet, 3, sectors);
+  return packet;
+}
+
+export function dataPacket(command, address, padding, data) {
+  if (command !== COMMAND.PROGRAM && command !== COMMAND.VERIFY) {
+    throw new RangeError("data packet command must be PROGRAM or VERIFY");
+  }
+  if (!Number.isInteger(address) || address < 0 || address > 0xffffffff) {
+    throw new RangeError("data packet address is invalid");
+  }
+  if (!(data instanceof Uint8Array) || data.byteLength > PROGRAM_CHUNK_BYTES) {
+    throw new RangeError("data packet payload must be at most 56 bytes");
+  }
+  const packet = new Uint8Array(8 + data.byteLength);
+  packet[0] = command;
+  writeU16LE(packet, 1, packet.byteLength - 3);
+  writeU32LE(packet, 3, address);
+  packet[7] = padding & 0xff;
+  packet.set(data, 8);
+  return packet;
+}
+
+export function ispEndPacket(reason = 1) {
+  return Uint8Array.of(COMMAND.ISP_END, 0x01, 0x00, reason & 0xff);
+}
+
+export function parseResponse(raw, expectedCommand) {
+  const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+  if (bytes.byteLength < 4) {
+    throw new Error("bootloader response is shorter than four bytes");
+  }
+  if (bytes[0] !== expectedCommand) {
+    throw new Error(
+      `bootloader echoed command 0x${bytes[0].toString(16)}, expected 0x${expectedCommand.toString(16)}`,
+    );
+  }
+  if (bytes[1] !== 0x00) {
+    throw new Error(`bootloader returned status 0x${bytes[1].toString(16).padStart(2, "0")}`);
+  }
+  const length = readU16LE(bytes, 2);
+  if (length !== bytes.byteLength - 4) {
+    throw new Error(`bootloader response length mismatch (${length} != ${bytes.byteLength - 4})`);
+  }
+  return bytes.slice(4);
+}
+
+export function parseIdentity(payload) {
+  if (!(payload instanceof Uint8Array) || payload.byteLength < 2) {
+    throw new Error("identify response did not include a chip id and device type");
+  }
+  const chipId = payload[0];
+  const deviceType = payload[1];
+  if (chipId !== EXPECTED_CHIP_ID || deviceType !== EXPECTED_DEVICE_TYPE) {
+    throw new Error(
+      `unsupported WCH target 0x${chipId.toString(16).padStart(2, "0")}${deviceType
+        .toString(16)
+        .padStart(2, "0")}; FrogAlert requires CH582[0x8216]`,
+    );
+  }
+  return { chipId, deviceType, name: "CH582", flashBytes: CH582_FLASH_BYTES };
+}
+
+export function parseConfig(payload) {
+  if (!(payload instanceof Uint8Array) || payload.byteLength < 26) {
+    throw new Error("configuration response is missing bootloader or UID data");
+  }
+  const bootloaderVersion = payload.slice(14, 18);
+  const uid = payload.slice(18, 26);
+  validateUid(uid);
+  return { bootloaderVersion, uid, registers: parseConfigRegisters(payload) };
+}
+
+export function parseConfigRegisters(payload) {
+  if (!(payload instanceof Uint8Array) || payload.byteLength < 14) {
+    throw new Error("configuration response is missing CH58x registers");
+  }
+  return payload.slice(2, 14);
+}
+
+export function isResetConfig(registers) {
+  return (
+    registers instanceof Uint8Array &&
+    registers.byteLength === CH58X_RESET_CONFIG.byteLength &&
+    [CH58X_RESET_CONFIG, CH58X_CANONICAL_RESET_READBACK].some((accepted) =>
+      registers.every((byte, index) => byte === accepted[index]),
+    )
+  );
+}
+
+export function validateUid(uid) {
+  if (!(uid instanceof Uint8Array) || uid.byteLength !== 8) {
+    throw new Error("CH582 UID must contain eight bytes");
+  }
+  const sum = (readU16LE(uid, 0) + readU16LE(uid, 2) + readU16LE(uid, 4)) & 0xffff;
+  if (sum !== readU16LE(uid, 6)) {
+    throw new Error("CH582 UID checksum failed");
+  }
+  return true;
+}
+
+export function deriveXorKey(uid, chipId = EXPECTED_CHIP_ID) {
+  validateUid(uid);
+  const checksum = uid.reduce((sum, byte) => (sum + byte) & 0xff, 0);
+  const key = new Uint8Array(8).fill(checksum);
+  key[7] = (key[7] + chipId) & 0xff;
+  return key;
+}
+
+export function xorChunk(data, key) {
+  if (!(data instanceof Uint8Array) || !(key instanceof Uint8Array) || key.byteLength !== 8) {
+    throw new TypeError("xorChunk requires byte arrays and an eight-byte key");
+  }
+  return data.map((byte, index) => byte ^ key[index % key.byteLength]);
+}
+
+export function padFirmware(raw) {
+  if (!(raw instanceof Uint8Array)) {
+    throw new TypeError("firmware must be a byte array");
+  }
+  const paddedLength = Math.ceil(raw.byteLength / SECTOR_BYTES) * SECTOR_BYTES;
+  const padded = new Uint8Array(paddedLength);
+  padded.set(raw);
+  return padded;
+}
+
+export function validateFirmware(raw, filename = "firmware.bin") {
+  if (!(raw instanceof Uint8Array) || raw.byteLength === 0) {
+    throw new Error("choose a non-empty raw firmware image");
+  }
+  if (!filename.toLowerCase().endsWith(".bin")) {
+    throw new Error("the browser flasher accepts raw .bin firmware images only");
+  }
+  if (raw.byteLength < MIN_FIRMWARE_BYTES) {
+    throw new Error(`firmware is implausibly short (minimum ${MIN_FIRMWARE_BYTES} bytes)`);
+  }
+  if (raw.every((byte) => byte === raw[0])) {
+    throw new Error("firmware contains only one repeated byte and would not be bootable");
+  }
+  const padded = padFirmware(raw);
+  // Match wchisp's conservative erase plan, which includes one extra sector.
+  const eraseSectors = Math.max(8, padded.byteLength / SECTOR_BYTES + 1);
+  if (eraseSectors * SECTOR_BYTES > CH582_FLASH_BYTES) {
+    throw new Error("firmware erase plan exceeds the CH582 448 KiB code-flash limit");
+  }
+  return { padded, eraseSectors };
+}
+
+export function validateReleaseCatalogDescriptor(
+  release,
+  githubRepository = FROGALERT_GITHUB_REPOSITORY,
+) {
+  if (!release || release.target !== "ch582m-badgemagic-11x44") {
+    throw new Error("release does not target the FrogAlert CH582M 11×44 badge");
+  }
+  const provenance = release.build_provenance;
+  const ciAudited =
+    release.hardware_verified === false &&
+    release.verification_basis === CI_AUDITED_RELEASE_BASIS &&
+    release.flash_approved === true &&
+    release.firmware_variant === "counter" &&
+    provenance?.kind === "github-actions-candidate" &&
+    Number.isSafeInteger(provenance.workflow_run_id) &&
+    provenance.workflow_run_id > 0 &&
+    provenance.workflow_path === ".github/workflows/ci.yml" &&
+    Number.isSafeInteger(provenance.workflow_run_attempt) &&
+    provenance.workflow_run_attempt > 0 &&
+    Number.isSafeInteger(provenance.artifact_id) &&
+    provenance.artifact_id > 0 &&
+    provenance.artifact_name === `frogalert-candidate-${release.source_commit}` &&
+    /^sha256:[a-f0-9]{64}$/.test(provenance.artifact_digest || "") &&
+    /^[a-f0-9]{64}$/.test(provenance.candidate_metadata_sha256 || "") &&
+    provenance.build_lane === "survey";
+  if (release.hardware_verified !== true && !ciAudited) {
+    throw new Error(
+      "release is neither hardware-verified nor an approved CI-audited FrogAlert build",
+    );
+  }
+  if (githubRepository !== FROGALERT_GITHUB_REPOSITORY) {
+    throw new Error("release catalog repository is not the FrogAlert repository");
+  }
+  if (
+    typeof release.id !== "string" ||
+    !/^frogalert-[a-z0-9][a-z0-9.-]{2,95}$/.test(release.id)
+  ) {
+    throw new Error("release id is invalid");
+  }
+  if (release.kind !== "frogalert-release") {
+    throw new Error("release kind is invalid");
+  }
+  if (typeof release.label !== "string" || !release.label.trim()) {
+    throw new Error("release label is missing");
+  }
+  if (
+    typeof release.version !== "string" ||
+    !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(
+      release.version,
+    )
+  ) {
+    throw new Error("release version is invalid");
+  }
+  if (!["alpha", "beta", "stable"].includes(release.channel)) {
+    throw new Error("release channel is invalid");
+  }
+  const prerelease = release.version.split("-", 2)[1] || "";
+  if (
+    (release.channel === "stable" && prerelease) ||
+    (release.channel !== "stable" &&
+      !prerelease.toLowerCase().startsWith(`${release.channel}.`) &&
+      prerelease.toLowerCase() !== release.channel)
+  ) {
+    throw new Error("release version does not match its channel");
+  }
+  const expectedTag = `v${release.version}`;
+  if (release.release_tag !== expectedTag) {
+    throw new Error(`release tag must be ${expectedTag}`);
+  }
+  if (
+    release.release_url !==
+    `https://github.com/${FROGALERT_GITHUB_REPOSITORY}/releases/tag/${expectedTag}`
+  ) {
+    throw new Error("release URL is not the canonical FrogAlert GitHub release");
+  }
+  if (
+    typeof release.release_notes !== "string" ||
+    !/^firmware\/releases\/notes\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.md$/.test(
+      release.release_notes,
+    )
+  ) {
+    throw new Error("release notes path is invalid");
+  }
+  if (
+    typeof release.debug_file !== "string" ||
+    !/^[a-zA-Z0-9._-]+\.elf$/.test(release.debug_file) ||
+    !Number.isSafeInteger(release.debug_bytes) ||
+    release.debug_bytes < 64 ||
+    typeof release.debug_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(release.debug_sha256)
+  ) {
+    throw new Error("release debug ELF metadata is invalid");
+  }
+  if (!Array.isArray(release.hardware_revisions) || release.hardware_revisions.length !== 1) {
+    throw new Error("release must declare exactly one PCB-bound firmware profile");
+  }
+  if (!Array.isArray(release.pcb_markings) || release.pcb_markings.length !== 1) {
+    throw new Error("release must declare exactly one physical PCB marking");
+  }
+  if (typeof release.file !== "string" || !/^[a-zA-Z0-9._-]+\.bin$/.test(release.file)) {
+    throw new Error("release filename is not a safe raw BIN name");
+  }
+  if (!Number.isSafeInteger(release.bytes) || release.bytes < 1) {
+    throw new Error("release byte length is invalid");
+  }
+  if (typeof release.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(release.sha256)) {
+    throw new Error("release SHA-256 is invalid");
+  }
+  if (typeof release.source_commit !== "string" || !/^[a-f0-9]{40}$/.test(release.source_commit)) {
+    throw new Error("release source commit is invalid");
+  }
+  return true;
+}
+
+function compareAscii(left, right) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+function compareNumericStrings(left, right) {
+  if (left.length !== right.length) return left.length < right.length ? -1 : 1;
+  return compareAscii(left, right);
+}
+
+export function compareReleaseVersions(leftVersion, rightVersion) {
+  const parse = (version) => {
+    if (
+      typeof version !== "string" ||
+      !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(
+        version,
+      )
+    ) {
+      throw new Error("release version is invalid");
+    }
+    const separator = version.indexOf("-");
+    const core = separator === -1 ? version : version.slice(0, separator);
+    const prerelease = separator === -1 ? "" : version.slice(separator + 1);
+    return { core: core.split("."), prerelease: prerelease ? prerelease.split(".") : [] };
+  };
+
+  const left = parse(leftVersion);
+  const right = parse(rightVersion);
+  for (let index = 0; index < 3; index++) {
+    const difference = compareNumericStrings(left.core[index], right.core[index]);
+    if (difference !== 0) return difference;
+  }
+  if (left.prerelease.length === 0 || right.prerelease.length === 0) {
+    if (left.prerelease.length === right.prerelease.length) return 0;
+    return left.prerelease.length === 0 ? 1 : -1;
+  }
+  const count = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < count; index++) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+    if (leftPart === undefined || rightPart === undefined) {
+      return leftPart === undefined ? -1 : 1;
+    }
+    if (leftPart === rightPart) continue;
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) return compareNumericStrings(leftPart, rightPart);
+    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+    return compareAscii(leftPart, rightPart);
+  }
+  return 0;
+}
+
+export function sortReleaseCatalogNewestFirst(
+  releases,
+  githubRepository = FROGALERT_GITHUB_REPOSITORY,
+) {
+  if (!Array.isArray(releases)) throw new TypeError("release catalog must be an array");
+  for (const release of releases) {
+    validateReleaseCatalogDescriptor(release, githubRepository);
+  }
+  return [...releases].sort((left, right) => {
+    const versionOrder = compareReleaseVersions(right.version, left.version);
+    return versionOrder || compareAscii(left.id, right.id);
+  });
+}
+
+export function validatePairedUsbCReleaseCatalog(
+  releases,
+  githubRepository = FROGALERT_GITHUB_REPOSITORY,
+) {
+  if (!Array.isArray(releases)) throw new TypeError("release catalog must be an array");
+  const required = new Map([
+    ["B1144C_260404_USB_C", "B1144C_260404"],
+    ["B1144C_250901_USB_C", "B1144C_250901"],
+  ]);
+  const groups = new Map();
+  for (const release of releases) {
+    validateReleaseCatalogDescriptor(release, githubRepository);
+    const group = groups.get(release.version) || [];
+    group.push(release);
+    groups.set(release.version, group);
+  }
+  for (const [version, group] of groups) {
+    if (group.length !== required.size) {
+      throw new Error(`FrogAlert ${version} must publish one top and one bottom image`);
+    }
+    for (const [profile, marking] of required) {
+      const matches = group.filter(
+        (release) =>
+          release.hardware_revisions[0] === profile &&
+          release.pcb_markings[0] === marking,
+      );
+      if (matches.length !== 1) {
+        throw new Error(`FrogAlert ${version} is missing its ${marking} image`);
+      }
+    }
+  }
+  return true;
+}
+
+export function validateReleaseDescriptor(release, pcbRevision, pcbMarking) {
+  validateReleaseCatalogDescriptor(release);
+  const revision = String(pcbRevision || "").trim();
+  if (!revision || !release.hardware_revisions.includes(revision)) {
+    throw new Error(`release does not support PCB revision ${revision || "(not entered)"}`);
+  }
+  const marking = String(pcbMarking || "").trim();
+  if (!marking || !release.pcb_markings.includes(marking)) {
+    throw new Error(`release does not support physical PCB marking ${marking || "(not entered)"}`);
+  }
+  return true;
+}
+
+function validateManifestArtifactMetadata(artifact, description) {
+  if (!artifact || typeof artifact !== "object") {
+    throw new Error(`${description} descriptor is missing`);
+  }
+  if (artifact.target !== "ch582m-badgemagic-11x44") {
+    throw new Error(`${description} does not target the FrogAlert CH582M 11×44 badge`);
+  }
+  if (!Array.isArray(artifact.hardware_revisions) || artifact.hardware_revisions.length !== 1) {
+    throw new Error(`${description} must declare exactly one hardware profile`);
+  }
+  if (
+    artifact.hardware_revisions.some(
+      (revision) => typeof revision !== "string" || !/^[A-Z0-9][A-Z0-9_-]{2,63}$/.test(revision),
+    )
+  ) {
+    throw new Error(`${description} contains an invalid hardware profile`);
+  }
+  if (typeof artifact.file !== "string" || !/^[a-zA-Z0-9._-]+\.bin$/.test(artifact.file)) {
+    throw new Error(`${description} filename is not a safe raw BIN name`);
+  }
+  if (!Number.isSafeInteger(artifact.bytes) || artifact.bytes < 1) {
+    throw new Error(`${description} byte length is invalid`);
+  }
+  if (typeof artifact.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
+    throw new Error(`${description} SHA-256 is invalid`);
+  }
+  if (typeof artifact.source_commit !== "string" || !/^[a-f0-9]{40}$/.test(artifact.source_commit)) {
+    throw new Error(`${description} source commit is invalid`);
+  }
+}
+
+export function validateLabDescriptor(lab) {
+  validateManifestArtifactMetadata(lab, "lab image");
+  if (typeof lab.id !== "string" || !/^[a-z0-9][a-z0-9._-]{2,95}$/.test(lab.id)) {
+    throw new Error("lab image id is invalid");
+  }
+  if (lab.kind !== "frogalert-lab") {
+    throw new Error("lab image kind is invalid");
+  }
+  if (typeof lab.label !== "string" || !lab.label.trim()) {
+    throw new Error("lab image label is missing");
+  }
+  if (typeof lab.version !== "string" || !lab.version.trim()) {
+    throw new Error("lab image version is missing");
+  }
+  if (typeof lab.purpose !== "string" || !lab.purpose.trim()) {
+    throw new Error("lab image purpose is missing");
+  }
+  if (!Array.isArray(lab.pcb_markings) || lab.pcb_markings.length !== 1) {
+    throw new Error("lab image must declare exactly one physical PCB marking");
+  }
+  if (
+    lab.pcb_markings.some(
+      (marking) => typeof marking !== "string" || !marking.trim() || marking.trim().length > 120,
+    )
+  ) {
+    throw new Error("lab image contains an invalid physical PCB marking");
+  }
+  if (!["usb-c", "micro-usb"].includes(lab.connector)) {
+    throw new Error("lab image connector is invalid");
+  }
+  if (typeof lab.hardware_verified !== "boolean") {
+    throw new Error("lab image hardware verification status is invalid");
+  }
+  return true;
+}
+
+export function validateLabHardwareBinding(lab, pcbRevision, pcbMarking) {
+  validateLabDescriptor(lab);
+  const revision = String(pcbRevision || "").trim();
+  if (!revision || !lab.hardware_revisions.includes(revision)) {
+    throw new Error(`lab image does not support hardware profile ${revision || "(not entered)"}`);
+  }
+  const marking = String(pcbMarking || "").trim();
+  if (!marking || !lab.pcb_markings.includes(marking)) {
+    throw new Error(`lab image does not support physical PCB marking ${marking || "(not entered)"}`);
+  }
+  return true;
+}
+
+export function validateRecoveryDescriptor(recovery, pcbRevision) {
+  if (!recovery || typeof recovery !== "object") {
+    throw new Error("open BadgeMagic recovery descriptor is missing");
+  }
+  if (
+    recovery.id !== OPEN_BADGEMAGIC_RECOVERY.id ||
+    recovery.kind !== OPEN_BADGEMAGIC_RECOVERY.kind ||
+    recovery.label !== OPEN_BADGEMAGIC_RECOVERY.label ||
+    recovery.version !== OPEN_BADGEMAGIC_RECOVERY.version ||
+    recovery.target !== OPEN_BADGEMAGIC_RECOVERY.target
+  ) {
+    throw new Error("recovery descriptor is not the reviewed FOSSASIA v0.1 image");
+  }
+  if (recovery.hardware_verified_by_frogalert !== false) {
+    throw new Error("recovery descriptor must preserve FrogAlert's hardware-unverified status");
+  }
+  if (
+    !Array.isArray(recovery.hardware_revisions) ||
+    recovery.hardware_revisions.length !== 1 ||
+    recovery.hardware_revisions[0] !== OPEN_BADGEMAGIC_RECOVERY.hardwareRevision
+  ) {
+    throw new Error("recovery descriptor must target HARDWARE_REV1 only");
+  }
+  const revision = String(pcbRevision || "").trim();
+  if (revision !== OPEN_BADGEMAGIC_RECOVERY.hardwareRevision) {
+    throw new Error(
+      `open BadgeMagic v0.1 supports ${OPEN_BADGEMAGIC_RECOVERY.hardwareRevision}, not ${revision || "(not entered)"}`,
+    );
+  }
+  if (
+    recovery.file !== OPEN_BADGEMAGIC_RECOVERY.file ||
+    recovery.bytes !== OPEN_BADGEMAGIC_RECOVERY.bytes ||
+    recovery.sha256 !== OPEN_BADGEMAGIC_RECOVERY.sha256
+  ) {
+    throw new Error("recovery artifact metadata does not match the reviewed FOSSASIA v0.1 bytes");
+  }
+  const upstream = recovery.upstream;
+  if (
+    !upstream ||
+    upstream.repository !== OPEN_BADGEMAGIC_RECOVERY.repository ||
+    upstream.release_url !== OPEN_BADGEMAGIC_RECOVERY.releaseUrl ||
+    upstream.artifact_url !== OPEN_BADGEMAGIC_RECOVERY.artifactUrl ||
+    upstream.source_commit !== OPEN_BADGEMAGIC_RECOVERY.sourceCommit ||
+    upstream.source_url !== OPEN_BADGEMAGIC_RECOVERY.sourceUrl ||
+    upstream.license !== OPEN_BADGEMAGIC_RECOVERY.license
+  ) {
+    throw new Error("recovery provenance does not match the reviewed FOSSASIA source and release");
+  }
+  return true;
+}
+
+export async function sha256Hex(bytes) {
+  if (!(bytes instanceof Uint8Array)) {
+    throw new TypeError("SHA-256 input must be a byte array");
+  }
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function formatBootloaderVersion(bytes) {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength !== 4) return "unknown";
+  return `${bytes[0].toString(16)}${bytes[1].toString(16)}.${bytes[2].toString(16)}${bytes[3].toString(16)}`;
+}

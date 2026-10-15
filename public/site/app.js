@@ -1,0 +1,2999 @@
+import { usbOpenPermissionHelp, showLinuxUsbHelp } from "./usb-permission-help.js?v=1";
+import {
+  COMMAND,
+  FROGALERT_GITHUB_REPOSITORY,
+  WCH_USB_FILTERS,
+  formatBootloaderVersion,
+  ispEndPacket,
+  parseResponse,
+  sha256Hex,
+  sortReleaseCatalogNewestFirst,
+  validatePairedUsbCReleaseCatalog,
+  validateFirmware,
+  validateLabDescriptor,
+  validateLabHardwareBinding,
+  validateReleaseCatalogDescriptor,
+  validateRecoveryDescriptor,
+  validateReleaseDescriptor,
+} from "./wchisp-protocol.js?v=8";
+import {
+  artifactBoardBinding,
+  canEnableFlash,
+  canProgramArtifact,
+  expectedPcbMarking,
+  nextArtifactGeneration,
+  physicalMarkingMatchesProfiles,
+  profileHintForIspButton,
+  revisionInputTransition,
+} from "./flasher-state.js?v=4";
+import {
+  programAndVerifyFirmware,
+  readBootloaderInfo,
+} from "./flash-session.js?v=3";
+import {
+  assertFirmwareHashNotQuarantined,
+  parseFirmwareQuarantineRegistry,
+} from "./firmware-quarantine.js";
+import {
+  BUILTIN_TARGET_BITS,
+  FIRMWARE_CONFIG_BLOCK_SIZE,
+  HARDWARE_PROFILES,
+  MATCH_TYPES,
+  MAX_CUSTOM_MONITORING_RULES,
+  decodeFirmwareConfig,
+  findUniqueFirmwareConfigBlock,
+  patchFirmwareConfig,
+} from "./firmware-config.js?v=2";
+import {
+  ISP_ENTRY_PHASE,
+  ISP_ENTRY_SEQUENCE,
+  beginIspDeviceRequest,
+  canRequestIspDevice,
+  finishIspDeviceRequest,
+  ispEntryCountdown,
+  nextIspEntryPhase,
+  previousIspEntryPhase,
+} from "./isp-entry-guide.js?v=5";
+import {
+  BADGE_CHARACTERISTIC,
+  BADGE_SERVICE,
+  BADGE_USB_CHOOSER_FILTERS,
+  DEVICE_INFORMATION_SERVICE,
+  FIRMWARE_REVISION_CHARACTERISTIC,
+  MANUFACTURER_NAME_CHARACTERISTIC,
+  MODEL_NUMBER_CHARACTERISTIC,
+  NEXT_GEN_SERVICE,
+  badgeUsbMode,
+  browserCapabilityReport,
+  configurationSummary,
+  decodeGattText,
+  firmwareArtifactUrl,
+  firmwareManifestUrl,
+  firmwareQuarantineUrl,
+  isMobileNavigator,
+  protectedFirmwareExplanation,
+  usbDescriptorSummary,
+  validateWchUsbConfiguration,
+} from "./flash-support.js?v=3";
+
+const USB_ENDPOINT = 2;
+const USB_READ_BYTES = 64;
+const ISP_PERMISSION_HINT_KEY = "frogalert.wch-isp-authorized.v1";
+
+function readRememberedIspPermission() {
+  try {
+    return window.localStorage.getItem(ISP_PERMISSION_HINT_KEY) === "yes";
+  } catch {
+    return false;
+  }
+}
+
+function rememberIspPermission() {
+  try {
+    window.localStorage.setItem(ISP_PERMISSION_HINT_KEY, "yes");
+  } catch {
+    // WebUSB getDevices() still carries the browser grant for this page load.
+  }
+}
+
+const state = {
+  usbDevice: null,
+  applicationUsbDevice: null,
+  chip: null,
+  config: null,
+  firmware: null,
+  flashing: false,
+  bluetoothDevice: null,
+  artifactGeneration: 0,
+  activeFlashDevice: null,
+  releases: [],
+  releasePrefetchReady: false,
+  releasePrefetchVersion: null,
+  buttonReleaseIds: null,
+  labImages: [],
+  recoveryImages: [],
+  quarantinedFirmwareHashes: null,
+  labImageSummary: { message: "Loading additional firmware…", tone: "neutral" },
+  releaseSummary: { message: "Loading release manifest…", tone: "neutral" },
+  wakeLock: null,
+  activeStage: null,
+  usbRequestPending: false,
+  ispEntryPhase: ISP_ENTRY_PHASE.CLOSED,
+  ispEntryCountdownStartedAt: null,
+  ispEntryCountdownTimer: null,
+  monitorBase: null,
+  monitorDownloadUrl: null,
+  monitorDirty: false,
+  applicationProfileHint: null,
+  applicationTransitionPending: false,
+  buttonFlashPending: false,
+  ispPermissionRemembered: readRememberedIspPermission(),
+};
+let releaseManifestPromise = null;
+const releaseArtifactPromises = new Map();
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
+const destructivePage = document.body.dataset.flashMode === "program";
+
+const elements = {
+  capability: $("#capability-status"),
+  bluetoothButton: $("#bluetooth-connect"),
+  bluetoothStatus: $("#bluetooth-status"),
+  usbButton: $("#usb-connect"),
+  usbStatus: $("#usb-status"),
+  ispGuideStart: $("#isp-guide-start"),
+  ispGuide: $("#isp-entry-guide"),
+  ispGuideTitle: $("#isp-guide-title"),
+  ispGuideInstruction: $("#isp-guide-instruction"),
+  ispGuideStep: $("#isp-guide-step"),
+  ispGuideCountdown: $("#isp-guide-countdown"),
+  ispGuideBack: $("#isp-guide-back"),
+  ispGuideNext: $("#isp-guide-next"),
+  ispGuideConnect: $("#isp-guide-connect"),
+  ispGuideRetry: $("#isp-guide-retry"),
+  ispGuideCancel: $("#isp-guide-cancel"),
+  chipName: $("#chip-name"),
+  bootloaderVersion: $("#bootloader-version"),
+  uidStatus: $("#uid-status"),
+  firmwareInput: $("#firmware-file"),
+  pcbMarking: $("#pcb-marking"),
+  pcbRevision: $("#pcb-revision"),
+  releaseSelect: $("#release-select"),
+  releaseStatus: $("#release-status"),
+  releaseDownload: $("#release-download"),
+  releaseLink: $("#release-link"),
+  labImageSelect: $("#lab-image-select"),
+  labImageStatus: $("#lab-image-status"),
+  labImageDownload: $("#lab-image-download"),
+  recoveryButton: $("#recovery-prepare"),
+  recoveryBoardConfirmation: $("#recovery-board-confirmation"),
+  recoveryStatus: $("#recovery-status"),
+  recoveryVersion: $("#recovery-version"),
+  recoveryTarget: $("#recovery-target"),
+  recoverySource: $("#recovery-source"),
+  recoverySize: $("#recovery-size"),
+  recoveryHash: $("#recovery-hash"),
+  recoveryVerification: $("#recovery-verification"),
+  firmwareName: $("#firmware-name"),
+  firmwareSize: $("#firmware-size"),
+  firmwareHash: $("#firmware-hash"),
+  firmwareRevision: $("#firmware-revision"),
+  flashButton: $("#flash-button"),
+  progress: $("#flash-progress"),
+  progressLabel: $("#progress-label"),
+  log: $("#flash-log"),
+  matrix: $("#led-matrix"),
+  platformStatus: $("#platform-status"),
+  phoneGuidance: $("#phone-guidance"),
+  runtimeDeviceName: $("#runtime-device-name"),
+  runtimeProfile: $("#runtime-profile"),
+  runtimeFirmware: $("#runtime-firmware"),
+  runtimeManufacturer: $("#runtime-manufacturer"),
+  runtimeModel: $("#runtime-model"),
+  usbId: $("#usb-id"),
+  usbProduct: $("#usb-product"),
+  usbManufacturer: $("#usb-manufacturer"),
+  usbVersion: $("#usb-version"),
+  usbConfigState: $("#usb-config-state"),
+  currentFirmwareStatus: $("#current-firmware-status"),
+  boardDetectionStatus: $("#board-detection-status"),
+  usbDisconnectButton: $("#usb-disconnect"),
+  authorizedUsbStatus: $("#authorized-usb-status"),
+  wakeLockStatus: $("#wake-lock-status"),
+  secureContextStatus: $("#secure-context-status"),
+  webUsbSupportStatus: $("#webusb-support-status"),
+  webBluetoothSupportStatus: $("#webbluetooth-support-status"),
+  usbPermissionStatus: $("#usb-permission-status"),
+  chipIdentity: $("#chip-identity"),
+  badgeGattStatus: $("#badge-gatt-status"),
+  pcbMarkingStatus: $("#pcb-marking-status"),
+  matrixStatus: $("#matrix-status"),
+  selectedProfileStatus: $("#selected-profile-status"),
+  firmwareProvenance: $("#firmware-provenance"),
+  firmwareVerification: $("#firmware-verification"),
+  monitorTargets: $("#monitor-targets"),
+  monitorTargetInputs: $$("[data-monitor-target]"),
+  monitorAddRule: $("#monitor-add-rule"),
+  monitorCustomRules: $("#monitor-custom-rules"),
+  monitorApply: $("#monitor-apply"),
+  monitorReset: $("#monitor-reset"),
+  monitorStatus: $("#monitor-config-status"),
+  monitorBaseHash: $("#monitor-base-hash"),
+  monitorFinalHash: $("#monitor-final-hash"),
+  monitorDownload: $("#monitor-download"),
+  armedStatus: $("#armed-status"),
+  copyLogButton: $("#copy-log"),
+  wizardSteps: $$("[data-wizard-step]"),
+  wizardProgress: $$("[data-wizard-progress]"),
+  wizardDeviceSummary: $("#wizard-device-summary"),
+  wizardFirmwareStatus: $("#wizard-firmware-status"),
+  wizardFirmwareBack: $("#wizard-firmware-back"),
+  wizardButtonTop: $("#wizard-button-top"),
+  wizardButtonBottom: $("#wizard-button-bottom"),
+  wizardButtonStop: $("#wizard-button-stop"),
+  wizardPairVersion: $("#wizard-pair-version"),
+  wizardPairTop: $("#wizard-pair-top"),
+  wizardPairBottom: $("#wizard-pair-bottom"),
+  wizardPairProvenance: $("#wizard-pair-provenance"),
+  wizardPairHardwareStatus: $("#wizard-pair-hardware-status"),
+  wizardFlashBack: $("#wizard-flash-back"),
+  wizardFlashStatus: $("#wizard-flash-status"),
+  wizardFinalSummary: $("#wizard-final-summary"),
+  wizardIspHelp: $("#wizard-isp-help"),
+  wizardApplicationGuide: $("#wizard-application-guide"),
+  wizardApplicationTitle: $("#wizard-application-title"),
+  wizardApplicationInstruction: $("#wizard-application-instruction"),
+  wizardApplicationSuccess: $("#wizard-application-success"),
+  wizardProfileHint: $("#wizard-profile-hint"),
+  wizardResult: $("#wizard-result"),
+  wizardRestart: $("#wizard-restart"),
+  latestReleaseChannel: $("#latest-release-channel"),
+  latestReleaseVersion: $("#latest-release-version"),
+  latestReleaseSummary: $("#latest-release-summary"),
+  latestReleaseMarkings: $("#latest-release-markings"),
+  latestTopDownload: $("#latest-top-download"),
+  latestBottomDownload: $("#latest-bottom-download"),
+  latestReleaseNotes: $("#latest-release-notes"),
+  stages: {
+    identify: $("#stage-identify"),
+    config: $("#stage-config"),
+    erase: $("#stage-erase"),
+    program: $("#stage-program"),
+    verify: $("#stage-verify"),
+    reset: $("#stage-reset"),
+  },
+};
+
+const WIZARD_STEP = Object.freeze({
+  CONNECT: "connect",
+  FIRMWARE: "firmware",
+  FLASH: "flash",
+  SUCCESS: "success",
+});
+
+let wizardStep = WIZARD_STEP.CONNECT;
+let wizardTerminal = false;
+
+const ISP_ENTRY_COPY = Object.freeze({
+  [ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE]: {
+    title: "Step 1 of 5: Confirm compatible firmware",
+    instruction:
+      "Use this routine guide only after compatible FOSSASIA or FrogAlert firmware is installed. A CI-audited release may not have a physical recovery smoke test.",
+    status:
+      "No chooser has opened. If this badge still runs original, unknown, blank, or broken firmware, stop: this routine KEY2 guide cannot enter ISP on the confirmed B1144C_250901 board.",
+    next: "Compatible firmware is installed",
+  },
+  [ISP_ENTRY_PHASE.USB_CONNECTED]: {
+    title: "Step 2 of 5: Connect stable data USB",
+    instruction:
+      "Connect the badge to a stable data-capable USB port or phone OTG adapter and leave the cable connected.",
+    status: "The browser has not requested a device or sent a command.",
+    next: "Stable data USB is connected",
+  },
+  [ISP_ENTRY_PHASE.HOLD_KEY2]: {
+    title: "Step 3 of 5: Hold KEY2",
+    instruction:
+      "Press and keep holding the correct KEY2 for about 2.2 seconds: it is farther from USB on B1144C_260404 and nearest USB on B1144C_250901.",
+    status: "Keep KEY2 held until the single dot appears near the middle of the panel.",
+    next: "I am holding KEY2",
+  },
+  [ISP_ENTRY_PHASE.WAIT_FOR_DOT]: {
+    title: "Step 4 of 5: Release at the dot",
+    instruction:
+      "Release KEY2 when one dot lights near the middle of the panel. That cue comes from compatible application firmware.",
+    status: "Do not continue until you see the single dot near the middle.",
+    next: "I see the dot and released KEY2",
+  },
+  [ISP_ENTRY_PHASE.CONNECT_WINDOW]: {
+    title: "Step 5 of 5: Open the chooser",
+    instruction:
+      "Choose USB 4348:55e0 or 1a86:55e0 now. The observed ISP window lasts about 9–13 seconds; this first connection performs only Identify and Read Config.",
+    status:
+      "Only your explicit chooser tap can request the USB device. No erase or write is armed.",
+  },
+  [ISP_ENTRY_PHASE.CHOOSER]: {
+    title: "Browser chooser opened",
+    instruction: "Select the WCH ISP device. If nothing appears, cancel, unplug USB, and repeat the KEY2 sequence.",
+    status: "The chooser was opened by your tap; no firmware-changing command has been sent.",
+  },
+  [ISP_ENTRY_PHASE.IDENTIFIED]: {
+    title: "CH582 identified read-only",
+    instruction: "The badge reported chip 0x82 / family 0x16 and returned its configuration. Continue only after checking the exact physical board.",
+    status: "No configuration reset, erase, program, or verify command was sent.",
+  },
+  [ISP_ENTRY_PHASE.RETRY]: {
+    title: "No active bootloader was identified",
+    instruction:
+      "If compatible firmware is installed, confirm the printed PCB revision and repeat with its correct KEY2: farther from USB on 260404, nearest USB on 250901. If firmware is original or unknown, stop: its revision-specific C3 recovery is expert-only.",
+    status:
+      "Nothing was changed. A missing chooser device does not authorize opening or bridging anything on the board.",
+  },
+});
+
+const FONT = {
+  A: ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+  E: ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+  F: ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+  G: ["01110", "10001", "10000", "10111", "10001", "10001", "01110"],
+  H: ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+  L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+  O: ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+  R: ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+  T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+  X: ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
+};
+
+function renderMatrix(text) {
+  if (!elements.matrix) return;
+  const rows = 11;
+  const columns = 44;
+  const pixels = Array.from({ length: rows }, () => Array(columns).fill(false));
+  const width = text.length * 6 - 1;
+  const startX = Math.max(0, Math.floor((columns - width) / 2));
+  const startY = 2;
+  [...text].forEach((letter, letterIndex) => {
+    (FONT[letter] || FONT.X).forEach((row, y) => {
+      [...row].forEach((pixel, x) => {
+        const column = startX + letterIndex * 6 + x;
+        if (column < columns && pixel === "1") pixels[startY + y][column] = true;
+      });
+    });
+  });
+  elements.matrix.replaceChildren(
+    ...pixels.flatMap((row) =>
+      row.map((active) => {
+        const pixel = document.createElement("span");
+        pixel.className = active ? "matrix-pixel is-on" : "matrix-pixel";
+        return pixel;
+      }),
+    ),
+  );
+  elements.matrix.setAttribute("aria-label", `LED badge preview reading ${text}`);
+}
+
+function startMatrixPreview() {
+  const frames = ["FROG", "ALERT"];
+  let frame = 0;
+  renderMatrix(frames[frame]);
+  try {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+  } catch {
+    // A partial browser shell must not prevent the device/release UI from loading.
+  }
+  window.setInterval(() => {
+    frame = (frame + 1) % frames.length;
+    renderMatrix(frames[frame]);
+  }, 2200);
+}
+
+function setStatus(element, message, tone = "neutral") {
+  if (!element) return;
+  element.textContent = message;
+  element.dataset.tone = tone;
+}
+
+function artifactReadyForWizard() {
+  return Boolean(
+    state.usbDevice &&
+      state.chip &&
+      state.config &&
+      state.firmware &&
+      !state.monitorDirty &&
+      hasBoardRecord() &&
+      revisionMatchesArtifact() &&
+      physicalMarkingMatchesArtifact() &&
+      artifactProgrammingAllowed(),
+  );
+}
+
+function showApplicationUsbDevice(device) {
+  const moveFocus = document.activeElement === elements.usbButton;
+  state.applicationUsbDevice = device;
+  state.applicationProfileHint = null;
+  state.applicationTransitionPending = false;
+  const descriptor = usbDescriptorSummary(device);
+  setStatus(
+    elements.usbPermissionStatus,
+    "Permission granted to a known BadgeMagic application USB signature.",
+    "good",
+  );
+  setStatus(
+    elements.usbStatus,
+    state.ispPermissionRemembered
+      ? `Badge detected in normal nametag mode (${descriptor.vidPid}). Bootloader permission is remembered; hold the indicated button and FrogAlert will continue automatically.`
+      : `Badge detected in normal nametag mode (${descriptor.vidPid}). Enter ISP mode to continue.`,
+    "good",
+  );
+  if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = false;
+  if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = true;
+  if (elements.usbButton) elements.usbButton.hidden = true;
+  renderApplicationEntryGuide();
+  log(
+    `Detected the known BadgeMagic application USB signature ${descriptor.vidPid}; no interface was opened and no command was sent.`,
+    "success",
+  );
+  updateWizardUi();
+  if (moveFocus) elements.wizardApplicationTitle?.focus();
+}
+
+function renderApplicationEntryGuide() {
+  if (!elements.wizardApplicationGuide) return;
+  elements.wizardApplicationTitle.textContent = "Hold Top or Bottom";
+  elements.wizardApplicationInstruction.textContent = state.ispPermissionRemembered
+    ? "Chrome remembers this bootloader. With the display upright, hold either the top or bottom button for about 2.2 seconds and release at the dot. Remember which button you held; FrogAlert will identify WCH ISP automatically."
+    : "With the display upright, tap Start watching first and keep Chrome's chooser open. Hold either the top or bottom button for about 2.2 seconds, release at the dot, select WCH ISP, and remember which button you held.";
+  elements.wizardApplicationSuccess.textContent = state.ispPermissionRemembered
+    ? "Not detected? Open the chooser"
+    : "Start watching for flashing mode";
+  elements.wizardApplicationSuccess.hidden = false;
+}
+
+function selectApplicationProfileHint(position) {
+  const hint = profileHintForIspButton(position);
+  if (!hint) return false;
+  state.applicationProfileHint = hint;
+  return true;
+}
+
+function beginApplicationIspWatch() {
+  if (
+    (destructivePage && !state.releasePrefetchReady) ||
+    state.flashing ||
+    state.usbRequestPending
+  ) {
+    updateConnectionReadiness();
+    return;
+  }
+  void connectUsb({ ispOnly: true, applicationAttempt: true });
+}
+
+function clearApplicationUsbDevice({ restoreStatus = false } = {}) {
+  state.applicationUsbDevice = null;
+  if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = true;
+  if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = false;
+  if (elements.usbButton) {
+    elements.usbButton.hidden = false;
+    elements.usbButton.textContent = "Start watching for flashing mode";
+  }
+  if (restoreStatus) {
+    setStatus(
+      elements.usbStatus,
+      "No authorized WCH ISP device detected. Tap Start watching, then use either badge button to enter flashing mode.",
+      "neutral",
+    );
+  }
+}
+
+function renderWizardFinalSummary() {
+  if (!elements.wizardFinalSummary) return;
+  const facts = [
+    ["Target", state.chip ? "CH582 · 0x82 / 0x16" : "Not connected"],
+    ["Board", elements.pcbMarking?.value.trim() || "Not recorded"],
+    ["Profile", selectedRevision() || "Not selected"],
+    ["Firmware", state.firmware?.name || "Not loaded"],
+    ["SHA-256", state.firmware?.hash || "—"],
+  ];
+  elements.wizardFinalSummary.replaceChildren(
+    ...facts.map(([term, value]) => {
+      const row = document.createElement("div");
+      const dt = document.createElement("dt");
+      const dd = document.createElement("dd");
+      dt.textContent = term;
+      dd.textContent = value;
+      row.append(dt, dd);
+      return row;
+    }),
+  );
+}
+
+function updateWizardUi() {
+  if (!elements.wizardSteps.length) return;
+  document.body.dataset.wizardStep = wizardStep;
+  for (const step of elements.wizardSteps) {
+    step.hidden = step.dataset.wizardStep !== wizardStep;
+  }
+  for (const marker of elements.wizardProgress) {
+    if (marker.dataset.wizardProgress === wizardStep) marker.setAttribute("aria-current", "step");
+    else marker.removeAttribute("aria-current");
+  }
+  const artifactReady = artifactReadyForWizard();
+  const canChooseButton = Boolean(
+    state.usbDevice &&
+      state.chip &&
+      state.config &&
+      state.releasePrefetchReady &&
+      state.buttonReleaseIds &&
+      !state.buttonFlashPending &&
+      !state.flashing,
+  );
+  for (const button of [elements.wizardButtonTop, elements.wizardButtonBottom]) {
+    if (button) button.disabled = !canChooseButton;
+  }
+  if (elements.wizardButtonStop) {
+    elements.wizardButtonStop.disabled = state.buttonFlashPending || state.flashing;
+  }
+  if (elements.wizardFirmwareStatus) {
+    const message = !state.firmware
+      ? state.applicationProfileHint
+        ? `Looking for the ${state.applicationProfileHint.imageLabel}…`
+        : state.chip && state.config
+          ? "Read-only bootloader info complete. Choose the button you actually used; that click starts the matching flash."
+          : "Waiting for the read-only bootloader info exchange."
+      : artifactReady
+        ? "Firmware downloaded and verified; starting the destructive session."
+        : "This firmware could not be verified.";
+    setStatus(elements.wizardFirmwareStatus, message, artifactReady ? "good" : "neutral");
+  }
+  if (elements.wizardDeviceSummary && state.chip && state.config) {
+    elements.wizardDeviceSummary.textContent =
+      `CH582 ISP identified · bootloader ${formatBootloaderVersion(state.config.bootloaderVersion)} · no write sent`;
+  }
+  if (elements.wizardProfileHint) {
+    const hint = state.applicationProfileHint;
+    elements.wizardProfileHint.hidden = !hint;
+    if (hint) {
+      elements.wizardProfileHint.textContent =
+        `${hint.position === "top" ? "Top" : "Bottom"} button selected the ${hint.marking} image.`;
+    }
+  }
+  if (wizardStep === WIZARD_STEP.FLASH) renderWizardFinalSummary();
+}
+
+function setWizardStep(step, { focus = true, terminal = false } = {}) {
+  if (wizardTerminal && !terminal) return;
+  wizardStep = step;
+  wizardTerminal = terminal;
+  updateWizardUi();
+  if (focus) {
+    const heading = elements.wizardSteps
+      .find((candidate) => candidate.dataset.wizardStep === step)
+      ?.querySelector("h1");
+    heading?.focus();
+  }
+}
+
+function log(message, tone = "info") {
+  const entry = document.createElement("li");
+  const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  entry.dataset.tone = tone;
+  entry.textContent = `${timestamp} — ${message}`;
+  elements.log.append(entry);
+  elements.log.scrollTop = elements.log.scrollHeight;
+  if (elements.copyLogButton) elements.copyLogButton.disabled = false;
+}
+
+function setReleaseSummary(message, tone) {
+  state.releaseSummary = { message, tone };
+  setStatus(elements.releaseStatus, message, tone);
+}
+
+function restoreReleaseSummary() {
+  setStatus(elements.releaseStatus, state.releaseSummary.message, state.releaseSummary.tone);
+}
+
+function clearReleaseLinks() {
+  for (const link of [elements.releaseDownload, elements.releaseLink]) {
+    if (!link) continue;
+    link.hidden = true;
+    link.removeAttribute("href");
+  }
+  elements.releaseDownload?.removeAttribute("download");
+}
+
+function renderReleaseLinks(release) {
+  clearReleaseLinks();
+  if (elements.releaseDownload) {
+    elements.releaseDownload.href = firmwareArtifactUrl(release.file, import.meta.url);
+    elements.releaseDownload.download = release.file;
+    elements.releaseDownload.hidden = false;
+  }
+  if (elements.releaseLink) {
+    elements.releaseLink.href = release.release_url;
+    elements.releaseLink.hidden = false;
+  }
+}
+
+function setLabImageSummary(message, tone) {
+  state.labImageSummary = { message, tone };
+  setStatus(elements.labImageStatus, message, tone);
+}
+
+function restoreLabImageSummary() {
+  setStatus(elements.labImageStatus, state.labImageSummary.message, state.labImageSummary.tone);
+}
+
+function clearLabImageDownload() {
+  if (!elements.labImageDownload) return;
+  elements.labImageDownload.hidden = true;
+  elements.labImageDownload.removeAttribute("href");
+  elements.labImageDownload.removeAttribute("download");
+}
+
+function updateProgress(value, label) {
+  if (elements.progress) elements.progress.value = value;
+  if (elements.progressLabel) elements.progressLabel.textContent = label;
+}
+
+function setStage(name, stageState) {
+  const element = elements.stages[name];
+  if (!element) return;
+  if (stageState) element.dataset.state = stageState;
+  else delete element.dataset.state;
+  state.activeStage = stageState === "active" ? name : state.activeStage === name ? null : state.activeStage;
+}
+
+function resetStages() {
+  state.activeStage = null;
+  Object.values(elements.stages).forEach((element) => {
+    if (element) delete element.dataset.state;
+  });
+}
+
+function failActiveStage() {
+  if (state.activeStage) setStage(state.activeStage, "failed");
+}
+
+function isTrustworthyContext() {
+  return window.isSecureContext || ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+}
+
+function hasWebUsb() {
+  return (
+    typeof navigator.usb?.requestDevice === "function" &&
+    typeof navigator.usb?.getDevices === "function"
+  );
+}
+
+function hasWebBluetooth() {
+  return typeof navigator.bluetooth?.requestDevice === "function";
+}
+
+function canUseWebUsbChooser() {
+  return isTrustworthyContext() && hasWebUsb();
+}
+
+function updateConnectionReadiness() {
+  const readyForIsp =
+    !destructivePage || state.releasePrefetchReady;
+  if (elements.usbButton) {
+    elements.usbButton.disabled =
+      !canUseWebUsbChooser() ||
+      !readyForIsp ||
+      state.flashing ||
+      state.usbRequestPending ||
+      Boolean(state.usbDevice);
+  }
+  if (elements.wizardApplicationSuccess) {
+    elements.wizardApplicationSuccess.disabled =
+      !readyForIsp || state.flashing || state.usbRequestPending;
+  }
+  if (elements.armedStatus && !state.firmware && !state.flashing) {
+    setStatus(
+      elements.armedStatus,
+      readyForIsp
+        ? "Both latest images are hash-verified in memory. Start watching, enter ISP with either button, then choose the button you held to flash immediately."
+        : "Preparing and hash-checking both button-matched images before ISP entry…",
+      readyForIsp ? "good" : "neutral",
+    );
+  }
+}
+
+function stopIspEntryCountdown() {
+  if (state.ispEntryCountdownTimer !== null) {
+    window.clearInterval(state.ispEntryCountdownTimer);
+    state.ispEntryCountdownTimer = null;
+  }
+  state.ispEntryCountdownStartedAt = null;
+}
+
+function updateIspEntryCountdown() {
+  if (
+    !elements.ispGuideCountdown ||
+    state.ispEntryCountdownStartedAt === null ||
+    state.ispEntryPhase !== ISP_ENTRY_PHASE.CONNECT_WINDOW
+  ) {
+    return;
+  }
+  const countdown = ispEntryCountdown(state.ispEntryCountdownStartedAt, performance.now());
+  elements.ispGuideCountdown.textContent = countdown.expired
+    ? "The observed 9–13 second window may have expired. The chooser remains read-only; if compatible firmware is installed, repeat the KEY2 guide."
+    : `Open the chooser promptly during the observed 9–13 second window: about ${countdown.remainingSeconds} s remaining`;
+  if (countdown.expired && state.ispEntryCountdownTimer !== null) {
+    window.clearInterval(state.ispEntryCountdownTimer);
+    state.ispEntryCountdownTimer = null;
+  }
+}
+
+function startIspEntryCountdown() {
+  stopIspEntryCountdown();
+  state.ispEntryCountdownStartedAt = performance.now();
+  updateIspEntryCountdown();
+  state.ispEntryCountdownTimer = window.setInterval(updateIspEntryCountdown, 250);
+}
+
+function renderIspEntryGuide() {
+  if (!elements.ispGuide || !elements.ispGuideStart) return;
+  const phase = state.ispEntryPhase;
+  const isOpen = phase !== ISP_ENTRY_PHASE.CLOSED;
+  elements.ispGuide.hidden = !isOpen;
+  elements.ispGuide.dataset.state = phase;
+  elements.ispGuideStart.setAttribute("aria-expanded", String(isOpen));
+  elements.ispGuideStart.disabled =
+    state.flashing || state.usbRequestPending || Boolean(state.usbDevice);
+  if (!isOpen) return;
+
+  const copy = ISP_ENTRY_COPY[phase];
+  if (!copy) throw new Error(`missing ISP entry guide copy for ${phase}`);
+  elements.ispGuideTitle.textContent = copy.title;
+  elements.ispGuideInstruction.textContent = copy.instruction;
+  setStatus(
+    elements.ispGuideStep,
+    copy.status,
+    phase === ISP_ENTRY_PHASE.IDENTIFIED
+      ? "good"
+      : phase === ISP_ENTRY_PHASE.RETRY
+        ? "warning"
+        : "neutral",
+  );
+  if (phase === ISP_ENTRY_PHASE.CONNECT_WINDOW && !canUseWebUsbChooser()) {
+    setStatus(
+      elements.ispGuideStep,
+      "This browser cannot open WebUSB here. Nothing changed; use current desktop Chrome/Edge or the documented wchisp CLI fallback.",
+      "warning",
+    );
+  }
+
+  const highlightPhase = ISP_ENTRY_SEQUENCE.includes(phase)
+    ? phase
+    : [ISP_ENTRY_PHASE.CHOOSER, ISP_ENTRY_PHASE.IDENTIFIED].includes(phase)
+      ? ISP_ENTRY_PHASE.CONNECT_WINDOW
+      : null;
+  elements.ispGuide.querySelectorAll("[data-guide-phase]").forEach((item) => {
+    if (item.dataset.guidePhase === highlightPhase) item.setAttribute("aria-current", "step");
+    else item.removeAttribute("aria-current");
+  });
+
+  const physicalStep = ISP_ENTRY_SEQUENCE.includes(phase) && phase !== ISP_ENTRY_PHASE.CLOSED;
+  const canAdvance = physicalStep && phase !== ISP_ENTRY_PHASE.CONNECT_WINDOW;
+  elements.ispGuideBack.hidden =
+    !physicalStep || phase === ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE;
+  elements.ispGuideBack.disabled = state.flashing || state.usbRequestPending;
+  elements.ispGuideNext.hidden = !canAdvance;
+  elements.ispGuideNext.disabled = state.flashing || state.usbRequestPending;
+  if (canAdvance) elements.ispGuideNext.textContent = copy.next;
+
+  const chooserStep = [ISP_ENTRY_PHASE.CONNECT_WINDOW, ISP_ENTRY_PHASE.CHOOSER].includes(phase);
+  elements.ispGuideConnect.hidden = !chooserStep;
+  elements.ispGuideConnect.disabled =
+    state.flashing ||
+    state.usbRequestPending ||
+    !canUseWebUsbChooser() ||
+    !canRequestIspDevice(phase) ||
+    Boolean(state.usbDevice);
+  elements.ispGuideRetry.hidden = phase !== ISP_ENTRY_PHASE.RETRY;
+  elements.ispGuideRetry.disabled = state.flashing || state.usbRequestPending;
+  elements.ispGuideCancel.disabled = state.flashing || state.usbRequestPending;
+  elements.ispGuideCountdown.hidden = phase !== ISP_ENTRY_PHASE.CONNECT_WINDOW;
+}
+
+function setIspEntryPhase(phase, { focus = false } = {}) {
+  if (phase !== ISP_ENTRY_PHASE.CONNECT_WINDOW) stopIspEntryCountdown();
+  state.ispEntryPhase = phase;
+  renderIspEntryGuide();
+  if (focus && !elements.ispGuide.hidden) elements.ispGuide.focus();
+}
+
+function focusIspEntryPhaseControl(phase) {
+  if (!elements.ispGuide) return;
+  let target = null;
+  if (
+    [
+      ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE,
+      ISP_ENTRY_PHASE.USB_CONNECTED,
+      ISP_ENTRY_PHASE.HOLD_KEY2,
+      ISP_ENTRY_PHASE.WAIT_FOR_DOT,
+    ].includes(phase)
+  ) {
+    target = elements.ispGuideNext;
+  } else if (phase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
+    target = elements.ispGuideConnect;
+  } else if (phase === ISP_ENTRY_PHASE.RETRY) {
+    target = elements.ispGuideRetry;
+  } else if (phase === ISP_ENTRY_PHASE.IDENTIFIED) {
+    target = elements.ispGuideCancel;
+  }
+  if (target && !target.hidden && !target.disabled) target.focus();
+  else elements.ispGuide.focus();
+}
+
+function openIspEntryGuide() {
+  if (state.flashing) return;
+  setIspEntryPhase(nextIspEntryPhase(ISP_ENTRY_PHASE.CLOSED), { focus: true });
+}
+
+function advanceIspEntryGuide() {
+  if (state.flashing) return;
+  const nextPhase = nextIspEntryPhase(state.ispEntryPhase);
+  if (nextPhase === state.ispEntryPhase) return;
+  state.ispEntryPhase = nextPhase;
+  renderIspEntryGuide();
+  if (nextPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) startIspEntryCountdown();
+  focusIspEntryPhaseControl(nextPhase);
+}
+
+function retreatIspEntryGuide() {
+  if (state.flashing) return;
+  const previousPhase = previousIspEntryPhase(state.ispEntryPhase);
+  setIspEntryPhase(previousPhase);
+  focusIspEntryPhaseControl(previousPhase);
+}
+
+function retryIspEntryGuide() {
+  if (state.flashing) return;
+  setIspEntryPhase(ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE);
+  focusIspEntryPhaseControl(ISP_ENTRY_PHASE.CONFIRM_COMPATIBLE);
+}
+
+function closeIspEntryGuide() {
+  if (state.flashing) return;
+  setIspEntryPhase(ISP_ENTRY_PHASE.CLOSED);
+  const target = [
+    elements.ispGuideStart,
+    elements.usbDisconnectButton,
+    elements.usbButton,
+  ].find((candidate) => candidate && !candidate.hidden && !candidate.disabled);
+  target?.focus();
+}
+
+function beginGuidedUsbConnection() {
+  if (
+    state.flashing ||
+    state.usbRequestPending ||
+    !canUseWebUsbChooser() ||
+    (destructivePage && !state.releasePrefetchReady) ||
+    !canRequestIspDevice(state.ispEntryPhase)
+  ) {
+    return;
+  }
+  state.ispEntryPhase = beginIspDeviceRequest(state.ispEntryPhase);
+  stopIspEntryCountdown();
+  renderIspEntryGuide();
+  void connectUsb({ guided: true });
+}
+
+function updateCapabilities() {
+  const secure = isTrustworthyContext();
+  const usb = hasWebUsb();
+  const bluetooth = hasWebBluetooth();
+  const mobile = isMobileNavigator(navigator);
+  const report = browserCapabilityReport({
+    secureContext: secure,
+    hasWebUsb: usb,
+    hasWebBluetooth: bluetooth,
+    mobile,
+    userAgent: navigator.userAgent,
+  });
+  const summary = [secure ? "secure context" : "HTTPS required", usb ? "WebUSB API ready" : "no WebUSB", bluetooth ? "Web Bluetooth ready" : "no Web Bluetooth"];
+  setStatus(elements.capability, summary.join(" · "), secure && usb ? "good" : "warning");
+  setStatus(
+    elements.secureContextStatus,
+    secure ? "HTTPS / trustworthy context" : "Blocked — HTTPS required",
+    secure ? "good" : "bad",
+  );
+  setStatus(
+    elements.webUsbSupportStatus,
+    usb ? "WebUSB API available" : "Unavailable in this browser",
+    usb ? "good" : "warning",
+  );
+  setStatus(
+    elements.webBluetoothSupportStatus,
+    bluetooth ? "Web Bluetooth API available" : "Unavailable in this browser",
+    bluetooth ? "good" : "warning",
+  );
+  setStatus(
+    elements.usbPermissionStatus,
+    usb ? "Not requested — use a chooser button when ready" : "Unavailable without WebUSB",
+    usb ? "neutral" : "warning",
+  );
+  setStatus(
+    elements.platformStatus,
+    `${mobile ? "mobile" : "desktop"} browser · ${report.canFlash ? "WebUSB API eligible; device access not yet confirmed" : "browser flashing unavailable"}`,
+    report.canFlash ? "good" : "warning",
+  );
+  setStatus(elements.phoneGuidance, report.phoneGuidance, report.canFlash ? "good" : "warning");
+  setStatus(elements.currentFirmwareStatus, protectedFirmwareExplanation(), "warning");
+  setStatus(
+    elements.boardDetectionStatus,
+    "Not detectable over USB or Bluetooth. Open the enclosure and record the physical PCB markings, CH582M package, 11×44 matrix, port layout, and LSE crystal.",
+    "warning",
+  );
+  updateConnectionReadiness();
+  elements.bluetoothButton.disabled = !secure || !bluetooth;
+  if (!secure) {
+    setStatus(elements.usbStatus, "Open this page over HTTPS or localhost before connecting hardware.", "bad");
+    setStatus(elements.bluetoothStatus, "Open this page over HTTPS or localhost before connecting hardware.", "bad");
+  } else if (!usb) {
+    setStatus(elements.usbStatus, "WebUSB is unavailable. Use current desktop Chrome/Edge or the wchisp CLI.", "warning");
+  }
+  if (secure && !bluetooth) {
+    setStatus(elements.bluetoothStatus, "Web Bluetooth is unavailable in this browser. The official BadgeMagic app remains the fallback.", "warning");
+  }
+  renderIspEntryGuide();
+  refreshAuthorizedUsbStatus();
+}
+
+async function refreshAuthorizedUsbStatus() {
+  if (!hasWebUsb() || !isTrustworthyContext()) {
+    setStatus(elements.authorizedUsbStatus, "No WebUSB access in this browser.", "warning");
+    return;
+  }
+  try {
+    const devices = await navigator.usb.getDevices();
+    const wchDevices = devices.filter((device) =>
+      WCH_USB_FILTERS.some(
+        (filter) => device.vendorId === filter.vendorId && device.productId === filter.productId,
+      ),
+    );
+    setStatus(
+      elements.authorizedUsbStatus,
+      wchDevices.length === 0
+        ? "No previously authorized WCH bootloader is visible. Permission is requested only after an explicit chooser tap."
+        : `${wchDevices.length} previously authorized WCH bootloader${wchDevices.length === 1 ? " is" : "s are"} attached. Use a chooser button to identify it read-only.`,
+      wchDevices.length === 0 ? "neutral" : "good",
+    );
+  } catch (error) {
+    setStatus(elements.authorizedUsbStatus, `Authorized-device check failed: ${error.message}`, "warning");
+  }
+}
+
+async function readOptionalGattText(service, characteristicId) {
+  try {
+    const characteristic = await service.getCharacteristic(characteristicId);
+    return decodeGattText(await characteristic.readValue());
+  } catch {
+    return null;
+  }
+}
+
+async function connectBluetooth() {
+  let device = null;
+  try {
+    elements.bluetoothButton.disabled = true;
+    setStatus(elements.bluetoothStatus, "Choose a running BadgeMagic-compatible badge…", "working");
+    if (elements.badgeGattStatus) elements.badgeGattStatus.textContent = "Probe in progress";
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [BADGE_SERVICE] }],
+      optionalServices: [NEXT_GEN_SERVICE, 0x180a],
+    });
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(BADGE_SERVICE);
+    await service.getCharacteristic(BADGE_CHARACTERISTIC);
+    let firmwareVersion = null;
+    let manufacturer = null;
+    let model = null;
+    try {
+      const deviceInformation = await server.getPrimaryService(DEVICE_INFORMATION_SERVICE);
+      [firmwareVersion, manufacturer, model] = await Promise.all([
+        readOptionalGattText(deviceInformation, FIRMWARE_REVISION_CHARACTERISTIC),
+        readOptionalGattText(deviceInformation, MANUFACTURER_NAME_CHARACTERISTIC),
+        readOptionalGattText(deviceInformation, MODEL_NUMBER_CHARACTERISTIC),
+      ]);
+    } catch {
+      // Legacy BadgeMagic firmware commonly omits the Device Information service.
+    }
+    if (elements.runtimeDeviceName) elements.runtimeDeviceName.textContent = device.name || "name not reported";
+    if (elements.runtimeProfile) elements.runtimeProfile.textContent = "FEE0 service + FEE1 characteristic detected";
+    if (elements.badgeGattStatus) elements.badgeGattStatus.textContent = "FEE0/FEE1 detected";
+    if (elements.runtimeFirmware) {
+      elements.runtimeFirmware.textContent = firmwareVersion || "not exposed by this running firmware";
+    }
+    if (elements.runtimeManufacturer) elements.runtimeManufacturer.textContent = manufacturer || "not exposed";
+    if (elements.runtimeModel) elements.runtimeModel.textContent = model || "not exposed";
+    setStatus(
+      elements.bluetoothStatus,
+      `${device.name || "Badge"} exposes FEE0/FEE1. ${
+        firmwareVersion
+          ? `Device Information reports firmware ${firmwareVersion}.`
+          : "No trustworthy firmware version was exposed."
+      } Probe passed and the page disconnected; no content was changed.`,
+      "good",
+    );
+  } catch (error) {
+    const cancelled = error?.name === "NotFoundError";
+    if (elements.badgeGattStatus) {
+      elements.badgeGattStatus.textContent = cancelled ? "Not probed" : "FEE0/FEE1 not confirmed";
+    }
+    setStatus(elements.bluetoothStatus, cancelled ? "No badge selected." : `Badge probe failed: ${error.message}`, cancelled ? "neutral" : "bad");
+  } finally {
+    if (device?.gatt?.connected) device.gatt.disconnect();
+    state.bluetoothDevice = null;
+    elements.bluetoothButton.disabled = !hasWebBluetooth();
+  }
+}
+
+function dataViewBytes(view) {
+  return new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+}
+
+async function usbTransfer(packet, expectedDevice = null) {
+  if (
+    expectedDevice &&
+    (state.usbDevice !== expectedDevice || state.activeFlashDevice !== expectedDevice)
+  ) {
+    throw new Error("USB device changed during the active flash session");
+  }
+  const device = expectedDevice || state.usbDevice;
+  if (!device?.opened) throw new Error("WCH ISP device is not open");
+  const sent = await withTimeout(device.transferOut(USB_ENDPOINT, packet), 8000, "USB write");
+  if (sent.status !== "ok" || sent.bytesWritten !== packet.byteLength) {
+    throw new Error(`USB write failed (${sent.status}, ${sent.bytesWritten || 0}/${packet.byteLength} bytes)`);
+  }
+  const received = await withTimeout(device.transferIn(USB_ENDPOINT, USB_READ_BYTES), 8000, "USB response");
+  if (received.status !== "ok" || !received.data) {
+    throw new Error(`USB read failed (${received.status})`);
+  }
+  return parseResponse(dataViewBytes(received.data), packet[0]);
+}
+
+async function connectUsb(options = {}) {
+  if (state.flashing || state.usbRequestPending) return;
+  if (destructivePage && !state.releasePrefetchReady) {
+    setStatus(
+      elements.usbStatus,
+      "Wait until both latest button-matched images are downloaded and verified before opening the bootloader.",
+      "warning",
+    );
+    updateConnectionReadiness();
+    return;
+  }
+  state.usbRequestPending = true;
+  $("#usb-permission-help")?.remove();
+  let openingDevice = false;
+  renderIspEntryGuide();
+  const guided = options?.guided === true;
+  const authorizedDevice = options?.device || null;
+  const automatic = options?.automatic === true;
+  const ispOnly = options?.ispOnly === true;
+  const applicationAttempt = options?.applicationAttempt === true;
+  const guideTracking = guided || state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED;
+  if (!guided && state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
+    state.ispEntryPhase = beginIspDeviceRequest(state.ispEntryPhase);
+    stopIspEntryCountdown();
+    renderIspEntryGuide();
+  }
+  try {
+    elements.usbButton.disabled = true;
+    setStatus(
+      elements.usbPermissionStatus,
+      authorizedDevice
+        ? "Previously authorized badge USB device detected."
+        : "Device chooser requested by your action.",
+      "working",
+    );
+    setStatus(
+      elements.usbStatus,
+      authorizedDevice
+        ? "Checking the attached badge USB mode…"
+        : ispOnly
+          ? "Keep the chooser open, enter ISP with the indicated button, then select WCH ISP as soon as it appears…"
+          : "Choose the connected badge or its WCH ISP bootloader…",
+      "working",
+    );
+    log(
+      authorizedDevice
+        ? "Checking a previously authorized badge USB device."
+        : ispOnly
+          ? "Opening the WCH ISP chooser before the button hold."
+          : "Requesting permission to detect the badge USB mode.",
+    );
+    const device =
+      authorizedDevice ||
+      (await navigator.usb.requestDevice({
+        filters: ispOnly ? WCH_USB_FILTERS : BADGE_USB_CHOOSER_FILTERS,
+      }));
+    const usbMode = badgeUsbMode(device);
+    if (usbMode === "application") {
+      showApplicationUsbDevice(device);
+      return;
+    }
+    if (usbMode !== "isp") throw new Error("selected USB device is not a supported BadgeMagic badge");
+    state.applicationProfileHint = null;
+    state.applicationTransitionPending = false;
+    clearApplicationUsbDevice();
+    openingDevice = true;
+    await device.open();
+    openingDevice = false;
+    state.usbDevice = device;
+    if (!device.configuration) await device.selectConfiguration(1);
+    if (device.configuration?.configurationValue !== 1) {
+      throw new Error("bootloader did not select USB configuration 1");
+    }
+    validateWchUsbConfiguration(device.configuration);
+    await device.claimInterface(0);
+
+    const { identity, config } = await readBootloaderInfo({
+      transfer: (packet) => usbTransfer(packet),
+    });
+    state.chip = identity;
+    state.config = config;
+    rememberIspPermission();
+    state.ispPermissionRemembered = true;
+    const descriptor = usbDescriptorSummary(device);
+    const configSummary = configurationSummary(config.registers);
+    elements.chipName.textContent = `${identity.name} [0x8216]`;
+    elements.bootloaderVersion.textContent = formatBootloaderVersion(config.bootloaderVersion);
+    elements.uidStatus.textContent = "checksum valid · value kept private";
+    if (elements.usbId) elements.usbId.textContent = descriptor.vidPid;
+    if (elements.usbProduct) elements.usbProduct.textContent = descriptor.product;
+    if (elements.usbManufacturer) elements.usbManufacturer.textContent = descriptor.manufacturer;
+    if (elements.usbVersion) elements.usbVersion.textContent = descriptor.deviceVersion;
+    if (elements.usbConfigState) elements.usbConfigState.textContent = configSummary.label;
+    if (elements.chipIdentity) elements.chipIdentity.textContent = "0x82 / 0x16";
+    if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = false;
+    resetStages();
+    setStage("identify", "complete");
+    setStatus(elements.usbPermissionStatus, "Permission granted to this captured WCH device.", "good");
+    setStatus(
+      elements.usbStatus,
+      "CH582 bootloader info complete. No erase or write command has been sent; with the display upright, choose the actual top or bottom button now.",
+      "good",
+    );
+    if (guideTracking) {
+      const identifiedPhase = finishIspDeviceRequest({ identified: true });
+      setIspEntryPhase(identifiedPhase);
+    }
+    log(
+      `Read-only wchisp-info equivalent passed: CH582, family 0x16, bootloader ${formatBootloaderVersion(config.bootloaderVersion)}, UID checksum valid; application firmware remains unreadable.`,
+      "success",
+    );
+    setWizardStep(WIZARD_STEP.FIRMWARE);
+  } catch (error) {
+    await closeUsb();
+    const cancelled = error?.name === "NotFoundError";
+    const permissionHelp = openingDevice ? usbOpenPermissionHelp(error, navigator) : null;
+    if (guideTracking) {
+      const retryPhase = finishIspDeviceRequest({ identified: false });
+      setIspEntryPhase(retryPhase);
+    }
+    setStatus(
+      elements.usbPermissionStatus,
+      cancelled ? "Device chooser cancelled." : `USB permission/open failed: ${error.message}`,
+      cancelled ? "neutral" : "bad",
+    );
+    setStatus(
+      elements.usbStatus,
+      cancelled
+        ? applicationAttempt
+          ? "Chooser closed without selecting the bootloader. Nothing changed; start watching again, or try the other button if no dot appeared."
+          : "No bootloader selected. Nothing changed. If the dot went out and compatible firmware is installed, repeat the KEY2 guide."
+        : permissionHelp?.message || `Bootloader probe failed: ${error.message}. If compatible firmware is installed, repeat the KEY2 guide with a known data cable or direct port; otherwise stop.`,
+      cancelled ? "neutral" : "bad",
+    );
+    log(cancelled ? "Device selection cancelled; nothing changed." : `Probe stopped safely: ${error.message}`, cancelled ? "info" : "error");
+    if (permissionHelp?.command) showLinuxUsbHelp(elements.usbStatus, permissionHelp.command);
+    if (elements.wizardIspHelp) elements.wizardIspHelp.open = !cancelled && !permissionHelp;
+    if (automatic) setWizardStep(WIZARD_STEP.CONNECT, { focus: false });
+  } finally {
+    state.usbRequestPending = false;
+    updateConnectionReadiness();
+    renderIspEntryGuide();
+    if (
+      guideTracking &&
+      [ISP_ENTRY_PHASE.IDENTIFIED, ISP_ENTRY_PHASE.RETRY].includes(state.ispEntryPhase)
+    ) {
+      focusIspEntryPhaseControl(state.ispEntryPhase);
+    }
+    updateFlashButton();
+  }
+}
+
+async function detectAuthorizedUsb(device = null) {
+  if (
+    state.flashing ||
+    state.usbRequestPending ||
+    state.usbDevice ||
+    !hasWebUsb() ||
+    !isTrustworthyContext()
+  ) {
+    return;
+  }
+  if (
+    destructivePage &&
+    !state.releasePrefetchReady
+  ) {
+    setStatus(
+      elements.usbStatus,
+      "Wait for both latest images to finish verification. FrogAlert will then run read-only bootloader info on an authorized ISP device.",
+      "neutral",
+    );
+    updateConnectionReadiness();
+    return;
+  }
+  try {
+    const devices = device ? [device] : await navigator.usb.getDevices();
+    const ispMatches = devices.filter((candidate) => badgeUsbMode(candidate) === "isp");
+    const applicationMatches = devices.filter(
+      (candidate) => badgeUsbMode(candidate) === "application",
+    );
+    if (ispMatches.length === 1) {
+      await connectUsb({ device: ispMatches[0], automatic: true });
+      return;
+    }
+    if (ispMatches.length === 0 && applicationMatches.length === 1) {
+      showApplicationUsbDevice(applicationMatches[0]);
+      return;
+    }
+    if (!state.applicationTransitionPending) clearApplicationUsbDevice();
+    const multipleDevices = ispMatches.length > 1 || applicationMatches.length > 1;
+    const statusMessage =
+      ispMatches.length > 1
+        ? "More than one authorized ISP device is attached. Disconnect the extras, then tap Start watching."
+        : applicationMatches.length > 1
+          ? "More than one BadgeMagic application is attached. Disconnect the extras, then tap Start watching."
+          : state.applicationTransitionPending
+            ? "Normal mode disconnected. Keep the already-open chooser visible and select WCH ISP when it appears."
+            : "No authorized WCH ISP device detected. Tap Start watching, keep the chooser open, then hold either badge button.";
+    setStatus(
+      elements.usbStatus,
+      statusMessage,
+      multipleDevices ? "warning" : state.applicationTransitionPending ? "working" : "neutral",
+    );
+  } catch (error) {
+    setStatus(elements.usbStatus, `Could not check attached USB devices: ${error.message}`, "warning");
+  }
+}
+
+async function closeUsb() {
+  const device = state.usbDevice;
+  const config = state.config;
+  state.usbDevice = null;
+  state.chip = null;
+  state.config = null;
+  config?.uid?.fill(0);
+  config?.registers?.fill(0);
+  elements.chipName.textContent = "not connected";
+  elements.bootloaderVersion.textContent = "—";
+  elements.uidStatus.textContent = "—";
+  if (elements.chipIdentity) elements.chipIdentity.textContent = "—";
+  if (elements.usbId) elements.usbId.textContent = "not connected";
+  if (elements.usbProduct) elements.usbProduct.textContent = "—";
+  if (elements.usbManufacturer) elements.usbManufacturer.textContent = "—";
+  if (elements.usbVersion) elements.usbVersion.textContent = "—";
+  if (elements.usbConfigState) elements.usbConfigState.textContent = "—";
+  if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = true;
+  if (device?.opened) {
+    try {
+      await device.releaseInterface(0);
+    } catch {
+      // The bootloader may already have disconnected after reset.
+    }
+    try {
+      await device.close();
+    } catch {
+      // Closing an already disconnected bootloader is harmless.
+    }
+  }
+  refreshAuthorizedUsbStatus();
+  updateConnectionReadiness();
+  updateWizardUi();
+}
+
+async function disconnectUsbByUser() {
+  if (state.flashing) return;
+  await closeUsb();
+  setStatus(elements.usbStatus, "Bootloader connection closed without changing firmware.", "neutral");
+  log("Closed the read-only bootloader connection; nothing was erased or written.");
+  updateConnectionReadiness();
+  if (state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED) {
+    setIspEntryPhase(ISP_ENTRY_PHASE.CLOSED);
+  }
+  updateFlashButton();
+  setWizardStep(WIZARD_STEP.CONNECT);
+}
+
+async function copyRedactedLog() {
+  if (!elements.copyLogButton) return;
+  try {
+    const text = [...elements.log.children]
+      .map((entry) => entry.textContent)
+      .join("\n");
+    await navigator.clipboard.writeText(text);
+    elements.copyLogButton.textContent = "Copied redacted log";
+    window.setTimeout(() => {
+      elements.copyLogButton.textContent = "Copy redacted log";
+    }, 1600);
+  } catch (error) {
+    log(`Could not copy the redacted session log: ${error.message}`, "error");
+  }
+}
+
+function selectedRevision() {
+  return elements.pcbRevision.value.trim();
+}
+
+function hasBoardRecord() {
+  return elements.pcbMarking.value.trim().length > 0;
+}
+
+function recoveryDescriptor() {
+  return state.recoveryImages[0] || null;
+}
+
+function renderRecoveryDescriptor(recovery) {
+  const releaseLink = document.createElement("a");
+  releaseLink.href = recovery.upstream.release_url;
+  releaseLink.target = "_blank";
+  releaseLink.rel = "noopener noreferrer";
+  releaseLink.textContent = `${recovery.label} ${recovery.version} · ${recovery.upstream.license}`;
+  elements.recoveryVersion.replaceChildren(releaseLink);
+  elements.recoveryTarget.textContent = `${recovery.hardware_revisions[0]} · CH582M · 11×44 · Micro-USB`;
+  const sourceLink = document.createElement("a");
+  sourceLink.href = recovery.upstream.source_url;
+  sourceLink.target = "_blank";
+  sourceLink.rel = "noopener noreferrer";
+  sourceLink.textContent = recovery.upstream.source_commit.slice(0, 12);
+  elements.recoverySource.replaceChildren(sourceLink);
+  elements.recoverySize.textContent = `${recovery.bytes.toLocaleString()} bytes`;
+  elements.recoveryHash.textContent = recovery.sha256;
+  elements.recoveryVerification.textContent = "hardware-unverified by FrogAlert";
+}
+
+function updateRecoveryButton() {
+  const recovery = recoveryDescriptor();
+  const revision = selectedRevision();
+  const matches = Boolean(recovery && revision === recovery.hardware_revisions[0]);
+  const boardConfirmed = elements.recoveryBoardConfirmation.checked;
+  elements.recoveryButton.disabled = state.flashing || !matches || !boardConfirmed;
+  if (!recovery) {
+    setStatus(elements.recoveryStatus, "No reviewed open BadgeMagic recovery descriptor is available.", "warning");
+  } else if (!revision) {
+    setStatus(
+      elements.recoveryStatus,
+      "Enter HARDWARE_REV1 exactly after inspecting the opened Micro-USB board. Preparation remains disabled.",
+      "neutral",
+    );
+  } else if (!matches) {
+    setStatus(
+      elements.recoveryStatus,
+      `No reviewed open BadgeMagic image is available for ${revision}. Unknown boards, HARDWARE_REV2, and HARDWARE_REV3 remain disabled.`,
+      "warning",
+    );
+  } else if (!boardConfirmed) {
+    setStatus(
+      elements.recoveryStatus,
+      "Compare the opened board with the linked FOSSASIA reference photos and check the hardware confirmation before preparing this image.",
+      "warning",
+    );
+  } else if (state.firmware?.recoveryId === recovery.id) {
+    setStatus(
+      elements.recoveryStatus,
+      `${recovery.label} ${recovery.version} is prepared and hash-verified locally for inspection. Nothing has been written, and browser programming stays locked until a physical HARDWARE_REV1 smoke test passes.`,
+      "warning",
+    );
+  } else {
+    setStatus(
+      elements.recoveryStatus,
+      `${recovery.label} ${recovery.version} can be prepared and inspected for HARDWARE_REV1. This only loads bytes; browser programming stays locked until a physical HARDWARE_REV1 smoke test passes.`,
+      "warning",
+    );
+  }
+}
+
+function revisionMatchesArtifact() {
+  const revision = selectedRevision();
+  return Boolean(revision && state.firmware?.hardwareRevisions?.includes(revision));
+}
+
+function physicalMarkingMatchesArtifact() {
+  const declaredMarkings = state.firmware?.pcbMarkings;
+  if (declaredMarkings) {
+    return declaredMarkings.includes(elements.pcbMarking.value.trim());
+  }
+  return physicalMarkingMatchesProfiles({
+    hardwareRevisions: state.firmware?.hardwareRevisions,
+    physicalMarking: elements.pcbMarking.value,
+  });
+}
+
+function recoveryArtifactConfirmationComplete() {
+  return (
+    state.firmware?.artifactKind !== "open-badgemagic-recovery" ||
+    elements.recoveryBoardConfirmation.checked
+  );
+}
+
+function artifactProgrammingAllowed() {
+  return canProgramArtifact({
+    artifactKind: state.firmware?.artifactKind,
+    hardwareVerified: state.firmware?.hardwareVerified,
+    hardwareVerifiedByFrogalert: state.firmware?.hardwareVerifiedByFrogalert,
+    flashApproved: state.firmware?.flashApproved,
+  });
+}
+
+function profileNameForConfigId(profileId) {
+  return Object.entries(HARDWARE_PROFILES).find(([, id]) => id === profileId)?.[0] || null;
+}
+
+function inspectFirmwareConfig(raw) {
+  let offset;
+  try {
+    offset = findUniqueFirmwareConfigBlock(raw);
+  } catch (error) {
+    if (/does not contain a FrogAlert configuration block/.test(error.message)) {
+      return null;
+    }
+    throw error;
+  }
+  return {
+    offset,
+    config: decodeFirmwareConfig(
+      raw.subarray(offset, offset + FIRMWARE_CONFIG_BLOCK_SIZE),
+    ),
+  };
+}
+
+function clearMonitorDownload() {
+  if (state.monitorDownloadUrl) {
+    URL.revokeObjectURL(state.monitorDownloadUrl);
+    state.monitorDownloadUrl = null;
+  }
+  if (elements.monitorDownload) {
+    elements.monitorDownload.hidden = true;
+    elements.monitorDownload.removeAttribute("href");
+    elements.monitorDownload.removeAttribute("download");
+  }
+}
+
+function setMonitorControlsDisabled(disabled) {
+  if (elements.monitorTargets) elements.monitorTargets.disabled = disabled;
+  for (const input of elements.monitorTargetInputs) input.disabled = disabled;
+  if (elements.monitorAddRule) elements.monitorAddRule.disabled = disabled;
+  if (elements.monitorApply) elements.monitorApply.disabled = disabled;
+  if (elements.monitorReset) elements.monitorReset.disabled = disabled;
+  elements.monitorCustomRules?.querySelectorAll("input, select, button").forEach((control) => {
+    control.disabled = disabled;
+  });
+}
+
+function clearMonitorConfigurator() {
+  clearMonitorDownload();
+  state.monitorBase = null;
+  state.monitorDirty = false;
+  elements.monitorCustomRules?.replaceChildren();
+  for (const input of elements.monitorTargetInputs) input.checked = false;
+  setMonitorControlsDisabled(true);
+  if (elements.monitorBaseHash) elements.monitorBaseHash.textContent = "—";
+  if (elements.monitorFinalHash) elements.monitorFinalHash.textContent = "—";
+  setStatus(
+    elements.monitorStatus,
+    "Load a compatible local survey BIN to configure monitoring.",
+    "neutral",
+  );
+}
+
+const CUSTOM_MATCH_OPTIONS = Object.freeze([
+  [MATCH_TYPES.NAME_CONTAINS, "Name contains"],
+  [MATCH_TYPES.NAME_PREFIX, "Name starts with"],
+  [MATCH_TYPES.NAME_EXACT, "Name equals"],
+  [MATCH_TYPES.PUBLIC_OUI, "Public OUI"],
+  [MATCH_TYPES.SERVICE_16_BIT, "16-bit service"],
+]);
+
+function markMonitorOptionsDirty() {
+  if (!state.monitorBase) return;
+  state.monitorDirty = true;
+  if (elements.monitorApply) elements.monitorApply.disabled = false;
+  clearMonitorDownload();
+  setStatus(
+    elements.monitorStatus,
+    "Options changed but are not applied. Apply them to calculate a new BIN and SHA-256.",
+    "warning",
+  );
+  updateFlashButton();
+}
+
+function addCustomMonitorRule(rule = null) {
+  if (
+    !elements.monitorCustomRules ||
+    elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES
+  ) {
+    return;
+  }
+  const row = document.createElement("div");
+  row.className = "custom-target-row";
+
+  const typeLabel = document.createElement("label");
+  typeLabel.textContent = "Match";
+  const type = document.createElement("select");
+  type.className = "monitor-rule-type";
+  for (const [value, label] of CUSTOM_MATCH_OPTIONS) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = label;
+    type.append(option);
+  }
+  type.value = String(rule?.type || MATCH_TYPES.NAME_CONTAINS);
+  typeLabel.append(type);
+
+  const valueLabel = document.createElement("label");
+  valueLabel.textContent = "Value";
+  const value = document.createElement("input");
+  value.className = "monitor-rule-value";
+  value.type = "text";
+  value.maxLength = 24;
+  value.autocomplete = "off";
+  value.spellcheck = false;
+  value.placeholder = "Example: MyTracker";
+  value.value = rule?.value || "";
+  valueLabel.append(value);
+
+  const messageLabel = document.createElement("label");
+  messageLabel.textContent = "Badge message";
+  const message = document.createElement("input");
+  message.className = "monitor-rule-message";
+  message.type = "text";
+  message.maxLength = 16;
+  message.autocomplete = "off";
+  message.spellcheck = false;
+  message.placeholder = "MAX 16 CHARS";
+  message.value = rule?.message || "";
+  messageLabel.append(message);
+
+  const remove = document.createElement("button");
+  remove.className = "text-button monitor-rule-remove";
+  remove.type = "button";
+  remove.textContent = "Remove";
+  remove.addEventListener("click", () => {
+    row.remove();
+    markMonitorOptionsDirty();
+    if (elements.monitorAddRule) {
+      elements.monitorAddRule.disabled =
+        elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+    }
+  });
+  for (const control of [type, value, message]) {
+    control.addEventListener("input", markMonitorOptionsDirty);
+    control.addEventListener("change", markMonitorOptionsDirty);
+  }
+
+  row.append(typeLabel, valueLabel, messageLabel, remove);
+  elements.monitorCustomRules.append(row);
+  if (elements.monitorAddRule) {
+    elements.monitorAddRule.disabled =
+      elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+  }
+}
+
+function renderMonitorOptions(config, { configuredHash = null } = {}) {
+  for (const input of elements.monitorTargetInputs) {
+    const bit = BUILTIN_TARGET_BITS[input.dataset.monitorTarget];
+    input.checked = Boolean(config.builtInTargets & bit);
+  }
+  elements.monitorCustomRules?.replaceChildren();
+  for (const rule of config.customRules) addCustomMonitorRule(rule);
+  setMonitorControlsDisabled(false);
+  if (elements.monitorApply) elements.monitorApply.disabled = true;
+  if (elements.monitorAddRule) {
+    elements.monitorAddRule.disabled =
+      elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+  }
+  state.monitorDirty = false;
+  if (elements.monitorBaseHash) {
+    elements.monitorBaseHash.textContent = state.monitorBase?.hash || "—";
+  }
+  if (elements.monitorFinalHash) {
+    elements.monitorFinalHash.textContent = configuredHash || state.monitorBase?.hash || "—";
+  }
+  setStatus(
+    elements.monitorStatus,
+    config.customRules.length
+      ? `${config.customRules.length} custom target${config.customRules.length === 1 ? "" : "s"} and selected built-ins are encoded in the currently loaded BIN.`
+      : "The currently loaded BIN uses the selected built-in targets and no custom targets.",
+    "good",
+  );
+}
+
+function collectMonitorOptions() {
+  if (!state.monitorBase) throw new Error("no configurable FrogAlert BIN is loaded");
+  let builtInTargets = 0;
+  for (const input of elements.monitorTargetInputs) {
+    if (input.checked) builtInTargets |= BUILTIN_TARGET_BITS[input.dataset.monitorTarget];
+  }
+  const customRules = [...(elements.monitorCustomRules?.children || [])].map((row) => {
+    const type = Number.parseInt(row.querySelector(".monitor-rule-type").value, 10);
+    return {
+      type,
+      value: row.querySelector(".monitor-rule-value").value,
+      message: row.querySelector(".monitor-rule-message").value.trim(),
+    };
+  });
+  return {
+    hardwareProfile: HARDWARE_PROFILES[state.monitorBase.profile],
+    builtInTargets,
+    customRules,
+  };
+}
+
+async function applyMonitorOptions() {
+  if (state.flashing || !state.monitorBase) return;
+  try {
+    const config = collectMonitorOptions();
+    const configured = patchFirmwareConfig(state.monitorBase.raw, config);
+    const generation = beginArtifactPreparation();
+    setMonitorControlsDisabled(true);
+    setStatus(
+      elements.monitorStatus,
+      "Applying monitoring options and calculating the resulting SHA-256…",
+      "working",
+    );
+    const baseName = state.monitorBase.name.replace(/\.bin$/i, "");
+    const name = `${baseName}.configured.bin`;
+    const loaded = await setFirmware(configured, name, "local monitoring configuration", {
+      generation,
+      hardwareRevisions: [state.monitorBase.profile],
+      monitorBase: state.monitorBase,
+      metadata: {
+        artifactKind: "local-developer",
+        hardwareVerified: false,
+        provenance: `Locally configured from ${state.monitorBase.name} · base SHA-256 ${state.monitorBase.hash}`,
+        hardwareEvidence:
+          "Locally prepared configuration with a calculated SHA-256; does not inherit hardware verification from its base image",
+      },
+    });
+    if (!loaded) return;
+    clearMonitorDownload();
+    const blob = new Blob([configured], { type: "application/octet-stream" });
+    state.monitorDownloadUrl = URL.createObjectURL(blob);
+    elements.monitorDownload.href = state.monitorDownloadUrl;
+    elements.monitorDownload.download = name;
+    elements.monitorDownload.hidden = false;
+    elements.monitorFinalHash.textContent = state.firmware.hash;
+    setStatus(
+      elements.monitorStatus,
+      "Monitoring options applied locally. Review the resulting SHA-256, download if desired, and repeat every flash confirmation.",
+      "warning",
+    );
+    log(`Applied bounded monitoring configuration; resulting local SHA-256 ${state.firmware.hash}.`);
+  } catch (error) {
+    state.monitorDirty = true;
+    setStatus(elements.monitorStatus, `Monitoring options not applied: ${error.message}`, "bad");
+    log(`Monitoring configuration rejected: ${error.message}`, "error");
+    updateFlashButton();
+  } finally {
+    setMonitorControlsDisabled(state.flashing || !state.monitorBase);
+    if (state.monitorBase && elements.monitorAddRule) {
+      elements.monitorAddRule.disabled =
+        elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+    }
+    if (state.monitorBase && elements.monitorApply) {
+      elements.monitorApply.disabled = !state.monitorDirty;
+    }
+  }
+}
+
+function restoreBaseMonitorOptions() {
+  if (!state.monitorBase) return;
+  renderMonitorOptions(state.monitorBase.config, { configuredHash: state.firmware?.hash });
+  markMonitorOptionsDirty();
+}
+
+function updateFlashButton() {
+  const programmingBlocked = Boolean(state.firmware) && !artifactProgrammingAllowed();
+  const enabled = canEnableFlash({
+    flashing: state.flashing,
+    hasUsbDevice: Boolean(state.usbDevice),
+    hasChipIdentity: Boolean(state.chip),
+    hasConfig: Boolean(state.config),
+    hasFirmware: Boolean(state.firmware) && !state.monitorDirty,
+    hasBoardRecord: hasBoardRecord() && physicalMarkingMatchesArtifact(),
+    artifactMatchesRevision: revisionMatchesArtifact(),
+    confirmationsComplete: true,
+    artifactConfirmationComplete: recoveryArtifactConfirmationComplete(),
+    artifactProgrammingAllowed: artifactProgrammingAllowed(),
+    typedPhraseComplete: true,
+  });
+  if (elements.flashButton) elements.flashButton.disabled = !enabled;
+  const armMessage = enabled
+    ? "Armed for the captured device and exact selected artifact. The top/bottom choice authorizes immediate flashing."
+    : !state.firmware
+      ? state.releasePrefetchReady
+        ? "Both images are ready. Enter ISP with either button; your top/bottom answer immediately flashes the matching image."
+        : "Preparing and hash-checking both button-matched images…"
+    : programmingBlocked
+      ? "Not armed — this hosted artifact is not approved for browser programming."
+      : "Not armed — the captured device and button-matched artifact are not ready.";
+  setStatus(
+    elements.armedStatus,
+    armMessage,
+    enabled || programmingBlocked ? "warning" : "neutral",
+  );
+  if (elements.pcbMarkingStatus) {
+    const selectedMarking = expectedPcbMarking(selectedRevision());
+    let markingStatus = "Recorded locally for this session";
+    if (!hasBoardRecord()) {
+      markingStatus = "Not recorded";
+    } else if (state.firmware) {
+      markingStatus = physicalMarkingMatchesArtifact()
+        ? "Recorded and consistent with the selected profile"
+        : selectedMarking
+          ? `Does not contain the required ${selectedMarking} marking`
+          : "Does not match the loaded artifact's required PCB marking";
+    } else if (selectedMarking) {
+      markingStatus = physicalMarkingMatchesProfiles({
+        hardwareRevisions: [selectedRevision()],
+        physicalMarking: elements.pcbMarking?.value,
+      })
+        ? "Recorded and consistent with the selected profile"
+        : `Does not contain the required ${selectedMarking} marking`;
+    }
+    elements.pcbMarkingStatus.textContent = markingStatus;
+  }
+  if (elements.selectedProfileStatus) {
+    elements.selectedProfileStatus.textContent = selectedRevision() || "Not selected";
+  }
+  if (elements.matrixStatus) {
+    elements.matrixStatus.textContent = "Bound by the final Top/Bottom button choice";
+  }
+  updateConnectionReadiness();
+  updateWizardUi();
+}
+
+function clearFirmware() {
+  state.firmware = null;
+  clearMonitorConfigurator();
+  clearReleaseLinks();
+  elements.firmwareName.textContent = "not loaded";
+  elements.firmwareSize.textContent = "—";
+  elements.firmwareHash.textContent = "—";
+  elements.firmwareRevision.textContent = "—";
+  if (elements.firmwareProvenance) elements.firmwareProvenance.textContent = "—";
+  if (elements.firmwareVerification) elements.firmwareVerification.textContent = "—";
+  updateProgress(0, "Not armed");
+  updateFlashButton();
+  updateRecoveryButton();
+}
+
+function beginArtifactPreparation() {
+  state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
+  return state.artifactGeneration;
+}
+
+async function setFirmware(
+  bytes,
+  name,
+  source,
+  {
+    expectedHash = null,
+    generation,
+    hardwareRevisions,
+    pcbMarkings = null,
+    metadata = {},
+    monitorBase = null,
+  } = {},
+) {
+  const raw = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const validated = validateFirmware(raw, name);
+  const hash = await sha256Hex(raw);
+  const embeddedConfig = inspectFirmwareConfig(raw);
+  if (embeddedConfig) {
+    const embeddedProfile = profileNameForConfigId(
+      embeddedConfig.config.hardwareProfile,
+    );
+    if (!embeddedProfile || !hardwareRevisions?.includes(embeddedProfile)) {
+      throw new Error(
+        `embedded monitor configuration is built for ${embeddedProfile || "an unknown profile"}, not the selected firmware profile`,
+      );
+    }
+  }
+  if (generation !== state.artifactGeneration) return false;
+  assertFirmwareHashNotQuarantined(hash, state.quarantinedFirmwareHashes);
+  if (expectedHash && hash.toLowerCase() !== expectedHash.toLowerCase()) {
+    throw new Error("firmware SHA-256 does not match its release manifest");
+  }
+  state.firmware = {
+    name,
+    source,
+    raw,
+    hash,
+    ...artifactBoardBinding({ hardwareRevisions, pcbMarkings }),
+    ...validated,
+    ...metadata,
+  };
+  elements.firmwareName.textContent = name;
+  elements.firmwareSize.textContent = `${raw.byteLength.toLocaleString()} bytes (${validated.padded.byteLength.toLocaleString()} padded)`;
+  elements.firmwareHash.textContent = hash;
+  elements.firmwareRevision.textContent = hardwareRevisions.join(", ");
+  if (elements.firmwareProvenance) {
+    elements.firmwareProvenance.textContent =
+      metadata.provenance || (source === "local file" ? "Local file selected by user" : source);
+  }
+  if (elements.firmwareVerification) {
+    elements.firmwareVerification.textContent =
+      metadata.hardwareEvidence ||
+      (source === "local file" ? "No release or hardware evidence supplied" : "Not reported");
+  }
+  if (embeddedConfig) {
+    state.monitorBase = monitorBase || {
+      raw: Uint8Array.from(raw),
+      hash,
+      name,
+      profile: profileNameForConfigId(embeddedConfig.config.hardwareProfile),
+      config: embeddedConfig.config,
+    };
+    renderMonitorOptions(embeddedConfig.config, { configuredHash: hash });
+  } else {
+    clearMonitorConfigurator();
+  }
+  log(`Loaded ${name} from ${source}; SHA-256 calculated locally.`);
+  updateFlashButton();
+  return true;
+}
+
+async function chooseLocalFirmware(event) {
+  if (state.flashing) return;
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const revision = selectedRevision();
+  const generation = beginArtifactPreparation();
+  elements.releaseSelect.value = "";
+  elements.labImageSelect.value = "";
+  clearLabImageDownload();
+  restoreReleaseSummary();
+  restoreLabImageSummary();
+  clearFirmware();
+  if (!revision) {
+    if (elements.firmwareInput) elements.firmwareInput.value = "";
+    log("Enter the exact PCB revision before selecting a developer BIN.", "error");
+    setStatus(elements.wizardFirmwareStatus, "Choose the printed PCB revision before selecting a BIN.", "warning");
+    return;
+  }
+  try {
+    await setFirmware(new Uint8Array(await file.arrayBuffer()), file.name, "local file", {
+      generation,
+      hardwareRevisions: [revision],
+      metadata: {
+        artifactKind: "local-developer",
+      },
+    });
+  } catch (error) {
+    if (generation !== state.artifactGeneration) return;
+    clearFirmware();
+    setStatus(elements.wizardFirmwareStatus, `Firmware rejected: ${error.message}`, "bad");
+    log(`Firmware rejected before any device write: ${error.message}`, "error");
+  }
+}
+
+async function prepareOpenBadgeMagicFirmware() {
+  if (state.flashing || !elements.recoveryBoardConfirmation.checked) {
+    updateRecoveryButton();
+    return;
+  }
+  const recovery = recoveryDescriptor();
+  const generation = beginArtifactPreparation();
+  if (elements.firmwareInput) elements.firmwareInput.value = "";
+  elements.releaseSelect.value = "";
+  elements.labImageSelect.value = "";
+  clearLabImageDownload();
+  restoreReleaseSummary();
+  restoreLabImageSummary();
+  clearFirmware();
+  try {
+    validateRecoveryDescriptor(recovery, selectedRevision());
+    elements.recoveryButton.disabled = true;
+    setStatus(
+      elements.recoveryStatus,
+      "Loading the same-origin FOSSASIA v0.1 bytes for local size and SHA-256 verification…",
+      "working",
+    );
+    const artifactUrl = firmwareArtifactUrl(recovery.file, import.meta.url);
+    const response = await fetch(artifactUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`open BadgeMagic firmware returned HTTP ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength !== recovery.bytes) {
+      throw new Error("open BadgeMagic firmware byte length does not match the reviewed descriptor");
+    }
+    const loaded = await setFirmware(
+      bytes,
+      recovery.file,
+      `${recovery.label} ${recovery.version} from FOSSASIA`,
+      {
+        expectedHash: recovery.sha256,
+        generation,
+        hardwareRevisions: recovery.hardware_revisions,
+        metadata: {
+          artifactKind: recovery.kind,
+          recoveryId: recovery.id,
+          hardwareVerifiedByFrogalert: recovery.hardware_verified_by_frogalert,
+          provenance: `FOSSASIA ${recovery.version} · source ${recovery.upstream.source_commit.slice(0, 12)}`,
+          hardwareEvidence: "Hardware-unverified by FrogAlert; destructive use locked",
+        },
+      },
+    );
+    if (!loaded) return;
+    log(
+      "Prepared the open BadgeMagic replacement for inspection. No USB command was sent, and browser programming remains locked until a physical HARDWARE_REV1 smoke test passes.",
+      "warning",
+    );
+    updateRecoveryButton();
+  } catch (error) {
+    if (generation !== state.artifactGeneration) return;
+    clearFirmware();
+    setStatus(elements.recoveryStatus, `Open BadgeMagic image not prepared: ${error.message}`, "bad");
+    log(`Open BadgeMagic image rejected before any device write: ${error.message}`, "error");
+    elements.recoveryButton.disabled =
+      state.flashing ||
+      !elements.recoveryBoardConfirmation.checked ||
+      selectedRevision() !== recovery?.hardware_revisions?.[0];
+  }
+}
+
+async function verifiedReleaseArtifactBytes(release) {
+  let pending = releaseArtifactPromises.get(release.id);
+  if (!pending) {
+    pending = (async () => {
+      const artifactUrl = firmwareArtifactUrl(release.file, import.meta.url);
+      const response = await fetch(artifactUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`firmware returned HTTP ${response.status}`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength !== release.bytes) {
+        throw new Error("firmware byte length does not match manifest");
+      }
+      const hash = await sha256Hex(bytes);
+      assertFirmwareHashNotQuarantined(hash, state.quarantinedFirmwareHashes);
+      if (hash.toLowerCase() !== release.sha256.toLowerCase()) {
+        throw new Error("firmware SHA-256 does not match its release manifest");
+      }
+      validateFirmware(bytes, release.file);
+      const embeddedConfig = inspectFirmwareConfig(bytes);
+      if (!embeddedConfig) {
+        throw new Error("published FrogAlert firmware lacks its embedded hardware profile");
+      }
+      const embeddedProfile = profileNameForConfigId(
+        embeddedConfig.config.hardwareProfile,
+      );
+      if (embeddedProfile !== release.hardware_revisions[0]) {
+        throw new Error(
+          `embedded firmware profile ${embeddedProfile || "unknown"} does not match ${release.hardware_revisions[0]}`,
+        );
+      }
+      return bytes;
+    })();
+    releaseArtifactPromises.set(release.id, pending);
+    pending.catch(() => releaseArtifactPromises.delete(release.id));
+  }
+  return Uint8Array.from(await pending);
+}
+
+function renderPreparedButtonReleasePair(pair = null) {
+  const topHint = profileHintForIspButton("top");
+  const bottomHint = profileHintForIspButton("bottom");
+  const top = pair?.find(
+    (release) => release.hardware_revisions[0] === topHint.profile,
+  );
+  const bottom = pair?.find(
+    (release) => release.hardware_revisions[0] === bottomHint.profile,
+  );
+  if (!top || !bottom) {
+    if (elements.wizardPairVersion) elements.wizardPairVersion.textContent = "Unavailable";
+    if (elements.wizardPairTop) elements.wizardPairTop.textContent = "Not verified";
+    if (elements.wizardPairBottom) elements.wizardPairBottom.textContent = "Not verified";
+    if (elements.wizardPairProvenance) {
+      elements.wizardPairProvenance.textContent = "No complete validated release pair";
+    }
+    if (elements.wizardPairHardwareStatus) {
+      elements.wizardPairHardwareStatus.textContent = "Unavailable";
+    }
+    return;
+  }
+  const describeImage = (release) =>
+    `${release.hardware_revisions[0]} · ${release.pcb_markings[0]} · ${release.bytes.toLocaleString()} bytes · SHA-256 ${release.sha256}`;
+  if (elements.wizardPairVersion) {
+    elements.wizardPairVersion.textContent = `FrogAlert ${top.version} · both images verified in this browser`;
+  }
+  if (elements.wizardPairTop) elements.wizardPairTop.textContent = describeImage(top);
+  if (elements.wizardPairBottom) elements.wizardPairBottom.textContent = describeImage(bottom);
+  const build = top.build_provenance;
+  if (elements.wizardPairProvenance) {
+    elements.wizardPairProvenance.textContent =
+      build?.kind === "github-actions-candidate"
+        ? `GitHub Actions run ${build.workflow_run_id}, attempt ${build.workflow_run_attempt} · artifact ${build.artifact_id} · ${build.artifact_digest} · source ${top.source_commit}`
+        : `FrogAlert ${top.release_tag} · source ${top.source_commit}`;
+  }
+  if (elements.wizardPairHardwareStatus) {
+    elements.wizardPairHardwareStatus.textContent = [top, bottom].every(
+      (release) => release.hardware_verified === true,
+    )
+      ? "Both exact images are marked hardware-tested"
+      : "CI-audited and approved for site flashing; these exact images are not hardware-tested";
+  }
+}
+
+async function prefetchLatestButtonReleaseArtifacts() {
+  state.releasePrefetchReady = false;
+  state.releasePrefetchVersion = null;
+  state.buttonReleaseIds = null;
+  updateConnectionReadiness();
+  if (!destructivePage) return;
+  if (state.releases.length === 0) {
+    throw new Error("no paired FrogAlert release is available for phone flashing");
+  }
+  const latestVersion = state.releases[0].version;
+  const latestPair = state.releases.filter(
+    (release) => release.version === latestVersion,
+  );
+  if (latestPair.length !== 2) {
+    throw new Error(`FrogAlert ${latestVersion} does not contain one top and one bottom image`);
+  }
+  const releaseIds = {};
+  for (const position of ["top", "bottom"]) {
+    const hint = profileHintForIspButton(position);
+    const matches = latestPair.filter(
+      (release) =>
+        release.hardware_revisions.length === 1 &&
+        release.hardware_revisions[0] === hint.profile &&
+        release.pcb_markings.length === 1 &&
+        release.pcb_markings[0] === hint.marking,
+    );
+    if (matches.length !== 1) {
+      throw new Error(`FrogAlert ${latestVersion} is missing its ${position}-button image`);
+    }
+    validateReleaseDescriptor(matches[0], hint.profile, hint.marking);
+    releaseIds[position] = matches[0].id;
+  }
+  await Promise.all(
+    Object.values(releaseIds).map((id) =>
+      verifiedReleaseArtifactBytes(
+        latestPair.find((release) => release.id === id),
+      ),
+    ),
+  );
+  state.releasePrefetchVersion = latestVersion;
+  state.buttonReleaseIds = Object.freeze({ ...releaseIds });
+  state.releasePrefetchReady = true;
+  renderPreparedButtonReleasePair(latestPair);
+  log(`Prepared and verified both FrogAlert ${latestVersion} button-matched images in memory.`, "success");
+  updateConnectionReadiness();
+}
+
+function loadReleaseManifest() {
+  releaseManifestPromise ??= fetchReleaseManifest();
+  return releaseManifestPromise;
+}
+
+function setLatestDownload(link, release, position) {
+  if (!link) return;
+  link.hidden = !release;
+  if (!release) {
+    link.removeAttribute("href");
+    link.removeAttribute("download");
+    return;
+  }
+  const marking = release.pcb_markings[0];
+  link.href = firmwareArtifactUrl(release.file, import.meta.url);
+  link.download = release.file;
+  link.textContent = `Download ${position}-button image — ${marking}`;
+}
+
+function renderLatestRelease() {
+  if (!elements.latestReleaseVersion) return;
+  const latestVersion = state.releases[0]?.version;
+  const latest = latestVersion
+    ? state.releases.filter((release) => release.version === latestVersion)
+    : [];
+  if (latest.length === 0) {
+    elements.latestReleaseChannel.textContent = "Unavailable";
+    elements.latestReleaseVersion.textContent = "No firmware release available";
+    elements.latestReleaseSummary.textContent = "Latest firmware is unavailable right now.";
+    elements.latestReleaseMarkings.textContent = "None";
+    setLatestDownload(elements.latestTopDownload, null, "top");
+    setLatestDownload(elements.latestBottomDownload, null, "bottom");
+    if (elements.latestReleaseNotes) elements.latestReleaseNotes.hidden = true;
+    return;
+  }
+
+  const top = latest.find((release) => release.pcb_markings.includes("B1144C_260404"));
+  const bottom = latest.find((release) => release.pcb_markings.includes("B1144C_250901"));
+  const markings = [...new Set(latest.flatMap((release) => release.pcb_markings))];
+  const channel = latest[0].channel;
+  const published = latest[0].published_at ? ` · ${latest[0].published_at}` : "";
+  elements.latestReleaseChannel.textContent = `${channel[0].toUpperCase()}${channel.slice(1)} release${published}`;
+  elements.latestReleaseVersion.textContent = `FrogAlert ${latestVersion}`;
+  elements.latestReleaseSummary.textContent = latest.every(
+    (release) => release.hardware_verified === true,
+  )
+    ? "Hardware-tested on CH582M BadgeMagic badges with an 11×44 LED matrix."
+    : "Cloud-built, structurally audited, and published automatically; this exact build has not been hardware-tested.";
+  elements.latestReleaseMarkings.textContent = markings.join(" and ");
+  setLatestDownload(elements.latestTopDownload, top, "top");
+  setLatestDownload(elements.latestBottomDownload, bottom, "bottom");
+  if (elements.latestReleaseNotes) {
+    elements.latestReleaseNotes.href = latest[0].release_url;
+    elements.latestReleaseNotes.hidden = false;
+  }
+}
+
+async function fetchReleaseManifest() {
+  try {
+    const [response, quarantineResponse] = await Promise.all([
+      fetch(firmwareManifestUrl(import.meta.url), { cache: "no-store" }),
+      fetch(firmwareQuarantineUrl(import.meta.url), { cache: "no-store" }),
+    ]);
+    if (!response.ok) throw new Error(`manifest returned HTTP ${response.status}`);
+    if (!quarantineResponse.ok) {
+      throw new Error(`quarantine registry returned HTTP ${quarantineResponse.status}`);
+    }
+    const [manifest, quarantine] = await Promise.all([
+      response.json(),
+      quarantineResponse.json(),
+    ]);
+    state.quarantinedFirmwareHashes = parseFirmwareQuarantineRegistry(quarantine);
+    if (
+      ![4, 5].includes(manifest.schema_version) ||
+      manifest.github_repository !== FROGALERT_GITHUB_REPOSITORY ||
+      !Array.isArray(manifest.releases) ||
+      !Array.isArray(manifest.lab_images) ||
+      !Array.isArray(manifest.recovery_images)
+    ) {
+      throw new Error("manifest schema is not supported");
+    }
+    const releaseIds = new Set();
+    for (const release of manifest.releases) {
+      validateReleaseCatalogDescriptor(release, manifest.github_repository);
+      if (releaseIds.has(release.id)) {
+        throw new Error(`duplicate firmware release id: ${release.id}`);
+      }
+      releaseIds.add(release.id);
+    }
+    validatePairedUsbCReleaseCatalog(
+      manifest.releases,
+      manifest.github_repository,
+    );
+    state.releases = sortReleaseCatalogNewestFirst(
+      manifest.releases,
+      manifest.github_repository,
+    );
+    await prefetchLatestButtonReleaseArtifacts();
+    renderLatestRelease();
+    if (state.releases.length === 0) {
+      setReleaseSummary("No FrogAlert firmware release is available.", "warning");
+    } else {
+      const latestPublishedVersion = state.releases[0].version;
+      for (const release of state.releases) {
+        const option = document.createElement("option");
+        option.value = release.id;
+        const latestLabel =
+          release.version === latestPublishedVersion ? " · latest" : "";
+        option.textContent = `${release.label} ${release.version} · ${release.channel}${latestLabel} · ${release.hardware_revisions[0]}`;
+        elements.releaseSelect.append(option);
+      }
+      elements.releaseSelect.disabled = state.flashing;
+      const latestHardwareVerified = state.releases
+        .filter((release) => release.version === latestPublishedVersion)
+        .every((release) => release.hardware_verified === true);
+      setReleaseSummary(
+        latestHardwareVerified
+          ? `FrogAlert ${latestPublishedVersion} is the latest hardware-tested release. Both button-matched images are verified before ISP entry.`
+          : `FrogAlert ${latestPublishedVersion} is the latest CI-audited release. It was published automatically without hardware testing; both button-matched images are verified before ISP entry.`,
+        latestHardwareVerified ? "good" : "warning",
+      );
+    }
+
+    const labIds = new Set();
+    for (const lab of manifest.lab_images) {
+      validateLabDescriptor(lab);
+      if (lab.hardware_verified !== true) {
+        throw new Error("public FrogAlert lab image lacks physical hardware verification");
+      }
+      if (labIds.has(lab.id)) throw new Error(`duplicate hosted lab image id: ${lab.id}`);
+      labIds.add(lab.id);
+      const option = document.createElement("option");
+      option.value = lab.id;
+      option.textContent = `${lab.label} ${lab.version} · ${lab.hardware_revisions.join(", ")} · test image`;
+      elements.labImageSelect.append(option);
+    }
+    state.labImages = [...manifest.lab_images];
+    if (state.labImages.length === 0) {
+      setLabImageSummary("No additional test firmware is available.", "neutral");
+    } else {
+      elements.labImageSelect.disabled = state.flashing;
+      setLabImageSummary(
+        `${state.labImages.length} hardware-verified lab image${state.labImages.length === 1 ? "" : "s"} available.`,
+        "good",
+      );
+    }
+
+    if (manifest.recovery_images.length !== 1) {
+      throw new Error("manifest must contain exactly one reviewed open BadgeMagic recovery image");
+    }
+    const recovery = manifest.recovery_images[0];
+    validateRecoveryDescriptor(recovery, "HARDWARE_REV1");
+    state.recoveryImages = [recovery];
+    renderRecoveryDescriptor(recovery);
+    updateRecoveryButton();
+    updateConnectionReadiness();
+    if (destructivePage) void detectAuthorizedUsb();
+  } catch (error) {
+    state.releasePrefetchReady = false;
+    state.releasePrefetchVersion = null;
+    state.buttonReleaseIds = null;
+    releaseArtifactPromises.clear();
+    state.quarantinedFirmwareHashes = null;
+    state.releases = [];
+    state.labImages = [];
+    state.recoveryImages = [];
+    renderPreparedButtonReleasePair();
+    renderLatestRelease();
+    setReleaseSummary(`Release list unavailable: ${error.message}`, "bad");
+    setLabImageSummary(`Hosted lab image list unavailable: ${error.message}`, "bad");
+    setStatus(elements.recoveryStatus, `Open BadgeMagic descriptor unavailable: ${error.message}`, "bad");
+    elements.releaseSelect.disabled = true;
+    elements.labImageSelect.disabled = true;
+    elements.recoveryButton.disabled = true;
+    updateConnectionReadiness();
+    updateWizardUi();
+    throw error;
+  }
+}
+
+async function loadReleaseArtifact(release) {
+  if (state.flashing) return;
+  const generation = beginArtifactPreparation();
+  if (elements.firmwareInput) elements.firmwareInput.value = "";
+  elements.labImageSelect.value = "";
+  clearLabImageDownload();
+  restoreLabImageSummary();
+  clearFirmware();
+  try {
+    if (!release) throw new Error("release is not present in the loaded manifest");
+    elements.releaseSelect.value = release.id;
+    renderReleaseLinks(release);
+    validateReleaseDescriptor(release, selectedRevision(), elements.pcbMarking.value);
+    const bytes = await verifiedReleaseArtifactBytes(release);
+    const build = release.build_provenance;
+    const provenance =
+      build?.kind === "github-actions-candidate"
+        ? `GitHub Actions run ${build.workflow_run_id}, attempt ${build.workflow_run_attempt} · artifact ${build.artifact_id} · ${build.artifact_digest} · source ${release.source_commit}`
+        : `FrogAlert release ${release.version} · source ${release.source_commit || "not reported"}`;
+    const loaded = await setFirmware(bytes, release.file, `release ${release.version}`, {
+      expectedHash: release.sha256,
+      generation,
+      hardwareRevisions: release.hardware_revisions,
+      pcbMarkings: [...release.pcb_markings],
+      metadata: {
+        artifactKind: "frogalert-release",
+        releaseId: release.id,
+        releaseVersion: release.version,
+        hardwareVerified: release.hardware_verified,
+        flashApproved: release.flash_approved === true,
+        provenance,
+        hardwareEvidence:
+          release.hardware_verified === true
+            ? "Manifest marks this exact release hardware-verified"
+            : "CI-built and structurally audited; this exact release is not hardware-tested",
+      },
+    });
+    if (!loaded) return false;
+    setStatus(
+      elements.releaseStatus,
+      release.hardware_verified === true
+        ? `Loaded hardware-tested ${release.version} for PCB revision ${selectedRevision()}.`
+        : `Loaded CI-audited ${release.version} for PCB revision ${selectedRevision()}. This exact build is not hardware-tested.`,
+      release.hardware_verified === true ? "good" : "warning",
+    );
+    return true;
+  } catch (error) {
+    if (generation !== state.artifactGeneration) return false;
+    clearFirmware();
+    if (release) renderReleaseLinks(release);
+    setStatus(elements.releaseStatus, `Release not loaded: ${error.message}`, "bad");
+    log(`Release rejected before any device write: ${error.message}`, "error");
+    return false;
+  }
+}
+
+async function chooseRelease(event) {
+  if (!event.target.value) {
+    restoreReleaseSummary();
+    return;
+  }
+  const release = state.releases.find((candidate) => candidate.id === event.target.value);
+  await loadReleaseArtifact(release);
+}
+
+async function chooseIspButtonAndFlash(position) {
+  if (
+    state.buttonFlashPending ||
+    state.flashing ||
+    !state.usbDevice ||
+    !state.chip ||
+    !state.config ||
+    !state.releasePrefetchReady ||
+    !state.buttonReleaseIds
+  ) {
+    return;
+  }
+  if (!selectApplicationProfileHint(position)) return;
+  const hint = state.applicationProfileHint;
+  const releaseId = state.buttonReleaseIds[position];
+  const release = state.releases.find(
+    (candidate) =>
+      candidate.id === releaseId &&
+      candidate.version === state.releasePrefetchVersion &&
+      candidate.hardware_revisions.length === 1 &&
+      candidate.hardware_revisions[0] === hint.profile &&
+      candidate.pcb_markings.length === 1 &&
+      candidate.pcb_markings[0] === hint.marking,
+  );
+  if (!release) {
+    setStatus(
+      elements.wizardFirmwareStatus,
+      `The verified ${hint.imageLabel} is no longer bound to the loaded release catalog. Disconnect and start again.`,
+      "bad",
+    );
+    return;
+  }
+
+  const expectedDevice = state.usbDevice;
+  const expectedChip = state.chip;
+  const expectedConfig = state.config;
+  const expectedVersion = state.releasePrefetchVersion;
+  state.buttonFlashPending = true;
+  updateWizardUi();
+  elements.pcbRevision.value = hint.profile;
+  elements.pcbMarking.value = hint.marking;
+  setStatus(
+    elements.wizardFirmwareStatus,
+    `${hint.position === "top" ? "Top" : "Bottom"} selected. Binding the already verified ${hint.imageLabel} and starting the destructive session…`,
+    "working",
+  );
+  try {
+    const loaded = await loadReleaseArtifact(release);
+    if (
+      !loaded ||
+      !artifactReadyForWizard() ||
+      state.usbDevice !== expectedDevice ||
+      state.chip !== expectedChip ||
+      state.config !== expectedConfig ||
+      !expectedDevice.opened ||
+      state.releasePrefetchVersion !== expectedVersion ||
+      state.buttonReleaseIds?.[position] !== release.id ||
+      !state.releasePrefetchReady
+    ) {
+      throw new Error("the captured device or verified release changed before flashing could start");
+    }
+    const expectedButtonFlash = Object.freeze({
+      device: expectedDevice,
+      chip: expectedChip,
+      config: expectedConfig,
+      firmware: state.firmware,
+      artifactGeneration: state.artifactGeneration,
+      position,
+      releaseId: release.id,
+      releaseVersion: release.version,
+      firmwareHash: release.sha256,
+      profile: hint.profile,
+      marking: hint.marking,
+    });
+    const started = await startFlash({
+      finalActionConfirmed: true,
+      expectedButtonFlash,
+    });
+    if (!started) {
+      throw new Error("the exclusive browser lock or exact button-selected session was unavailable");
+    }
+  } catch (error) {
+    if (!state.flashing) {
+      setStatus(
+        elements.wizardFirmwareStatus,
+        `Flash did not start: ${error.message}. No destructive command was sent.`,
+        "bad",
+      );
+      log(`Button-selected flash stopped before its first destructive command: ${error.message}`, "error");
+    }
+  } finally {
+    state.buttonFlashPending = false;
+    updateWizardUi();
+  }
+}
+
+async function chooseLabImage(event) {
+  if (state.flashing) return;
+  const generation = beginArtifactPreparation();
+  if (elements.firmwareInput) elements.firmwareInput.value = "";
+  elements.releaseSelect.value = "";
+  clearLabImageDownload();
+  restoreReleaseSummary();
+  clearFirmware();
+  if (!event.target.value) {
+    restoreLabImageSummary();
+    return;
+  }
+  try {
+    const lab = state.labImages.find((candidate) => candidate.id === event.target.value);
+    if (!lab) throw new Error("hosted lab image is not present in the loaded manifest");
+    validateLabHardwareBinding(lab, selectedRevision(), elements.pcbMarking.value);
+    const artifactUrl = firmwareArtifactUrl(lab.file, import.meta.url);
+    const response = await fetch(artifactUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error(`hosted lab firmware returned HTTP ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength !== lab.bytes) throw new Error("hosted lab firmware byte length does not match manifest");
+    const loaded = await setFirmware(bytes, lab.file, `${lab.label} ${lab.version}`, {
+      expectedHash: lab.sha256,
+      generation,
+      hardwareRevisions: lab.hardware_revisions,
+      pcbMarkings: [...lab.pcb_markings],
+      metadata: {
+        artifactKind: "frogalert-lab",
+        hardwareVerified: lab.hardware_verified,
+        provenance: `FrogAlert lab image ${lab.version} · source ${lab.source_commit.slice(0, 12)}`,
+        hardwareEvidence: "Manifest records physical verification for this exact lab image and hardware profile",
+      },
+    });
+    if (!loaded) return;
+    if (elements.labImageDownload) {
+      elements.labImageDownload.href = artifactUrl;
+      elements.labImageDownload.download = lab.file;
+      elements.labImageDownload.hidden = false;
+    }
+    setStatus(
+      elements.labImageStatus,
+      `Loaded hardware-verified lab image ${lab.version} for ${selectedRevision()} and ${elements.pcbMarking.value.trim()}.`,
+      "good",
+    );
+  } catch (error) {
+    if (generation !== state.artifactGeneration) return;
+    clearFirmware();
+    event.target.value = "";
+    setStatus(elements.labImageStatus, `Hosted lab image not loaded: ${error.message}`, "bad");
+    log(`Hosted lab image rejected before any device write: ${error.message}`, "error");
+  }
+}
+
+function randomByte() {
+  return crypto.getRandomValues(new Uint8Array(1))[0];
+}
+
+const delay = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function acquireWakeLock() {
+  if (!("wakeLock" in navigator)) {
+    setStatus(
+      elements.wakeLockStatus,
+      "Screen wake lock is unavailable. Keep this page visible and prevent the phone or computer from sleeping during a flash.",
+      "warning",
+    );
+    return;
+  }
+  try {
+    state.wakeLock = await navigator.wakeLock.request("screen");
+    setStatus(elements.wakeLockStatus, "Screen wake lock active for this flash session.", "good");
+  } catch (error) {
+    setStatus(
+      elements.wakeLockStatus,
+      `Screen wake lock was not granted: ${error.message}. Keep this page visible and the device awake.`,
+      "warning",
+    );
+  }
+}
+
+async function releaseWakeLock() {
+  const lock = state.wakeLock;
+  state.wakeLock = null;
+  if (lock) {
+    try {
+      await lock.release();
+    } catch {
+      // A browser may release the lock automatically when the page is hidden.
+    }
+  }
+  setStatus(elements.wakeLockStatus, "Wake lock inactive.", "neutral");
+}
+
+async function withTimeout(promise, milliseconds, operation) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = window.setTimeout(() => {
+      const error = new Error(`${operation} timed out after ${milliseconds / 1000} seconds`);
+      error.name = "TimeoutError";
+      reject(error);
+    }, milliseconds);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+async function sendReset(expectedDevice) {
+  if (state.usbDevice !== expectedDevice || state.activeFlashDevice !== expectedDevice) {
+    throw new Error("USB device changed before the reset command");
+  }
+  const device = expectedDevice;
+  if (!device?.opened) throw new Error("WCH ISP device is not open");
+  const packet = ispEndPacket();
+  const sent = await withTimeout(device.transferOut(USB_ENDPOINT, packet), 3000, "reset command write");
+  if (sent.status !== "ok" || sent.bytesWritten !== packet.byteLength) {
+    throw new Error(`reset command write failed (${sent.status}, ${sent.bytesWritten || 0}/${packet.byteLength} bytes)`);
+  }
+  try {
+    const received = await withTimeout(device.transferIn(USB_ENDPOINT, USB_READ_BYTES), 1500, "reset response");
+    if (received.status !== "ok" || !received.data) return false;
+    parseResponse(dataViewBytes(received.data), COMMAND.ISP_END);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function expectedButtonFlashMatches(expected) {
+  return Boolean(
+    expected &&
+      Object.isFrozen(expected) &&
+      state.buttonFlashPending &&
+      state.releasePrefetchReady &&
+      state.usbDevice === expected.device &&
+      expected.device?.opened &&
+      state.chip === expected.chip &&
+      state.config === expected.config &&
+      state.firmware === expected.firmware &&
+      state.artifactGeneration === expected.artifactGeneration &&
+      state.releasePrefetchVersion === expected.releaseVersion &&
+      state.buttonReleaseIds?.[expected.position] === expected.releaseId &&
+      state.firmware?.releaseId === expected.releaseId &&
+      state.firmware?.releaseVersion === expected.releaseVersion &&
+      state.firmware?.hash?.toLowerCase() === expected.firmwareHash.toLowerCase() &&
+      state.applicationProfileHint?.position === expected.position &&
+      state.applicationProfileHint?.profile === expected.profile &&
+      state.applicationProfileHint?.marking === expected.marking &&
+      selectedRevision() === expected.profile &&
+      elements.pcbMarking.value.trim() === expected.marking
+  );
+}
+
+async function flashFirmware({
+  finalActionConfirmed = false,
+  expectedButtonFlash = null,
+} = {}) {
+  if (
+    elements.flashButton.disabled ||
+    !state.firmware ||
+    !state.config ||
+    !artifactProgrammingAllowed() ||
+    !revisionMatchesArtifact() ||
+    !physicalMarkingMatchesArtifact()
+  ) {
+    updateFlashButton();
+    return;
+  }
+  if (
+    finalActionConfirmed &&
+    !expectedButtonFlashMatches(expectedButtonFlash)
+  ) {
+    log("Button-selected flash lost its exact profile or captured-device binding; nothing changed.", "error");
+    return;
+  }
+  const artifactDescription =
+    state.firmware.artifactKind === "open-badgemagic-recovery"
+      ? "the FOSSASIA open BadgeMagic replacement (not the original OEM image)"
+      : state.firmware.name;
+  const finalSummary = [
+    "FINAL DESTRUCTIVE CHECK",
+    "",
+    `Target: CH582 [0x82 / 0x16], bootloader ${formatBootloaderVersion(state.config.bootloaderVersion)}`,
+    `Physical PCB record: ${elements.pcbMarking.value.trim()}`,
+    `Firmware profile: ${selectedRevision()}`,
+    `Artifact: ${artifactDescription}`,
+    `Image: ${state.firmware.raw.byteLength.toLocaleString()} bytes (${state.firmware.padded.byteLength.toLocaleString()} padded)`,
+    `SHA-256: ${state.firmware.hash}`,
+    `Erase plan: ${state.firmware.eraseSectors} × 1 KiB sectors after accepted CH582 config reset/readback`,
+    "",
+    "The current application firmware is unknown. The OEM image is unavailable and cannot be backed up or restored. Continue only if every line matches the opened badge.",
+  ].join("\n");
+  if (!finalActionConfirmed) {
+    const confirmed = window.confirm(finalSummary);
+    if (!confirmed) {
+      log("Final flash confirmation declined; nothing changed.");
+      return;
+    }
+  }
+
+  state.flashing = true;
+  setWizardStep(WIZARD_STEP.FLASH, { focus: false });
+  if (elements.wizardFlashBack) elements.wizardFlashBack.disabled = true;
+  setStatus(elements.wizardFlashStatus, "Programming has started. Keep this page visible and do not disconnect.", "working");
+  const flashDevice = state.usbDevice;
+  state.activeFlashDevice = flashDevice;
+  updateFlashButton();
+  elements.usbButton.disabled = true;
+  renderIspEntryGuide();
+  if (elements.firmwareInput) elements.firmwareInput.disabled = true;
+  elements.pcbMarking.disabled = true;
+  elements.pcbRevision.disabled = true;
+  elements.recoveryBoardConfirmation.disabled = true;
+  elements.releaseSelect.disabled = true;
+  elements.labImageSelect.disabled = true;
+  elements.recoveryButton.disabled = true;
+  setMonitorControlsDisabled(true);
+  if (elements.usbDisconnectButton) elements.usbDisconnectButton.disabled = true;
+  const { padded, eraseSectors } = state.firmware;
+  await acquireWakeLock();
+
+  try {
+    if (
+      finalActionConfirmed &&
+      !expectedButtonFlashMatches(expectedButtonFlash)
+    ) {
+      throw new Error("the captured button-selected session changed before its first destructive command");
+    }
+    const { resetAcknowledged } = await programAndVerifyFirmware({
+      padded,
+      eraseSectors,
+      uid: state.config.uid,
+      transfer: (packet) => usbTransfer(packet, flashDevice),
+      reset: () => sendReset(flashDevice),
+      randomByte,
+      wait: delay,
+      onEvent(event) {
+        switch (event.phase) {
+          case "config-reset":
+            setStage("identify", "complete");
+            setStage("config", "active");
+            updateProgress(1, "Resetting CH58x protection/configuration…");
+            log(
+              "DESTRUCTIVE STEP: resetting CH58x protection and configuration to the reviewed defaults.",
+              "warning",
+            );
+            break;
+          case "config-verified":
+            setStage("config", "complete");
+            log("Configuration reset reached an accepted CH582 readback before erase.", "success");
+            break;
+          case "erase":
+            setStage("erase", "active");
+            updateProgress(3, "Erasing code flash…");
+            log(`DESTRUCTIVE STEP: erasing ${event.eraseSectors} code-flash sectors.`, "warning");
+            break;
+          case "program-key":
+            setStage("erase", "complete");
+            setStage("program", "active");
+            updateProgress(8, "Starting encrypted program session…");
+            break;
+          case "program":
+            updateProgress(
+              8 + Math.round((event.index / event.chunks) * 48),
+              `Programming ${event.index} / ${event.chunks}…`,
+            );
+            break;
+          case "program-finalized":
+            log(
+              `Programmed ${padded.byteLength.toLocaleString()} padded bytes; beginning independent ISP comparison.`,
+            );
+            break;
+          case "verify-key":
+            setStage("program", "complete");
+            setStage("verify", "active");
+            updateProgress(58, "Starting verify session…");
+            break;
+          case "verify":
+            updateProgress(
+              58 + Math.round((event.index / event.chunks) * 41),
+              `Verifying ${event.index} / ${event.chunks}…`,
+            );
+            break;
+          case "verified":
+            setStage("verify", "complete");
+            setStage("reset", "active");
+            updateProgress(100, "Verified. Resetting badge…");
+            log("All programmed chunks passed the bootloader verify command.", "success");
+            break;
+          case "complete":
+            setStage("reset", "complete");
+            break;
+        }
+      },
+    });
+    setStatus(
+      elements.usbStatus,
+      resetAcknowledged
+        ? "Firmware programmed, ISP-verified, and reset acknowledged."
+        : "Firmware programmed and ISP-verified. Reset command was sent, but its response was not confirmed; power-cycle if needed.",
+      resetAcknowledged ? "good" : "warning",
+    );
+    log(
+      resetAcknowledged
+        ? "Flash completed, verified, and reset acknowledged."
+        : "Flash completed and verified; reset response was not confirmed.",
+      resetAcknowledged ? "success" : "warning",
+    );
+    setStatus(
+      elements.wizardResult,
+      resetAcknowledged
+        ? "Firmware was programmed, byte-verified, and the reset was acknowledged."
+        : "Firmware was programmed and byte-verified. The reset command was sent, but its response was not observed.",
+      resetAcknowledged ? "good" : "warning",
+    );
+    setWizardStep(WIZARD_STEP.SUCCESS, { terminal: true });
+    await closeUsb();
+  } catch (error) {
+    failActiveStage();
+    await closeUsb();
+    if (state.firmware?.artifactKind === "open-badgemagic-recovery") {
+      elements.recoveryBoardConfirmation.checked = false;
+    }
+    updateProgress(elements.progress.value, "Stopped — follow recovery instructions below");
+    const uncertainty =
+      error?.name === "TimeoutError"
+        ? " The timed-out USB command may still have reached the bootloader, so the badge state is unknown until a complete fresh identify, program, and verify cycle succeeds."
+        : "";
+    setStatus(
+      elements.usbStatus,
+      `Flash stopped: ${error.message}.${uncertainty} Reconnect for fresh read-only identification before retrying.`,
+      "bad",
+    );
+    log(
+      `FLASH STOPPED: ${error.message}.${uncertainty} Keep this page open, re-enter ISP mode, reconnect, pass read-only identification, then choose the button you held to retry the same verified artifact.`,
+      "error",
+    );
+    wizardTerminal = false;
+    setWizardStep(WIZARD_STEP.CONNECT);
+    if (elements.wizardIspHelp) elements.wizardIspHelp.open = true;
+  } finally {
+    state.activeFlashDevice = null;
+    state.flashing = false;
+    await releaseWakeLock();
+    if (elements.firmwareInput) elements.firmwareInput.disabled = false;
+    elements.pcbMarking.disabled = false;
+    elements.pcbRevision.disabled = false;
+    elements.recoveryBoardConfirmation.disabled = false;
+    elements.releaseSelect.disabled = elements.releaseSelect.options.length <= 1;
+    elements.labImageSelect.disabled = elements.labImageSelect.options.length <= 1;
+    setMonitorControlsDisabled(!state.monitorBase);
+    if (state.monitorBase && elements.monitorAddRule) {
+      elements.monitorAddRule.disabled =
+        elements.monitorCustomRules.children.length >= MAX_CUSTOM_MONITORING_RULES;
+    }
+    if (state.monitorBase && elements.monitorApply) {
+      elements.monitorApply.disabled = !state.monitorDirty;
+    }
+    updateConnectionReadiness();
+    if (elements.usbDisconnectButton) {
+      elements.usbDisconnectButton.disabled = !state.usbDevice;
+    }
+    if (elements.wizardFlashBack) elements.wizardFlashBack.disabled = false;
+    updateFlashButton();
+    updateRecoveryButton();
+    renderIspEntryGuide();
+  }
+  return true;
+}
+
+async function startFlash(options = {}) {
+  if (!destructivePage) {
+    setStatus(
+      elements.usbStatus,
+      "This page cannot write firmware. Open /flash/ to program a badge.",
+      "warning",
+    );
+    return;
+  }
+  if (!navigator.locks?.request) {
+    setStatus(
+      elements.usbStatus,
+      "This browser cannot acquire the exclusive flashing lock. Nothing was changed; use a current supported browser.",
+      "bad",
+    );
+    log("Flash did not start because the Web Locks API is unavailable; no destructive command was sent.", "error");
+    return false;
+  }
+  try {
+    let started = false;
+    await navigator.locks.request(
+      "frogalert-ch582-flash",
+      { mode: "exclusive", ifAvailable: true },
+      async (lock) => {
+        if (!lock) {
+          setStatus(
+            elements.usbStatus,
+            "Another FrogAlert tab holds the flashing lock. Close it or wait for its operation to finish.",
+            "bad",
+          );
+          log("Flash did not start because another tab holds the exclusive hardware lock.", "error");
+          return;
+        }
+        started = await flashFirmware(options);
+      },
+    );
+    return started;
+  } catch (error) {
+    setStatus(elements.usbStatus, `Could not acquire the browser flashing lock: ${error.message}`, "bad");
+    log(`Flash did not start: browser lock failed (${error.message}).`, "error");
+    return false;
+  }
+}
+
+function bindEvents() {
+  elements.bluetoothButton.addEventListener("click", connectBluetooth);
+  elements.usbButton.addEventListener("click", () => {
+    void connectUsb(destructivePage ? { ispOnly: true } : {});
+  });
+  elements.wizardFirmwareBack?.addEventListener("click", () => {
+    void disconnectUsbByUser();
+  });
+  elements.wizardButtonTop?.addEventListener("click", () => {
+    void chooseIspButtonAndFlash("top");
+  });
+  elements.wizardButtonBottom?.addEventListener("click", () => {
+    void chooseIspButtonAndFlash("bottom");
+  });
+  elements.wizardButtonStop?.addEventListener("click", () => {
+    void disconnectUsbByUser();
+  });
+  elements.wizardFlashBack?.addEventListener("click", () => {
+    if (!state.flashing && !state.buttonFlashPending) void disconnectUsbByUser();
+  });
+  elements.wizardRestart?.addEventListener("click", () => {
+    window.location.reload();
+  });
+  elements.wizardApplicationSuccess?.addEventListener("click", beginApplicationIspWatch);
+  elements.ispGuideStart?.addEventListener("click", openIspEntryGuide);
+  elements.ispGuideBack?.addEventListener("click", retreatIspEntryGuide);
+  elements.ispGuideNext?.addEventListener("click", advanceIspEntryGuide);
+  elements.ispGuideConnect?.addEventListener("click", beginGuidedUsbConnection);
+  elements.ispGuideRetry?.addEventListener("click", retryIspEntryGuide);
+  elements.ispGuideCancel?.addEventListener("click", closeIspEntryGuide);
+  elements.firmwareInput?.addEventListener("change", chooseLocalFirmware);
+  elements.pcbMarking.addEventListener("input", () => {
+    state.artifactGeneration = nextArtifactGeneration(state.artifactGeneration);
+    if (elements.firmwareInput) elements.firmwareInput.value = "";
+    elements.releaseSelect.value = "";
+    elements.labImageSelect.value = "";
+    clearLabImageDownload();
+    clearReleaseLinks();
+    restoreReleaseSummary();
+    if (state.firmware) {
+      clearFirmware();
+      log("Cleared the prepared artifact because the opened-board record changed.", "warning");
+    }
+    updateFlashButton();
+  });
+  elements.pcbRevision.addEventListener("change", () => {
+    elements.recoveryBoardConfirmation.checked = false;
+    if (elements.firmwareInput) elements.firmwareInput.value = "";
+    elements.releaseSelect.value = "";
+    elements.labImageSelect.value = "";
+    clearLabImageDownload();
+    clearReleaseLinks();
+    restoreReleaseSummary();
+    const hadFirmware = Boolean(state.firmware);
+    const transition = revisionInputTransition({
+      artifactGeneration: state.artifactGeneration,
+      isRecoveryArtifact: state.firmware?.artifactKind === "open-badgemagic-recovery",
+      artifactMatchesRevision: revisionMatchesArtifact(),
+    });
+    state.artifactGeneration = transition.artifactGeneration;
+    if (hadFirmware) {
+      clearFirmware();
+      log("Cleared the prepared artifact and monitoring options because the exact firmware profile changed.", "warning");
+    }
+    updateFlashButton();
+    updateRecoveryButton();
+  });
+  elements.releaseSelect.addEventListener("change", chooseRelease);
+  elements.labImageSelect.addEventListener("change", chooseLabImage);
+  elements.recoveryButton.addEventListener("click", prepareOpenBadgeMagicFirmware);
+  elements.recoveryBoardConfirmation.addEventListener("change", () => {
+    updateRecoveryButton();
+    updateFlashButton();
+  });
+  for (const input of elements.monitorTargetInputs) {
+    input.addEventListener("change", markMonitorOptionsDirty);
+  }
+  elements.monitorAddRule?.addEventListener("click", () => {
+    addCustomMonitorRule();
+    markMonitorOptionsDirty();
+  });
+  elements.monitorApply?.addEventListener("click", applyMonitorOptions);
+  elements.monitorReset?.addEventListener("click", restoreBaseMonitorOptions);
+  if (destructivePage && elements.flashButton) {
+    elements.flashButton.addEventListener("click", () => {
+      void startFlash();
+    });
+  }
+  elements.usbDisconnectButton?.addEventListener("click", disconnectUsbByUser);
+  elements.copyLogButton?.addEventListener("click", copyRedactedLog);
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.flashing) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+  if (hasWebUsb() && typeof navigator.usb.addEventListener === "function") {
+    navigator.usb.addEventListener("connect", (event) => {
+      const usbMode = badgeUsbMode(event.device);
+      if (!usbMode) return;
+      setStatus(
+        elements.authorizedUsbStatus,
+        usbMode === "isp"
+          ? "A WCH ISP bootloader was attached. Checking for existing permission."
+          : "A BadgeMagic application USB device was attached. Checking for existing permission.",
+        "good",
+      );
+      if (usbMode === "isp" && state.ispEntryPhase === ISP_ENTRY_PHASE.CONNECT_WINDOW) {
+        setStatus(
+          elements.ispGuideStep,
+          state.ispPermissionRemembered
+            ? "The remembered WCH bootloader attached. Identifying it automatically…"
+            : "A matching WCH USB device was attached. Tap the chooser button yourself to identify it read-only.",
+          "good",
+        );
+      }
+      if (destructivePage) void detectAuthorizedUsb(event.device);
+    });
+    navigator.usb.addEventListener("disconnect", async (event) => {
+      if (event.device === state.applicationUsbDevice) {
+        state.applicationUsbDevice = null;
+        state.applicationTransitionPending = true;
+        if (elements.wizardApplicationGuide) elements.wizardApplicationGuide.hidden = false;
+        if (elements.wizardIspHelp) elements.wizardIspHelp.hidden = true;
+        if (elements.usbButton) elements.usbButton.textContent = "Open WCH ISP chooser";
+        setStatus(
+          elements.usbStatus,
+          "Normal nametag mode disconnected. Keep the already-open chooser visible and select WCH ISP when it appears.",
+          "working",
+        );
+        return;
+      }
+      if (event.device !== state.usbDevice) return;
+      await closeUsb();
+      if (state.flashing) {
+        elements.usbButton.disabled = true;
+        setStatus(
+          elements.usbStatus,
+          "Bootloader disconnected during the flash session. Follow recovery instructions; reconnect is locked until this operation stops.",
+          "bad",
+        );
+        log("USB bootloader disconnected during the active flash session.", "error");
+        updateFlashButton();
+        return;
+      }
+      setStatus(elements.usbStatus, "Bootloader disconnected. Re-enter ISP mode to reconnect.", "neutral");
+      log("USB bootloader disconnected.");
+      updateConnectionReadiness();
+      if (state.ispEntryPhase !== ISP_ENTRY_PHASE.CLOSED) {
+        setIspEntryPhase(ISP_ENTRY_PHASE.RETRY);
+      }
+      updateFlashButton();
+      setWizardStep(WIZARD_STEP.CONNECT);
+      if (elements.wizardIspHelp) elements.wizardIspHelp.open = true;
+    });
+  }
+}
+
+startMatrixPreview();
+updateCapabilities();
+bindEvents();
+updateWizardUi();
+if (destructivePage) void detectAuthorizedUsb();
+void loadReleaseManifest().catch(() => {});
