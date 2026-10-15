@@ -1048,3 +1048,9 @@ a matching source revision (or the canonical FrogAlert metadata-child receipt),
 then verifies all public hashes. Missing/failed canonical output stops deployment
 and retains the working version. The generated branch distributes public build
 input only. No GitHub lookup is added to the deployed website.
+
+Worker-host staging for source `5efa97b21e2ee089917dee6119d7ceb047e056a8`
+passed all55canonical files, exact hashes, revision/no-store marker and real404
+on2026-10-14. Custom-domain hosting acceptance remains pending. This normal
+main documentation commit also exercises automatic native Git publishing;
+firmware and hardware readiness are unchanged.
