@@ -1,0 +1,16 @@
+{
+  "name": "frogalert-org-hosting",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build-site.mjs",
+    "deploy": "wrangler deploy --config ../wrangler.jsonc",
+    "check:deploy": "npm run build && wrangler deploy --config ../wrangler.jsonc --dry-run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.0"
+  }
+}
