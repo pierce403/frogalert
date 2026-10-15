@@ -431,6 +431,8 @@ The browser flasher uses WebUSB. Web Bluetooth cannot install MCU firmware.
 - silently flashing or changing configuration merely because a device connected
 - claiming that an automatically published CI-audited binary was badge-tested
 
-## Native static hosting
+## Static deployment pipeline
 
-- [ ] Verify canonical CI output, automatic publication-branch native build, exact active version, public HTTPS/assets/404, browser privacy and request metrics.
+Native Cloudflare main builds consume only the matching validated canonical public
+artifact. Existing score, release and Pages recovery gates remain. Hosting
+acceptance is recorded separately from application and hardware readiness.

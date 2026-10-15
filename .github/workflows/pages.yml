@@ -366,4 +366,5 @@ jobs:
       - name: Publish validated output for native Cloudflare Git builds
         env:
           GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_TRIGGER_REVISION: ${{ github.event.workflow_run.head_sha }}
         run: node cloudflare/mirror-native.mjs tmp/cloudflare-public

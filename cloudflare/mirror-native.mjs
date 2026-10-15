@@ -26,7 +26,7 @@ async function inventory(directory){
 await inventory(artifact);
 for(const required of configuration.requiredFiles)if(!files.some(file=>file.path===required))throw Error('Required public artifact missing: '+required);
 if(!files.length||files.length>5000)throw Error('Unexpected public artifact inventory');
-const receipt={repository:configuration.repository,sourceRevision,branch:configuration.branch,
+const receipt={repository:configuration.repository,sourceRevision,triggerRevision:process.env.CLOUDFLARE_TRIGGER_REVISION||sourceRevision,branch:configuration.branch,
  workflow:process.env.GITHUB_WORKFLOW_REF||null,runId:process.env.GITHUB_RUN_ID||null,
  runAttempt:process.env.GITHUB_RUN_ATTEMPT||null,
  files:files.map(({path,bytes,sha256})=>({path,bytes:bytes.length,sha256}))};
@@ -55,7 +55,7 @@ for(const file of files)await blob('public/'+file.path,file.bytes);
 const receiptBytes=Buffer.from(JSON.stringify(receipt,null,2)+'\n');
 await blob('public/.well-known/cloudflare-source.json',receiptBytes);
 await blob('.well-known/cloudflare-publication.json',receiptBytes);
-for(const path of ['cloudflare/package.json','cloudflare/package-lock.json','cloudflare/build-site.mjs','wrangler.jsonc'])await blob(path,await readFile(resolve(root,path)));
+for(const path of ['cloudflare/package.json','cloudflare/package-lock.json','cloudflare/build-site.mjs','cloudflare/fetch-canonical.mjs','wrangler.jsonc'])await blob(path,await readFile(resolve(root,path)));
 await blob('AGENTS.md',Buffer.from('# Generated static publication branch\n\nThis branch contains validated public output only. Edit source on main. Native\nCloudflare Git builds own deployment; credentials remain in Cloudflare. Never\nreplace source history or add private files, credentials, or runtime data here.\n'));
 const result=await api('git/trees','POST',{tree});
 if(parent&&(await api('git/commits/'+parent)).tree.sha===result.sha){console.log('Validated public output is already published.');process.exit(0);}
