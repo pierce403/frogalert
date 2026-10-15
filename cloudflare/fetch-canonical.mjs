@@ -6,13 +6,16 @@ export async function fetchCanonical(root,repository,expectedRevision){
  if(!/^pierce403\/[A-Za-z0-9_.-]+$/.test(repository)||!/^[a-f0-9]{40}$/.test(expectedRevision))throw Error('Invalid canonical build identity');
  const directory=resolve(root,'tmp/cloudflare-canonical');mkdirSync(resolve(root,'tmp'),{recursive:true});
  const environment={...process.env,GIT_TERMINAL_PROMPT:'0'};
+ for(const key of ['GIT_DIR','GIT_WORK_TREE','GIT_INDEX_FILE','GIT_COMMON_DIR','GIT_PREFIX','GIT_OBJECT_DIRECTORY','GIT_ALTERNATE_OBJECT_DIRECTORIES'])delete environment[key];
  const git=(args)=>execFileSync('git',args,{cwd:directory,env:environment,encoding:'utf8',timeout:120000,stdio:['ignore','pipe','pipe']}).trim();
  const url='https://github.com/'+repository+'.git';
  if(!existsSync(resolve(directory,'.git'))){
   if(existsSync(directory))throw Error('Canonical cache exists without Git metadata');
   execFileSync('git',['clone','--filter=blob:none','--depth','1','--single-branch','--branch','codex/cloudflare-static',url,directory],{env:environment,timeout:120000,stdio:'inherit'});
  }
- if(git(['remote','get-url','origin'])!==url||git(['status','--porcelain']))throw Error('Canonical build cache is not the expected clean repository');
+ const configuredOrigin=git(['config','--local','--get','remote.origin.url']);
+ const changes=git(['status','--porcelain']);
+ if(configuredOrigin!==url||changes){console.error(JSON.stringify({canonicalOriginMatches:configuredOrigin===url,canonicalChangedPaths:changes?changes.split('\n').length:0}));throw Error('Canonical build cache is not the expected clean repository');}
  const deadline=Date.now()+18*60*1000;
  while(Date.now()<deadline){
   let revision,receipt;
