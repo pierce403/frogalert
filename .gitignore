@@ -6,3 +6,8 @@
 .DS_Store
 !/firmware/releases/*.bin
 !/firmware/releases/*.elf
+
+# Isolated native static publishing
+/cloudflare/node_modules/
+/cloudflare/.wrangler/
+/dist/

@@ -341,3 +341,29 @@ jobs:
       - name: Deploy exact validated site artifact
         id: deployment
         uses: actions/deploy-pages@v4
+
+  cloudflare-publication:
+    needs: [prepare, publish-releases]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.publish_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: tmp/cloudflare-pages-artifact
+      - name: Extract the canonical public artifact
+        run: python3 cloudflare/extract-pages.py tmp/cloudflare-pages-artifact tmp/cloudflare-public
+      - name: Publish validated output for native Cloudflare Git builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node cloudflare/mirror-native.mjs tmp/cloudflare-public

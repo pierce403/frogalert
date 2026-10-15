@@ -1,0 +1,11 @@
+{
+  "repository": "pierce403/frogalert",
+  "worker": "frogalert-org",
+  "domain": "frogalert.org",
+  "branch": "codex/cloudflare-static",
+  "requiredFiles": [
+    "index.html",
+    "flash/index.html",
+    "firmware/releases/manifest.json"
+  ]
+}
