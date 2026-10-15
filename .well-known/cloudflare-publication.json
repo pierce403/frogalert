@@ -1,10 +1,10 @@
 {
   "repository": "pierce403/frogalert",
-  "sourceRevision": "5efa97b21e2ee089917dee6119d7ceb047e056a8",
-  "triggerRevision": "5efa97b21e2ee089917dee6119d7ceb047e056a8",
+  "sourceRevision": "18773d3a1b712522c5ff529e986504bac75d0bca",
+  "triggerRevision": "18773d3a1b712522c5ff529e986504bac75d0bca",
   "branch": "codex/cloudflare-static",
   "workflow": "pierce403/frogalert/.github/workflows/pages.yml@refs/heads/main",
-  "runId": "38667507238",
+  "runId": "38671096996",
   "runAttempt": "1",
   "files": [
     {
