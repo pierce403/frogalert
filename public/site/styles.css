@@ -314,9 +314,9 @@ h3 {
 .led-matrix {
   display: grid;
   width: 100%;
-  aspect-ratio: 4 / 1.25;
-  grid-template-columns: repeat(44, 1fr);
-  grid-template-rows: repeat(11, 1fr);
+  /* Size square LEDs from the available width, then let the rows set the height. */
+  grid-template-columns: repeat(44, minmax(0, 1fr));
+  grid-template-rows: repeat(11, auto);
   gap: clamp(1px, 0.22vw, 3px);
   margin: 0;
   border: 1px solid #1d2a23;

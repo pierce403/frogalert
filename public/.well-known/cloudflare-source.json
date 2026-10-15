@@ -1,10 +1,10 @@
 {
   "repository": "pierce403/frogalert",
-  "sourceRevision": "18773d3a1b712522c5ff529e986504bac75d0bca",
-  "triggerRevision": "18773d3a1b712522c5ff529e986504bac75d0bca",
+  "sourceRevision": "a101f25998c61b58ecd51da211c9f4d332047dc4",
+  "triggerRevision": "a101f25998c61b58ecd51da211c9f4d332047dc4",
   "branch": "codex/cloudflare-static",
   "workflow": "pierce403/frogalert/.github/workflows/pages.yml@refs/heads/main",
-  "runId": "38671096996",
+  "runId": "38676064914",
   "runAttempt": "1",
   "files": [
     {
@@ -264,8 +264,8 @@
     },
     {
       "path": "site/styles.css",
-      "bytes": 19112,
-      "sha256": "39b87226bfc8766ab19a3f959d740b26045455d51bc4b7e2901363492ae8b8ee"
+      "bytes": 19183,
+      "sha256": "11112085c887da2c7ed4b2f27ec90fc26e59373956510bac4cb2a789684d2c82"
     },
     {
       "path": "site/usb-permission-help.js",
