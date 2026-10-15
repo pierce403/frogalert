@@ -1051,6 +1051,11 @@ input only. No GitHub lookup is added to the deployed website.
 
 Worker-host staging for source `5efa97b21e2ee089917dee6119d7ceb047e056a8`
 passed all55canonical files, exact hashes, revision/no-store marker and real404
-on2026-10-14. Custom-domain hosting acceptance remains pending. This normal
+on 2026-10-14. Custom-domain hosting acceptance remains pending. This normal
 main documentation commit also exercises automatic native Git publishing;
 firmware and hardware readiness are unchanged.
+
+The homepage LED preview sizes its 44 columns with minmax(0,1fr) and derives
+11 row heights from square pixels. Do not independently force its container
+aspect ratio: intrinsic square-grid minimum sizes can overflow the badge.
+Verify containment, square dots and page overflow across phone/desktop widths.
